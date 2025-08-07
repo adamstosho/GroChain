@@ -142,6 +142,43 @@ const swaggerSpec = {
         },
       },
     },
+    '/api/referrals/{farmerId}/complete': {
+      post: {
+        tags: ['Referrals'],
+        summary: 'Mark referral as completed for a farmer',
+        parameters: [
+          {
+            name: 'farmerId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'ID of the farmer',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Referral marked as completed',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    referral: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          404: {
+            description: 'Pending referral not found for this farmer',
+          },
+          500: {
+            description: 'Server error',
+          },
+        },
+      },
+    },
   },
 };
 

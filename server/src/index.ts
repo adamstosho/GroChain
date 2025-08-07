@@ -6,8 +6,10 @@ import pino from 'pino';
 import pinoHttp from 'pino-http';
 import authRoutes from './routes/auth.routes';
 import partnerRoutes from './routes/partner.routes';
+import referralRoutes from './routes/referral.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
+import { errorHandler } from './middlewares/error.middleware';
 
 // Load environment variables
 dotenv.config();
@@ -30,13 +32,14 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 // Partner routes
 app.use('/api/partners', partnerRoutes);
+// Referral routes
+app.use('/api/referrals', referralRoutes);
 
 // Swagger docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Placeholder for mounting other routes
-// app.use('/api/partners', partnerRoutes);
-// ...
+// Global error handler
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

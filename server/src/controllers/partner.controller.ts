@@ -48,3 +48,28 @@ export const bulkOnboard = async (req: Request, res: Response) => {
   await partner.save();
   return res.status(201).json({ status: 'success', onboarded, failed });
 };
+
+export const getPartnerMetrics = async (req: Request, res: Response) => {
+  try {
+    const partner = await Partner.findById(req.params.id).populate('onboardedFarmers');
+    if (!partner) {
+      return res.status(404).json({ status: 'error', message: 'Partner not found.' });
+    }
+    const totalFarmers = partner.onboardedFarmers.length;
+    const activeFarmers = (partner.onboardedFarmers as any[]).filter(f => f.status === 'active').length;
+    const totalReferrals = await Referral.countDocuments({ partner: partner._id });
+    const completedReferrals = await Referral.countDocuments({ partner: partner._id, status: 'completed' });
+    return res.status(200).json({
+      status: 'success',
+      metrics: {
+        totalFarmers,
+        activeFarmers,
+        totalReferrals,
+        completedReferrals,
+        commissionBalance: partner.commissionBalance,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};

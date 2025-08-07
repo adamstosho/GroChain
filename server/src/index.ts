@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
+import authRoutes from './routes/auth.routes';
 
 // Load environment variables
 dotenv.config();
@@ -22,8 +23,10 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime() });
 });
 
-// Placeholder for mounting routes
-// app.use('/api/auth', authRoutes);
+// Auth routes
+app.use('/api/auth', authRoutes);
+
+// Placeholder for mounting other routes
 // app.use('/api/partners', partnerRoutes);
 // ...
 

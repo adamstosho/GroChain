@@ -179,6 +179,129 @@ const swaggerSpec = {
         },
       },
     },
+    '/api/harvests': {
+      post: {
+        tags: ['Harvests'],
+        summary: 'Create a harvest batch',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  farmer: { type: 'string' },
+                  cropType: { type: 'string' },
+                  quantity: { type: 'number' },
+                  date: { type: 'string', format: 'date' },
+                  geoLocation: {
+                    type: 'object',
+                    properties: {
+                      lat: { type: 'number' },
+                      lng: { type: 'number' },
+                    },
+                  },
+                },
+                required: ['farmer', 'cropType', 'quantity', 'date', 'geoLocation'],
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Harvest created',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    harvest: { type: 'object' },
+                    qrData: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/harvests/{batchId}': {
+      get: {
+        tags: ['Harvests'],
+        summary: 'Get provenance record for a harvest batch',
+        parameters: [
+          {
+            name: 'batchId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Batch ID of the harvest',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Provenance record found',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    provenance: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'Harvest batch not found' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/shipments': {
+      post: {
+        tags: ['Shipments'],
+        summary: 'Create a shipment linked to a harvest batch',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  harvestBatch: { type: 'string' },
+                  source: { type: 'string' },
+                  destination: { type: 'string' },
+                  timestamp: { type: 'string', format: 'date-time' },
+                },
+                required: ['harvestBatch', 'source', 'destination', 'timestamp'],
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Shipment created',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    shipment: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
   },
 };
 

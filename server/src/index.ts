@@ -8,6 +8,8 @@ import authRoutes from './routes/auth.routes';
 import partnerRoutes from './routes/partner.routes';
 import referralRoutes from './routes/referral.routes';
 import harvestRoutes from './routes/harvest.routes';
+import shipmentRoutes from './routes/shipment.routes';
+import marketplaceRoutes from './routes/marketplace.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import { errorHandler } from './middlewares/error.middleware';
@@ -37,6 +39,10 @@ app.use('/api/partners', partnerRoutes);
 app.use('/api/referrals', referralRoutes);
 // Harvest routes
 app.use('/api/harvests', harvestRoutes);
+// Shipment routes
+app.use('/api/shipments', shipmentRoutes);
+// Marketplace routes
+app.use('/api/marketplace', marketplaceRoutes);
 
 // Swagger docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

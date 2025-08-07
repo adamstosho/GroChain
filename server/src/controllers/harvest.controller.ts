@@ -27,3 +27,16 @@ export const createHarvest = async (req: Request, res: Response) => {
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
 };
+
+export const getProvenance = async (req: Request, res: Response) => {
+  try {
+    const { batchId } = req.params;
+    const harvest = await Harvest.findOne({ batchId }).populate('farmer');
+    if (!harvest) {
+      return res.status(404).json({ status: 'error', message: 'Harvest batch not found.' });
+    }
+    return res.status(200).json({ status: 'success', provenance: harvest });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};

@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
 import authRoutes from './routes/auth.routes';
+import partnerRoutes from './routes/partner.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 
@@ -27,6 +28,8 @@ app.get('/health', (req, res) => {
 
 // Auth routes
 app.use('/api/auth', authRoutes);
+// Partner routes
+app.use('/api/partners', partnerRoutes);
 
 // Swagger docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

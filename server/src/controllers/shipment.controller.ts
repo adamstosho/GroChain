@@ -22,4 +22,3 @@ export const createShipment = async (req: Request, res: Response) => {
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
 };
-

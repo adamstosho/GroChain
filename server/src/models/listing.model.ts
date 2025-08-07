@@ -6,6 +6,7 @@ export interface IListing extends Document {
   quantity: number;
   farmer: mongoose.Types.ObjectId;
   partner: mongoose.Types.ObjectId;
+  images: string[];
   status: 'active' | 'sold' | 'removed';
   createdAt: Date;
   updatedAt: Date;
@@ -18,6 +19,7 @@ const ListingSchema = new Schema<IListing>(
     quantity: { type: Number, required: true },
     farmer: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     partner: { type: Schema.Types.ObjectId, ref: 'Partner', required: true },
+    images: { type: [String], default: [] },
     status: { type: String, enum: ['active', 'sold', 'removed'], default: 'active' },
   },
   { timestamps: true }

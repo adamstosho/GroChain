@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { createHarvest } from '../controllers/harvest.controller';
+import { createHarvest, getProvenance } from '../controllers/harvest.controller';
 
 const router = Router();
 
 router.post('/', createHarvest);
+router.get('/:batchId', getProvenance);
 
 export default router;

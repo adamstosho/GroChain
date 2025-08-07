@@ -302,6 +302,204 @@ const swaggerSpec = {
         },
       },
     },
+    '/api/marketplace/listings': {
+      get: {
+        tags: ['Marketplace'],
+        summary: 'Get all active listings',
+        responses: {
+          200: {
+            description: 'List of active listings',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    listings: { type: 'array', items: { type: 'object' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        tags: ['Marketplace'],
+        summary: 'Create a new listing',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  product: { type: 'string' },
+                  price: { type: 'number' },
+                  quantity: { type: 'number' },
+                  farmer: { type: 'string' },
+                  partner: { type: 'string' },
+                  images: { type: 'array', items: { type: 'string' } },
+                },
+                required: ['product', 'price', 'quantity', 'farmer', 'partner'],
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Listing created',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    listing: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/marketplace/orders': {
+      post: {
+        tags: ['Marketplace'],
+        summary: 'Place an order',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  buyer: { type: 'string' },
+                  items: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        listing: { type: 'string' },
+                        quantity: { type: 'number' },
+                      },
+                    },
+                  },
+                },
+                required: ['buyer', 'items'],
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Order placed',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    order: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/marketplace/orders/{id}/status': {
+      patch: {
+        tags: ['Marketplace'],
+        summary: 'Update order status',
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Order ID',
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  status: { type: 'string', enum: ['pending', 'paid', 'delivered', 'cancelled'] },
+                },
+                required: ['status'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Order status updated',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    order: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Invalid status' },
+          404: { description: 'Order not found' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/marketplace/upload-image': {
+      post: {
+        tags: ['Marketplace'],
+        summary: 'Upload product images to Cloudinary',
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                properties: {
+                  images: {
+                    type: 'array',
+                    items: { type: 'string', format: 'binary' },
+                  },
+                },
+                required: ['images'],
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Images uploaded',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    urls: { type: 'array', items: { type: 'string' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
 };
 

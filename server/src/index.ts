@@ -7,6 +7,7 @@ import pinoHttp from 'pino-http';
 import authRoutes from './routes/auth.routes';
 import partnerRoutes from './routes/partner.routes';
 import referralRoutes from './routes/referral.routes';
+import harvestRoutes from './routes/harvest.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import { errorHandler } from './middlewares/error.middleware';
@@ -34,6 +35,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/partners', partnerRoutes);
 // Referral routes
 app.use('/api/referrals', referralRoutes);
+// Harvest routes
+app.use('/api/harvests', harvestRoutes);
 
 // Swagger docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

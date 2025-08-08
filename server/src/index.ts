@@ -18,6 +18,7 @@ import notificationRoutes from './routes/notification.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import { errorHandler } from './middlewares/error.middleware';
+import { apiLimiter, authLimiter } from './middlewares/rateLimit.middleware';
 
 // Load environment variables
 dotenv.config();
@@ -42,9 +43,16 @@ connectDB();
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(helmet());
 app.use(pinoHttp({ logger }));
+
+// Rate limiting
+app.use('/api/', apiLimiter);
+app.use('/api/auth', authLimiter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -83,9 +91,13 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  logger.info(`GroChain backend running on port ${PORT}`);
-});
+
+// Only start server if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    logger.info(`GroChain backend running on port ${PORT}`);
+  });
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
@@ -99,3 +111,5 @@ process.on('SIGINT', () => {
   mongoose.connection.close();
   process.exit(0);
 });
+
+export default app;

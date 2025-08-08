@@ -9,7 +9,16 @@
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "test": "jest --coverage",
-    "lint": "eslint . --ext .ts"
+    "test:watch": "jest --watch",
+    "test:integration": "jest --testPathPattern=integration",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "seed": "ts-node scripts/seed.ts",
+    "docker:build": "docker build -t grochain-backend .",
+    "docker:run": "docker run -p 5000:5000 grochain-backend",
+    "docker:compose": "docker-compose up -d",
+    "docker:compose:down": "docker-compose down",
+    "type-check": "tsc --noEmit"
   },
   "directories": {
     "test": "tests"
@@ -19,8 +28,9 @@
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^3.0.2",
-    "cloudinary": "^2.7.0",
+    "cloudinary": "^1.41.3",
     "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "express-rate-limit": "^8.0.1",
@@ -34,7 +44,9 @@
     "paystack": "^2.0.1",
     "pino": "^9.7.0",
     "pino-http": "^10.5.0",
-    "swagger-ui-express": "^5.0.1"
+    "qrcode": "^1.5.4",
+    "swagger-ui-express": "^5.0.1",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

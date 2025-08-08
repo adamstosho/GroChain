@@ -3,7 +3,7 @@ const swaggerSpec = {
   info: {
     title: 'GroChain API',
     version: '1.0.0',
-    description: 'API documentation for GroChain - Digital Trust Platform for Nigeria’s Agriculture',
+    description: 'API documentation for GroChain - Digital Trust Platform for Nigeria\'s Agriculture',
   },
   servers: [
     {
@@ -492,6 +492,285 @@ const swaggerSpec = {
                   properties: {
                     status: { type: 'string' },
                     urls: { type: 'array', items: { type: 'string' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/fintech/credit-score/{farmerId}': {
+      get: {
+        tags: ['Fintech'],
+        summary: 'Retrieve a farmer credit score',
+        parameters: [
+          {
+            name: 'farmerId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'ID of the farmer',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Credit score found',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    creditScore: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'Credit score not found' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/fintech/loan-referrals': {
+      post: {
+        tags: ['Fintech'],
+        summary: 'Create a loan referral',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  farmer: { type: 'string' },
+                  amount: { type: 'number' },
+                  partner: { type: 'string' },
+                },
+                required: ['farmer', 'amount', 'partner'],
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Loan referral created',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    referral: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/analytics/overview': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Get system overview statistics',
+        responses: {
+          200: {
+            description: 'System overview statistics',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    overview: {
+                      type: 'object',
+                      properties: {
+                        totalUsers: { type: 'number' },
+                        totalFarmers: { type: 'number' },
+                        totalPartners: { type: 'number' },
+                        totalHarvests: { type: 'number' },
+                        totalOrders: { type: 'number' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/analytics/partner/{partnerId}': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Get partner-specific analytics',
+        parameters: [
+          {
+            name: 'partnerId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'ID of the partner',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Partner analytics',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    analytics: {
+                      type: 'object',
+                      properties: {
+                        totalFarmers: { type: 'number' },
+                        totalReferrals: { type: 'number' },
+                        completedReferrals: { type: 'number' },
+                        totalOrders: { type: 'number' },
+                        commissionBalance: { type: 'number' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'Partner not found' },
+        },
+      },
+    },
+    '/api/payments/initialize': {
+      post: {
+        tags: ['Payments'],
+        summary: 'Initialize payment for an order',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  orderId: { type: 'string' },
+                  email: { type: 'string', format: 'email' },
+                },
+                required: ['orderId', 'email'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Payment initialized',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    payment: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'Order not found' },
+          500: { description: 'Payment initialization failed' },
+        },
+      },
+    },
+    '/api/payments/verify': {
+      post: {
+        tags: ['Payments'],
+        summary: 'Verify payment webhook from Paystack',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  reference: { type: 'string' },
+                },
+                required: ['reference'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Payment verified' },
+          500: { description: 'Payment verification failed' },
+        },
+      },
+    },
+    '/api/notifications/send': {
+      post: {
+        tags: ['Notifications'],
+        summary: 'Send notification to a user',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  userId: { type: 'string' },
+                  type: { type: 'string', enum: ['sms', 'email', 'ussd'] },
+                  message: { type: 'string' },
+                },
+                required: ['userId', 'type', 'message'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Notification sent',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    notification: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Notification failed' },
+        },
+      },
+    },
+    '/api/notifications/{userId}': {
+      get: {
+        tags: ['Notifications'],
+        summary: 'Get user notification history',
+        parameters: [
+          {
+            name: 'userId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'ID of the user',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'User notifications',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    notifications: { type: 'array', items: { type: 'object' } },
                   },
                 },
               },

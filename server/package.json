@@ -31,6 +31,7 @@
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
+    "paystack": "^2.0.1",
     "pino": "^9.7.0",
     "pino-http": "^10.5.0",
     "swagger-ui-express": "^5.0.1"

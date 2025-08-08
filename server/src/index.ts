@@ -4,12 +4,17 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
+import mongoose from 'mongoose';
 import authRoutes from './routes/auth.routes';
 import partnerRoutes from './routes/partner.routes';
 import referralRoutes from './routes/referral.routes';
 import harvestRoutes from './routes/harvest.routes';
 import shipmentRoutes from './routes/shipment.routes';
 import marketplaceRoutes from './routes/marketplace.routes';
+import fintechRoutes from './routes/fintech.routes';
+import analyticsRoutes from './routes/analytics.routes';
+import paymentRoutes from './routes/payment.routes';
+import notificationRoutes from './routes/notification.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import { errorHandler } from './middlewares/error.middleware';
@@ -20,6 +25,21 @@ dotenv.config();
 const app = express();
 const logger = pino();
 
+// MongoDB Connection
+const connectDB = async () => {
+  try {
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/grochain';
+    await mongoose.connect(mongoURI);
+    logger.info('MongoDB connected successfully');
+  } catch (error) {
+    logger.error('MongoDB connection error:', error);
+    process.exit(1);
+  }
+};
+
+// Connect to MongoDB
+connectDB();
+
 // Middleware
 app.use(express.json());
 app.use(cors());
@@ -28,7 +48,11 @@ app.use(pinoHttp({ logger }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', uptime: process.uptime() });
+  res.status(200).json({ 
+    status: 'ok', 
+    uptime: process.uptime(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
 });
 
 // Auth routes
@@ -43,6 +67,14 @@ app.use('/api/harvests', harvestRoutes);
 app.use('/api/shipments', shipmentRoutes);
 // Marketplace routes
 app.use('/api/marketplace', marketplaceRoutes);
+// Fintech routes
+app.use('/api/fintech', fintechRoutes);
+// Analytics routes
+app.use('/api/analytics', analyticsRoutes);
+// Payment routes
+app.use('/api/payments', paymentRoutes);
+// Notification routes
+app.use('/api/notifications', notificationRoutes);
 
 // Swagger docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -53,4 +85,17 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   logger.info(`GroChain backend running on port ${PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  mongoose.connection.close();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  logger.info('SIGINT received, shutting down gracefully');
+  mongoose.connection.close();
+  process.exit(0);
 });

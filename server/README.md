@@ -6,6 +6,12 @@ A production-ready MERN-stack backend for GroChain - Digital Trust Platform for 
 
 - **Authentication & Authorization**: JWT-based auth with role-based access control
 - **Partner Management**: Bulk onboarding, referral tracking, commission management
+- **CSV Upload for Bulk Farmer Onboarding**: Upload CSV files to onboard multiple farmers at once
+- **Real SMS Integration**: Twilio SMS integration for notifications and invitations
+- **QR Code Verification**: Public QR code verification endpoint for harvest provenance
+- **Enhanced Partner Analytics**: Detailed revenue tracking, farmer engagement metrics
+- **Commission Calculation System**: Automatic commission calculation and distribution
+- **Transaction Tracking**: Comprehensive transaction logging and management
 - **Supply Chain Tracking**: Harvest logging, QR codes, shipment tracking
 - **Marketplace**: Product listings, orders, payments via Paystack
 - **Fintech Integration**: Credit scoring, loan referrals
@@ -27,12 +33,16 @@ A production-ready MERN-stack backend for GroChain - Digital Trust Platform for 
 - **Testing**: Jest + Supertest
 - **Documentation**: Swagger/OpenAPI 3.0
 - **Containerization**: Docker + Docker Compose
+- **SMS**: Twilio integration
+- **File Upload**: Multer with CSV parsing
+- **QR Codes**: QRCode generation and verification
 
 ## 📋 Prerequisites
 
 - Node.js 18+ 
 - MongoDB (local or Atlas)
 - Docker (optional)
+- Twilio account (for SMS functionality)
 
 ## 🚀 Quick Start
 
@@ -83,91 +93,108 @@ Once the server is running, visit:
 - **Swagger UI**: `http://localhost:5000/api/docs`
 - **Health Check**: `http://localhost:5000/health`
 
-## 🧪 Testing
+## 🔧 New Features Implementation
 
-```bash
-# Run all tests
-npm test
+### 1. CSV Upload for Bulk Farmer Onboarding
 
-# Run tests in watch mode
-npm run test:watch
+**Endpoint**: `POST /api/partners/upload-csv`
 
-# Run integration tests only
-npm run test:integration
+Upload a CSV file to onboard multiple farmers at once. The CSV should have columns: `name`, `email`, `phone`, `password` (optional).
 
-# Check test coverage
-npm test -- --coverage
+**Example CSV Format**:
+```csv
+name,email,phone,password
+John Doe,john@example.com,+2348012345678,password123
+Jane Smith,jane@example.com,+2348023456789,password123
 ```
 
-## 🐳 Docker Deployment
+**Template Download**: `GET /public/farmers-template.csv`
 
-### Development with Docker Compose
+### 2. Real SMS Integration (Twilio)
 
-```bash
-# Start all services (MongoDB + Backend)
-npm run docker:compose
-
-# Stop services
-npm run docker:compose:down
+**Environment Variables Required**:
+```
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=your_twilio_phone_number
 ```
 
-### Production Build
+**Features**:
+- Automatic SMS invitations for new farmers
+- Bulk SMS sending
+- Nigerian phone number formatting (+234)
+- Fallback to console logging if Twilio not configured
 
-```bash
-# Build production image
-npm run docker:build
+### 3. QR Code Verification Endpoint
 
-# Run production container
-npm run docker:run
-```
+**Public Endpoint**: `GET /api/harvests/verify/:batchId`
 
-## 📁 Project Structure
+No authentication required. Returns comprehensive verification data including:
+- Harvest details
+- Farmer information
+- Geographic location
+- Verification timestamp
 
-```
-server/
-├── src/
-│   ├── controllers/     # Route handlers
-│   ├── models/         # Mongoose schemas
-│   ├── routes/         # Express routes
-│   ├── services/       # Business logic
-│   ├── middlewares/    # Custom middleware
-│   ├── utils/          # Helper functions
-│   ├── index.ts        # App entry point
-│   └── swagger.ts      # API documentation
-├── tests/              # Test files
-├── scripts/            # Database seeding
-├── Dockerfile          # Production container
-├── docker-compose.yml  # Development services
-└── package.json        # Dependencies & scripts
-```
+### 4. Enhanced Partner Dashboard Analytics
 
-## 🔐 Environment Variables
+**Endpoint**: `GET /api/partners/:id/metrics`
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `5000` |
-| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/grochain` |
-| `JWT_SECRET` | JWT signing secret | Required |
-| `JWT_REFRESH_SECRET` | JWT refresh secret | Required |
-| `PAYSTACK_SECRET_KEY` | Paystack API secret | Required |
-| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name | Required |
-| `CORS_ORIGIN` | Allowed CORS origins | `http://localhost:3000` |
+Enhanced metrics include:
+- Revenue tracking (total, monthly, per farmer)
+- Farmer engagement rates
+- Commission breakdown
+- Performance trends (6-month history)
+- Top performing farmers
+- Conversion rates and growth metrics
 
-## 🔄 API Endpoints
+### 5. Commission Calculation System
+
+**Endpoints**:
+- `GET /api/commissions/summary` - Commission summary
+- `GET /api/commissions/history` - Commission history
+- `POST /api/commissions/withdraw` - Request withdrawal
+
+**Features**:
+- Automatic commission calculation (5% default rate)
+- Transaction-based commission tracking
+- Withdrawal processing
+- Commission history with pagination
+
+### 6. Transaction Tracking
+
+**New Model**: `Transaction` with types:
+- Payment transactions
+- Commission transactions
+- Refund transactions
+- Withdrawal transactions
+
+**Features**:
+- Comprehensive transaction logging
+- Payment provider integration
+- Metadata storage
+- Performance indexing
+
+## 📊 API Endpoints
 
 ### Authentication
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
-- `POST /api/auth/refresh` - Refresh access token
-- `GET /api/auth/protected` - Protected route example
+- `POST /api/auth/refresh` - Refresh token
 
 ### Partners
-- `POST /api/partners/bulk-onboard` - Bulk farmer onboarding
-- `GET /api/partners/:id/metrics` - Partner analytics
+- `POST /api/partners/bulk-onboard` - Bulk farmer onboarding (JSON)
+- `POST /api/partners/upload-csv` - Bulk farmer onboarding (CSV)
+- `GET /api/partners/:id/metrics` - Enhanced partner analytics
+
+### Commissions
+- `GET /api/commissions/summary` - Commission summary
+- `GET /api/commissions/history` - Commission history
+- `POST /api/commissions/withdraw` - Request withdrawal
 
 ### Harvests
 - `POST /api/harvests` - Create harvest record
-- `GET /api/harvests/:batchId` - Get harvest provenance
+- `GET /api/harvests/:batchId` - Get harvest provenance (authenticated)
+- `GET /api/harvests/verify/:batchId` - Public QR verification
 
 ### Marketplace
 - `GET /api/marketplace/listings` - Get product listings
@@ -195,6 +222,9 @@ server/
 export NODE_ENV=production
 export MONGODB_URI=mongodb+srv://...
 export JWT_SECRET=your-super-secret-key
+export TWILIO_ACCOUNT_SID=your_twilio_account_sid
+export TWILIO_AUTH_TOKEN=your_twilio_auth_token
+export TWILIO_PHONE_NUMBER=your_twilio_phone_number
 ```
 
 ### 2. Build and Deploy
@@ -216,6 +246,9 @@ docker run -d \
   -p 5000:5000 \
   -e NODE_ENV=production \
   -e MONGODB_URI=... \
+  -e TWILIO_ACCOUNT_SID=... \
+  -e TWILIO_AUTH_TOKEN=... \
+  -e TWILIO_PHONE_NUMBER=... \
   grochain-backend
 ```
 

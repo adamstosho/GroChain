@@ -15,6 +15,7 @@ import fintechRoutes from './routes/fintech.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import paymentRoutes from './routes/payment.routes';
 import notificationRoutes from './routes/notification.routes';
+import commissionRoutes from './routes/commission.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import { errorHandler } from './middlewares/error.middleware';
@@ -33,7 +34,7 @@ const connectDB = async () => {
     await mongoose.connect(mongoURI);
     logger.info('MongoDB connected successfully');
   } catch (error) {
-    logger.error('MongoDB connection error:', error);
+    logger.error('MongoDB connection error: %s', (error as Error).message);
     process.exit(1);
   }
 };
@@ -49,6 +50,9 @@ app.use(cors({
 }));
 app.use(helmet());
 app.use(pinoHttp({ logger }));
+
+// Serve static files
+app.use('/public', express.static('public'));
 
 // Rate limiting
 app.use('/api/', apiLimiter);
@@ -83,6 +87,8 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/payments', paymentRoutes);
 // Notification routes
 app.use('/api/notifications', notificationRoutes);
+// Commission routes
+app.use('/api/commissions', commissionRoutes);
 
 // Swagger docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

@@ -1,0 +1,213 @@
+import { Referral } from '../models/referral.model';
+import { Partner } from '../models/partner.model';
+import { Transaction, TransactionType, TransactionStatus } from '../models/transaction.model';
+import { v4 as uuidv4 } from 'uuid';
+
+export interface CommissionCalculation {
+  referralId: string;
+  partnerId: string;
+  farmerId: string;
+  transactionAmount: number;
+  commissionRate: number;
+  commissionAmount: number;
+  transactionId: string;
+}
+
+export class CommissionService {
+  // Calculate commission for a transaction
+  static async calculateCommission(
+    farmerId: string,
+    transactionAmount: number,
+    transactionId: string
+  ): Promise<CommissionCalculation | null> {
+    try {
+      // Find active referral for the farmer
+      const referral = await Referral.findOne({
+        farmer: farmerId,
+        status: 'pending'
+      }).populate('partner');
+
+      if (!referral) {
+        return null; // No active referral found
+      }
+
+      const commissionAmount = transactionAmount * referral.commissionRate;
+
+      return {
+        referralId: referral._id.toString(),
+        partnerId: referral.partner._id.toString(),
+        farmerId: farmerId,
+        transactionAmount,
+        commissionRate: referral.commissionRate,
+        commissionAmount,
+        transactionId
+      };
+    } catch (error) {
+      console.error('Commission calculation error:', error);
+      throw error;
+    }
+  }
+
+  // Process commission payment
+  static async processCommission(calculation: CommissionCalculation): Promise<boolean> {
+    try {
+      const { referralId, partnerId, commissionAmount, transactionId } = calculation;
+
+      // Update referral status and details
+      const referral = await Referral.findById(referralId);
+      if (!referral) {
+        throw new Error('Referral not found');
+      }
+
+      await referral.completeReferral(calculation.transactionAmount, transactionId);
+
+      // Create commission transaction record
+      const commissionReference = `COMM_${uuidv4()}`;
+      await Transaction.createCommission({
+        amount: commissionAmount,
+        reference: commissionReference,
+        description: `Commission for transaction ${transactionId}`,
+        partnerId,
+        referralId,
+        metadata: {
+          originalTransactionId: transactionId,
+          commissionRate: calculation.commissionRate,
+          transactionAmount: calculation.transactionAmount
+        }
+      });
+
+      // Send notification to partner about commission earned
+      // TODO: Implement partner notification
+
+      return true;
+    } catch (error) {
+      console.error('Commission processing error:', error);
+      return false;
+    }
+  }
+
+  // Get commission summary for a partner
+  static async getPartnerCommissionSummary(partnerId: string, period?: 'month' | 'quarter' | 'year') {
+    try {
+      const matchStage: any = { partnerId };
+      
+      if (period) {
+        const now = new Date();
+        let startDate: Date;
+        
+        switch (period) {
+          case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+          case 'quarter':
+            const quarter = Math.floor(now.getMonth() / 3);
+            startDate = new Date(now.getFullYear(), quarter * 3, 1);
+            break;
+          case 'year':
+            startDate = new Date(now.getFullYear(), 0, 1);
+            break;
+        }
+        
+        matchStage.createdAt = { $gte: startDate };
+      }
+
+      const summary = await Transaction.aggregate([
+        { $match: { ...matchStage, type: TransactionType.COMMISSION } },
+        {
+          $group: {
+            _id: null,
+            totalCommissions: { $sum: '$amount' },
+            totalTransactions: { $sum: 1 },
+            pendingCommissions: {
+              $sum: {
+                $cond: [{ $eq: ['$status', TransactionStatus.PENDING] }, '$amount', 0]
+              }
+            },
+            completedCommissions: {
+              $sum: {
+                $cond: [{ $eq: ['$status', TransactionStatus.COMPLETED] }, '$amount', 0]
+              }
+            }
+          }
+        }
+      ]);
+
+      return summary[0] || {
+        totalCommissions: 0,
+        totalTransactions: 0,
+        pendingCommissions: 0,
+        completedCommissions: 0
+      };
+    } catch (error) {
+      console.error('Commission summary error:', error);
+      throw error;
+    }
+  }
+
+  // Get commission history for a partner
+  static async getPartnerCommissionHistory(partnerId: string, page = 1, limit = 10) {
+    try {
+      const skip = (page - 1) * limit;
+      
+      const transactions = await Transaction.find({
+        partnerId,
+        type: TransactionType.COMMISSION
+      })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('referralId', 'farmer transactionAmount')
+        .populate('referralId.farmer', 'name email');
+
+      const total = await Transaction.countDocuments({
+        partnerId,
+        type: TransactionType.COMMISSION
+      });
+
+      return {
+        transactions,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      };
+    } catch (error) {
+      console.error('Commission history error:', error);
+      throw error;
+    }
+  }
+
+  // Process commission withdrawal request
+  static async processWithdrawal(partnerId: string, amount: number): Promise<boolean> {
+    try {
+      const partner = await Partner.findById(partnerId);
+      if (!partner || partner.commissionBalance < amount) {
+        throw new Error('Insufficient commission balance');
+      }
+
+      // Create withdrawal transaction
+      const withdrawalReference = `WITHDRAW_${uuidv4()}`;
+      await Transaction.create({
+        type: TransactionType.WITHDRAWAL,
+        amount: -amount, // Negative amount for withdrawal
+        reference: withdrawalReference,
+        description: `Commission withdrawal`,
+        userId: partnerId,
+        partnerId,
+        paymentProvider: 'manual',
+        status: TransactionStatus.PENDING
+      });
+
+      // Update partner balance
+      partner.commissionBalance -= amount;
+      await partner.save();
+
+      return true;
+    } catch (error) {
+      console.error('Withdrawal processing error:', error);
+      return false;
+    }
+  }
+}

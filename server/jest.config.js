@@ -17,3 +17,4 @@ export default {
   testTimeout: 30000,
   verbose: true,
 };
+

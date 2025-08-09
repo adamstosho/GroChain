@@ -13,8 +13,8 @@ router.post('/reset-password', resetPassword);
 router.post('/verify-email', verifyEmail);
 
 // Example protected route
-router.get('/protected', authenticateJWT, authorizeRoles('admin', 'partner'), (req, res) => {
-  res.json({ status: 'success', message: 'You have access to this protected route.' });
+router.get('/protected', authenticateJWT, (req, res) => {
+  res.json({ status: 'success', message: 'Protected data' });
 });
 
 export default router;

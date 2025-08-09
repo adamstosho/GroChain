@@ -59,9 +59,11 @@ app.use(sanitizeRequest);
 // Serve static files
 app.use('/public', express.static('public'));
 
-// Rate limiting
-app.use('/api/', apiLimiter);
-app.use('/api/auth', authLimiter);
+// Rate limiting (disabled in test environment)
+if (process.env.NODE_ENV !== 'test') {
+  app.use('/api/', apiLimiter);
+  app.use('/api/auth', authLimiter);
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {

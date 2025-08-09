@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { User, UserRole } from '../models/user.model';
 import Joi from 'joi';
-import jwt from 'jsonwebtoken';
+import { sign, verify } from 'jsonwebtoken';
 
 const registerSchema = Joi.object({
   name: Joi.string().required(),
@@ -42,11 +42,11 @@ export const register = async (req: Request, res: Response) => {
     const { name, email, phone, password, role } = value;
     const existing = await User.findOne({ $or: [{ email }, { phone }] });
     if (existing) {
-      return res.status(409).json({ status: 'error', message: 'Email or phone already registered.' });
+      return res.status(400).json({ status: 'error', message: 'email already exists' });
     }
     
     // Generate email verification token
-    const verificationToken = jwt.sign(
+    const verificationToken = sign(
       { email, type: 'email_verification' },
       process.env.JWT_SECRET as string,
       { expiresIn: '24h' }
@@ -81,9 +81,17 @@ export const register = async (req: Request, res: Response) => {
     // TODO: Replace with actual email service
     console.log(`Verification email sent to ${email}: ${verificationUrl}`);
     
+    const payload = { id: user._id, role: user.role } as any;
+    const accessExpiresIn = (process.env.JWT_EXPIRES_IN ?? '1h') as unknown as number | string;
+    const refreshExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ?? '7d') as unknown as number | string;
+    const accessToken = sign(payload, process.env.JWT_SECRET as string, { expiresIn: accessExpiresIn as any });
+    const refreshToken = sign(payload, process.env.JWT_REFRESH_SECRET as string, { expiresIn: refreshExpiresIn as any });
+
     return res.status(201).json({ 
       status: 'success', 
-      message: 'Registration successful. Please check your email to verify your account.' 
+      user: { _id: user._id, name: user.name, email: user.email, role: user.role },
+      accessToken,
+      refreshToken
     });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });
@@ -106,9 +114,11 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials.' });
     }
     // JWT payload
-    const payload = { id: user._id, role: user.role };
-    const accessToken = jwt.sign(payload, process.env.JWT_SECRET as string, { expiresIn: '1h' });
-    const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET as string, { expiresIn: '7d' });
+    const payload = { id: user._id, role: user.role } as any;
+    const accessExpiresIn = (process.env.JWT_EXPIRES_IN ?? '1h') as unknown as number | string;
+    const refreshExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ?? '7d') as unknown as number | string;
+    const accessToken = sign(payload, process.env.JWT_SECRET as string, { expiresIn: accessExpiresIn as any });
+    const refreshToken = sign(payload, process.env.JWT_REFRESH_SECRET as string, { expiresIn: refreshExpiresIn as any });
     return res.status(200).json({
       status: 'success',
       accessToken,
@@ -129,7 +139,7 @@ export const refresh = async (req: Request, res: Response) => {
     const { refreshToken } = value;
     let payload;
     try {
-      payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string) as any;
+      payload = verify(refreshToken, process.env.JWT_REFRESH_SECRET as string) as any;
     } catch (err) {
       return res.status(401).json({ status: 'error', message: 'Invalid or expired refresh token.' });
     }
@@ -138,8 +148,11 @@ export const refresh = async (req: Request, res: Response) => {
     if (!user || user.status !== 'active') {
       return res.status(401).json({ status: 'error', message: 'User not found or inactive.' });
     }
-    const newAccessToken = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
-    return res.status(200).json({ status: 'success', accessToken: newAccessToken });
+    const accessExpiresIn = (process.env.JWT_EXPIRES_IN ?? '1h') as unknown as number | string;
+    const refreshExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ?? '7d') as unknown as number | string;
+    const newAccessToken = sign({ id: user._id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: accessExpiresIn as any });
+    const newRefreshToken = sign({ id: user._id, role: user.role }, process.env.JWT_REFRESH_SECRET as string, { expiresIn: refreshExpiresIn as any });
+    return res.status(200).json({ status: 'success', accessToken: newAccessToken, refreshToken: newRefreshToken });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
@@ -163,7 +176,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     }
 
     // Generate reset token (expires in 1 hour)
-    const resetToken = jwt.sign(
+    const resetToken = sign(
       { id: user._id, type: 'password_reset' },
       process.env.JWT_SECRET as string,
       { expiresIn: '1h' }
@@ -212,7 +225,7 @@ export const resetPassword = async (req: Request, res: Response) => {
     // Verify token
     let payload;
     try {
-      payload = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+      payload = verify(token, process.env.JWT_SECRET as string) as any;
     } catch (err) {
       return res.status(400).json({ status: 'error', message: 'Invalid or expired reset token.' });
     }
@@ -260,7 +273,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
     // Verify token
     let payload;
     try {
-      payload = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+      payload = verify(token, process.env.JWT_SECRET as string) as any;
     } catch (err) {
       return res.status(400).json({ status: 'error', message: 'Invalid or expired verification token.' });
     }

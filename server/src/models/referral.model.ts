@@ -21,7 +21,8 @@ const ReferralSchema = new Schema<IReferral>(
     commission: { type: Number, default: 0 },
     commissionRate: { type: Number, default: 0.05 }, // 5% default commission rate
     transactionAmount: { type: Number, default: 0 },
-    transactionId: { type: String, unique: true, sparse: true },
+    // transactionId is not unique because a single payment reference can settle multiple referrals
+    transactionId: { type: String },
     completedAt: { type: Date },
   },
   { timestamps: true }

@@ -14,10 +14,89 @@ const listingSchema = Joi.object({
 
 export const getListings = async (req: Request, res: Response) => {
   try {
-    const listings = await Listing.find({ status: 'active' })
-      .populate('farmer')
-      .populate('partner');
-    return res.status(200).json({ status: 'success', listings });
+    const {
+      search,
+      product,
+      minPrice,
+      maxPrice,
+      minQuantity,
+      maxQuantity,
+      farmer,
+      partner,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    // Build filter object
+    const filter: any = { status: 'active' };
+
+    // Text search across product name and description
+    if (search) {
+      filter.$or = [
+        { product: { $regex: search as string, $options: 'i' } },
+        { description: { $regex: search as string, $options: 'i' } }
+      ];
+    }
+
+    // Product filter
+    if (product) {
+      filter.product = { $regex: product as string, $options: 'i' };
+    }
+
+    // Price range filter
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) filter.price.$gte = parseFloat(minPrice as string);
+      if (maxPrice) filter.price.$lte = parseFloat(maxPrice as string);
+    }
+
+    // Quantity range filter
+    if (minQuantity || maxQuantity) {
+      filter.quantity = {};
+      if (minQuantity) filter.quantity.$gte = parseInt(minQuantity as string);
+      if (maxQuantity) filter.quantity.$lte = parseInt(maxQuantity as string);
+    }
+
+    // Farmer filter
+    if (farmer) {
+      filter.farmer = farmer;
+    }
+
+    // Partner filter
+    if (partner) {
+      filter.partner = partner;
+    }
+
+    // Build sort object
+    const sort: any = {};
+    sort[sortBy as string] = sortOrder === 'asc' ? 1 : -1;
+
+    // Calculate pagination
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+    // Execute query with pagination
+    const listings = await Listing.find(filter)
+      .populate('farmer', 'name email phone')
+      .populate('partner', 'name email phone')
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit as string));
+
+    // Get total count for pagination
+    const total = await Listing.countDocuments(filter);
+
+    return res.status(200).json({ 
+      status: 'success', 
+      listings,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total,
+        pages: Math.ceil(total / parseInt(limit as string))
+      }
+    });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
@@ -76,6 +155,36 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
       return res.status(404).json({ status: 'error', message: 'Order not found.' });
     }
     return res.status(200).json({ status: 'success', order });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+export const getSearchSuggestions = async (req: Request, res: Response) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || (q as string).length < 2) {
+      return res.status(200).json({ status: 'success', suggestions: [] });
+    }
+
+    // Get product suggestions
+    const productSuggestions = await Listing.distinct('product', {
+      product: { $regex: q as string, $options: 'i' },
+      status: 'active'
+    });
+
+    // Get unique products with their counts
+    const suggestions = productSuggestions.slice(0, 10).map(product => ({
+      type: 'product',
+      value: product,
+      label: product
+    }));
+
+    return res.status(200).json({ 
+      status: 'success', 
+      suggestions 
+    });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }

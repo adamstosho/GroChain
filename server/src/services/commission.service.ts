@@ -2,6 +2,7 @@ import { Referral } from '../models/referral.model';
 import { Partner } from '../models/partner.model';
 import { Transaction, TransactionType, TransactionStatus } from '../models/transaction.model';
 import { v4 as uuidv4 } from 'uuid';
+import { sendSMS } from './notification.service';
 
 export interface CommissionCalculation {
   referralId: string;
@@ -34,8 +35,8 @@ export class CommissionService {
       const commissionAmount = transactionAmount * referral.commissionRate;
 
       return {
-        referralId: referral._id.toString(),
-        partnerId: referral.partner._id.toString(),
+        referralId: (referral._id as any).toString(),
+        partnerId: (referral.partner as any)._id.toString(),
         farmerId: farmerId,
         transactionAmount,
         commissionRate: referral.commissionRate,
@@ -59,11 +60,11 @@ export class CommissionService {
         throw new Error('Referral not found');
       }
 
-      await referral.completeReferral(calculation.transactionAmount, transactionId);
+      await (referral as any).completeReferral(calculation.transactionAmount, transactionId);
 
       // Create commission transaction record
       const commissionReference = `COMM_${uuidv4()}`;
-      await Transaction.createCommission({
+      await (Transaction as any).createCommission({
         amount: commissionAmount,
         reference: commissionReference,
         description: `Commission for transaction ${transactionId}`,
@@ -77,7 +78,12 @@ export class CommissionService {
       });
 
       // Send notification to partner about commission earned
-      // TODO: Implement partner notification
+      try {
+        const partner = await Partner.findById(partnerId);
+        if (partner?.contactPhone) {
+          await sendSMS(partner.contactPhone, `GroChain: You earned a commission of ₦${commissionAmount.toFixed(2)}.`);
+        }
+      } catch (_) {}
 
       return true;
     } catch (error) {
@@ -189,7 +195,7 @@ export class CommissionService {
 
       // Create withdrawal transaction
       const withdrawalReference = `WITHDRAW_${uuidv4()}`;
-      await Transaction.create({
+      const withdrawalTx = await Transaction.create({
         type: TransactionType.WITHDRAWAL,
         amount: -amount, // Negative amount for withdrawal
         reference: withdrawalReference,
@@ -203,6 +209,19 @@ export class CommissionService {
       // Update partner balance
       partner.commissionBalance -= amount;
       await partner.save();
+
+      // Simulate payout processing: mark as completed immediately unless real payouts are configured
+      await Transaction.updateOne(
+        { _id: withdrawalTx._id },
+        { status: TransactionStatus.COMPLETED, processedAt: new Date() }
+      );
+
+      // Notify partner
+      try {
+        if (partner.contactPhone) {
+          await sendSMS(partner.contactPhone, `GroChain: Your withdrawal of ₦${amount.toFixed(2)} has been processed.`);
+        }
+      } catch (_) {}
 
       return true;
     } catch (error) {

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Harvest } from '../models/harvest.model';
+import { Harvest, IHarvestPopulated } from '../models/harvest.model';
 import { generateQRCode } from '../utils/qr.util';
 import Joi from 'joi';
 import { v4 as uuidv4 } from 'uuid';
@@ -23,6 +23,80 @@ export const createHarvest = async (req: Request, res: Response) => {
     const harvest = new Harvest({ ...value, batchId, qrData });
     await harvest.save();
     return res.status(201).json({ status: 'success', harvest, qrData });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+export const getHarvests = async (req: Request, res: Response) => {
+  try {
+    const {
+      farmer,
+      cropType,
+      startDate,
+      endDate,
+      minQuantity,
+      maxQuantity,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    // Build filter object
+    const filter: any = {};
+
+    // Farmer filter
+    if (farmer) {
+      filter.farmer = farmer;
+    }
+
+    // Crop type filter
+    if (cropType) {
+      filter.cropType = { $regex: cropType as string, $options: 'i' };
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      filter.date = {};
+      if (startDate) filter.date.$gte = new Date(startDate as string);
+      if (endDate) filter.date.$lte = new Date(endDate as string);
+    }
+
+    // Quantity range filter
+    if (minQuantity || maxQuantity) {
+      filter.quantity = {};
+      if (minQuantity) filter.quantity.$gte = parseFloat(minQuantity as string);
+      if (maxQuantity) filter.quantity.$lte = parseFloat(maxQuantity as string);
+    }
+
+    // Build sort object
+    const sort: any = {};
+    sort[sortBy as string] = sortOrder === 'asc' ? 1 : -1;
+
+    // Calculate pagination
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+    // Execute query with pagination
+    const harvests = await Harvest.find(filter)
+      .populate('farmer', 'name email phone')
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit as string));
+
+    // Get total count for pagination
+    const total = await Harvest.countDocuments(filter);
+
+    return res.status(200).json({ 
+      status: 'success', 
+      harvests,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total,
+        pages: Math.ceil(total / parseInt(limit as string))
+      }
+    });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
@@ -55,7 +129,7 @@ export const verifyQRCode = async (req: Request, res: Response) => {
 
     const harvest = await Harvest.findOne({ batchId })
       .populate('farmer', 'name email phone')
-      .select('-__v');
+      .select('-__v') as IHarvestPopulated | null;
 
     if (!harvest) {
       return res.status(404).json({ 

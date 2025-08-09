@@ -4,7 +4,8 @@ export enum TransactionType {
   PAYMENT = 'payment',
   COMMISSION = 'commission',
   REFUND = 'refund',
-  WITHDRAWAL = 'withdrawal'
+  WITHDRAWAL = 'withdrawal',
+  PLATFORM_FEE = 'platform_fee'
 }
 
 export enum TransactionStatus {
@@ -64,7 +65,7 @@ const TransactionSchema = new Schema<ITransaction>(
 // Indexes for better query performance
 TransactionSchema.index({ userId: 1, createdAt: -1 });
 TransactionSchema.index({ partnerId: 1, createdAt: -1 });
-TransactionSchema.index({ reference: 1 });
+// "reference" already has a unique index defined in the schema, avoid duplicating the index
 TransactionSchema.index({ status: 1, type: 1 });
 
 // Pre-save middleware to set processedAt when status changes to completed

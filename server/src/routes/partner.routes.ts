@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { bulkOnboard, getPartnerMetrics, uploadCSVAndOnboard } from '../controllers/partner.controller';
+import { authenticateJWT } from '../middlewares/auth.middleware';
+import { authorizeRoles } from '../middlewares/rbac.middleware';
 import multer from 'multer';
 
 const router = Router();
@@ -19,8 +21,8 @@ const upload = multer({
   }
 });
 
-router.post('/bulk-onboard', bulkOnboard);
-router.post('/upload-csv', upload.single('csvFile'), uploadCSVAndOnboard);
-router.get('/:id/metrics', getPartnerMetrics);
+router.post('/bulk-onboard', authenticateJWT, authorizeRoles('partner', 'admin'), bulkOnboard);
+router.post('/upload-csv', authenticateJWT, authorizeRoles('partner', 'admin'), upload.single('csvFile'), uploadCSVAndOnboard);
+router.get('/:id/metrics', authenticateJWT, authorizeRoles('partner', 'admin'), getPartnerMetrics);
 
 export default router;

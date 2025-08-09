@@ -1,15 +1,16 @@
 import { Router } from 'express';
 import { authenticateJWT } from '../middlewares/auth.middleware';
+import { authorizeRoles } from '../middlewares/rbac.middleware';
 import { CommissionService } from '../services/commission.service';
 import Joi from 'joi';
 
 const router = Router();
 
 // Get commission summary for authenticated partner
-router.get('/summary', authenticateJWT, async (req, res) => {
+router.get('/summary', authenticateJWT, authorizeRoles('partner', 'admin'), async (req, res) => {
   try {
     const { period } = req.query;
-    const partnerId = req.user.id; // Assuming user ID is the partner ID
+    const partnerId = (req as any).user.id; // Assuming user ID is the partner ID
 
     const summary = await CommissionService.getPartnerCommissionSummary(
       partnerId, 
@@ -30,10 +31,10 @@ router.get('/summary', authenticateJWT, async (req, res) => {
 });
 
 // Get commission history with pagination
-router.get('/history', authenticateJWT, async (req, res) => {
+router.get('/history', authenticateJWT, authorizeRoles('partner', 'admin'), async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
-    const partnerId = req.user.id;
+    const partnerId = (req as any).user.id;
 
     const history = await CommissionService.getPartnerCommissionHistory(
       partnerId,
@@ -55,7 +56,7 @@ router.get('/history', authenticateJWT, async (req, res) => {
 });
 
 // Request commission withdrawal
-router.post('/withdraw', authenticateJWT, async (req, res) => {
+router.post('/withdraw', authenticateJWT, authorizeRoles('partner', 'admin'), async (req, res) => {
   try {
     const { error, value } = Joi.object({
       amount: Joi.number().positive().required()
@@ -68,7 +69,7 @@ router.post('/withdraw', authenticateJWT, async (req, res) => {
       });
     }
 
-    const partnerId = req.user.id;
+    const partnerId = (req as any).user.id;
     const { amount } = value;
 
     const success = await CommissionService.processWithdrawal(partnerId, amount);

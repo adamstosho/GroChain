@@ -16,6 +16,9 @@ export interface IUser extends Document {
   password: string;
   role: UserRole;
   status: 'active' | 'inactive';
+  emailVerified?: boolean;
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
@@ -29,6 +32,9 @@ const UserSchema = new Schema<IUser>(
     password: { type: String, required: true },
     role: { type: String, enum: Object.values(UserRole), default: UserRole.FARMER },
     status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+    emailVerified: { type: Boolean, default: false },
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date },
   },
   { timestamps: true }
 );

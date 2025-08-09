@@ -2,10 +2,11 @@ import Paystack from 'paystack';
 
 const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY as string);
 
-export const initializePayment = async (email: string, amount: number, reference: string, metadata?: any) => {
+export const initializePayment = async (email: string, amount: number, reference: string, metadata?: any, name?: string) => {
   try {
     const response = await paystack.transaction.initialize({
       email,
+      name: name || 'GroChain Customer',
       amount: amount * 100, // Convert to kobo
       reference,
       metadata,

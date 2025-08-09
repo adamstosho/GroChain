@@ -30,14 +30,26 @@ export const overview = async (req: Request, res: Response) => {
 export const partnerAnalytics = async (req: Request, res: Response) => {
   try {
     const { partnerId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    
     const partner = await Partner.findById(partnerId).populate('onboardedFarmers');
     if (!partner) {
       return res.status(404).json({ status: 'error', message: 'Partner not found.' });
     }
+    
     const totalFarmers = partner.onboardedFarmers.length;
     const totalReferrals = await Referral.countDocuments({ partner: partner._id });
     const completedReferrals = await Referral.countDocuments({ partner: partner._id, status: 'completed' });
     const totalOrders = await Order.countDocuments({ 'items.partner': partner._id });
+    
+    // Get paginated referrals
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const referrals = await Referral.find({ partner: partner._id })
+      .populate('farmer', 'name email phone')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit as string));
+    
     return res.status(200).json({
       status: 'success',
       analytics: {
@@ -47,6 +59,13 @@ export const partnerAnalytics = async (req: Request, res: Response) => {
         totalOrders,
         commissionBalance: partner.commissionBalance,
       },
+      referrals,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total: totalReferrals,
+        pages: Math.ceil(totalReferrals / parseInt(limit as string))
+      }
     });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });

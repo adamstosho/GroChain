@@ -12,6 +12,16 @@ export interface IHarvest extends Document {
   updatedAt: Date;
 }
 
+// Interface for populated harvest
+export interface IHarvestPopulated extends Omit<IHarvest, 'farmer'> {
+  farmer: {
+    _id: mongoose.Types.ObjectId;
+    name: string;
+    email: string;
+    phone: string;
+  };
+}
+
 const HarvestSchema = new Schema<IHarvest>(
   {
     farmer: { type: Schema.Types.ObjectId, ref: 'User', required: true },

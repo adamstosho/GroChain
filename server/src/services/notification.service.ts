@@ -2,13 +2,16 @@ import { User } from '../models/user.model';
 import { Notification } from '../models/notification.model';
 import twilio from 'twilio';
 
-// Initialize Twilio client
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
-
+// Initialize Twilio client conditionally
+let twilioClient: any = null;
 const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
+
+if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+  twilioClient = twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+}
 
 export const sendSMS = async (phone: string, message: string) => {
   try {
@@ -43,15 +46,53 @@ export const sendSMS = async (phone: string, message: string) => {
 };
 
 export const sendEmail = async (email: string, subject: string, message: string) => {
-  // TODO: Integrate with email service (SendGrid, AWS SES, etc.)
-  console.log(`Email to ${email}: ${subject} - ${message}`);
-  return { success: true };
+  try {
+    const apiKey = process.env.SENDGRID_API_KEY;
+    const fromEmail = process.env.FROM_EMAIL || 'noreply@grochain.ng';
+    if (!apiKey) {
+      console.log(`Email to ${email}: ${subject} - ${message} (SendGrid not configured)`);
+      return { success: true, message: 'Email logged (SendGrid not configured)' };
+    }
+    const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email }] }],
+        from: { email: fromEmail },
+        subject,
+        content: [{ type: 'text/plain', value: message }]
+      })
+    });
+    if (res.ok) return { success: true };
+    const errText = await res.text();
+    return { success: false, error: errText };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
 };
 
 export const sendUSSD = async (phone: string, message: string) => {
-  // TODO: Integrate with USSD gateway
-  console.log(`USSD to ${phone}: ${message}`);
-  return { success: true };
+  try {
+    const url = process.env.USSD_GATEWAY_URL;
+    const apiKey = process.env.USSD_API_KEY;
+    if (!url || !apiKey) {
+      console.log(`USSD to ${phone}: ${message} (USSD not configured)`);
+      return { success: true, message: 'USSD logged (not configured)' };
+    }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({ phone, message })
+    });
+    if (res.ok) return { success: true };
+    const errText = await res.text();
+    return { success: false, error: errText };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
 };
 
 export const sendNotification = async (userId: string, type: 'sms' | 'email' | 'ussd', message: string) => {

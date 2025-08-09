@@ -20,6 +20,8 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import { errorHandler } from './middlewares/error.middleware';
 import { apiLimiter, authLimiter } from './middlewares/rateLimit.middleware';
+import client from 'prom-client';
+import { sanitizeRequest } from './middlewares/sanitize.middleware';
 
 // Load environment variables
 dotenv.config();
@@ -39,8 +41,10 @@ const connectDB = async () => {
   }
 };
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB (skip during tests; tests manage their own connection)
+if (process.env.NODE_ENV !== 'test') {
+  connectDB();
+}
 
 // Middleware
 app.use(express.json());
@@ -50,6 +54,7 @@ app.use(cors({
 }));
 app.use(helmet());
 app.use(pinoHttp({ logger }));
+app.use(sanitizeRequest);
 
 // Serve static files
 app.use('/public', express.static('public'));
@@ -65,6 +70,30 @@ app.get('/health', (req, res) => {
     uptime: process.uptime(),
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
+});
+
+// Prometheus metrics
+client.collectDefaultMetrics();
+const httpRequestDurationMicroseconds = new client.Histogram({
+  name: 'http_request_duration_ms',
+  help: 'Duration of HTTP requests in ms',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [50, 100, 200, 300, 400, 500, 1000]
+});
+
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const route = (req as any).route ? (req as any).route.path : req.path;
+    httpRequestDurationMicroseconds.labels(req.method, route, String(res.statusCode)).observe(duration);
+  });
+  next();
+});
+
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
 });
 
 // Auth routes
@@ -89,6 +118,16 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 // Commission routes
 app.use('/api/commissions', commissionRoutes);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
 
 // Swagger docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

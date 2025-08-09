@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
@@ -16,5 +16,12 @@ export default {
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 30000,
   verbose: true,
+  globals: {
+    'ts-jest': {
+      tsconfig: {
+        types: ['jest', 'node']
+      }
+    }
+  }
 };
 

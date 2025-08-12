@@ -232,6 +232,30 @@ const swaggerSpec = {
         },
       },
     },
+    '/public/farmers-template.csv': {
+      get: {
+        tags: ['Files'],
+        summary: 'Download CSV template for bulk farmer onboarding',
+        description: 'Download a CSV template file with the correct format for bulk farmer onboarding',
+        responses: {
+          200: {
+            description: 'CSV template file',
+            content: {
+              'text/csv': {
+                schema: {
+                  type: 'string',
+                  format: 'binary',
+                },
+                example: 'name,email,phone,password\nJohn Doe,john@example.com,+2348012345678,password123',
+              },
+            },
+          },
+          404: {
+            description: 'Template file not found',
+          },
+        },
+      },
+    },
     '/api/auth/register': {
       post: {
         tags: ['Auth'],

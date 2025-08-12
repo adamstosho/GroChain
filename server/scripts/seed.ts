@@ -73,21 +73,17 @@ const seedData = async () => {
     const partners = await Partner.create([
       {
         name: 'Agricultural Extension Agency',
-        type: 'extension',
-        contactPerson: 'Sarah Partner',
-        phone: '+2348023456789',
-        email: 'sarah@example.com',
-        address: '123 Main Street, Lagos',
+        type: 'agency',
+        contactEmail: 'sarah@example.com',
+        contactPhone: '+2348023456789',
         referralCode: 'EXT001',
         commissionBalance: 0
       },
       {
         name: 'Farmers Cooperative',
         type: 'cooperative',
-        contactPerson: 'David Cooper',
-        phone: '+2348067890123',
-        email: 'david@cooperative.com',
-        address: '456 Farm Road, Abuja',
+        contactEmail: 'david@cooperative.com',
+        contactPhone: '+2348067890123',
         referralCode: 'COOP001',
         commissionBalance: 0
       }
@@ -102,8 +98,8 @@ const seedData = async () => {
         quantity: 500,
         date: new Date(),
         geoLocation: {
-          latitude: 6.5244,
-          longitude: 3.3792
+          lat: 6.5244,
+          lng: 3.3792
         },
         batchId: 'BATCH001',
         qrData: 'https://grochain.com/verify/BATCH001'
@@ -114,8 +110,8 @@ const seedData = async () => {
         quantity: 300,
         date: new Date(),
         geoLocation: {
-          latitude: 6.5244,
-          longitude: 3.3792
+          lat: 6.5244,
+          lng: 3.3792
         },
         batchId: 'BATCH002',
         qrData: 'https://grochain.com/verify/BATCH002'
@@ -131,7 +127,7 @@ const seedData = async () => {
         quantity: 500,
         farmer: users[0]._id,
         partner: partners[0]._id,
-        status: 'available',
+        status: 'active',
         images: ['https://example.com/cassava1.jpg']
       },
       {
@@ -140,7 +136,7 @@ const seedData = async () => {
         quantity: 300,
         farmer: users[0]._id,
         partner: partners[1]._id,
-        status: 'available',
+        status: 'active',
         images: ['https://example.com/yam1.jpg']
       }
     ]);

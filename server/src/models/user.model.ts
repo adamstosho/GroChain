@@ -6,8 +6,32 @@ export enum UserRole {
   PARTNER = 'partner',
   AGGREGATOR = 'aggregator',
   ADMIN = 'admin',
-  BUYER = 'buyer', // Added buyer role
+  BUYER = 'buyer', 
 }
+
+// Notification preferences interface
+export interface NotificationPreferences {
+  sms: boolean;
+  email: boolean;
+  ussd: boolean;
+  push: boolean;
+  marketing: boolean;
+  transaction: boolean;
+  harvest: boolean;
+  marketplace: boolean;
+}
+
+// Default notification preferences
+export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  sms: true,
+  email: true,
+  ussd: false,
+  push: false,
+  marketing: true,
+  transaction: true,
+  harvest: true,
+  marketplace: true
+};
 
 export interface IUser extends Document {
   name: string;
@@ -19,6 +43,8 @@ export interface IUser extends Document {
   emailVerified?: boolean;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+  pushToken?: string;
+  notificationPreferences?: NotificationPreferences;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
@@ -35,6 +61,20 @@ const UserSchema = new Schema<IUser>(
     emailVerified: { type: Boolean, default: false },
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
+    pushToken: { type: String },
+    notificationPreferences: {
+      type: {
+        sms: { type: Boolean, default: true },
+        email: { type: Boolean, default: true },
+        ussd: { type: Boolean, default: false },
+        push: { type: Boolean, default: false },
+        marketing: { type: Boolean, default: true },
+        transaction: { type: Boolean, default: true },
+        harvest: { type: Boolean, default: true },
+        marketplace: { type: Boolean, default: true }
+      },
+      default: DEFAULT_NOTIFICATION_PREFERENCES
+    }
   },
   { timestamps: true }
 );

@@ -6,6 +6,7 @@ import { sendBulkSMSInvitations } from '../services/notification.service';
 import Joi from 'joi';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
+import mongoose from 'mongoose';
 
 const farmerSchema = Joi.object({
   name: Joi.string().required(),
@@ -23,97 +24,270 @@ const bulkOnboardSchema = Joi.object({
 export const uploadCSVAndOnboard = async (req: Request & { file?: any }, res: Response) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ status: 'error', message: 'No CSV file uploaded.' });
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'No CSV file uploaded.',
+        code: 'MISSING_FILE'
+      });
     }
 
     const { partnerId } = req.body;
     if (!partnerId) {
-      return res.status(400).json({ status: 'error', message: 'Partner ID is required.' });
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'Partner ID is required.',
+        code: 'MISSING_PARTNER_ID'
+      });
     }
 
     const partner = await Partner.findById(partnerId);
     if (!partner) {
-      return res.status(404).json({ status: 'error', message: 'Partner not found.' });
+      return res.status(404).json({ 
+        status: 'error', 
+        message: 'Partner not found.',
+        code: 'PARTNER_NOT_FOUND'
+      });
     }
 
     const farmers: any[] = [];
+    const validationErrors: Array<{ row: number; field: string; value: string; message: string }> = [];
     const stream = Readable.from(req.file.buffer);
+    let rowNumber = 0;
     
     await new Promise((resolve, reject) => {
       stream
         .pipe(csv())
         .on('data', (row) => {
-          // Validate required fields
-          if (!row.name || !row.email || !row.phone) {
-            reject(new Error(`Missing required fields in CSV row: ${JSON.stringify(row)}`));
-            return;
+          rowNumber++;
+          
+          // Enhanced validation with detailed feedback
+          const errors: string[] = [];
+          
+          // Check required fields
+          if (!row.name || !row.name.trim()) {
+            errors.push('Name is required');
+          } else if (row.name.trim().length < 2) {
+            errors.push('Name must be at least 2 characters');
           }
           
-          // Generate a default password if not provided
-          const password = row.password || `GroChain${Math.random().toString(36).substring(2, 8)}`;
+          if (!row.email || !row.email.trim()) {
+            errors.push('Email is required');
+          } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email.trim())) {
+            errors.push('Invalid email format');
+          }
+          
+          if (!row.phone || !row.phone.trim()) {
+            errors.push('Phone number is required');
+          } else if (!/^(\+?234|0)?[789][01]\d{8}$/.test(row.phone.trim())) {
+            errors.push('Invalid Nigerian phone number format');
+          }
+          
+          // Check password if provided
+          if (row.password && row.password.trim().length < 6) {
+            errors.push('Password must be at least 6 characters');
+          }
+          
+          // If there are validation errors, add them to the list
+          if (errors.length > 0) {
+            errors.forEach(error => {
+              validationErrors.push({
+                row: rowNumber,
+                field: Object.keys(row).find(key => error.includes(key)) || 'general',
+                value: JSON.stringify(row),
+                message: error
+              });
+            });
+            return; // Skip this row
+          }
+          
+          // Generate a secure default password if not provided
+          const password = row.password || `GroChain${Math.random().toString(36).substring(2, 8)}${Math.random().toString(36).substring(2, 8)}`;
           
           farmers.push({
             name: row.name.trim(),
             email: row.email.trim().toLowerCase(),
             phone: row.phone.trim(),
-            password: password
+            password: password,
+            rowNumber: rowNumber
           });
         })
         .on('end', resolve)
-        .on('error', reject);
+        .on('error', (error) => {
+          reject(new Error(`CSV parsing error at row ${rowNumber}: ${error.message}`));
+        });
     });
 
-    if (farmers.length === 0) {
-      return res.status(400).json({ status: 'error', message: 'No valid farmer data found in CSV.' });
+    // If there are validation errors, return them without processing
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'CSV validation failed',
+        code: 'VALIDATION_ERROR',
+        validationErrors,
+        summary: {
+          totalRows: rowNumber,
+          validRows: farmers.length,
+          invalidRows: validationErrors.length
+        }
+      });
     }
 
-    // Process the farmers using existing bulkOnboard logic
-    const onboarded: string[] = [];
-    const failed: { email: string; reason: string }[] = [];
+    if (farmers.length === 0) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'No valid farmer data found in CSV.',
+        code: 'NO_VALID_DATA'
+      });
+    }
+
+    // Check for duplicate emails/phones before processing
+    const duplicateCheck = await User.find({
+      $or: [
+        { email: { $in: farmers.map(f => f.email) } },
+        { phone: { $in: farmers.map(f => f.phone) } }
+      ]
+    });
+
+    const duplicates = duplicateCheck.map(user => ({
+      email: user.email,
+      phone: user.phone,
+      existingUserId: user._id
+    }));
+
+    // Process the farmers using enhanced error handling
+    const onboarded: Array<{ email: string; userId: string; rowNumber: number }> = [];
+    const failed: Array<{ email: string; phone: string; reason: string; rowNumber: number }> = [];
+    const skipped: Array<{ email: string; phone: string; reason: string; rowNumber: number }> = [];
 
     for (const farmer of farmers) {
       try {
-        const exists = await User.findOne({ $or: [{ email: farmer.email }, { phone: farmer.phone }] });
+        // Check if user already exists
+        const exists = await User.findOne({ 
+          $or: [{ email: farmer.email }, { phone: farmer.phone }] 
+        });
+        
         if (exists) {
-          failed.push({ email: farmer.email, reason: 'Email or phone already registered.' });
+          skipped.push({ 
+            email: farmer.email, 
+            phone: farmer.phone, 
+            reason: 'Email or phone already registered.',
+            rowNumber: farmer.rowNumber
+          });
           continue;
         }
 
-        const user = new User({ ...farmer, role: UserRole.FARMER });
+        // Create user with enhanced error handling
+        const user = new User({ 
+          ...farmer, 
+          role: UserRole.FARMER,
+          status: 'active',
+          createdAt: new Date()
+        });
+
+        // Validate user before saving
+        await user.validate();
         await user.save();
+
+        // Update partner's onboarded farmers list
         partner.onboardedFarmers.push(user._id as any);
-        await Referral.create({ farmer: user._id, partner: partner._id, status: 'pending', commission: 0 });
-        onboarded.push(farmer.email);
+        
+        // Create referral record
+        await Referral.create({ 
+          farmer: user._id, 
+          partner: partner._id, 
+          status: 'pending', 
+          commission: 0,
+          createdAt: new Date()
+        });
+
+        onboarded.push({ 
+          email: farmer.email, 
+          userId: (user._id as mongoose.Types.ObjectId).toString(),
+          rowNumber: farmer.rowNumber
+        });
+
       } catch (err) {
-        failed.push({ email: farmer.email, reason: 'Error creating user.' });
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        failed.push({ 
+          email: farmer.email, 
+          phone: farmer.phone, 
+          reason: `User creation failed: ${errorMessage}`,
+          rowNumber: farmer.rowNumber
+        });
       }
     }
 
+    // Save partner updates
     await partner.save();
 
     // Send SMS invitations to successfully onboarded farmers
-    const successfulFarmers = farmers.filter(f => onboarded.includes(f.email));
+    const successfulFarmers = farmers.filter(f => 
+      onboarded.some(o => o.email === f.email)
+    );
+    
     const smsResults = await sendBulkSMSInvitations(successfulFarmers);
 
-    return res.status(201).json({
+    // Prepare detailed response
+    const response = {
       status: 'success',
-      message: `Processed ${farmers.length} farmers from CSV`,
-      onboarded,
-      failed,
-      smsResults,
+      message: `CSV processing completed`,
+      code: 'SUCCESS',
       summary: {
-        total: farmers.length,
-        successful: onboarded.length,
+        totalRows: rowNumber,
+        validRows: farmers.length,
+        onboarded: onboarded.length,
         failed: failed.length,
-        smsSent: smsResults.filter(r => r.success).length
+        skipped: skipped.length,
+        smsSent: smsResults.filter(r => r.success).length,
+        smsFailed: smsResults.filter(r => !r.success).length
+      },
+      details: {
+        onboarded,
+        failed,
+        skipped,
+        smsResults
       }
-    });
+    };
+
+    // Return appropriate status code based on results
+    if (failed.length > 0 && onboarded.length === 0) {
+      return res.status(400).json({
+        ...response,
+        status: 'partial_success',
+        message: 'All farmer records failed to process'
+      });
+    } else if (failed.length > 0) {
+      return res.status(207).json({
+        ...response,
+        status: 'partial_success',
+        message: 'Some farmer records failed to process'
+      });
+    } else {
+      return res.status(201).json(response);
+    }
 
   } catch (error) {
     console.error('CSV upload error:', error);
-    return res.status(500).json({ 
+    
+    // Enhanced error handling with specific error codes
+    let errorCode = 'INTERNAL_ERROR';
+    let statusCode = 500;
+    
+    if (error instanceof Error) {
+      if (error.message.includes('CSV parsing error')) {
+        errorCode = 'CSV_PARSE_ERROR';
+        statusCode = 400;
+      } else if (error.message.includes('validation')) {
+        errorCode = 'VALIDATION_ERROR';
+        statusCode = 400;
+      }
+    }
+    
+    return res.status(statusCode).json({ 
       status: 'error', 
-      message: (error as Error).message || 'Error processing CSV file.' 
+      message: error instanceof Error ? error.message : 'Error processing CSV file.',
+      code: errorCode,
+      timestamp: new Date().toISOString()
     });
   }
 };

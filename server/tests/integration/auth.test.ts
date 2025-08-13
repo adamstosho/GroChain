@@ -4,22 +4,42 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 import app from '../../src/index';
 import { User } from '../../src/models/user.model';
 import bcrypt from 'bcryptjs';
+import { getTestMongoUri, shouldRunIntegrationTests } from '../setup';
 
-let mongoServer: MongoMemoryServer;
+let mongoServer: MongoMemoryServer | null = null;
 
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  const mongoURI = mongoServer.getUri();
-  await mongoose.connect(mongoURI);
+  if (shouldRunIntegrationTests()) {
+    try {
+      // Try to use mongodb-memory-server
+      mongoServer = await MongoMemoryServer.create();
+      const mongoURI = mongoServer.getUri();
+      await mongoose.connect(mongoURI);
+    } catch (error) {
+      console.warn('MongoDB Memory Server failed, falling back to local MongoDB');
+      // Fallback to local MongoDB
+      const localUri = getTestMongoUri();
+      await mongoose.connect(localUri);
+    }
+  } else {
+    // Skip database connection for offline tests
+    console.log('Skipping database connection for offline tests');
+  }
 });
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  await mongoServer.stop();
+  if (mongoServer) {
+    await mongoose.disconnect();
+    await mongoServer.stop();
+  } else if (mongoose.connection.readyState === 1) {
+    await mongoose.disconnect();
+  }
 });
 
 beforeEach(async () => {
-  await User.deleteMany({});
+  if (mongoose.connection.readyState === 1) {
+    await User.deleteMany({});
+  }
 });
 
 describe('Auth Endpoints', () => {

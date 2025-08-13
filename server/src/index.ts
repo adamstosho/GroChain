@@ -16,6 +16,7 @@ import analyticsRoutes from './routes/analytics.routes';
 import paymentRoutes from './routes/payment.routes';
 import notificationRoutes from './routes/notification.routes';
 import commissionRoutes from './routes/commission.routes';
+import verifyRoutes from './routes/verify.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import { errorHandler } from './middlewares/error.middleware';
@@ -25,6 +26,25 @@ import { sanitizeRequest } from './middlewares/sanitize.middleware';
 
 // Load environment variables
 dotenv.config();
+
+// Validate environment variables (skip during tests)
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    // Basic environment validation
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI is required');
+    }
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+      throw new Error('JWT_SECRET must be at least 32 characters long');
+    }
+    if (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET.length < 32) {
+      throw new Error('JWT_REFRESH_SECRET must be at least 32 characters long');
+    }
+  } catch (error) {
+    console.error('Environment validation failed:', error);
+    process.exit(1);
+  }
+}
 
 const app = express();
 const logger = pino();
@@ -52,7 +72,13 @@ app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true
 }));
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+    referrerPolicy: { policy: 'no-referrer' },
+  })
+);
 app.use(pinoHttp({ logger }));
 app.use(sanitizeRequest);
 
@@ -61,7 +87,11 @@ app.use('/public', express.static('public'));
 
 // Rate limiting (disabled in test environment)
 if (process.env.NODE_ENV !== 'test') {
-  app.use('/api/', apiLimiter);
+  // Exclude payment webhook from generic limiter to avoid dropped provider callbacks
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/payments/verify')) return next();
+    return apiLimiter(req, res, next);
+  });
   app.use('/api/auth', authLimiter);
 }
 
@@ -120,16 +150,8 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 // Commission routes
 app.use('/api/commissions', commissionRoutes);
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
-});
+// Verify routes (public QR verification)
+app.use('/api/verify', verifyRoutes);
 
 // Swagger docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

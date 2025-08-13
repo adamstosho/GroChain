@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { User, UserRole } from '../models/user.model';
 import { Partner } from '../models/partner.model';
 import { Referral } from '../models/referral.model';
-import { sendBulkSMSInvitations } from '../services/notification.service';
+import { sendBulkSMSInvitations, sendSMS } from '../services/notification.service';
 import Joi from 'joi';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
@@ -90,9 +90,15 @@ export const uploadCSVAndOnboard = async (req: Request & { file?: any }, res: Re
           // If there are validation errors, add them to the list
           if (errors.length > 0) {
             errors.forEach(error => {
+              let field: string = 'general';
+              if (error.includes('Name')) field = 'name';
+              else if (error.includes('Email')) field = 'email';
+              else if (error.includes('Phone')) field = 'phone';
+              else if (error.includes('Password')) field = 'password';
+
               validationErrors.push({
                 row: rowNumber,
-                field: Object.keys(row).find(key => error.includes(key)) || 'general',
+                field,
                 value: JSON.stringify(row),
                 message: error
               });
@@ -316,7 +322,14 @@ export const bulkOnboard = async (req: Request, res: Response) => {
       partner.onboardedFarmers.push(user._id as any);
       await Referral.create({ farmer: user._id, partner: partner._id, status: 'pending', commission: 0 });
       onboarded.push(farmer.email);
-      // TODO: Send SMS invite here
+      
+      // Send SMS invite to onboarded farmer
+      try {
+        await sendSMS(farmer.phone, `Welcome to GroChain, ${farmer.name}! Your account has been created successfully. You can now access the platform and start your digital farming journey.`);
+      } catch (smsError) {
+        console.error('Failed to send SMS invite:', smsError);
+        // Continue with the process even if SMS fails
+      }
     } catch (err) {
       failed.push({ email: farmer.email, reason: 'Error creating user.' });
     }

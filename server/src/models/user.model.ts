@@ -41,8 +41,17 @@ export interface IUser extends Document {
   role: UserRole;
   status: 'active' | 'inactive';
   emailVerified?: boolean;
+  phoneVerified?: boolean;
+  // Password reset
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+  // Email verification
+  emailVerificationToken?: string;
+  emailVerificationExpires?: Date;
+  // SMS OTP verification
+  smsOtpToken?: string;
+  smsOtpExpires?: Date;
+  smsOtpAttempts?: number;
   pushToken?: string;
   notificationPreferences?: NotificationPreferences;
   createdAt: Date;
@@ -59,8 +68,14 @@ const UserSchema = new Schema<IUser>(
     role: { type: String, enum: Object.values(UserRole), default: UserRole.FARMER },
     status: { type: String, enum: ['active', 'inactive'], default: 'active' },
     emailVerified: { type: Boolean, default: false },
+    phoneVerified: { type: Boolean, default: false },
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
+    emailVerificationToken: { type: String },
+    emailVerificationExpires: { type: Date },
+    smsOtpToken: { type: String },
+    smsOtpExpires: { type: Date },
+    smsOtpAttempts: { type: Number, default: 0 },
     pushToken: { type: String },
     notificationPreferences: {
       type: {

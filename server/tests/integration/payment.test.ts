@@ -94,9 +94,17 @@ describe('Payments integration', () => {
 
     global.__TEST_ORDER_ID__ = (order._id as any).toString();
 
-    // Initialize payment
+    // Login buyer to get auth token
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ email: buyer.email, password: 'password123' })
+      .expect(200);
+    const token = loginRes.body.accessToken;
+
+    // Initialize payment (requires auth)
     const initRes = await request(app)
       .post('/api/payments/initialize')
+      .set('Authorization', `Bearer ${token}`)
       .send({ orderId: (order._id as any).toString(), email: buyer.email })
       .expect(200);
 

@@ -59,3 +59,7 @@ ReferralSchema.methods.completeReferral = async function(transactionAmount: numb
 };
 
 export const Referral = mongoose.model<IReferral>('Referral', ReferralSchema);
+
+// Indexes for analytics and partner queries
+ReferralSchema.index({ partner: 1, status: 1, createdAt: -1 });
+ReferralSchema.index({ farmer: 1, status: 1 });

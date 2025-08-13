@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Type check
+        working-directory: server
+        run: npm run type-check
+
+      - name: Lint
+        working-directory: server
+        run: npm run lint
+
+      - name: Run tests with coverage
+        working-directory: server
+        env:
+          NODE_ENV: test
+        run: npm test
+
+      - name: Build
+        working-directory: server
+        run: npm run build
+
+      - name: Build Docker image
+        if: github.event_name == 'push'
+        working-directory: server
+        run: docker build -t grochain-backend:ci .
+
+
+

@@ -35,8 +35,7 @@ RUN npm ci --only=production && npm cache clean --force
 # Copy built application from builder stage
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 
-# Copy environment file
-COPY --chown=nodejs:nodejs env.example .env
+# Do not bake any environment files into the image; rely on runtime env vars
 
 # Switch to non-root user
 USER nodejs

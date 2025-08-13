@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { User, UserRole } from '../models/user.model';
 import Joi from 'joi';
 import { sign, verify } from 'jsonwebtoken';
+import { sendEmail } from '../utils/email.util';
 
 const registerSchema = Joi.object({
   name: Joi.string().required(),
@@ -59,8 +60,8 @@ export const register = async (req: Request, res: Response) => {
       password, 
       role,
       emailVerified: false,
-      resetPasswordToken: verificationToken,
-      resetPasswordExpires: new Date(Date.now() + 86400000) // 24 hours
+      emailVerificationToken: verificationToken,
+      emailVerificationExpires: new Date(Date.now() + 86400000) // 24 hours
     });
     await user.save();
 
@@ -78,8 +79,12 @@ export const register = async (req: Request, res: Response) => {
       <p>Best regards,<br>GroChain Team</p>
     `;
 
-    // TODO: Replace with actual email service
-    console.log(`Verification email sent to ${email}: ${verificationUrl}`);
+    await sendEmail({
+      to: email,
+      subject: 'Verify your GroChain account',
+      html: emailContent,
+      fromName: 'GroChain'
+    });
     
     const payload = { id: user._id, role: user.role } as any;
     const accessExpiresIn = (process.env.JWT_EXPIRES_IN ?? '1h') as unknown as number | string;
@@ -202,8 +207,18 @@ export const forgotPassword = async (req: Request, res: Response) => {
       <p>Best regards,<br>GroChain Team</p>
     `;
 
-    // TODO: Replace with actual email service
-    console.log(`Password reset email sent to ${email}: ${resetUrl}`);
+    // Send password reset email
+    try {
+      await sendEmail({
+        to: email,
+        subject: 'GroChain - Password Reset Request',
+        html: emailHtml,
+        fromName: 'GroChain Support'
+      });
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      // Continue with the response even if email fails
+    }
     
     return res.status(200).json({ 
       status: 'success', 
@@ -291,23 +306,120 @@ export const verifyEmail = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'Email is already verified.' });
     }
 
-    if (user.resetPasswordToken !== token) {
+    if (user.emailVerificationToken !== token) {
       return res.status(400).json({ status: 'error', message: 'Invalid verification token.' });
     }
 
-    if (user.resetPasswordExpires && user.resetPasswordExpires < new Date()) {
+    if (user.emailVerificationExpires && user.emailVerificationExpires < new Date()) {
       return res.status(400).json({ status: 'error', message: 'Verification token has expired.' });
     }
 
     // Mark email as verified
     user.emailVerified = true;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
     await user.save();
 
     return res.status(200).json({ 
       status: 'success', 
       message: 'Email verified successfully. You can now log in to your account.' 
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+// SMS OTP functions
+export const sendSmsOtp = async (req: Request, res: Response) => {
+  try {
+    const { phone } = req.body;
+    
+    // Check if user exists
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found with this phone number.' });
+    }
+
+    // Check OTP attempt limits
+    if (user.smsOtpAttempts && user.smsOtpAttempts >= 5) {
+      const lastAttempt = user.smsOtpExpires;
+      if (lastAttempt && lastAttempt > new Date(Date.now() - 60 * 60 * 1000)) { // 1 hour cooldown
+        return res.status(429).json({ 
+          status: 'error', 
+          message: 'Too many OTP attempts. Please try again in 1 hour.' 
+        });
+      }
+      // Reset attempts after cooldown
+      user.smsOtpAttempts = 0;
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Save OTP to user
+    user.smsOtpToken = otp;
+    user.smsOtpExpires = otpExpires;
+    user.smsOtpAttempts = (user.smsOtpAttempts || 0) + 1;
+    await user.save();
+
+    // Send SMS via notification service
+    const message = `Your GroChain verification code is: ${otp}. Valid for 10 minutes.`;
+    try {
+      const { sendSMS } = await import('../services/notification.service');
+      await sendSMS(phone, message);
+    } catch (smsError) {
+      console.error('SMS sending failed:', smsError);
+      // In development, log the OTP
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEV] SMS OTP for ${phone}: ${otp}`);
+      }
+    }
+
+    return res.status(200).json({ 
+      status: 'success', 
+      message: 'SMS OTP sent successfully.' 
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+export const verifySmsOtp = async (req: Request, res: Response) => {
+  try {
+    const { phone, otp } = req.body;
+    
+    // Find user by phone
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found.' });
+    }
+
+    // Check if OTP exists and is valid
+    if (!user.smsOtpToken || !user.smsOtpExpires) {
+      return res.status(400).json({ status: 'error', message: 'No OTP found. Please request a new one.' });
+    }
+
+    // Check if OTP has expired
+    if (user.smsOtpExpires < new Date()) {
+      return res.status(400).json({ status: 'error', message: 'OTP has expired. Please request a new one.' });
+    }
+
+    // Check if OTP matches
+    if (user.smsOtpToken !== otp) {
+      return res.status(400).json({ status: 'error', message: 'Invalid OTP.' });
+    }
+
+    // Mark phone as verified and clear OTP
+    user.phoneVerified = true;
+    user.smsOtpToken = undefined;
+    user.smsOtpExpires = undefined;
+    user.smsOtpAttempts = 0;
+    await user.save();
+
+    return res.status(200).json({ 
+      status: 'success', 
+      message: 'Phone number verified successfully.' 
     });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });

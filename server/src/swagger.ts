@@ -291,6 +291,7 @@ const swaggerSpec = {
         },
       },
     },
+    
     '/api/auth/login': {
       post: {
         tags: ['Auth'],
@@ -382,6 +383,94 @@ const swaggerSpec = {
           },
           401: {
             description: 'Invalid or expired refresh token',
+          },
+        },
+      },
+    },
+    '/api/auth/send-sms-otp': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Send SMS OTP for phone verification',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  phone: { type: 'string' },
+                },
+                required: ['phone'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'SMS OTP sent successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            description: 'Validation error',
+          },
+          404: {
+            description: 'User not found',
+          },
+          429: {
+            description: 'Too many OTP attempts',
+          },
+        },
+      },
+    },
+    '/api/auth/verify-sms-otp': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Verify SMS OTP for phone verification',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  phone: { type: 'string' },
+                  otp: { type: 'string', minLength: 6, maxLength: 6 },
+                },
+                required: ['phone', 'otp'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Phone number verified successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            description: 'Validation error or OTP expired',
+          },
+          404: {
+            description: 'User not found',
           },
         },
       },
@@ -1341,6 +1430,7 @@ const swaggerSpec = {
       get: {
         tags: ['Fintech'],
         summary: 'Retrieve a farmer credit score',
+        security: [{ bearerAuth: [] }],
         parameters: [
           {
             name: 'farmerId',
@@ -1374,6 +1464,7 @@ const swaggerSpec = {
       post: {
         tags: ['Fintech'],
         summary: 'Create a loan referral',
+        security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
           content: {
@@ -1486,6 +1577,7 @@ const swaggerSpec = {
       post: {
         tags: ['Payments'],
         summary: 'Initialize payment for an order',
+        security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
           content: {
@@ -1607,12 +1699,94 @@ const swaggerSpec = {
                   type: 'object',
                   properties: {
                     status: { type: 'string' },
-                    notifications: { type: 'array', items: { type: 'object' } },
+                    notifications: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/Notification' },
+                    },
                   },
                 },
               },
             },
           },
+          404: { description: 'User not found' },
+        },
+      },
+    },
+    '/api/verify/{batchId}': {
+      get: {
+        tags: ['Verification'],
+        summary: 'Public QR code verification endpoint',
+        description: 'Verify harvest batch provenance without authentication',
+        parameters: [
+          {
+            name: 'batchId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Harvest batch ID to verify',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'QR code verified successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        verified: { type: 'boolean' },
+                        batchId: { type: 'string' },
+                        harvest: {
+                          type: 'object',
+                          properties: {
+                            cropType: { type: 'string' },
+                            quantity: { type: 'number' },
+                            date: { type: 'string', format: 'date-time' },
+                            geoLocation: {
+                              type: 'object',
+                              properties: {
+                                lat: { type: 'number' },
+                                lng: { type: 'number' },
+                              },
+                            },
+                          },
+                        },
+                        farmer: {
+                          type: 'object',
+                          properties: {
+                            name: { type: 'string' },
+                            location: {
+                              type: 'object',
+                              properties: {
+                                lat: { type: 'number' },
+                                lng: { type: 'number' },
+                              },
+                            },
+                          },
+                        },
+                        verification: {
+                          type: 'object',
+                          properties: {
+                            timestamp: { type: 'string', format: 'date-time' },
+                            verifiedBy: { type: 'string' },
+                            verificationUrl: { type: 'string' },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Batch ID is required' },
+          404: { description: 'Harvest batch not found' },
+          500: { description: 'Verification failed' },
         },
       },
     },

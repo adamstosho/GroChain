@@ -1,11 +1,16 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middlewares/auth.middleware';
 import { CreditScore } from '../models/creditScore.model';
 import { LoanReferral } from '../models/loanReferral.model';
 import Joi from 'joi';
 
-export const getCreditScore = async (req: Request, res: Response) => {
+export const getCreditScore = async (req: AuthRequest, res: Response) => {
   try {
     const { farmerId } = req.params;
+    // Ownership/role check: farmers can only read their own; partners/admins allowed via route guard
+    if (req.user?.role === 'farmer' && req.user.id !== farmerId) {
+      return res.status(403).json({ status: 'error', message: 'Forbidden' });
+    }
     const creditScore = await CreditScore.findOne({ farmer: farmerId });
     if (!creditScore) {
       return res.status(404).json({ status: 'error', message: 'Credit score not found.' });

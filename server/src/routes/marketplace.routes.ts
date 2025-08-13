@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { getListings, createListing, createOrder, updateOrderStatus, getSearchSuggestions } from '../controllers/marketplace.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
 import { authorizeRoles } from '../middlewares/rbac.middleware';
+import { validateRequest } from '../middlewares/validation.middleware';
+import Joi from 'joi';
 import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import cloudinary from '../utils/cloudinary.util';
@@ -10,9 +12,43 @@ const router = Router();
 
 router.get('/listings', getListings);
 router.get('/search-suggestions', getSearchSuggestions);
-router.post('/listings', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), createListing);
-router.post('/orders', authenticateJWT, authorizeRoles('buyer', 'farmer', 'partner', 'admin'), createOrder);
-router.patch('/orders/:id/status', authenticateJWT, authorizeRoles('partner', 'aggregator', 'admin'), updateOrderStatus);
+router.post(
+  '/listings',
+  authenticateJWT,
+  authorizeRoles('farmer', 'partner', 'admin'),
+  validateRequest(
+    Joi.object({
+      product: Joi.string().required(),
+      price: Joi.number().positive().required(),
+      quantity: Joi.number().integer().positive().required(),
+      farmer: Joi.string().required(),
+      partner: Joi.string().required(),
+      images: Joi.array().items(Joi.string().uri()).optional(),
+    })
+  ),
+  createListing
+);
+router.post(
+  '/orders',
+  authenticateJWT,
+  authorizeRoles('buyer', 'farmer', 'partner', 'admin'),
+  validateRequest(
+    Joi.object({
+      buyer: Joi.string().required(),
+      items: Joi.array().items(
+        Joi.object({ listing: Joi.string().required(), quantity: Joi.number().integer().positive().required() })
+      ).min(1).required(),
+    })
+  ),
+  createOrder
+);
+router.patch(
+  '/orders/:id/status',
+  authenticateJWT,
+  authorizeRoles('partner', 'aggregator', 'admin'),
+  validateRequest(Joi.object({ status: Joi.string().valid('pending', 'paid', 'delivered', 'cancelled').required() })),
+  updateOrderStatus
+);
 
 // Cloudinary image upload
 const storage = new CloudinaryStorage({

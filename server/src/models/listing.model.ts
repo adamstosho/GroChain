@@ -26,3 +26,8 @@ const ListingSchema = new Schema<IListing>(
 );
 
 export const Listing = mongoose.model<IListing>('Listing', ListingSchema);
+
+// Indexes for common queries
+ListingSchema.index({ status: 1, createdAt: -1 });
+ListingSchema.index({ product: 'text' });
+ListingSchema.index({ partner: 1 });

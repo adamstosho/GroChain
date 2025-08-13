@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middlewares/auth.middleware';
 import { Order } from '../models/order.model';
 import { Transaction, TransactionStatus, TransactionType } from '../models/transaction.model';
 import { initializePayment, verifyPayment } from '../utils/paystack.util';
@@ -9,12 +10,16 @@ import { v4 as uuidv4 } from 'uuid';
 import { sendNotification } from '../services/notification.service';
 import { Listing } from '../models/listing.model';
 
-export const initializeOrderPayment = async (req: Request, res: Response) => {
+export const initializeOrderPayment = async (req: AuthRequest, res: Response) => {
   try {
     const { orderId, email } = req.body;
     const order = await Order.findById(orderId).populate('buyer');
     if (!order) {
       return res.status(404).json({ status: 'error', message: 'Order not found.' });
+    }
+    // Ensure the initiating user owns the order or has privileged role
+    if (req.user?.role === 'buyer' && String(order.buyer) !== req.user.id) {
+      return res.status(403).json({ status: 'error', message: 'Forbidden' });
     }
     const reference = `GROCHAIN_${uuidv4()}`;
     const payment = await initializePayment(email, order.total, reference, { orderId });

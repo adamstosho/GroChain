@@ -118,7 +118,7 @@ export class CommissionService {
       }
 
       const summary = await Transaction.aggregate([
-        { $match: { ...matchStage, type: TransactionType.COMMISSION } },
+        { $match: { type: TransactionType.COMMISSION, $or: [{ partnerId }, { userId: partnerId }] } },
         {
           $group: {
             _id: null,
@@ -156,8 +156,8 @@ export class CommissionService {
       const skip = (page - 1) * limit;
       
       const transactions = await Transaction.find({
-        partnerId,
-        type: TransactionType.COMMISSION
+        type: TransactionType.COMMISSION,
+        $or: [{ partnerId }, { userId: partnerId }]
       })
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -166,8 +166,8 @@ export class CommissionService {
         .populate('referralId.farmer', 'name email');
 
       const total = await Transaction.countDocuments({
-        partnerId,
-        type: TransactionType.COMMISSION
+        type: TransactionType.COMMISSION,
+        $or: [{ partnerId }, { userId: partnerId }]
       });
 
       return {
@@ -226,6 +226,95 @@ export class CommissionService {
       return true;
     } catch (error) {
       console.error('Withdrawal processing error:', error);
+      return false;
+    }
+  }
+
+  // Get all commissions (admin only)
+  static async getAllCommissions(options: {
+    page?: number;
+    limit?: number;
+    partnerId?: string;
+    status?: string;
+  }) {
+    try {
+      const { page = 1, limit = 20, partnerId, status } = options;
+      const skip = (page - 1) * limit;
+      
+      const matchStage: any = { type: TransactionType.COMMISSION };
+      if (partnerId) matchStage.$or = [{ partnerId }, { userId: partnerId }];
+      if (status) matchStage.status = status;
+
+      const transactions = await Transaction.find(matchStage)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('referralId', 'farmer transactionAmount')
+        .populate('referralId.farmer', 'name email')
+        .populate('partnerId', 'name organizationType');
+
+      const total = await Transaction.countDocuments(matchStage);
+
+      return {
+        transactions,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      };
+    } catch (error) {
+      console.error('Get all commissions error:', error);
+      throw error;
+    }
+  }
+
+  // Process commission payment (admin only)
+  static async processCommissionPayment(
+    commissionId: string,
+    amount: number,
+    paymentMethod: string,
+    reference: string
+  ): Promise<boolean> {
+    try {
+      const transaction = await Transaction.findById(commissionId);
+      if (!transaction || transaction.type !== TransactionType.COMMISSION) {
+        throw new Error('Commission transaction not found');
+      }
+
+      if (transaction.status !== TransactionStatus.PENDING) {
+        throw new Error('Commission already processed');
+      }
+
+      // Update transaction status
+      transaction.status = TransactionStatus.COMPLETED;
+      transaction.processedAt = new Date();
+      transaction.metadata = {
+        ...transaction.metadata,
+        paymentMethod,
+        paymentReference: reference,
+        processedBy: 'admin'
+      };
+      await transaction.save();
+
+      // Update partner balance
+      const partner = await Partner.findById(transaction.partnerId || transaction.userId);
+      if (partner) {
+        partner.commissionBalance = (partner.commissionBalance || 0) + amount;
+        await partner.save();
+      }
+
+      // Send notification to partner
+      try {
+        if (partner?.contactPhone) {
+          await sendSMS(partner.contactPhone, `GroChain: Your commission payment of ₦${amount.toFixed(2)} has been processed. Reference: ${reference}`);
+        }
+      } catch (_) {}
+
+      return true;
+    } catch (error) {
+      console.error('Process commission payment error:', error);
       return false;
     }
   }

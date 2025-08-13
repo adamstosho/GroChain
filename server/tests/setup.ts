@@ -19,3 +19,24 @@ global.console = {
   error: jest.fn(),
 };
 
+// Test database configuration
+export const getTestMongoUri = () => {
+  // Check if we have a test MongoDB URI (for local testing)
+  if (process.env.TEST_MONGODB_URI) {
+    return process.env.TEST_MONGODB_URI;
+  }
+  
+  // Fallback to main MongoDB URI
+  if (process.env.MONGODB_URI) {
+    return process.env.MONGODB_URI;
+  }
+  
+  // Default local MongoDB
+  return 'mongodb://localhost:27017/grochain-test';
+};
+
+// Check if we should run integration tests
+export const shouldRunIntegrationTests = () => {
+  return process.env.OFFLINE !== 'true' && process.env.NODE_ENV === 'test';
+};
+

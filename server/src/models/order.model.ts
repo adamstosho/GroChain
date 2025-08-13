@@ -37,3 +37,7 @@ const OrderSchema = new Schema<IOrder>(
 );
 
 export const Order = mongoose.model<IOrder>('Order', OrderSchema);
+
+// Indexes used by analytics and lookups
+OrderSchema.index({ buyer: 1, createdAt: -1 });
+OrderSchema.index({ status: 1, createdAt: -1 });

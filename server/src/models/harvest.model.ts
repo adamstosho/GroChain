@@ -39,3 +39,8 @@ const HarvestSchema = new Schema<IHarvest>(
 );
 
 export const Harvest = mongoose.model<IHarvest>('Harvest', HarvestSchema);
+
+// Helpful indexes
+HarvestSchema.index({ batchId: 1 }, { unique: true });
+HarvestSchema.index({ 'geoLocation.lat': 1, 'geoLocation.lng': 1 });
+HarvestSchema.index({ createdAt: -1 });

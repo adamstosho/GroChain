@@ -206,6 +206,60 @@ const swaggerSpec = {
           code: { type: 'number' },
         },
       },
+      IoTSensor: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          farmer: { type: 'string' },
+          sensorType: { type: 'string', enum: ['soil_moisture', 'temperature', 'humidity', 'ph', 'nutrient'] },
+          location: {
+            type: 'object',
+            properties: {
+              lat: { type: 'number' },
+              lng: { type: 'number' },
+            },
+          },
+          status: { type: 'string', enum: ['active', 'inactive', 'maintenance'] },
+          lastReading: { type: 'string', format: 'date-time' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      CropAnalysis: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          farmer: { type: 'string' },
+          cropType: { type: 'string' },
+          imageUrl: { type: 'string' },
+          analysisResult: { type: 'string' },
+          riskLevel: { type: 'string', enum: ['low', 'medium', 'high'] },
+          recommendations: { type: 'array', items: { type: 'string' } },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      Product: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          category: { type: 'string' },
+          description: { type: 'string' },
+          unit: { type: 'string' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      Transaction: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          order: { type: 'string' },
+          amount: { type: 'number' },
+          status: { type: 'string', enum: ['pending', 'completed', 'failed'] },
+          paymentMethod: { type: 'string' },
+          reference: { type: 'string' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
     },
   },
   paths: {
@@ -1787,6 +1841,1417 @@ const swaggerSpec = {
           400: { description: 'Batch ID is required' },
           404: { description: 'Harvest batch not found' },
           500: { description: 'Verification failed' },
+        },
+      },
+    },
+    '/api/ai/crop-recommendations': {
+      post: {
+        tags: ['AI'],
+        summary: 'Get AI-powered crop recommendations',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  location: { type: 'string' },
+                  season: { type: 'string' },
+                  soilType: { type: 'string' },
+                  previousCrops: { type: 'array', items: { type: 'string' } },
+                },
+                required: ['location', 'season'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Crop recommendations generated',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    recommendations: { type: 'array', items: { type: 'object' } },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/ai/yield-prediction': {
+      post: {
+        tags: ['AI'],
+        summary: 'Get AI-powered yield prediction',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  cropType: { type: 'string' },
+                  location: { type: 'string' },
+                  season: { type: 'string' },
+                  weatherData: { type: 'object' },
+                },
+                required: ['cropType', 'location', 'season'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Yield prediction generated',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    prediction: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/ai/market-insights': {
+      get: {
+        tags: ['AI'],
+        summary: 'Get AI-powered market insights',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Market insights retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    insights: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/iot/sensors': {
+      post: {
+        tags: ['IoT'],
+        summary: 'Register a new IoT sensor',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  sensorType: { type: 'string', enum: ['soil_moisture', 'temperature', 'humidity', 'ph', 'nutrient'] },
+                  location: {
+                    type: 'object',
+                    properties: {
+                      lat: { type: 'number' },
+                      lng: { type: 'number' },
+                    },
+                  },
+                },
+                required: ['sensorType', 'location'],
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Sensor registered successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    sensor: { $ref: '#/components/schemas/IoTSensor' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+      get: {
+        tags: ['IoT'],
+        summary: 'Get all sensors for authenticated farmer',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Sensors retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    sensors: { type: 'array', items: { $ref: '#/components/schemas/IoTSensor' } },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/image-recognition/analyze': {
+      post: {
+        tags: ['Image Recognition'],
+        summary: 'Analyze crop image for disease detection',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                properties: {
+                  image: { type: 'string', format: 'binary' },
+                  cropType: { type: 'string' },
+                },
+                required: ['image', 'cropType'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Image analysis completed',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    analysis: { $ref: '#/components/schemas/CropAnalysis' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Invalid image or crop type' },
+          500: { description: 'Analysis failed' },
+        },
+      },
+    },
+    '/api/languages': {
+      get: {
+        tags: ['Languages'],
+        summary: 'Get supported languages',
+        responses: {
+          200: {
+            description: 'Supported languages retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    languages: { type: 'array', items: { type: 'object' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/languages/translations': {
+      post: {
+        tags: ['Languages'],
+        summary: 'Get translations for specific keys',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  keys: { type: 'array', items: { type: 'string' } },
+                  targetLanguage: { type: 'string' },
+                },
+                required: ['keys', 'targetLanguage'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Translations retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    translations: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/sync/offline-data': {
+      post: {
+        tags: ['Sync'],
+        summary: 'Queue offline data for synchronization',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  dataType: { type: 'string' },
+                  data: { type: 'object' },
+                  timestamp: { type: 'string', format: 'date-time' },
+                },
+                required: ['dataType', 'data'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Data queued for sync',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/pwa/manifest': {
+      get: {
+        tags: ['PWA'],
+        summary: 'Get PWA manifest file',
+        responses: {
+          200: {
+            description: 'PWA manifest retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    short_name: { type: 'string' },
+                    start_url: { type: 'string' },
+                    display: { type: 'string' },
+                    theme_color: { type: 'string' },
+                    background_color: { type: 'string' },
+                    icons: { type: 'array', items: { type: 'object' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/advanced-ml/sensors/{sensorId}/maintenance': {
+      get: {
+        tags: ['Advanced ML'],
+        summary: 'Get predictive maintenance for IoT sensor',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'sensorId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Sensor ID',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Predictive maintenance data retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    maintenance: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'Sensor not found' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/advanced-ml/optimize/irrigation': {
+      get: {
+        tags: ['Advanced ML'],
+        summary: 'Get irrigation optimization recommendations',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Irrigation optimization data retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    optimization: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/ai/farming-insights': {
+      get: {
+        tags: ['AI'],
+        summary: 'Get AI-powered farming insights',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Farming insights retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    insights: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/ai/farming-recommendations': {
+      get: {
+        tags: ['AI'],
+        summary: 'Get AI-powered farming recommendations',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Farming recommendations retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    recommendations: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/ai/analytics-dashboard': {
+      get: {
+        tags: ['AI'],
+        summary: 'Get AI analytics dashboard data',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Analytics dashboard data retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    dashboard: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/ai/seasonal-calendar': {
+      get: {
+        tags: ['AI'],
+        summary: 'Get AI-powered seasonal farming calendar',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Seasonal calendar retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    calendar: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/ai/weather-prediction': {
+      get: {
+        tags: ['AI'],
+        summary: 'Get AI-powered weather prediction',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Weather prediction retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    prediction: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/ai/market-trends': {
+      get: {
+        tags: ['AI'],
+        summary: 'Get AI-powered market trend analysis',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Market trends retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    trends: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/ai/risk-assessment': {
+      post: {
+        tags: ['AI'],
+        summary: 'Get AI-powered risk assessment',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  cropType: { type: 'string' },
+                  location: { type: 'string' },
+                  season: { type: 'string' },
+                  riskFactors: { type: 'array', items: { type: 'string' } },
+                },
+                required: ['cropType', 'location', 'season'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Risk assessment completed',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    assessment: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/ai/predictive-insights': {
+      post: {
+        tags: ['AI'],
+        summary: 'Get comprehensive AI predictive insights',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  farmerId: { type: 'string' },
+                  cropType: { type: 'string' },
+                  location: { type: 'string' },
+                  season: { type: 'string' },
+                },
+                required: ['farmerId', 'cropType', 'location', 'season'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Predictive insights generated',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    insights: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/iot/sensors/{sensorId}': {
+      get: {
+        tags: ['IoT'],
+        summary: 'Get specific sensor details',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'sensorId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Sensor ID',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Sensor details retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    sensor: { $ref: '#/components/schemas/IoTSensor' },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'Sensor not found' },
+          500: { description: 'Server error' },
+        },
+      },
+      put: {
+        tags: ['IoT'],
+        summary: 'Update sensor data',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'sensorId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Sensor ID',
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  readings: { type: 'object' },
+                  status: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Sensor data updated',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    sensor: { $ref: '#/components/schemas/IoTSensor' },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'Sensor not found' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/image-recognition/analyses': {
+      get: {
+        tags: ['Image Recognition'],
+        summary: 'Get all crop analyses for authenticated farmer',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Crop analyses retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    analyses: { type: 'array', items: { $ref: '#/components/schemas/CropAnalysis' } },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/sync/sync-user': {
+      post: {
+        tags: ['Sync'],
+        summary: 'Sync user offline data',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'User data synced successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    syncedItems: { type: 'number' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Sync failed' },
+        },
+      },
+    },
+    '/api/sync/status/{userId}': {
+      get: {
+        tags: ['Sync'],
+        summary: 'Get sync status for a user',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'userId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'User ID',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Sync status retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    syncStatus: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'User not found' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/iot/sensors/{sensorId}/readings': {
+      get: {
+        tags: ['IoT'],
+        summary: 'Get sensor readings',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'sensorId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Sensor ID',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Sensor readings retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    readings: { type: 'array', items: { type: 'object' } },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'Sensor not found' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/iot/sensors/{sensorId}/alerts': {
+      get: {
+        tags: ['IoT'],
+        summary: 'Get sensor alerts',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'sensorId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Sensor ID',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Sensor alerts retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    alerts: { type: 'array', items: { type: 'object' } },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'Sensor not found' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/iot/sensors/health/summary': {
+      get: {
+        tags: ['IoT'],
+        summary: 'Get sensor health summary',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Sensor health summary retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    summary: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/advanced-ml/sensors/{sensorId}/anomalies': {
+      get: {
+        tags: ['Advanced ML'],
+        summary: 'Detect anomalies in sensor data',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'sensorId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Sensor ID',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Anomalies detected',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    anomalies: { type: 'array', items: { type: 'object' } },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'Sensor not found' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/advanced-ml/optimize/fertilizer': {
+      get: {
+        tags: ['Advanced ML'],
+        summary: 'Get fertilizer optimization recommendations',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Fertilizer optimization data retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    optimization: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/advanced-ml/optimize/harvest': {
+      get: {
+        tags: ['Advanced ML'],
+        summary: 'Get harvest optimization recommendations',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Harvest optimization data retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    optimization: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/advanced-ml/insights/sensor-health': {
+      get: {
+        tags: ['Advanced ML'],
+        summary: 'Get sensor health insights',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Sensor health insights retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    insights: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/advanced-ml/insights/efficiency-score': {
+      get: {
+        tags: ['Advanced ML'],
+        summary: 'Get farming efficiency score',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Efficiency score retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    score: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/advanced-ml/models/performance': {
+      get: {
+        tags: ['Advanced ML'],
+        summary: 'Get ML model performance metrics',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Model performance metrics retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    metrics: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/image-recognition/analyses/{analysisId}': {
+      get: {
+        tags: ['Image Recognition'],
+        summary: 'Get specific crop analysis',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'analysisId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Analysis ID',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Crop analysis retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    analysis: { $ref: '#/components/schemas/CropAnalysis' },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'Analysis not found' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/image-recognition/analyses/crop/{cropType}': {
+      get: {
+        tags: ['Image Recognition'],
+        summary: 'Get analyses by crop type',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'cropType',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Crop type',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Crop analyses retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    analyses: { type: 'array', items: { $ref: '#/components/schemas/CropAnalysis' } },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/image-recognition/analyses/risk/high': {
+      get: {
+        tags: ['Image Recognition'],
+        summary: 'Get high-risk analyses',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'High-risk analyses retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    analyses: { type: 'array', items: { $ref: '#/components/schemas/CropAnalysis' } },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/languages/translations/{language}': {
+      get: {
+        tags: ['Languages'],
+        summary: 'Get all translations for a specific language',
+        parameters: [
+          {
+            name: 'language',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Language code',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Translations retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    translations: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Invalid language' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/languages/{language}': {
+      get: {
+        tags: ['Languages'],
+        summary: 'Get language information',
+        parameters: [
+          {
+            name: 'language',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Language code',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Language information retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    language: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Invalid language' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/languages/preference': {
+      put: {
+        tags: ['Languages'],
+        summary: 'Update user language preference',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  language: { type: 'string' },
+                },
+                required: ['language'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Language preference updated',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/languages/stats': {
+      get: {
+        tags: ['Languages'],
+        summary: 'Get language statistics',
+        responses: {
+          200: {
+            description: 'Language statistics retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    stats: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/sync/force-sync': {
+      post: {
+        tags: ['Sync'],
+        summary: 'Force sync for specific data',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  dataType: { type: 'string' },
+                  dataIds: { type: 'array', items: { type: 'string' } },
+                },
+                required: ['dataType', 'dataIds'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Force sync completed',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    syncedItems: { type: 'number' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/sync/history/{userId}': {
+      get: {
+        tags: ['Sync'],
+        summary: 'Get sync history for a user',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'userId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'User ID',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Sync history retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    history: { type: 'array', items: { type: 'object' } },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'User not found' },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/sync/stats': {
+      get: {
+        tags: ['Sync'],
+        summary: 'Get sync statistics (admin only)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Sync statistics retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    stats: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          500: { description: 'Server error' },
+        },
+      },
+    },
+    '/api/pwa/service-worker': {
+      get: {
+        tags: ['PWA'],
+        summary: 'Get service worker script',
+        responses: {
+          200: {
+            description: 'Service worker script retrieved',
+            content: {
+              'application/javascript': {
+                schema: {
+                  type: 'string',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/pwa/offline': {
+      get: {
+        tags: ['PWA'],
+        summary: 'Get offline page',
+        responses: {
+          200: {
+            description: 'Offline page retrieved',
+            content: {
+              'text/html': {
+                schema: {
+                  type: 'string',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/pwa/install': {
+      get: {
+        tags: ['PWA'],
+        summary: 'Get installation instructions',
+        responses: {
+          200: {
+            description: 'Installation instructions retrieved',
+            content: {
+              'text/html': {
+                schema: {
+                  type: 'string',
+                },
+              },
+            },
+          },
         },
       },
     },

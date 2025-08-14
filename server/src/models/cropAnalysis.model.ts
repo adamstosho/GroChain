@@ -265,3 +265,4 @@ CropAnalysisSchema.methods.updateStatus = function(newStatus: string) {
 
 export const CropAnalysis = mongoose.model<ICropAnalysis>('CropAnalysis', CropAnalysisSchema);
 export default CropAnalysis;
+

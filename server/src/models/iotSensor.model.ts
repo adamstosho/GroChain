@@ -243,3 +243,4 @@ IoTSensorSchema.methods.resolveAlert = function(alertIndex: number) {
 
 export const IoTSensor = mongoose.model<IIoTSensor>('IoTSensor', IoTSensorSchema);
 export default IoTSensor;
+

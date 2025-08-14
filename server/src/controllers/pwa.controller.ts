@@ -550,3 +550,4 @@ console.log('GroChain Service Worker loaded successfully');
     }
   }
 }
+

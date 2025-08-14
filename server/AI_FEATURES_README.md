@@ -403,3 +403,4 @@ Your GroChain backend now includes **cutting-edge AI features** that make it:
 ---
 
 *Built with ❤️ for Nigerian farmers and the future of agriculture*
+

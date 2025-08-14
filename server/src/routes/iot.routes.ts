@@ -29,3 +29,4 @@ router.get('/sensors/:sensorId/anomalies', authenticateJWT, authorizeRoles('farm
 router.get('/sensors/health/summary', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getSensorHealthSummary);
 
 export default router;
+

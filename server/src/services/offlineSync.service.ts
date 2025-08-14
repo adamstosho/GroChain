@@ -418,3 +418,4 @@ export class OfflineSyncService {
     logger.info(`Updating retry count for item ${itemId} to ${retryCount}`);
   }
 }
+

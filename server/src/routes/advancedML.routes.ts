@@ -29,3 +29,4 @@ router.get('/insights/predictive', authenticateJWT, authorizeRoles('farmer', 'pa
 router.get('/models/performance', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getMLModelPerformance);
 
 export default router;
+

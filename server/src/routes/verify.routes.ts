@@ -8,3 +8,4 @@ const router = Router();
 router.get('/:batchId', verifyQRCode);
 
 export default router;
+

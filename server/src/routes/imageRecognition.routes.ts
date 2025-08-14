@@ -23,3 +23,4 @@ router.post('/analyses/:analysisId/recommendations', authenticateJWT, authorizeR
 router.delete('/analyses/:analysisId', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), ImageRecognitionController.deleteCropAnalysis);
 
 export default router;
+

@@ -21,3 +21,4 @@ router.get('/offline', PWAController.getOfflinePage);
 router.get('/install', PWAController.getInstallInstructions);
 
 export default router;
+

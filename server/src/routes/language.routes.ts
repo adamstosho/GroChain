@@ -27,3 +27,4 @@ router.put('/preference', LanguageController.updateLanguagePreference);
 router.get('/stats', LanguageController.getLanguageStats);
 
 export default router;
+

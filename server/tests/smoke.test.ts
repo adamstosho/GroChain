@@ -1,15 +1,28 @@
 import request from 'supertest';
-import express from 'express';
+import app from '../src/index';
 import { errorHandler } from '../src/middlewares/error.middleware';
 
-const app = express();
-app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
-app.use(errorHandler);
+describe('Smoke Tests', () => {
+  it('should have error handler middleware', () => {
+    expect(errorHandler).toBeDefined();
+    expect(typeof errorHandler).toBe('function');
+  });
 
-describe('Health endpoint', () => {
-  it('should return status ok', async () => {
-    const res = await request(app).get('/health');
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('ok');
+  it('should have app instance', () => {
+    expect(app).toBeDefined();
+    expect(typeof app).toBe('function');
+  });
+
+  it('should respond to health check', async () => {
+    const response = await request(app).get('/health');
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('status');
+  });
+
+  it('should have proper middleware setup', () => {
+    // Check if app has basic Express properties
+    expect(app).toHaveProperty('use');
+    expect(app).toHaveProperty('get');
+    expect(app).toHaveProperty('post');
   });
 });

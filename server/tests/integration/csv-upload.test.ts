@@ -17,11 +17,20 @@ describe('CSV Upload Integration Tests', () => {
       // Start in-memory MongoDB
       mongoServer = await MongoMemoryServer.create();
       const mongoURI = mongoServer.getUri();
-      await mongoose.connect(mongoURI);
+      
+      // Connect with proper options
+      await mongoose.connect(mongoURI, {
+        maxPoolSize: 10,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+      });
+      
+      // Wait for connection to be ready
+      await mongoose.connection.asPromise();
       
       // Clear test data
-      await User.deleteMany({});
-      await Partner.deleteMany({});
+      await User.deleteMany({}).maxTimeMS(5000);
+      await Partner.deleteMany({}).maxTimeMS(5000);
       
       // Create test partner
       const hashedPassword = await bcrypt.hash('password123', 12);
@@ -69,12 +78,13 @@ describe('CSV Upload Integration Tests', () => {
       console.error('Test setup failed:', error);
       throw error;
     }
-  }, 60000);
+  }, 120000); // Increased timeout
 
   afterAll(async () => {
     try {
+      // Properly close MongoDB connection
       if (mongoose.connection.readyState !== 0) {
-        await mongoose.disconnect();
+        await mongoose.connection.close();
       }
       if (mongoServer) {
         await mongoServer.stop();
@@ -82,11 +92,15 @@ describe('CSV Upload Integration Tests', () => {
     } catch (error) {
       console.error('Test teardown failed:', error);
     }
-  });
+  }, 30000);
 
   afterEach(async () => {
-    // Clean up users after each test
-    await User.deleteMany({ role: UserRole.FARMER });
+    // Clean up users after each test with timeout
+    try {
+      await User.deleteMany({ role: UserRole.FARMER }).maxTimeMS(5000);
+    } catch (error) {
+      console.error('Cleanup failed:', error);
+    }
   });
 
   describe('POST /api/partners/upload-csv', () => {

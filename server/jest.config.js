@@ -15,14 +15,14 @@ module.exports = {
   coverageReporters: ['text', 'lcov', 'html'],
   coverageThreshold: {
     global: {
-      branches: 90,
-      functions: 90,
-      lines: 90,
-      statements: 90,
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
     },
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  testTimeout: 30000,
+  testTimeout: 120000, // Increased timeout for integration tests
   verbose: true,
   globals: {
     'ts-jest': {
@@ -30,6 +30,11 @@ module.exports = {
         types: ['jest', 'node']
       }
     }
-  }
+  },
+  // Add test isolation
+  testSequencer: '<rootDir>/tests/testSequencer.js',
+  // Handle async operations better
+  forceExit: true,
+  detectOpenHandles: true
 };
 

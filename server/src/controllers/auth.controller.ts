@@ -212,7 +212,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
       await sendEmail({
         to: email,
         subject: 'GroChain - Password Reset Request',
-        html: emailHtml,
+        html: emailContent,
         fromName: 'GroChain Support'
       });
     } catch (emailError) {

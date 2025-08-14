@@ -17,6 +17,13 @@ import paymentRoutes from './routes/payment.routes';
 import notificationRoutes from './routes/notification.routes';
 import commissionRoutes from './routes/commission.routes';
 import verifyRoutes from './routes/verify.routes';
+import pwaRoutes from './routes/pwa.routes';
+import syncRoutes from './routes/sync.routes';
+import languageRoutes from './routes/language.routes';
+import aiRoutes from './routes/ai.routes';
+import iotRoutes from './routes/iot.routes';
+import imageRecognitionRoutes from './routes/imageRecognition.routes';
+import advancedMLRoutes from './routes/advancedML.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import { errorHandler } from './middlewares/error.middleware';
@@ -48,6 +55,9 @@ if (process.env.NODE_ENV !== 'test') {
 
 const app = express();
 const logger = pino();
+
+// Export logger for use in other modules
+export { logger };
 
 // MongoDB Connection
 const connectDB = async () => {
@@ -152,6 +162,23 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/commissions', commissionRoutes);
 // Verify routes (public QR verification)
 app.use('/api/verify', verifyRoutes);
+// PWA routes
+app.use('/api/pwa', pwaRoutes);
+// Sync routes
+app.use('/api/sync', syncRoutes);
+// Language routes
+app.use('/api/languages', languageRoutes);
+// AI routes
+app.use('/api/ai', aiRoutes);
+
+// IoT routes
+app.use('/api/iot', iotRoutes);
+
+// Image Recognition routes
+app.use('/api/image-recognition', imageRecognitionRoutes);
+
+// Advanced ML routes
+app.use('/api/advanced-ml', advancedMLRoutes);
 
 // Swagger docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

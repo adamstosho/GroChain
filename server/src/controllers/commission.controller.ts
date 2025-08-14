@@ -20,7 +20,7 @@ export class CommissionController {
         summary
       });
     } catch (error) {
-      logger.error('Commission summary error:', error);
+      logger.error('Commission summary error: %s', (error as Error).message);
       return res.status(500).json({
         status: 'error',
         message: 'Failed to get commission summary'
@@ -45,7 +45,7 @@ export class CommissionController {
         history
       });
     } catch (error) {
-      logger.error('Commission history error:', error);
+      logger.error('Commission history error: %s', (error as Error).message);
       return res.status(500).json({
         status: 'error',
         message: 'Failed to get commission history'
@@ -84,7 +84,7 @@ export class CommissionController {
         });
       }
     } catch (error) {
-      logger.error('Withdrawal request error:', error);
+      logger.error('Withdrawal request error: %s', (error as Error).message);
       return res.status(500).json({
         status: 'error',
         message: 'Failed to process withdrawal request'
@@ -109,7 +109,7 @@ export class CommissionController {
         commissions
       });
     } catch (error) {
-      logger.error('Get all commissions error:', error);
+      logger.error('Get all commissions error: %s', (error as Error).message);
       return res.status(500).json({
         status: 'error',
         message: 'Failed to get commissions'
@@ -155,7 +155,7 @@ export class CommissionController {
         });
       }
     } catch (error) {
-      logger.error('Process commission payment error:', error);
+      logger.error('Process commission payment error: %s', (error as Error).message);
       return res.status(500).json({
         status: 'error',
         message: 'Failed to process commission payment'

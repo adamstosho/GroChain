@@ -12,61 +12,74 @@ describe('Notification Service Integration Tests', () => {
   let mongoServer: MongoMemoryServer;
 
   beforeAll(async () => {
-    // Connect to in-memory MongoDB
-    mongoServer = await MongoMemoryServer.create();
-    const mongoURI = mongoServer.getUri();
-    await mongoose.connect(mongoURI);
-    
-    // Clear test data
-    await User.deleteMany({});
-    
-    // Create test user
-    const hashedPassword = await bcrypt.hash('password123', 12);
-    const user = await User.create({
-      name: 'Test User',
-      email: 'user@test.com',
-      phone: '+2348012345678',
-      password: hashedPassword,
-      role: UserRole.FARMER,
-      status: 'active',
-      notificationPreferences: {
-        sms: true,
-        email: true,
-        ussd: false,
-        push: false,
-        marketing: true,
-        transaction: true,
-        harvest: true,
-        marketplace: true
-      }
-    });
-    userId = (user._id as mongoose.Types.ObjectId).toString();
-    
-    // Create admin user
-    await User.create({
-      name: 'Test Admin',
-      email: 'admin@test.com',
-      phone: '+2348023456789',
-      password: hashedPassword,
-      role: UserRole.ADMIN,
-      status: 'active'
-    });
-    
-    // Login to get tokens (use accessToken from controller response)
-    const userLoginResponse = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'user@test.com', password: 'password123' });
-    userToken = userLoginResponse.body.accessToken;
-    
-    const adminLoginResponse = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'admin@test.com', password: 'password123' });
-    adminToken = adminLoginResponse.body.accessToken;
-  });
+    try {
+      // Connect to in-memory MongoDB
+      mongoServer = await MongoMemoryServer.create();
+      const mongoURI = mongoServer.getUri();
+      await mongoose.connect(mongoURI);
+      
+      // Clear test data
+      await User.deleteMany({});
+      
+      // Create test user
+      const hashedPassword = await bcrypt.hash('password123', 12);
+      const user = await User.create({
+        name: 'Test User',
+        email: 'user@test.com',
+        phone: '+2348012345678',
+        password: hashedPassword,
+        role: UserRole.FARMER,
+        status: 'active',
+        notificationPreferences: {
+          sms: true,
+          email: true,
+          ussd: false,
+          push: false,
+          marketing: true,
+          transaction: true,
+          harvest: true,
+          marketplace: true
+        }
+      });
+      userId = (user._id as mongoose.Types.ObjectId).toString();
+      
+      // Create admin user
+      await User.create({
+        name: 'Test Admin',
+        email: 'admin@test.com',
+        phone: '+2348023456789',
+        password: hashedPassword,
+        role: UserRole.ADMIN,
+        status: 'active'
+      });
+      
+      // Login to get tokens (use accessToken from controller response)
+      const userLoginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'user@test.com', password: 'password123' });
+      userToken = userLoginResponse.body.accessToken;
+      
+      const adminLoginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'admin@test.com', password: 'password123' });
+      adminToken = adminLoginResponse.body.accessToken;
+    } catch (error) {
+      console.error('Test setup failed:', error);
+      throw error;
+    }
+  }, 60000);
 
   afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
+    try {
+      if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
+      }
+      if (mongoServer) {
+        await mongoServer.stop();
+      }
+    } catch (error) {
+      console.error('Test teardown failed:', error);
+    }
   });
 
   afterEach(async () => {

@@ -13,62 +13,75 @@ describe('CSV Upload Integration Tests', () => {
   let mongoServer: MongoMemoryServer;
 
   beforeAll(async () => {
-    // Start in-memory MongoDB
-    mongoServer = await MongoMemoryServer.create();
-    const mongoURI = mongoServer.getUri();
-    await mongoose.connect(mongoURI);
-    
-    // Clear test data
-    await User.deleteMany({});
-    await Partner.deleteMany({});
-    
-    // Create test partner
-    const hashedPassword = await bcrypt.hash('password123', 12);
-    const partner = await Partner.create({
-      name: 'Test Extension Agency',
-      type: PartnerType.AGENCY,
-      contactEmail: 'test@extension.com',
-      contactPhone: '+2348012345678',
-      referralCode: 'TEST001',
-      commissionBalance: 0
-    });
-    partnerId = (partner._id as mongoose.Types.ObjectId).toString();
-    
-    // Create partner user
-    await User.create({
-      name: 'Test Partner',
-      email: 'partner@test.com',
-      phone: '+2348012345678',
-      password: hashedPassword,
-      role: UserRole.PARTNER,
-      status: 'active'
-    });
-    
-    // Create admin user
-    await User.create({
-      name: 'Test Admin',
-      email: 'admin@test.com',
-      phone: '+2348023456789',
-      password: hashedPassword,
-      role: UserRole.ADMIN,
-      status: 'active'
-    });
-    
-    // Login to get tokens (align with controller response fields)
-    const partnerLoginResponse = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'partner@test.com', password: 'password123' });
-    partnerToken = partnerLoginResponse.body.accessToken;
-    
-    const adminLoginResponse = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'admin@test.com', password: 'password123' });
-    adminToken = adminLoginResponse.body.accessToken;
-  });
+    try {
+      // Start in-memory MongoDB
+      mongoServer = await MongoMemoryServer.create();
+      const mongoURI = mongoServer.getUri();
+      await mongoose.connect(mongoURI);
+      
+      // Clear test data
+      await User.deleteMany({});
+      await Partner.deleteMany({});
+      
+      // Create test partner
+      const hashedPassword = await bcrypt.hash('password123', 12);
+      const partner = await Partner.create({
+        name: 'Test Extension Agency',
+        type: PartnerType.AGENCY,
+        contactEmail: 'test@extension.com',
+        contactPhone: '+2348012345678',
+        referralCode: 'TEST001',
+        commissionBalance: 0
+      });
+      partnerId = (partner._id as mongoose.Types.ObjectId).toString();
+      
+      // Create partner user
+      await User.create({
+        name: 'Test Partner',
+        email: 'partner@test.com',
+        phone: '+2348012345678',
+        password: hashedPassword,
+        role: UserRole.PARTNER,
+        status: 'active'
+      });
+      
+      // Create admin user
+      await User.create({
+        name: 'Test Admin',
+        email: 'admin@test.com',
+        phone: '+2348023456789',
+        password: hashedPassword,
+        role: UserRole.ADMIN,
+        status: 'active'
+      });
+      
+      // Login to get tokens (align with controller response fields)
+      const partnerLoginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'partner@test.com', password: 'password123' });
+      partnerToken = partnerLoginResponse.body.accessToken;
+      
+      const adminLoginResponse = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'admin@test.com', password: 'password123' });
+      adminToken = adminLoginResponse.body.accessToken;
+    } catch (error) {
+      console.error('Test setup failed:', error);
+      throw error;
+    }
+  }, 60000);
 
   afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
+    try {
+      if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
+      }
+      if (mongoServer) {
+        await mongoServer.stop();
+      }
+    } catch (error) {
+      console.error('Test teardown failed:', error);
+    }
   });
 
   afterEach(async () => {

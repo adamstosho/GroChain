@@ -1,6 +1,7 @@
 import { User } from '../models/user.model';
 import { Notification } from '../models/notification.model';
 import twilio from 'twilio';
+import { webSocketService } from './websocket.service';
 
 // Initialize Twilio client conditionally
 let twilioClient: any = null;
@@ -229,6 +230,7 @@ export const sendNotification = async (
       createdAt: new Date()
     });
 
+    // Send the notification via the appropriate channel
     let result;
     switch (type) {
       case 'sms':
@@ -247,6 +249,22 @@ export const sendNotification = async (
         throw new Error('Invalid notification type');
     }
 
+    // Send real-time WebSocket notification
+    try {
+      webSocketService.sendToUser(userId, 'notification', {
+        type,
+        title: title || 'GroChain Notification',
+        message,
+        category,
+        timestamp: new Date(),
+        data
+      });
+    } catch (wsError) {
+      console.error('WebSocket notification failed:', wsError);
+      // Don't fail the main notification if WebSocket fails
+    }
+
+    // Update notification status
     notification.status = result.success ? 'sent' : 'failed';
     (notification as any).metadata = { ...(notification as any).metadata, result };
     await notification.save();

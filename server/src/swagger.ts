@@ -3255,6 +3255,92 @@ const swaggerSpec = {
         },
       },
     },
+    '/api/websocket/status': {
+      get: {
+        tags: ['WebSocket'],
+        summary: 'Get WebSocket connection status',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'WebSocket status retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        connectedClients: { type: 'number' },
+                        websocketEnabled: { type: 'boolean' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          401: { description: 'Unauthorized' }
+        }
+      }
+    },
+    '/api/websocket/notify-user': {
+      post: {
+        tags: ['WebSocket'],
+        summary: 'Send real-time notification to specific user',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  userId: { type: 'string' },
+                  event: { type: 'string' },
+                  data: { type: 'object' }
+                },
+                required: ['userId', 'event']
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Notification sent successfully' },
+          400: { description: 'Bad request' },
+          401: { description: 'Unauthorized' }
+        }
+      }
+    },
+    '/api/websocket/notify-partner-network': {
+      post: {
+        tags: ['WebSocket'],
+        summary: 'Send real-time notification to partner network',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  partnerId: { type: 'string' },
+                  event: { type: 'string' },
+                  data: { type: 'object' }
+                },
+                required: ['partnerId', 'event']
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Notification sent successfully' },
+          400: { description: 'Bad request' },
+          401: { description: 'Unauthorized' }
+        }
+      }
+    },
   },
 };
 

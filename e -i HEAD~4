@@ -1,5 +1,0 @@
-[33m3c43cbb[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Fix: Update env.example to avoid GitHub secret scanning false positives
-[33m634bcc3[m last push
-[33m2106f4c[m security unstaged
-[33mbd31513[m ai integration
-[33m988f198[m[33m ([m[1;31morigin/main[m[33m)[m changes made in the backend

@@ -1,8 +1,11 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/tests'],
-  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  testMatch: [
+    '**/__tests__/**/*.ts',
+    '**/?(*.)+(spec|test).ts'
+  ],
   transform: {
     '^.+\\.ts$': 'ts-jest',
   },
@@ -10,6 +13,7 @@ module.exports = {
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/index.ts',
+    '!src/swagger.ts'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
@@ -22,19 +26,13 @@ module.exports = {
     },
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  testTimeout: 120000, // Increased timeout for integration tests
-  verbose: true,
-  globals: {
-    'ts-jest': {
-      tsconfig: {
-        types: ['jest', 'node']
-      }
-    }
-  },
-  // Add test isolation
   testSequencer: '<rootDir>/tests/testSequencer.js',
-  // Handle async operations better
+  testTimeout: 30000,
+  verbose: true,
   forceExit: true,
+  clearMocks: true,
+  resetMocks: true,
+  restoreMocks: true,
   detectOpenHandles: true
 };
 

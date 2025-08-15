@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middlewares/auth.middleware';
 import { CropAnalysis } from '../models/cropAnalysis.model';
 import { ImageRecognitionService } from '../services/imageRecognition.service';
 import { logger } from '../index';
@@ -6,7 +7,7 @@ import Joi from 'joi';
 
 export class ImageRecognitionController {
   // Analyze crop image
-  static async analyzeCropImage(req: Request, res: Response) {
+  static async analyzeCropImage(req: AuthRequest, res: Response) {
     try {
       const schema = Joi.object({
         imageUrl: Joi.string().uri().required(),
@@ -88,7 +89,7 @@ export class ImageRecognitionController {
   }
 
   // Get crop analysis by ID
-  static async getCropAnalysis(req: Request, res: Response) {
+  static async getCropAnalysis(req: AuthRequest, res: Response) {
     try {
       const { analysisId } = req.params;
       const farmerId = (req.user as any).id;
@@ -115,7 +116,7 @@ export class ImageRecognitionController {
   }
 
   // Get all crop analyses for a farmer
-  static async getFarmerAnalyses(req: Request, res: Response) {
+  static async getFarmerAnalyses(req: AuthRequest, res: Response) {
     try {
       const farmerId = (req.user as any).id;
       const { cropType, analysisType, status, limit = 50, page = 1 } = req.query;
@@ -153,7 +154,7 @@ export class ImageRecognitionController {
   }
 
   // Get analyses by crop type
-  static async getAnalysesByCropType(req: Request, res: Response) {
+  static async getAnalysesByCropType(req: AuthRequest, res: Response) {
     try {
       const { cropType } = req.params;
       const farmerId = (req.user as any).id;
@@ -177,7 +178,7 @@ export class ImageRecognitionController {
   }
 
   // Get high-risk analyses
-  static async getHighRiskAnalyses(req: Request, res: Response) {
+  static async getHighRiskAnalyses(req: AuthRequest, res: Response) {
     try {
       const farmerId = (req.user as any).id;
 
@@ -312,7 +313,7 @@ export class ImageRecognitionController {
   }
 
   // Delete crop analysis
-  static async deleteCropAnalysis(req: Request, res: Response) {
+  static async deleteCropAnalysis(req: AuthRequest, res: Response) {
     try {
       const { analysisId } = req.params;
       const farmerId = (req.user as any).id;

@@ -8,6 +8,7 @@ import { CommissionService } from '../services/commission.service';
 import { CreditScore } from '../models/creditScore.model';
 import { v4 as uuidv4 } from 'uuid';
 import { sendNotification } from '../services/notification.service';
+import { webSocketService } from '../services/websocket.service';
 import { Listing } from '../models/listing.model';
 
 export const initializeOrderPayment = async (req: AuthRequest, res: Response) => {
@@ -85,8 +86,33 @@ export const verifyPaymentWebhook = async (req: Request, res: Response) => {
         return res.status(200).json({ status: 'success' });
       }
 
+      // Update order status
       const order = await Order.findByIdAndUpdate(orderId, { status: 'paid' }, { new: true });
       if (order) {
+        // Send real-time notification to buyer
+        webSocketService.sendToUser(order.buyer as any, 'payment_completed', {
+          orderId: order._id,
+          amount: order.total,
+          status: 'paid',
+          timestamp: new Date()
+        });
+
+        // Send real-time notification to partner network
+        if (order.items && order.items.length > 0) {
+          const firstItem = order.items[0];
+          if (firstItem.listing) {
+            const listing = await Listing.findById(firstItem.listing);
+            if (listing && listing.partner) {
+              webSocketService.sendToPartnerNetwork(listing.partner as any, 'order_paid', {
+                orderId: order._id,
+                amount: order.total,
+                farmer: listing.farmer,
+                timestamp: new Date()
+              });
+            }
+          }
+        }
+
         // Apply 3% platform fee as a separate transaction
         const platformFeeRate = Number(process.env.PLATFORM_FEE_RATE || 0.03);
         const platformFeeAmount = Math.round(order.total * platformFeeRate);

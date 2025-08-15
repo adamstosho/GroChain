@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
 import mongoose from 'mongoose';
+import { createServer } from 'http';
 import authRoutes from './routes/auth.routes';
 import partnerRoutes from './routes/partner.routes';
 import referralRoutes from './routes/referral.routes';
@@ -24,12 +25,14 @@ import aiRoutes from './routes/ai.routes';
 import iotRoutes from './routes/iot.routes';
 import imageRecognitionRoutes from './routes/imageRecognition.routes';
 import advancedMLRoutes from './routes/advancedML.routes';
+import websocketRoutes from './routes/websocket.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import { errorHandler } from './middlewares/error.middleware';
 import { apiLimiter, authLimiter } from './middlewares/rateLimit.middleware';
 import client from 'prom-client';
 import { sanitizeRequest } from './middlewares/sanitize.middleware';
+import { webSocketService } from './services/websocket.service';
 
 // Load environment variables
 dotenv.config();
@@ -54,10 +57,14 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 const app = express();
+const server = createServer(app);
 const logger = pino();
 
 // Export logger for use in other modules
 export { logger };
+
+// Initialize WebSocket service
+webSocketService.initialize(server);
 
 // MongoDB Connection
 const connectDB = async () => {
@@ -82,6 +89,10 @@ app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true
 }));
+
+// Raw body parser for payment webhooks (must come before JSON parser)
+app.use('/api/payments/verify', express.raw({ type: 'application/json' }));
+
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -180,6 +191,9 @@ app.use('/api/image-recognition', imageRecognitionRoutes);
 // Advanced ML routes
 app.use('/api/advanced-ml', advancedMLRoutes);
 
+// WebSocket routes
+app.use('/api/websocket', websocketRoutes);
+
 // Swagger docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -190,8 +204,9 @@ const PORT = process.env.PORT || 5000;
 
 // Only start server if not in test environment
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     logger.info(`GroChain backend running on port ${PORT}`);
+    logger.info(`WebSocket service ready for real-time updates`);
   });
 }
 

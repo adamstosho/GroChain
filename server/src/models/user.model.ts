@@ -40,6 +40,7 @@ export interface IUser extends Document {
   password: string;
   role: UserRole;
   status: 'active' | 'inactive';
+  partner?: string; // Partner ID for farmers
   emailVerified?: boolean;
   phoneVerified?: boolean;
   // Password reset
@@ -67,6 +68,7 @@ const UserSchema = new Schema<IUser>(
     password: { type: String, required: true },
     role: { type: String, enum: Object.values(UserRole), default: UserRole.FARMER },
     status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+    partner: { type: String, ref: 'User' }, // Reference to partner user
     emailVerified: { type: Boolean, default: false },
     phoneVerified: { type: Boolean, default: false },
     resetPasswordToken: { type: String },

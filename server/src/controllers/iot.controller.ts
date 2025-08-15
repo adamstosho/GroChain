@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middlewares/auth.middleware';
 import { IoTSensor } from '../models/iotSensor.model';
 import { AdvancedMLService } from '../services/advancedML.service';
 import { logger } from '../index';
@@ -6,7 +7,7 @@ import Joi from 'joi';
 
 export class IoTController {
   // Register new IoT sensor
-  static async registerSensor(req: Request, res: Response) {
+  static async registerSensor(req: AuthRequest, res: Response) {
     try {
       const schema = Joi.object({
         sensorId: Joi.string().required(),
@@ -81,7 +82,7 @@ export class IoTController {
   }
 
   // Get all sensors for a farmer
-  static async getFarmerSensors(req: Request, res: Response) {
+  static async getFarmerSensors(req: AuthRequest, res: Response) {
     try {
       const farmerId = (req.user as any).id;
       const sensors = await IoTSensor.find({ farmer: farmerId }).sort({ createdAt: -1 });
@@ -101,7 +102,7 @@ export class IoTController {
   }
 
   // Get sensor by ID
-  static async getSensorById(req: Request, res: Response) {
+  static async getSensorById(req: AuthRequest, res: Response) {
     try {
       const { sensorId } = req.params;
       const farmerId = (req.user as any).id;
@@ -449,7 +450,7 @@ export class IoTController {
   }
 
   // Get sensor health summary
-  static async getSensorHealthSummary(req: Request, res: Response) {
+  static async getSensorHealthSummary(req: AuthRequest, res: Response) {
     try {
       const farmerId = (req.user as any).id;
 
@@ -480,7 +481,7 @@ export class IoTController {
   }
 
   // Delete sensor
-  static async deleteSensor(req: Request, res: Response) {
+  static async deleteSensor(req: AuthRequest, res: Response) {
     try {
       const { sensorId } = req.params;
       const farmerId = (req.user as any).id;

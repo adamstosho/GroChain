@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middlewares/auth.middleware';
 import { AdvancedMLService } from '../services/advancedML.service';
 import { logger } from '../index';
 import Joi from 'joi';
@@ -67,7 +68,7 @@ export class AdvancedMLController {
   }
 
   // Optimize irrigation
-  static async optimizeIrrigation(req: Request, res: Response) {
+  static async optimizeIrrigation(req: AuthRequest, res: Response) {
     try {
       const farmerId = (req.user as any).id;
 
@@ -93,7 +94,7 @@ export class AdvancedMLController {
   }
 
   // Optimize fertilizer
-  static async optimizeFertilizer(req: Request, res: Response) {
+  static async optimizeFertilizer(req: AuthRequest, res: Response) {
     try {
       const farmerId = (req.user as any).id;
 
@@ -119,7 +120,7 @@ export class AdvancedMLController {
   }
 
   // Optimize harvest
-  static async optimizeHarvest(req: Request, res: Response) {
+  static async optimizeHarvest(req: AuthRequest, res: Response) {
     try {
       const farmerId = (req.user as any).id;
 
@@ -145,7 +146,7 @@ export class AdvancedMLController {
   }
 
   // Get comprehensive optimization report
-  static async getOptimizationReport(req: Request, res: Response) {
+  static async getOptimizationReport(req: AuthRequest, res: Response) {
     try {
       const farmerId = (req.user as any).id;
 
@@ -188,7 +189,7 @@ export class AdvancedMLController {
   }
 
   // Get sensor health insights
-  static async getSensorHealthInsights(req: Request, res: Response) {
+  static async getSensorHealthInsights(req: AuthRequest, res: Response) {
     try {
       const farmerId = (req.user as any).id;
 
@@ -220,7 +221,7 @@ export class AdvancedMLController {
   }
 
   // Get farming efficiency score
-  static async getFarmingEfficiencyScore(req: Request, res: Response) {
+  static async getFarmingEfficiencyScore(req: AuthRequest, res: Response) {
     try {
       const farmerId = (req.user as any).id;
 
@@ -288,7 +289,7 @@ export class AdvancedMLController {
   }
 
   // Get predictive insights for farming decisions
-  static async getPredictiveInsights(req: Request, res: Response) {
+  static async getPredictiveInsights(req: AuthRequest, res: Response) {
     try {
       const farmerId = (req.user as any).id;
       const { cropType, season } = req.query;

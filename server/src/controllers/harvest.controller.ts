@@ -1,7 +1,10 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middlewares/auth.middleware';
 import { Harvest, IHarvestPopulated } from '../models/harvest.model';
-import { generateQRCode } from '../utils/qr.util';
+import { User, UserRole } from '../models/user.model';
 import Joi from 'joi';
+import { generateQRCode } from '../utils/qr.util';
+import { webSocketService } from '../services/websocket.service';
 import { v4 as uuidv4 } from 'uuid';
 
 const harvestSchema = Joi.object({
@@ -12,7 +15,7 @@ const harvestSchema = Joi.object({
   geoLocation: Joi.object({ lat: Joi.number().required(), lng: Joi.number().required() }).required(),
 });
 
-export const createHarvest = async (req: Request, res: Response) => {
+export const createHarvest = async (req: AuthRequest, res: Response) => {
   try {
     const { error, value } = harvestSchema.validate(req.body);
     if (error) {
@@ -22,6 +25,27 @@ export const createHarvest = async (req: Request, res: Response) => {
     const qrData = await generateQRCode(batchId);
     const harvest = new Harvest({ ...value, batchId, qrData });
     await harvest.save();
+
+    // Send real-time notification to partner network
+    try {
+      if (req.user?.id) {
+        const user = await User.findById(req.user.id);
+        if (user && user.partner) {
+          webSocketService.sendToPartnerNetwork(user.partner, 'harvest_created', {
+            harvestId: harvest._id,
+            farmerId: req.user.id,
+            cropType: value.cropType,
+            quantity: value.quantity,
+            batchId,
+            timestamp: new Date()
+          });
+        }
+      }
+    } catch (wsError) {
+      console.error('WebSocket notification failed:', wsError);
+      // Don't fail the main operation if WebSocket fails
+    }
+
     return res.status(201).json({ status: 'success', harvest, qrData });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });

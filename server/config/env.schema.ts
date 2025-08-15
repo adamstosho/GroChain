@@ -29,6 +29,10 @@ export const envSchema = Joi.object({
   TWILIO_AUTH_TOKEN: Joi.string().optional(),
   TWILIO_PHONE_NUMBER: Joi.string().optional(),
 
+  // Africastalking (SMS & USSD)
+  AFRICASTALKING_USERNAME: Joi.string().optional(),
+  AFRICASTALKING_API_KEY: Joi.string().optional(),
+
   // Email
   SENDGRID_API_KEY: Joi.string().optional(),
   FROM_EMAIL: Joi.string().email().optional(),
@@ -43,8 +47,16 @@ export const envSchema = Joi.object({
   USSD_GATEWAY_URL: Joi.string().uri().optional(),
   USSD_API_KEY: Joi.string().optional(),
 
-  // Push Notifications
-  FCM_SERVER_KEY: Joi.string().optional(),
+  // Firebase Admin (Push Notifications)
+  FIREBASE_PROJECT_ID: Joi.string().optional(),
+  FIREBASE_PRIVATE_KEY_ID: Joi.string().optional(),
+  FIREBASE_PRIVATE_KEY: Joi.string().optional(),
+  FIREBASE_CLIENT_EMAIL: Joi.string().email().optional(),
+  FIREBASE_CLIENT_ID: Joi.string().optional(),
+  FIREBASE_AUTH_URI: Joi.string().uri().optional(),
+  FIREBASE_TOKEN_URI: Joi.string().uri().optional(),
+  FIREBASE_AUTH_PROVIDER_X509_CERT_URL: Joi.string().uri().optional(),
+  FIREBASE_CLIENT_X509_CERT_URL: Joi.string().optional(),
 
   // Cloudinary
   CLOUDINARY_CLOUD_NAME: Joi.string().optional(),

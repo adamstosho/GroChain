@@ -1,4 +1,4 @@
-// File: C:\Users\DELL\Downloads\grochain-pwa\app\page.tsx
+// File: C:\Users\DELL\Desktop\GroChain\client\app\page.tsx
 import * as entry from '../../../app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>0/11</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>0/11</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -87,6 +87,7 @@
 <a name='L22'></a><a href='#L22'>22</a>
 <a name='L23'></a><a href='#L23'>23</a>
 <a name='L24'></a><a href='#L24'>24</a>
+<<<<<<< HEAD
 <a name='L25'></a><a href='#L25'>25</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -114,27 +115,61 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from 'express';
 import { PWAController } from '../controllers/pwa.controller';
 import { detectLanguage, addLanguageInfo } from '../middlewares/language.middleware';
+=======
+<a name='L25'></a><a href='#L25'>25</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { Router } from 'express';</span>
+<span class="cstat-no" title="statement not covered" >import { PWAController } from '../controllers/pwa.controller';</span>
+<span class="cstat-no" title="statement not covered" >import { detectLanguage, addLanguageInfo } from '../middlewares/language.middleware';</span>
+>>>>>>> 455ef4fc (new commit now)
 &nbsp;
-const router = Router();
+const router = <span class="cstat-no" title="statement not covered" >Router();</span>
 &nbsp;
 // Apply language detection to all PWA routes
-router.use(detectLanguage);
-router.use(addLanguageInfo);
+<span class="cstat-no" title="statement not covered" >router.use(detectLanguage);</span>
+<span class="cstat-no" title="statement not covered" >router.use(addLanguageInfo);</span>
 &nbsp;
 // PWA Manifest
-router.get('/manifest', PWAController.getPWAManifest);
+<span class="cstat-no" title="statement not covered" >router.get('/manifest', PWAController.getPWAManifest);</span>
 &nbsp;
 // Service Worker
-router.get('/service-worker', PWAController.getServiceWorker);
+<span class="cstat-no" title="statement not covered" >router.get('/service-worker', PWAController.getServiceWorker);</span>
 &nbsp;
 // Offline Page
-router.get('/offline', PWAController.getOfflinePage);
+<span class="cstat-no" title="statement not covered" >router.get('/offline', PWAController.getOfflinePage);</span>
 &nbsp;
 // Installation Instructions
-router.get('/install', PWAController.getInstallInstructions);
+<span class="cstat-no" title="statement not covered" >router.get('/install', PWAController.getInstallInstructions);</span>
 &nbsp;
+<span class="cstat-no" title="statement not covered" >export default router;</span>
+&nbsp;
+<<<<<<< HEAD
 export default router;
 &nbsp;
+=======
+>>>>>>> 455ef4fc (new commit now)
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -142,7 +177,11 @@ export default router;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+<<<<<<< HEAD
                 at 2025-08-14T11:02:31.032Z
+=======
+                at 2025-08-16T11:09:44.151Z
+>>>>>>> 455ef4fc (new commit now)
             </div>
         <script src="../../prettify.js"></script>
         <script>

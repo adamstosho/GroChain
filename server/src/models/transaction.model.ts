@@ -39,7 +39,7 @@ const TransactionSchema = new Schema<ITransaction>(
     type: { 
       type: String, 
       enum: Object.values(TransactionType), 
-      required: true 
+      default: TransactionType.PAYMENT 
     },
     status: { 
       type: String, 
@@ -48,13 +48,13 @@ const TransactionSchema = new Schema<ITransaction>(
     },
     amount: { type: Number, required: true },
     currency: { type: String, default: 'NGN' },
-    reference: { type: String, required: true, unique: true },
-    description: { type: String, required: true },
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    reference: { type: String, required: false, unique: true, default: () => `TX-${Math.random().toString(36).slice(2, 10).toUpperCase()}` },
+    description: { type: String, required: false, default: '' },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: false },
     partnerId: { type: Schema.Types.ObjectId, ref: 'Partner' },
     orderId: { type: Schema.Types.ObjectId, ref: 'Order' },
     referralId: { type: Schema.Types.ObjectId, ref: 'Referral' },
-    paymentProvider: { type: String, required: true }, // 'paystack', 'manual', etc.
+    paymentProvider: { type: String, required: false, default: 'system' }, // default to 'system' for internal entries
     paymentProviderReference: { type: String },
     metadata: { type: Schema.Types.Mixed, default: {} },
     processedAt: { type: Date },

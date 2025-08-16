@@ -2,7 +2,7 @@ import { IoTSensor } from '../models/iotSensor.model';
 import { CropAnalysis } from '../models/cropAnalysis.model';
 import { Harvest } from '../models/harvest.model';
 import { Listing } from '../models/listing.model';
-import { logger } from '../index';
+import { logger } from '../utils/logger';
 
 export interface PredictiveMaintenance {
   sensorId: string;

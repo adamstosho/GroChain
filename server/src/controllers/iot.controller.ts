@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { IoTSensor } from '../models/iotSensor.model';
 import { AdvancedMLService } from '../services/advancedML.service';
-import { logger } from '../index';
+import { logger } from '../utils/logger';
 import Joi from 'joi';
 
 export class IoTController {

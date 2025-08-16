@@ -1,4 +1,4 @@
-GroChain + Stakeholder Partnerships
+dGroChain + Stakeholder Partnerships
 1. Expanded Ecosystem
 Key Partners
 

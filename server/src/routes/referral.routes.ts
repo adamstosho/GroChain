@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { completeReferral } from '../controllers/referral.controller';
+import { referralController } from '../controllers/referral.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
 import { authorizeRoles } from '../middlewares/rbac.middleware';
 
@@ -10,7 +10,7 @@ router.post(
   '/:farmerId/complete',
   authenticateJWT,
   authorizeRoles('partner', 'admin'),
-  completeReferral
+  referralController.completeReferral.bind(referralController)
 );
 
 export default router;

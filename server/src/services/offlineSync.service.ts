@@ -3,7 +3,7 @@ import { Harvest } from '../models/harvest.model';
 import { Order } from '../models/order.model';
 import { Listing } from '../models/listing.model';
 import { Transaction } from '../models/transaction.model';
-import { logger } from '../index';
+import { logger } from '../utils/logger';
 import { TranslationService } from './translation.service';
 
 export interface OfflineDataItem {

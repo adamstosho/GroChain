@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { OfflineSyncService } from '../services/offlineSync.service';
 import { TranslationService } from '../services/translation.service';
-import { logger } from '../index';
+import { logger } from '../utils/logger';
 import Joi from 'joi';
 
 export class SyncController {

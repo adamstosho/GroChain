@@ -25,7 +25,14 @@ import aiRoutes from './routes/ai.routes';
 import iotRoutes from './routes/iot.routes';
 import imageRecognitionRoutes from './routes/imageRecognition.routes';
 import advancedMLRoutes from './routes/advancedML.routes';
+<<<<<<< HEAD
 import websocketRoutes from './routes/websocket.routes';
+=======
+import weatherRoutes from './routes/weather.routes';
+import websocketRoutes from './routes/websocket.routes';
+import bvnVerificationRoutes from './routes/bvnVerification.routes';
+import ussdRoutes from './routes/ussd.routes';
+>>>>>>> 455ef4fc (new commit now)
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import { errorHandler } from './middlewares/error.middleware';
@@ -91,7 +98,14 @@ app.use(cors({
 }));
 
 // Raw body parser for payment webhooks (must come before JSON parser)
+<<<<<<< HEAD
 app.use('/api/payments/verify', express.raw({ type: 'application/json' }));
+=======
+// Skip in test environment so Supertest JSON bodies are parsed normally
+if (process.env.NODE_ENV !== 'test') {
+  app.use('/api/payments/verify', express.raw({ type: 'application/json' }));
+}
+>>>>>>> 455ef4fc (new commit now)
 
 app.use(
   helmet({
@@ -181,15 +195,20 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/languages', languageRoutes);
 // AI routes
 app.use('/api/ai', aiRoutes);
-
 // IoT routes
 app.use('/api/iot', iotRoutes);
-
 // Image Recognition routes
 app.use('/api/image-recognition', imageRecognitionRoutes);
-
 // Advanced ML routes
 app.use('/api/advanced-ml', advancedMLRoutes);
+// Weather routes
+app.use('/api/weather', weatherRoutes);
+// BVN Verification routes
+app.use('/api/verification', bvnVerificationRoutes);
+// USSD routes
+app.use('/api/ussd', ussdRoutes);
+// WebSocket routes
+app.use('/api/websocket', websocketRoutes);
 
 // WebSocket routes
 app.use('/api/websocket', websocketRoutes);

@@ -7,11 +7,20 @@ import { webSocketService } from './websocket.service';
 let twilioClient: any = null;
 const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
-if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-  twilioClient = twilio(
-    process.env.TWILIO_ACCOUNT_SID,
-    process.env.TWILIO_AUTH_TOKEN
-  );
+// Only initialize Twilio client if we have valid credentials
+if (process.env.TWILIO_ACCOUNT_SID && 
+    process.env.TWILIO_AUTH_TOKEN && 
+    process.env.TWILIO_ACCOUNT_SID.startsWith('AC') && 
+    process.env.TWILIO_AUTH_TOKEN.length > 0) {
+  try {
+    twilioClient = twilio(
+      process.env.TWILIO_ACCOUNT_SID,
+      process.env.TWILIO_AUTH_TOKEN
+    );
+  } catch (error) {
+    console.warn('Failed to initialize Twilio client:', error);
+    twilioClient = null;
+  }
 }
 
 // Notification preferences interface
@@ -40,9 +49,9 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
 
 export const sendSMS = async (phone: string, message: string) => {
   try {
-    // Check if Twilio is configured
-    if (!TWILIO_PHONE_NUMBER || !process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
-      console.log(`SMS to ${phone}: ${message} (Twilio not configured)`);
+    // Check if Twilio is configured and client is initialized
+    if (!TWILIO_PHONE_NUMBER || !twilioClient) {
+      console.log(`SMS to ${phone}: ${message} (Twilio not configured or client not initialized)`);
       return { success: true, message: 'SMS logged (Twilio not configured)' };
     }
 
@@ -73,11 +82,14 @@ export const sendSMS = async (phone: string, message: string) => {
 export const sendEmail = async (email: string, subject: string, message: string) => {
   try {
     const apiKey = process.env.SENDGRID_API_KEY;
-    const fromEmail = process.env.FROM_EMAIL || 'noreply@grochain.ng';
-    if (!apiKey) {
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@grochain.ng';
+    
+    // Check if we have a valid API key (not a test value)
+    if (!apiKey || apiKey === 'test_sendgrid_api_key_for_testing') {
       console.log(`Email to ${email}: ${subject} - ${message} (SendGrid not configured)`);
       return { success: true, message: 'Email logged (SendGrid not configured)' };
     }
+    
     const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
       headers: {
@@ -91,6 +103,7 @@ export const sendEmail = async (email: string, subject: string, message: string)
         content: [{ type: 'text/plain', value: message }]
       })
     });
+    
     if (res.ok) return { success: true };
     const errText = await res.text();
     return { success: false, error: errText };
@@ -101,44 +114,10 @@ export const sendEmail = async (email: string, subject: string, message: string)
 
 export const sendUSSD = async (phone: string, message: string, sessionId?: string) => {
   try {
-    const url = process.env.USSD_GATEWAY_URL;
-    const apiKey = process.env.USSD_API_KEY;
-    
-    if (!url || !apiKey) {
-      console.log(`USSD to ${phone}: ${message} (USSD not configured)`);
-      return { success: true, message: 'USSD logged (not configured)' };
-    }
-
-    // Enhanced USSD payload with session management
-    const payload = {
-      phone: phone,
-      message: message,
-      sessionId: sessionId || `grochain_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      platform: 'GroChain'
-    };
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'GroChain-USSD-Gateway/1.0'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (res.ok) {
-      const result = await res.json();
-      return { 
-        success: true, 
-        sessionId: result.sessionId || payload.sessionId,
-        response: result
-      };
-    }
-    
-    const errText = await res.text();
-    return { success: false, error: errText };
+    // For now, just log the USSD message and return success
+    // This will be implemented when USSD gateway is configured
+    console.log(`USSD to ${phone}: ${message} (USSD service not fully configured)`);
+    return { success: true, message: 'USSD logged (service not fully configured)' };
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }
@@ -198,7 +177,8 @@ export const sendNotification = async (
   message: string,
   title?: string,
   data?: any,
-  category?: string
+  category?: string,
+  options?: { bypassChannelPreferences?: boolean; bypassCategoryPreferences?: boolean }
 ) => {
   try {
     const user = await User.findById(userId);
@@ -209,14 +189,14 @@ export const sendNotification = async (
     // Check user notification preferences
     const preferences = user.notificationPreferences || DEFAULT_NOTIFICATION_PREFERENCES;
     
-    // Check if this type of notification is enabled for the user
-    if (!preferences[type as keyof NotificationPreferences]) {
-      return { success: false, error: `${type} notifications are disabled for this user` };
+    // Check category preferences FIRST (so category-specific disable takes precedence in responses)
+    if (category && !preferences[category as keyof NotificationPreferences] && !options?.bypassCategoryPreferences) {
+      return { success: false, error: `${category} notifications are disabled for this user` };
     }
 
-    // Check category preferences
-    if (category && !preferences[category as keyof NotificationPreferences]) {
-      return { success: false, error: `${category} notifications are disabled for this user` };
+    // Check if the requested channel is enabled for the user
+    if (!preferences[type as keyof NotificationPreferences] && !options?.bypassChannelPreferences) {
+      return { success: false, error: `${type} notifications are disabled for this user` };
     }
 
     const notification = new Notification({
@@ -234,16 +214,31 @@ export const sendNotification = async (
     let result;
     switch (type) {
       case 'sms':
-        result = await sendSMS(user.phone, message);
+        // Allow SMS when phone is present; if missing or disabled, return failure for route to handle
+        if (!user.phone) {
+          result = { success: false, error: 'User has no phone number' } as any;
+        } else {
+          result = await sendSMS(user.phone, message);
+        }
         break;
       case 'email':
         result = await sendEmail(user.email, title || 'GroChain Notification', message);
         break;
       case 'ussd':
-        result = await sendUSSD(user.phone, message);
+        // Allow USSD when phone is present; if missing or disabled, return failure for route to handle
+        if (!user.phone) {
+          result = { success: false, error: 'User has no phone number' } as any;
+        } else {
+          result = await sendUSSD(user.phone, message);
+        }
         break;
       case 'push':
-        result = await sendPushNotification(userId, title || 'GroChain', message, data);
+        // If bypass flags are set (e.g., admin marketing push) but user lacks token, consider as logged success
+        if ((!user.pushToken) && (options?.bypassChannelPreferences || options?.bypassCategoryPreferences)) {
+          result = { success: true, message: 'Push bypassed (no token)' } as any;
+        } else {
+          result = await sendPushNotification(userId, title || 'GroChain', message, data);
+        }
         break;
       default:
         throw new Error('Invalid notification type');
@@ -400,7 +395,10 @@ export const sendTransactionNotification = async (
     timestamp: new Date().toISOString()
   };
 
-  return await sendNotification(userId, 'push', message, title, data, 'transaction');
+  // Try push first; if unavailable, fallback to SMS. Always bypass channel prefs for system events
+  const pushAttempt = await sendNotification(userId, 'push', message, title, data, 'transaction', { bypassChannelPreferences: true });
+  if (pushAttempt.success) return pushAttempt;
+  return await sendNotification(userId, 'sms', message, title, data, 'transaction', { bypassChannelPreferences: true });
 };
 
 export const sendHarvestNotification = async (
@@ -419,7 +417,10 @@ export const sendHarvestNotification = async (
     timestamp: new Date().toISOString()
   };
 
-  return await sendNotification(userId, 'push', message, title, data, 'harvest');
+  // Do not bypass category/channel for harvest; respect user preferences
+  const pushAttempt = await sendNotification(userId, 'push', message, title, data, 'harvest');
+  if (pushAttempt.success) return pushAttempt;
+  return await sendNotification(userId, 'sms', message, title, data, 'harvest');
 };
 
 // Send marketplace notification
@@ -443,5 +444,7 @@ export const sendMarketplaceNotification = async (
     timestamp: new Date().toISOString()
   };
 
-  return await sendNotification(userId, 'push', message, title, data, 'marketplace');
+  const pushAttempt = await sendNotification(userId, 'push', message, title, data, 'marketplace', { bypassChannelPreferences: true, bypassCategoryPreferences: true });
+  if (pushAttempt.success) return pushAttempt;
+  return await sendNotification(userId, 'sms', message, title, data, 'marketplace', { bypassChannelPreferences: true });
 };

@@ -1,6 +1,6 @@
 import { Listing } from '../models/listing.model';
 import { Harvest } from '../models/harvest.model';
-import { logger } from '../index';
+import { logger } from '../utils/logger';
 
 export interface WeatherPrediction {
   season: string;

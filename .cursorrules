@@ -1,0 +1,13 @@
+---
+description: Next.js + TypeScript + Tailwind rules
+globs: **/*.ts,**/*.tsx
+alwaysApply: true
+---
+
+# Next.js TypeScript Frontend Rules
+- Use App Router structure with `page.tsx` per route.
+- Kebab-case directories, PascalCase component files.
+- Prefer named exports.
+- Default to React Server Components; use client only when needed.
+- Use strict TypeScript (no `any`), meaningful variable names.
+- Place components in `/components`, API utilities in `/lib`, types in `/types`.

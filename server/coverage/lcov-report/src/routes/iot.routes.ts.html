@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>21/21</span>
+                <span class='fraction'>0/21</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>21/21</span>
+                <span class='fraction'>0/21</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -95,6 +95,7 @@
 <a name='L30'></a><a href='#L30'>30</a>
 <a name='L31'></a><a href='#L31'>31</a>
 <a name='L32'></a><a href='#L32'>32</a>
+<<<<<<< HEAD
 <a name='L33'></a><a href='#L33'>33</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -132,33 +133,77 @@ import { IoTController } from '../controllers/iot.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
 import { authorizeRoles } from '../middlewares/rbac.middleware';
 import { detectLanguage, addLanguageInfo } from '../middlewares/language.middleware';
+=======
+<a name='L33'></a><a href='#L33'>33</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { Router } from 'express';</span>
+<span class="cstat-no" title="statement not covered" >import { IoTController } from '../controllers/iot.controller';</span>
+<span class="cstat-no" title="statement not covered" >import { authenticateJWT } from '../middlewares/auth.middleware';</span>
+<span class="cstat-no" title="statement not covered" >import { authorizeRoles } from '../middlewares/rbac.middleware';</span>
+<span class="cstat-no" title="statement not covered" >import { detectLanguage, addLanguageInfo } from '../middlewares/language.middleware';</span>
+>>>>>>> 455ef4fc (new commit now)
 &nbsp;
-const router = Router();
+const router = <span class="cstat-no" title="statement not covered" >Router();</span>
 &nbsp;
 // Apply middleware
-router.use(detectLanguage);
-router.use(addLanguageInfo);
+<span class="cstat-no" title="statement not covered" >router.use(detectLanguage);</span>
+<span class="cstat-no" title="statement not covered" >router.use(addLanguageInfo);</span>
 &nbsp;
 // IoT Sensor Management
-router.post('/sensors', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.registerSensor);
-router.get('/sensors', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getFarmerSensors);
-router.get('/sensors/:sensorId', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getSensorById);
-router.put('/sensors/:sensorId/data', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.updateSensorData);
-router.get('/sensors/:sensorId/readings', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getSensorReadings);
-router.get('/sensors/:sensorId/alerts', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getSensorAlerts);
-router.put('/sensors/:sensorId/alerts/:alertIndex/resolve', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.resolveAlert);
-router.put('/sensors/:sensorId/status', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.updateSensorStatus);
-router.delete('/sensors/:sensorId', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.deleteSensor);
+<span class="cstat-no" title="statement not covered" >router.post('/sensors', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.registerSensor);</span>
+<span class="cstat-no" title="statement not covered" >router.get('/sensors', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getFarmerSensors);</span>
+<span class="cstat-no" title="statement not covered" >router.get('/sensors/:sensorId', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getSensorById);</span>
+<span class="cstat-no" title="statement not covered" >router.put('/sensors/:sensorId/data', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.updateSensorData);</span>
+<span class="cstat-no" title="statement not covered" >router.get('/sensors/:sensorId/readings', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getSensorReadings);</span>
+<span class="cstat-no" title="statement not covered" >router.get('/sensors/:sensorId/alerts', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getSensorAlerts);</span>
+<span class="cstat-no" title="statement not covered" >router.put('/sensors/:sensorId/alerts/:alertIndex/resolve', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.resolveAlert);</span>
+<span class="cstat-no" title="statement not covered" >router.put('/sensors/:sensorId/status', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.updateSensorStatus);</span>
+<span class="cstat-no" title="statement not covered" >router.delete('/sensors/:sensorId', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.deleteSensor);</span>
 &nbsp;
 // Advanced ML Features
-router.get('/sensors/:sensorId/maintenance', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getPredictiveMaintenance);
-router.get('/sensors/:sensorId/anomalies', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.detectAnomalies);
+<span class="cstat-no" title="statement not covered" >router.get('/sensors/:sensorId/maintenance', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getPredictiveMaintenance);</span>
+<span class="cstat-no" title="statement not covered" >router.get('/sensors/:sensorId/anomalies', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.detectAnomalies);</span>
 &nbsp;
 // Sensor Health &amp; Analytics
-router.get('/sensors/health/summary', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getSensorHealthSummary);
+<span class="cstat-no" title="statement not covered" >router.get('/sensors/health/summary', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getSensorHealthSummary);</span>
 &nbsp;
+<span class="cstat-no" title="statement not covered" >export default router;</span>
+&nbsp;
+<<<<<<< HEAD
 export default router;
 &nbsp;
+=======
+>>>>>>> 455ef4fc (new commit now)
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -166,7 +211,11 @@ export default router;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+<<<<<<< HEAD
                 at 2025-08-14T11:02:31.032Z
+=======
+                at 2025-08-16T11:09:44.151Z
+>>>>>>> 455ef4fc (new commit now)
             </div>
         <script src="../../prettify.js"></script>
         <script>

@@ -24,16 +24,16 @@ export interface IHarvestPopulated extends Omit<IHarvest, 'farmer'> {
 
 const HarvestSchema = new Schema<IHarvest>(
   {
-    farmer: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    farmer: { type: Schema.Types.ObjectId, ref: 'User', required: false },
     cropType: { type: String, required: true },
-    quantity: { type: Number, required: true },
-    date: { type: Date, required: true },
+    quantity: { type: Number, required: false, default: 0 },
+    date: { type: Date, required: false, default: () => new Date() },
     geoLocation: {
-      lat: { type: Number, required: true },
-      lng: { type: Number, required: true },
+      lat: { type: Number, required: false },
+      lng: { type: Number, required: false },
     },
-    batchId: { type: String, required: true, unique: true },
-    qrData: { type: String, required: true },
+    batchId: { type: String, required: false, unique: true, default: () => `BATCH-${Math.random().toString(36).slice(2, 10).toUpperCase()}` },
+    qrData: { type: String, required: false, default: '' },
   },
   { timestamps: true }
 );
@@ -41,6 +41,5 @@ const HarvestSchema = new Schema<IHarvest>(
 export const Harvest = mongoose.model<IHarvest>('Harvest', HarvestSchema);
 
 // Helpful indexes
-HarvestSchema.index({ batchId: 1 }, { unique: true });
 HarvestSchema.index({ 'geoLocation.lat': 1, 'geoLocation.lng': 1 });
 HarvestSchema.index({ createdAt: -1 });

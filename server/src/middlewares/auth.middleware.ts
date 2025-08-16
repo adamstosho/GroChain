@@ -19,3 +19,17 @@ export const authenticateJWT = (req: AuthRequest, res: Response, next: NextFunct
     return res.status(403).json({ status: 'error', message: 'Invalid token' });
   }
 };
+
+// Alias for compatibility
+export const authenticate = authenticateJWT;
+
+// Authorization function
+export const authorize = (roles: string | string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    const roleArray = Array.isArray(roles) ? roles : [roles];
+    if (!req.user || !roleArray.includes(req.user.role)) {
+      return res.status(403).json({ status: 'error', message: 'Forbidden: insufficient permissions.' });
+    }
+    next();
+  };
+};

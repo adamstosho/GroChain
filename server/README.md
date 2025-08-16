@@ -174,6 +174,68 @@ Enhanced metrics include:
 - Metadata storage
 - Performance indexing
 
+### 7. Real-time WebSocket Integration
+
+**Features**:
+- Live notifications for all users
+- Real-time payment updates
+- Partner network communications
+- User-specific notification channels
+- WebSocket status monitoring
+
+### 8. Enhanced Notification System
+
+**New Endpoints**:
+- Bulk notification sending (admin only)
+- Transaction-specific notifications
+- Harvest-specific notifications
+- Marketplace event notifications
+- Push token management
+- User preference management
+
+### 9. Advanced IoT & AI Integration
+
+**IoT Features**:
+- Sensor registration and management
+- Real-time data monitoring
+- Health status tracking
+- Anomaly detection
+
+**AI Features**:
+- Crop disease detection via image analysis
+- Yield prediction algorithms
+- Market trend analysis
+- Risk assessment models
+- Predictive farming insights
+
+### 10. Weather & Climate Integration
+
+**Features**:
+- Real-time weather data from OpenWeather API
+- Agricultural insights and risk assessment
+- Weather alerts and warnings
+- Climate summary and recommendations
+- Historical weather data analysis
+- Regional weather statistics
+- Growing degree days calculation
+- Frost and drought risk assessment
+- Pest risk evaluation
+- Planting and irrigation recommendations
+
+### 11. Multi-language & PWA Support
+
+**Localization**:
+- Multi-language support
+- Dynamic translation system
+- User language preferences
+- Language statistics
+
+**PWA Features**:
+- Offline-first architecture
+- Service worker implementation
+- Installation instructions
+- Offline page support
+
 ## 📊 API Endpoints
 
 ### Authentication
@@ -213,6 +275,86 @@ Enhanced metrics include:
 ### Notifications
 - `POST /api/notifications/send` - Send notification
 - `GET /api/notifications/:userId` - Get user notifications
+- `GET /api/notifications/preferences` - Get user notification preferences
+- `PUT /api/notifications/preferences` - Update user notification preferences
+- `PUT /api/notifications/push-token` - Update push notification token
+- `POST /api/notifications/send-bulk` - Send bulk notifications (admin only)
+- `POST /api/notifications/transaction` - Send transaction notification
+- `POST /api/notifications/harvest` - Send harvest notification
+- `POST /api/notifications/marketplace` - Send marketplace notification
+
+### WebSocket (Real-time Communication)
+- `GET /api/websocket/status` - Get WebSocket connection status
+- `POST /api/websocket/notify-user` - Send real-time notification to specific user
+- `POST /api/websocket/notify-partner-network` - Send real-time notification to partner network
+
+### Weather & Climate Integration
+- `GET /api/weather/current` - Get current weather for a location
+- `GET /api/weather/forecast` - Get weather forecast for a location
+- `GET /api/weather/agricultural-insights` - Get agricultural insights for a location
+- `GET /api/weather/alerts` - Get weather alerts for a location
+- `GET /api/weather/climate-summary` - Get climate summary for a location
+- `GET /api/weather/coordinates/:lat/:lng` - Get weather data by coordinates
+- `GET /api/weather/statistics/:region` - Get weather statistics for a region
+- `GET /api/weather/regional-alerts` - Get all weather alerts for a region
+- `GET /api/weather/historical` - Get historical weather data for analysis
+
+### IoT Sensors
+- `POST /api/iot/sensors` - Register new IoT sensor
+- `GET /api/iot/sensors` - Get all sensors for authenticated farmer
+- `GET /api/iot/sensors/:sensorId` - Get specific sensor details
+- `PUT /api/iot/sensors/:sensorId` - Update sensor data
+- `GET /api/iot/sensors/:sensorId/readings` - Get sensor readings
+- `GET /api/iot/sensors/:sensorId/alerts` - Get sensor alerts
+- `GET /api/iot/sensors/health/summary` - Get sensor health summary
+
+### Image Recognition & AI
+- `POST /api/image-recognition/analyze` - Analyze crop image for disease detection
+- `GET /api/image-recognition/analyses` - Get all crop analyses for authenticated farmer
+- `GET /api/image-recognition/analyses/:analysisId` - Get specific crop analysis
+- `GET /api/image-recognition/analyses/crop/:cropType` - Get analyses by crop type
+- `GET /api/image-recognition/analyses/risk/high` - Get high-risk analyses
+- `POST /api/ai/crop-recommendations` - Get AI-powered crop recommendations
+- `POST /api/ai/yield-prediction` - Get AI-powered yield prediction
+- `GET /api/ai/market-insights` - Get AI-powered market insights
+- `GET /api/ai/farming-insights` - Get AI-powered farming insights
+- `GET /api/ai/farming-recommendations` - Get AI-powered farming recommendations
+- `GET /api/ai/analytics-dashboard` - Get AI analytics dashboard data
+- `GET /api/ai/seasonal-calendar` - Get AI-powered seasonal farming calendar
+- `GET /api/ai/weather-prediction` - Get AI-powered weather prediction
+- `GET /api/ai/market-trends` - Get AI-powered market trend analysis
+- `POST /api/ai/risk-assessment` - Get AI-powered risk assessment
+- `POST /api/ai/predictive-insights` - Get comprehensive AI predictive insights
+
+### Advanced Machine Learning
+- `GET /api/advanced-ml/sensors/:sensorId/maintenance` - Get predictive maintenance for IoT sensor
+- `GET /api/advanced-ml/sensors/:sensorId/anomalies` - Detect anomalies in sensor data
+- `GET /api/advanced-ml/optimize/irrigation` - Get irrigation optimization recommendations
+- `GET /api/advanced-ml/optimize/fertilizer` - Get fertilizer optimization recommendations
+- `GET /api/advanced-ml/optimize/harvest` - Get harvest optimization recommendations
+- `GET /api/advanced-ml/insights/sensor-health` - Get sensor health insights
+- `GET /api/advanced-ml/insights/efficiency-score` - Get farming efficiency score
+- `GET /api/advanced-ml/models/performance` - Get ML model performance metrics
+
+### Language & Localization
+- `GET /api/languages` - Get supported languages
+- `POST /api/languages/translations` - Get translations for specific keys
+- `GET /api/languages/translations/:language` - Get all translations for a specific language
+- `GET /api/languages/:language` - Get language information
+- `PUT /api/languages/preference` - Update user language preference
+- `GET /api/languages/stats` - Get language statistics
+
+### Offline Sync & PWA
+- `POST /api/sync/offline-data` - Queue offline data for synchronization
+- `POST /api/sync/sync-user` - Sync user offline data
+- `GET /api/sync/status/:userId` - Get sync status for a user
+- `POST /api/sync/force-sync` - Force sync for specific data
+- `GET /api/sync/history/:userId` - Get sync history for a user
+- `GET /api/sync/stats` - Get sync statistics (admin only)
+- `GET /api/pwa/manifest` - Get PWA manifest file
+- `GET /api/pwa/service-worker` - Get service worker script
+- `GET /api/pwa/offline` - Get offline page
+- `GET /api/pwa/install` - Get installation instructions
 
 ## 🚀 Production Deployment
 

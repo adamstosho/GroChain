@@ -1,5 +1,5 @@
 import { CropAnalysis } from '../models/cropAnalysis.model';
-import { logger } from '../index';
+import { logger } from '../utils/logger';
 
 export interface DiseaseDetection {
   disease: string;

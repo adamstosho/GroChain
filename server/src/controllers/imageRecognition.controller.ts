@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { CropAnalysis } from '../models/cropAnalysis.model';
 import { ImageRecognitionService } from '../services/imageRecognition.service';
-import { logger } from '../index';
+import { logger } from '../utils/logger';
 import Joi from 'joi';
 
 export class ImageRecognitionController {

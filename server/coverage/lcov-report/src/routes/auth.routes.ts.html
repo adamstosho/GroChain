@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">95.65% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>22/23</span>
+                <span class='fraction'>0/23</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">95.65% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>22/23</span>
+                <span class='fraction'>0/23</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -120,6 +120,7 @@
 <a name='L55'></a><a href='#L55'>55</a>
 <a name='L56'></a><a href='#L56'>56</a>
 <a name='L57'></a><a href='#L57'>57</a>
+<<<<<<< HEAD
 <a name='L58'></a><a href='#L58'>58</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -182,12 +183,76 @@ import { register, login, refresh, forgotPassword, resetPassword, verifyEmail, s
 import { validateRequest } from '../middlewares/validation.middleware';
 import Joi from 'joi';
 import { authenticateJWT } from '../middlewares/auth.middleware';
+=======
+<a name='L58'></a><a href='#L58'>58</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { Router } from 'express';</span>
+<span class="cstat-no" title="statement not covered" >import { register, login, refresh, forgotPassword, resetPassword, verifyEmail, sendSmsOtp, verifySmsOtp } from '../controllers/auth.controller';</span>
+<span class="cstat-no" title="statement not covered" >import { validateRequest } from '../middlewares/validation.middleware';</span>
+<span class="cstat-no" title="statement not covered" >import Joi from 'joi';</span>
+<span class="cstat-no" title="statement not covered" >import { authenticateJWT } from '../middlewares/auth.middleware';</span>
+>>>>>>> 455ef4fc (new commit now)
 import { authorizeRoles } from '../middlewares/rbac.middleware';
 &nbsp;
-const router = Router();
+const router = <span class="cstat-no" title="statement not covered" >Router();</span>
 &nbsp;
 // Validation schemas for routes
-const registerSchema = Joi.object({
+const registerSchema = <span class="cstat-no" title="statement not covered" >Joi.object({</span>
   name: Joi.string().required(),
   email: Joi.string().email().required(),
   phone: Joi.string().required(),
@@ -195,45 +260,45 @@ const registerSchema = Joi.object({
   role: Joi.string().valid('farmer', 'partner', 'aggregator', 'admin', 'buyer').optional(),
 });
 &nbsp;
-const loginSchema = Joi.object({
+const loginSchema = <span class="cstat-no" title="statement not covered" >Joi.object({</span>
   email: Joi.string().email().required(),
   password: Joi.string().required(),
 });
 &nbsp;
-const refreshSchema = Joi.object({
+const refreshSchema = <span class="cstat-no" title="statement not covered" >Joi.object({</span>
   refreshToken: Joi.string().required(),
 });
 &nbsp;
-const tokenSchema = Joi.object({
+const tokenSchema = <span class="cstat-no" title="statement not covered" >Joi.object({</span>
   token: Joi.string().required(),
 });
 &nbsp;
-const sendSmsOtpSchema = Joi.object({
+const sendSmsOtpSchema = <span class="cstat-no" title="statement not covered" >Joi.object({</span>
   phone: Joi.string().required(),
 });
 &nbsp;
-const verifySmsOtpSchema = Joi.object({
+const verifySmsOtpSchema = <span class="cstat-no" title="statement not covered" >Joi.object({</span>
   phone: Joi.string().required(),
   otp: Joi.string().length(6).required(),
 });
 &nbsp;
-router.post('/register', validateRequest(registerSchema), register);
-router.post('/login', validateRequest(loginSchema), login);
-router.post('/refresh', validateRequest(refreshSchema), refresh);
-router.post('/forgot-password', validateRequest(Joi.object({ email: Joi.string().email().required() })), forgotPassword);
-router.post('/reset-password', validateRequest(Joi.object({ token: Joi.string().required(), password: Joi.string().min(6).required() })), resetPassword);
-router.post('/verify-email', validateRequest(tokenSchema), verifyEmail);
+<span class="cstat-no" title="statement not covered" >router.post('/register', validateRequest(registerSchema), register);</span>
+<span class="cstat-no" title="statement not covered" >router.post('/login', validateRequest(loginSchema), login);</span>
+<span class="cstat-no" title="statement not covered" >router.post('/refresh', validateRequest(refreshSchema), refresh);</span>
+<span class="cstat-no" title="statement not covered" >router.post('/forgot-password', validateRequest(Joi.object({ email: Joi.string().email().required() })), forgotPassword);</span>
+<span class="cstat-no" title="statement not covered" >router.post('/reset-password', validateRequest(Joi.object({ token: Joi.string().required(), password: Joi.string().min(6).required() })), resetPassword);</span>
+<span class="cstat-no" title="statement not covered" >router.post('/verify-email', validateRequest(tokenSchema), verifyEmail);</span>
 &nbsp;
 // SMS OTP endpoints for phone verification
-router.post('/send-sms-otp', validateRequest(sendSmsOtpSchema), sendSmsOtp);
-router.post('/verify-sms-otp', validateRequest(verifySmsOtpSchema), verifySmsOtp);
+<span class="cstat-no" title="statement not covered" >router.post('/send-sms-otp', validateRequest(sendSmsOtpSchema), sendSmsOtp);</span>
+<span class="cstat-no" title="statement not covered" >router.post('/verify-sms-otp', validateRequest(verifySmsOtpSchema), verifySmsOtp);</span>
 &nbsp;
 // Example protected route
-router.get('/protected', authenticateJWT, <span class="fstat-no" title="function not covered" >(r</span>eq, res) =&gt; {
+<span class="cstat-no" title="statement not covered" >router.get('/protected', authenticateJWT, <span class="fstat-no" title="function not covered" >(r</span>eq, res) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  res.json({ status: 'success', message: 'Protected data' });</span>
 });
 &nbsp;
-export default router;
+<span class="cstat-no" title="statement not covered" >export default router;</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -241,7 +306,11 @@ export default router;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+<<<<<<< HEAD
                 at 2025-08-14T11:02:31.032Z
+=======
+                at 2025-08-16T11:09:44.151Z
+>>>>>>> 455ef4fc (new commit now)
             </div>
         <script src="../../prettify.js"></script>
         <script>

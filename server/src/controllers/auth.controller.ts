@@ -126,9 +126,16 @@ export const login = async (req: Request, res: Response) => {
     const refreshToken = sign(payload, process.env.JWT_REFRESH_SECRET as string, { expiresIn: refreshExpiresIn as any });
     return res.status(200).json({
       status: 'success',
+      // Backward compatible fields
       accessToken,
       refreshToken,
       user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      // New standardized envelope used by some tests/clients
+      data: {
+        accessToken,
+        refreshToken,
+        user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      },
     });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });

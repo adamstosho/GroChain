@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">32% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>8/25</span>
+                <span class='fraction'>0/25</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">26.08% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>6/23</span>
+                <span class='fraction'>0/23</span>
             </div>
         
             
@@ -107,11 +107,19 @@
 <a name='L42'></a><a href='#L42'>42</a>
 <a name='L43'></a><a href='#L43'>43</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<<<<<<< HEAD
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+=======
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+>>>>>>> 455ef4fc (new commit now)
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -128,13 +136,21 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<<<<<<< HEAD
 <span class="cline-any cline-yes">1x</span>
+=======
+<span class="cline-any cline-no">&nbsp;</span>
+>>>>>>> 455ef4fc (new commit now)
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<<<<<<< HEAD
 <span class="cline-any cline-yes">1x</span>
+=======
+<span class="cline-any cline-no">&nbsp;</span>
+>>>>>>> 455ef4fc (new commit now)
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -149,11 +165,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Request, Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { CreditScore } from '../models/creditScore.model';
-import { LoanReferral } from '../models/loanReferral.model';
-import Joi from 'joi';
+<span class="cstat-no" title="statement not covered" >import { CreditScore } from '../models/creditScore.model';</span>
+<span class="cstat-no" title="statement not covered" >import { LoanReferral } from '../models/loanReferral.model';</span>
+<span class="cstat-no" title="statement not covered" >import Joi from 'joi';</span>
 &nbsp;
-export const getCreditScore = <span class="fstat-no" title="function not covered" >async </span>(req: AuthRequest, res: Response) =&gt; {
+export const <span class="cstat-no" title="statement not covered" >getCreditScore = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >a</span>sync </span>(req: AuthRequest, res: Response) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { farmerId } = <span class="cstat-no" title="statement not covered" >req.params;</span>
     // Ownership/role check: farmers can only read their own; partners/admins allowed via route guard
@@ -170,13 +186,13 @@ export const getCreditScore = <span class="fstat-no" title="function not covered
   }
 };
 &nbsp;
-const loanReferralSchema = Joi.object({
+const loanReferralSchema = <span class="cstat-no" title="statement not covered" >Joi.object({</span>
   farmer: Joi.string().required(),
   amount: Joi.number().required(),
   partner: Joi.string().required(),
 });
 &nbsp;
-export const createLoanReferral = <span class="fstat-no" title="function not covered" >async </span>(req: Request, res: Response) =&gt; {
+export const <span class="cstat-no" title="statement not covered" >createLoanReferral = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >a</span>sync </span>(req: Request, res: Response) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { error, value } = <span class="cstat-no" title="statement not covered" >loanReferralSchema.validate(req.body);</span>
 <span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (error) {</span>
@@ -196,7 +212,11 @@ export const createLoanReferral = <span class="fstat-no" title="function not cov
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+<<<<<<< HEAD
                 at 2025-08-14T11:02:31.032Z
+=======
+                at 2025-08-16T11:09:44.151Z
+>>>>>>> 455ef4fc (new commit now)
             </div>
         <script src="../../prettify.js"></script>
         <script>

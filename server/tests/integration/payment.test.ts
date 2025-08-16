@@ -125,7 +125,7 @@ describe('Payments integration', () => {
     // Platform fee recorded
     const feeTx = await Transaction.findOne({ reference: `PLATFORM_FEE_${reference}`, type: TransactionType.PLATFORM_FEE });
     expect(feeTx).toBeTruthy();
-    expect(feeTx?.amount).toBe(Math.round(order.total * 0.03));
+    expect(feeTx?.amount).toBe(Math.round((order.total || 0) * 0.03));
 
     // Commission transactions recorded for partners
     const commissionTxs = await Transaction.find({ type: TransactionType.COMMISSION }).lean();

@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>6/6</span>
+                <span class='fraction'>7/7</span>
             </div>
         
             
@@ -39,14 +39,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/0</span>
+                <span class='fraction'>2/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>6/6</span>
+                <span class='fraction'>7/7</span>
             </div>
         
             
@@ -107,8 +107,12 @@
 <a name='L42'></a><a href='#L42'>42</a>
 <a name='L43'></a><a href='#L43'>43</a>
 <a name='L44'></a><a href='#L44'>44</a>
+<<<<<<< HEAD
 <a name='L45'></a><a href='#L45'>45</a>
 <a name='L46'></a><a href='#L46'>46</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+=======
+<a name='L45'></a><a href='#L45'>45</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+>>>>>>> 455ef4fc (new commit now)
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -133,13 +137,28 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<<<<<<< HEAD
+=======
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+>>>>>>> 455ef4fc (new commit now)
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<<<<<<< HEAD
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -152,6 +171,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+=======
+>>>>>>> 455ef4fc (new commit now)
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span></td><td class="text"><pre class="prettyprint lang-js">import mongoose, { Document, Schema } from 'mongoose';
 &nbsp;
@@ -179,16 +200,16 @@ export interface IHarvestPopulated extends Omit&lt;IHarvest, 'farmer'&gt; {
 &nbsp;
 const HarvestSchema = new Schema&lt;IHarvest&gt;(
   {
-    farmer: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    farmer: { type: Schema.Types.ObjectId, ref: 'User', required: false },
     cropType: { type: String, required: true },
-    quantity: { type: Number, required: true },
-    date: { type: Date, required: true },
+    quantity: { type: Number, required: false, default: 0 },
+    date: { type: Date, required: false, default: () =&gt; new Date() },
     geoLocation: {
-      lat: { type: Number, required: true },
-      lng: { type: Number, required: true },
+      lat: { type: Number, required: false },
+      lng: { type: Number, required: false },
     },
-    batchId: { type: String, required: true, unique: true },
-    qrData: { type: String, required: true },
+    batchId: { type: String, required: false, unique: true, default: () =&gt; `BATCH-${Math.random().toString(36).slice(2, 10).toUpperCase()}` },
+    qrData: { type: String, required: false, default: '' },
   },
   { timestamps: true }
 );
@@ -196,7 +217,6 @@ const HarvestSchema = new Schema&lt;IHarvest&gt;(
 export const Harvest = mongoose.model&lt;IHarvest&gt;('Harvest', HarvestSchema);
 &nbsp;
 // Helpful indexes
-HarvestSchema.index({ batchId: 1 }, { unique: true });
 HarvestSchema.index({ 'geoLocation.lat': 1, 'geoLocation.lng': 1 });
 HarvestSchema.index({ createdAt: -1 });</pre></td></tr></table></pre>
 
@@ -205,7 +225,11 @@ HarvestSchema.index({ createdAt: -1 });</pre></td></tr></table></pre>
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+<<<<<<< HEAD
                 at 2025-08-14T11:02:31.032Z
+=======
+                at 2025-08-16T11:09:44.151Z
+>>>>>>> 455ef4fc (new commit now)
             </div>
         <script src="../../prettify.js"></script>
         <script>

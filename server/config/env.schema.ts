@@ -33,6 +33,13 @@ export const envSchema = Joi.object({
   AFRICASTALKING_USERNAME: Joi.string().optional(),
   AFRICASTALKING_API_KEY: Joi.string().optional(),
 
+<<<<<<< HEAD
+=======
+  // Weather APIs
+  OPENWEATHER_API_KEY: Joi.string().optional(),
+  AGROMONITORING_API_KEY: Joi.string().optional(),
+
+>>>>>>> 455ef4fc (new commit now)
   // Email
   SENDGRID_API_KEY: Joi.string().optional(),
   FROM_EMAIL: Joi.string().email().optional(),

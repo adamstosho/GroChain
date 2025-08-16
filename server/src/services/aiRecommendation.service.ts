@@ -2,7 +2,7 @@ import { User } from '../models/user.model';
 import { Harvest } from '../models/harvest.model';
 import { Listing } from '../models/listing.model';
 import { Order } from '../models/order.model';
-import { logger } from '../index';
+import { logger } from '../utils/logger';
 
 export interface CropRecommendation {
   crop: string;

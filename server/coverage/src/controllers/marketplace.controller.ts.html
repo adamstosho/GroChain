@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">15.73% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>14/89</span>
+                <span class='fraction'>0/89</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">11.39% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>9/79</span>
+                <span class='fraction'>0/79</span>
             </div>
         
             
@@ -255,11 +255,19 @@
 <a name='L190'></a><a href='#L190'>190</a>
 <a name='L191'></a><a href='#L191'>191</a>
 <a name='L192'></a><a href='#L192'>192</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<<<<<<< HEAD
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+=======
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+>>>>>>> 455ef4fc (new commit now)
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -268,7 +276,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<<<<<<< HEAD
 <span class="cline-any cline-yes">1x</span>
+=======
+<span class="cline-any cline-no">&nbsp;</span>
+>>>>>>> 455ef4fc (new commit now)
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -358,7 +370,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<<<<<<< HEAD
 <span class="cline-any cline-yes">1x</span>
+=======
+<span class="cline-any cline-no">&nbsp;</span>
+>>>>>>> 455ef4fc (new commit now)
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -372,7 +388,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<<<<<<< HEAD
 <span class="cline-any cline-yes">1x</span>
+=======
+<span class="cline-any cline-no">&nbsp;</span>
+>>>>>>> 455ef4fc (new commit now)
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -399,7 +419,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<<<<<<< HEAD
 <span class="cline-any cline-yes">1x</span>
+=======
+<span class="cline-any cline-no">&nbsp;</span>
+>>>>>>> 455ef4fc (new commit now)
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -416,7 +440,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<<<<<<< HEAD
 <span class="cline-any cline-yes">1x</span>
+=======
+<span class="cline-any cline-no">&nbsp;</span>
+>>>>>>> 455ef4fc (new commit now)
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -446,11 +474,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Request, Response } from 'express';
-import { Listing } from '../models/listing.model';
-import { Order } from '../models/order.model';
-import Joi from 'joi';
+<span class="cstat-no" title="statement not covered" >import { Listing } from '../models/listing.model';</span>
+<span class="cstat-no" title="statement not covered" >import { Order } from '../models/order.model';</span>
+<span class="cstat-no" title="statement not covered" >import Joi from 'joi';</span>
 &nbsp;
-const listingSchema = Joi.object({
+const listingSchema = <span class="cstat-no" title="statement not covered" >Joi.object({</span>
   product: Joi.string().required(),
   price: Joi.number().required(),
   quantity: Joi.number().required(),
@@ -459,7 +487,7 @@ const listingSchema = Joi.object({
   images: Joi.array().items(Joi.string()).optional(),
 });
 &nbsp;
-export const getListings = <span class="fstat-no" title="function not covered" >async </span>(req: Request, res: Response) =&gt; {
+export const <span class="cstat-no" title="statement not covered" >getListings = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >a</span>sync </span>(req: Request, res: Response) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const {
       search,
@@ -549,7 +577,7 @@ export const getListings = <span class="fstat-no" title="function not covered" >
   }
 };
 &nbsp;
-export const createListing = <span class="fstat-no" title="function not covered" >async </span>(req: Request, res: Response) =&gt; {
+export const <span class="cstat-no" title="statement not covered" >createListing = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >a</span>sync </span>(req: Request, res: Response) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { error, value } = <span class="cstat-no" title="statement not covered" >listingSchema.validate(req.body);</span>
 <span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (error) {</span>
@@ -563,7 +591,7 @@ export const createListing = <span class="fstat-no" title="function not covered"
   }
 };
 &nbsp;
-export const createOrder = <span class="fstat-no" title="function not covered" >async </span>(req: Request, res: Response) =&gt; {
+export const <span class="cstat-no" title="statement not covered" >createOrder = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >a</span>sync </span>(req: Request, res: Response) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { buyer, items } = <span class="cstat-no" title="statement not covered" >req.body;</span>
 <span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!buyer || !Array.isArray(items) || items.length === 0) {</span>
@@ -590,7 +618,7 @@ export const createOrder = <span class="fstat-no" title="function not covered" >
   }
 };
 &nbsp;
-export const updateOrderStatus = <span class="fstat-no" title="function not covered" >async </span>(req: Request, res: Response) =&gt; {
+export const <span class="cstat-no" title="statement not covered" >updateOrderStatus = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >a</span>sync </span>(req: Request, res: Response) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { id } = <span class="cstat-no" title="statement not covered" >req.params;</span>
     const { status } = <span class="cstat-no" title="statement not covered" >req.body;</span>
@@ -607,7 +635,7 @@ export const updateOrderStatus = <span class="fstat-no" title="function not cove
   }
 };
 &nbsp;
-export const getSearchSuggestions = <span class="fstat-no" title="function not covered" >async </span>(req: Request, res: Response) =&gt; {
+export const <span class="cstat-no" title="statement not covered" >getSearchSuggestions = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >a</span>sync </span>(req: Request, res: Response) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { q } = <span class="cstat-no" title="statement not covered" >req.query;</span>
     
@@ -643,7 +671,11 @@ export const getSearchSuggestions = <span class="fstat-no" title="function not c
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+<<<<<<< HEAD
                 at 2025-08-14T11:02:31.881Z
+=======
+                at 2025-08-16T11:09:44.289Z
+>>>>>>> 455ef4fc (new commit now)
             </div>
         <script src="../../prettify.js"></script>
         <script>

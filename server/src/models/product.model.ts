@@ -1,14 +1,19 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IProduct extends Document {
-  cropName: string;
+  // Minimal fields used across the app/tests
+  name?: string;
+  price?: number;
+  region?: string | string[];
+
+  // Rich agricultural catalog fields (optional with sensible defaults)
+  cropName?: string;
   category: string;
   variety?: string;
   description?: string;
-  basePrice: number;
+  basePrice?: number;
   unit: string;
   seasonality: string[];
-  region: string[];
   qualityGrade: 'premium' | 'standard' | 'basic';
   organic: boolean;
   certifications: string[];
@@ -24,9 +29,9 @@ export interface IProduct extends Document {
   farmingPractices: string[];
   pestResistance: string[];
   diseaseResistance: string[];
-  yieldPotential: number; // kg per hectare
-  maturityDays: number;
-  waterRequirement: 'low' | 'medium' | 'high';
+  yieldPotential?: number; // kg per hectare
+  maturityDays?: number;
+  waterRequirement?: 'low' | 'medium' | 'high';
   soilType: string[];
   climateZone: string[];
   marketDemand: 'high' | 'medium' | 'low';
@@ -39,9 +44,16 @@ export interface IProduct extends Document {
 }
 
 const ProductSchema = new Schema<IProduct>({
+  // Allow either cropName or name; map name -> cropName in pre-save
   cropName: {
     type: String,
-    required: true,
+    required: false,
+    trim: true,
+    index: true
+  },
+  name: {
+    type: String,
+    required: false,
     trim: true,
     index: true
   },
@@ -61,12 +73,18 @@ const ProductSchema = new Schema<IProduct>({
   },
   basePrice: {
     type: Number,
-    required: true,
+    required: false,
+    min: 0,
+    default: 0
+  },
+  price: {
+    type: Number,
+    required: false,
     min: 0
   },
   unit: {
     type: String,
-    required: true,
+    required: false,
     enum: ['kg', 'ton', 'bag', 'piece', 'bundle', 'litre'],
     default: 'kg'
   },
@@ -93,7 +111,7 @@ const ProductSchema = new Schema<IProduct>({
   }],
   storageLife: {
     type: Number,
-    required: true,
+    required: false,
     min: 1,
     default: 30
   },
@@ -119,18 +137,21 @@ const ProductSchema = new Schema<IProduct>({
   }],
   yieldPotential: {
     type: Number,
-    required: true,
-    min: 0
+    required: false,
+    min: 0,
+    default: 0
   },
   maturityDays: {
     type: Number,
-    required: true,
-    min: 1
+    required: false,
+    min: 1,
+    default: 90
   },
   waterRequirement: {
     type: String,
     enum: ['low', 'medium', 'high'],
-    required: true
+    required: false,
+    default: 'medium'
   },
   soilType: [{
     type: String,
@@ -170,7 +191,8 @@ const ProductSchema = new Schema<IProduct>({
 // Indexes for better query performance
 ProductSchema.index({ cropName: 'text', description: 'text' });
 ProductSchema.index({ category: 1, marketDemand: 1 });
-ProductSchema.index({ seasonality: 1, region: 1 });
+// Avoid parallel arrays compound index which in in-memory server causes errors
+// ProductSchema.index({ seasonality: 1, region: 1 });
 ProductSchema.index({ basePrice: 1 });
 ProductSchema.index({ yieldPotential: -1 });
 ProductSchema.index({ marketDemand: -1, exportPotential: 1 });
@@ -178,18 +200,26 @@ ProductSchema.index({ marketDemand: -1, exportPotential: 1 });
 // Virtual for price per kg
 ProductSchema.virtual('pricePerKg').get(function() {
   if (this.unit === 'kg') return this.basePrice;
-  if (this.unit === 'ton') return this.basePrice / 1000;
-  if (this.unit === 'bag') return this.basePrice / 50; // Assuming 50kg bag
+  if (this.unit === 'ton') return (this.basePrice || 0) / 1000;
+  if (this.unit === 'bag') return (this.basePrice || 0) / 50; // Assuming 50kg bag
   return this.basePrice;
 });
 
 // Virtual for market value
 ProductSchema.virtual('marketValue').get(function() {
-  return this.basePrice * this.yieldPotential;
+  return (this.basePrice || 0) * (this.yieldPotential || 0);
 });
 
-// Pre-save middleware to set default values
+// Pre-save middleware to set default values and map minimal fields
 ProductSchema.pre('save', function(next) {
+  // Map simple name/price to rich fields if provided
+  if (!this.cropName && (this as any).name) {
+    this.cropName = (this as any).name;
+  }
+  if ((this as any).price != null && (!this.basePrice || this.basePrice === 0)) {
+    this.basePrice = (this as any).price;
+  }
+
   if (!this.seasonality || this.seasonality.length === 0) {
     // Set default seasonality based on crop category
     if (['grains', 'tubers', 'legumes'].includes(this.category)) {
@@ -201,7 +231,12 @@ ProductSchema.pre('save', function(next) {
     }
   }
 
-  if (!this.region || this.region.length === 0) {
+  // Normalize region to array of strings
+  const currentRegion: any = (this as any).region;
+  if (typeof currentRegion === 'string') {
+    (this as any).region = [currentRegion];
+  }
+  if (!this.region || (Array.isArray(this.region) && this.region.length === 0)) {
     this.region = ['Nigeria'];
   }
 

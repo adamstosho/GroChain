@@ -93,6 +93,289 @@ const swaggerSpec = {
           data: { type: 'object' },
         },
       },
+      WeatherData: {
+        type: 'object',
+        properties: {
+          location: {
+            type: 'object',
+            properties: {
+              lat: { type: 'number' },
+              lng: { type: 'number' },
+              city: { type: 'string' },
+              state: { type: 'string' },
+              country: { type: 'string' }
+            }
+          },
+          current: {
+            type: 'object',
+            properties: {
+              temperature: { type: 'number' },
+              humidity: { type: 'number' },
+              windSpeed: { type: 'number' },
+              windDirection: { type: 'string' },
+              pressure: { type: 'number' },
+              visibility: { type: 'number' },
+              uvIndex: { type: 'number' },
+              weatherCondition: { type: 'string' },
+              weatherIcon: { type: 'string' },
+              feelsLike: { type: 'number' },
+              dewPoint: { type: 'number' },
+              cloudCover: { type: 'number' }
+            }
+          },
+          forecast: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                date: { type: 'string', format: 'date-time' },
+                highTemp: { type: 'number' },
+                lowTemp: { type: 'number' },
+                humidity: { type: 'number' },
+                windSpeed: { type: 'number' },
+                precipitation: { type: 'number' },
+                weatherCondition: { type: 'string' },
+                weatherIcon: { type: 'string' },
+                uvIndex: { type: 'number' }
+              }
+            }
+          },
+          agricultural: {
+            type: 'object',
+            properties: {
+              soilMoisture: { type: 'number' },
+              soilTemperature: { type: 'number' },
+              growingDegreeDays: { type: 'number' },
+              frostRisk: { type: 'string', enum: ['low', 'medium', 'high'] },
+              droughtIndex: { type: 'number' },
+              pestRisk: { type: 'string', enum: ['low', 'medium', 'high'] },
+              plantingRecommendation: { type: 'string' },
+              irrigationAdvice: { type: 'string' }
+            }
+          },
+          alerts: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                type: { type: 'string', enum: ['weather', 'climate', 'agricultural'] },
+                severity: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
+                title: { type: 'string' },
+                description: { type: 'string' },
+                startTime: { type: 'string', format: 'date-time' },
+                endTime: { type: 'string', format: 'date-time' },
+                affectedCrops: { type: 'array', items: { type: 'string' } }
+              }
+            }
+          }
+        }
+      },
+      AnalyticsData: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', format: 'date-time' },
+          period: { type: 'string', enum: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] },
+          region: { type: 'string' },
+          metrics: {
+            type: 'object',
+            properties: {
+              farmers: {
+                type: 'object',
+                properties: {
+                  total: { type: 'number' },
+                  active: { type: 'number' },
+                  new: { type: 'number' },
+                  verified: { type: 'number' },
+                  byGender: {
+                    type: 'object',
+                    properties: {
+                      male: { type: 'number' },
+                      female: { type: 'number' },
+                      other: { type: 'number' }
+                    }
+                  },
+                  byAgeGroup: {
+                    type: 'object',
+                    properties: {
+                      '18-25': { type: 'number' },
+                      '26-35': { type: 'number' },
+                      '36-45': { type: 'number' },
+                      '46-55': { type: 'number' },
+                      '55+': { type: 'number' }
+                    }
+                  },
+                  byEducation: {
+                    type: 'object',
+                    properties: {
+                      none: { type: 'number' },
+                      primary: { type: 'number' },
+                      secondary: { type: 'number' },
+                      tertiary: { type: 'number' }
+                    }
+                  }
+                }
+              },
+              transactions: {
+                type: 'object',
+                properties: {
+                  total: { type: 'number' },
+                  volume: { type: 'number' },
+                  averageValue: { type: 'number' },
+                  byStatus: {
+                    type: 'object',
+                    properties: {
+                      pending: { type: 'number' },
+                      completed: { type: 'number' },
+                      failed: { type: 'number' },
+                      cancelled: { type: 'number' }
+                    }
+                  },
+                  byPaymentMethod: {
+                    type: 'object',
+                    properties: {
+                      mobileMoney: { type: 'number' },
+                      bankTransfer: { type: 'number' },
+                      cash: { type: 'number' },
+                      card: { type: 'number' }
+                    }
+                  }
+                }
+              },
+              harvests: {
+                type: 'object',
+                properties: {
+                  total: { type: 'number' },
+                  totalVolume: { type: 'number' },
+                  averageYield: { type: 'number' },
+                  byCrop: { type: 'object' },
+                  byQuality: {
+                    type: 'object',
+                    properties: {
+                      premium: { type: 'number' },
+                      standard: { type: 'number' },
+                      basic: { type: 'number' }
+                    }
+                  },
+                  postHarvestLoss: { type: 'number' }
+                }
+              },
+              marketplace: {
+                type: 'object',
+                properties: {
+                  listings: { type: 'number' },
+                  orders: { type: 'number' },
+                  revenue: { type: 'number' },
+                  commission: { type: 'number' },
+                  activeProducts: { type: 'number' },
+                  topProducts: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        productId: { type: 'string' },
+                        name: { type: 'string' },
+                        sales: { type: 'number' },
+                        revenue: { type: 'number' }
+                      }
+                    }
+                  }
+                }
+              },
+              fintech: {
+                type: 'object',
+                properties: {
+                  creditScores: {
+                    type: 'object',
+                    properties: {
+                      total: { type: 'number' },
+                      average: { type: 'number' },
+                      distribution: {
+                        type: 'object',
+                        properties: {
+                          poor: { type: 'number' },
+                          fair: { type: 'number' },
+                          good: { type: 'number' },
+                          excellent: { type: 'number' }
+                        }
+                      }
+                    }
+                  },
+                  loans: {
+                    type: 'object',
+                    properties: {
+                      total: { type: 'number' },
+                      amount: { type: 'number' },
+                      averageAmount: { type: 'number' },
+                      repaymentRate: { type: 'number' },
+                      defaultRate: { type: 'number' }
+                    }
+                  }
+                }
+              },
+              impact: {
+                type: 'object',
+                properties: {
+                  incomeIncrease: { type: 'number' },
+                  productivityImprovement: { type: 'number' },
+                  foodSecurity: { type: 'number' },
+                  employmentCreated: { type: 'number' },
+                  carbonFootprintReduction: { type: 'number' },
+                  waterConservation: { type: 'number' }
+                }
+              },
+              partners: {
+                type: 'object',
+                properties: {
+                  total: { type: 'number' },
+                  active: { type: 'number' },
+                  farmerReferrals: { type: 'number' },
+                  revenueGenerated: { type: 'number' },
+                  performanceScore: { type: 'number' },
+                  topPerformers: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        partnerId: { type: 'string' },
+                        name: { type: 'string' },
+                        referrals: { type: 'number' },
+                        revenue: { type: 'number' },
+                        score: { type: 'number' }
+                      }
+                    }
+                  }
+                }
+              },
+              weather: {
+                type: 'object',
+                properties: {
+                  averageTemperature: { type: 'number' },
+                  averageHumidity: { type: 'number' },
+                  rainfall: { type: 'number' },
+                  droughtDays: { type: 'number' },
+                  favorableDays: { type: 'number' },
+                  impact: {
+                    type: 'object',
+                    properties: {
+                      favorable: { type: 'number' },
+                      moderate: { type: 'number' },
+                      unfavorable: { type: 'number' }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          metadata: {
+            type: 'object',
+            properties: {
+              lastUpdated: { type: 'string', format: 'date-time' },
+              dataSource: { type: 'string' },
+              version: { type: 'string' }
+            }
+          }
+        }
+      },
       Shipment: {
         type: 'object',
         properties: {
@@ -258,6 +541,91 @@ const swaggerSpec = {
           paymentMethod: { type: 'string' },
           reference: { type: 'string' },
           createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      BVNVerificationRequest: {
+        type: 'object',
+        properties: {
+          bvn: { type: 'string', minLength: 11, maxLength: 11, pattern: '^\\d{11}$' },
+          firstName: { type: 'string', minLength: 2 },
+          lastName: { type: 'string', minLength: 2 },
+          dateOfBirth: { type: 'string', format: 'date' },
+          phoneNumber: { type: 'string', pattern: '^(\\+234|0)[789][01]\\d{8}$' },
+        },
+        required: ['bvn', 'firstName', 'lastName', 'dateOfBirth', 'phoneNumber'],
+      },
+      BVNVerificationResponse: {
+        type: 'object',
+        properties: {
+          isValid: { type: 'boolean' },
+          message: { type: 'string' },
+          userDetails: {
+            type: 'object',
+            properties: {
+              firstName: { type: 'string' },
+              lastName: { type: 'string' },
+              middleName: { type: 'string' },
+              dateOfBirth: { type: 'string' },
+              phoneNumber: { type: 'string' },
+              bankName: { type: 'string' },
+              accountNumber: { type: 'string' },
+            },
+          },
+          verificationId: { type: 'string' },
+          timestamp: { type: 'string', format: 'date-time' },
+          verificationMethod: { type: 'string', enum: ['offline', 'manual'] },
+        },
+      },
+      ManualVerificationData: {
+        type: 'object',
+        properties: {
+          bvn: { type: 'string' },
+          firstName: { type: 'string' },
+          lastName: { type: 'string' },
+          dateOfBirth: { type: 'string' },
+          phoneNumber: { type: 'string' },
+          documentType: { type: 'string', enum: ['national_id', 'passport', 'drivers_license', 'voter_card'] },
+          documentNumber: { type: 'string' },
+          bankName: { type: 'string' },
+          accountNumber: { type: 'string' },
+          verificationStatus: { type: 'string', enum: ['pending', 'approved', 'rejected'] },
+          adminNotes: { type: 'string' },
+          submittedAt: { type: 'string', format: 'date-time' },
+          reviewedAt: { type: 'string', format: 'date-time' },
+          reviewedBy: { type: 'string' },
+        },
+      },
+      USSDRequest: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+          phoneNumber: { type: 'string' },
+          serviceCode: { type: 'string' },
+          text: { type: 'string' },
+          networkCode: { type: 'string' },
+        },
+        required: ['sessionId', 'phoneNumber', 'serviceCode'],
+      },
+      USSDResponse: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+          phoneNumber: { type: 'string' },
+          serviceCode: { type: 'string' },
+          text: { type: 'string' },
+          networkCode: { type: 'string' },
+        },
+        required: ['sessionId', 'phoneNumber', 'serviceCode'],
+      },
+      USSDServiceInfo: {
+        type: 'object',
+        properties: {
+          serviceCode: { type: 'string' },
+          description: { type: 'string' },
+          features: { type: 'array', items: { type: 'string' } },
+          instructions: { type: 'string' },
+          supportedNetworks: { type: 'array', items: { type: 'string' } },
+          languages: { type: 'array', items: { type: 'string' } },
         },
       },
     },
@@ -1703,8 +2071,11 @@ const swaggerSpec = {
                 type: 'object',
                 properties: {
                   userId: { type: 'string' },
-                  type: { type: 'string', enum: ['sms', 'email', 'ussd'] },
+                  type: { type: 'string', enum: ['sms', 'email', 'ussd', 'push'] },
                   message: { type: 'string' },
+                  title: { type: 'string' },
+                  category: { type: 'string', enum: ['marketing', 'transaction', 'harvest', 'marketplace', 'general'] },
+                  data: { type: 'object' }
                 },
                 required: ['userId', 'type', 'message'],
               },
@@ -1730,6 +2101,127 @@ const swaggerSpec = {
           500: { description: 'Notification failed' },
         },
       },
+    },
+    '/api/notifications/preferences': {
+      get: {
+        tags: ['Notifications'],
+        summary: 'Get user notification preferences',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Preferences retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        sms: { type: 'boolean' },
+                        email: { type: 'boolean' },
+                        ussd: { type: 'boolean' },
+                        push: { type: 'boolean' },
+                        marketing: { type: 'boolean' },
+                        transaction: { type: 'boolean' },
+                        harvest: { type: 'boolean' },
+                        marketplace: { type: 'boolean' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          401: { description: 'Unauthorized' }
+        }
+      },
+      put: {
+        tags: ['Notifications'],
+        summary: 'Update user notification preferences',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  sms: { type: 'boolean' },
+                  email: { type: 'boolean' },
+                  ussd: { type: 'boolean' },
+                  push: { type: 'boolean' },
+                  marketing: { type: 'boolean' },
+                  transaction: { type: 'boolean' },
+                  harvest: { type: 'boolean' },
+                  marketplace: { type: 'boolean' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Preferences updated' },
+          400: { description: 'Invalid request' },
+          401: { description: 'Unauthorized' }
+        }
+      }
+    },
+    '/api/notifications/push-token': {
+      put: {
+        tags: ['Notifications'],
+        summary: 'Update user push token',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: { pushToken: { type: 'string' } },
+                required: ['pushToken']
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Push token updated' },
+          400: { description: 'Push token is required' },
+          401: { description: 'Unauthorized' }
+        }
+      }
+    },
+    '/api/notifications/send-bulk': {
+      post: {
+        tags: ['Notifications'],
+        summary: 'Send bulk notifications',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  userIds: { type: 'array', items: { type: 'string' } },
+                  type: { type: 'string', enum: ['sms', 'email', 'ussd', 'push'] },
+                  message: { type: 'string' },
+                  title: { type: 'string' },
+                  category: { type: 'string' },
+                  data: { type: 'object' }
+                },
+                required: ['userIds', 'type', 'message']
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Bulk notifications result summary' },
+          400: { description: 'Invalid request' },
+          401: { description: 'Unauthorized' }
+        }
+      }
     },
     '/api/notifications/{userId}': {
       get: {
@@ -3339,9 +3831,1551 @@ const swaggerSpec = {
           400: { description: 'Bad request' },
           401: { description: 'Unauthorized' }
         }
+<<<<<<< HEAD
       }
     },
   },
+=======
+      },
+    },
+    '/api/harvests/{batchId}': {
+      get: {
+        tags: ['Harvests'],
+        summary: 'Get harvest provenance by batch ID (authenticated)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'batchId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Batch ID of the harvest',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Harvest provenance retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    harvest: { $ref: '#/components/schemas/Harvest' },
+                    farmer: { type: 'object' },
+                    provenance: { type: 'object' }
+                  }
+                }
+              }
+            }
+          },
+          404: { description: 'Harvest batch not found' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/weather/current': {
+      get: {
+        tags: ['Weather'],
+        summary: 'Get current weather for a location',
+        parameters: [
+          {
+            name: 'lat',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Latitude of the location',
+          },
+          {
+            name: 'lng',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Longitude of the location',
+          },
+          {
+            name: 'city',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'City name',
+          },
+          {
+            name: 'state',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'State/province name',
+          },
+          {
+            name: 'country',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Country name',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Current weather data retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    data: { $ref: '#/components/schemas/WeatherData' }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Missing required parameters' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/weather/forecast': {
+      get: {
+        tags: ['Weather'],
+        summary: 'Get weather forecast for a location',
+        parameters: [
+          {
+            name: 'lat',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Latitude of the location',
+          },
+          {
+            name: 'lng',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Longitude of the location',
+          },
+          {
+            name: 'city',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'City name',
+          },
+          {
+            name: 'state',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'State/province name',
+          },
+          {
+            name: 'country',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Country name',
+          },
+          {
+            name: 'days',
+            in: 'query',
+            required: false,
+            schema: { type: 'number', default: 7 },
+            description: 'Number of forecast days (default: 7)',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Weather forecast retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        location: { $ref: '#/components/schemas/WeatherData/properties/location' },
+                        forecast: { $ref: '#/components/schemas/WeatherData/properties/forecast' },
+                        metadata: { type: 'object' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Missing required parameters' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/weather/agricultural-insights': {
+      get: {
+        tags: ['Weather'],
+        summary: 'Get agricultural insights for a location',
+        parameters: [
+          {
+            name: 'lat',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Latitude of the location',
+          },
+          {
+            name: 'lng',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Longitude of the location',
+          },
+          {
+            name: 'city',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'City name',
+          },
+          {
+            name: 'state',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'State/province name',
+          },
+          {
+            name: 'country',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Country name',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Agricultural insights retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    data: { $ref: '#/components/schemas/WeatherData/properties/agricultural' }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Missing required parameters' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/weather/alerts': {
+      get: {
+        tags: ['Weather'],
+        summary: 'Get weather alerts for a location',
+        parameters: [
+          {
+            name: 'lat',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Latitude of the location',
+          },
+          {
+            name: 'lng',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Longitude of the location',
+          },
+          {
+            name: 'city',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'City name',
+          },
+          {
+            name: 'state',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'State/province name',
+          },
+          {
+            name: 'country',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Country name',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Weather alerts retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    data: { $ref: '#/components/schemas/WeatherData/properties/alerts' }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Missing required parameters' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/analytics/dashboard': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Get comprehensive dashboard metrics',
+        parameters: [
+          {
+            name: 'startDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'Start date for analytics (ISO format)',
+          },
+          {
+            name: 'endDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'End date for analytics (ISO format)',
+          },
+          {
+            name: 'period',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', enum: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] },
+            description: 'Analytics period',
+          },
+          {
+            name: 'region',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Region filter',
+          },
+          {
+            name: 'partnerId',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Partner ID filter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Dashboard metrics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: { $ref: '#/components/schemas/AnalyticsData' }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Invalid parameters' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/analytics/farmers': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Get farmer analytics',
+        parameters: [
+          {
+            name: 'startDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'Start date for analytics (ISO format)',
+          },
+          {
+            name: 'endDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'End date for analytics (ISO format)',
+          },
+          {
+            name: 'region',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Region filter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Farmer analytics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        overview: { type: 'object' },
+                        demographics: { type: 'object' },
+                        trends: { type: 'object' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Invalid parameters' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/analytics/transactions': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Get transaction analytics',
+        parameters: [
+          {
+            name: 'startDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'Start date for analytics (ISO format)',
+          },
+          {
+            name: 'endDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'End date for analytics (ISO format)',
+          },
+          {
+            name: 'region',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Region filter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Transaction analytics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        overview: { type: 'object' },
+                        breakdown: { type: 'object' },
+                        trends: { type: 'array' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Invalid parameters' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/analytics/harvests': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Get harvest analytics',
+        parameters: [
+          {
+            name: 'startDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'Start date for analytics (ISO format)',
+          },
+          {
+            name: 'endDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'End date for analytics (ISO format)',
+          },
+          {
+            name: 'region',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Region filter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Harvest analytics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        overview: { type: 'object' },
+                        breakdown: { type: 'object' },
+                        trends: { type: 'array' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Invalid parameters' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/analytics/marketplace': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Get marketplace analytics',
+        parameters: [
+          {
+            name: 'startDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'Start date for analytics (ISO format)',
+          },
+          {
+            name: 'endDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'End date for analytics (ISO format)',
+          },
+          {
+            name: 'region',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Region filter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Marketplace analytics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        overview: { type: 'object' },
+                        topProducts: { type: 'array' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Invalid parameters' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/analytics/fintech': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Get fintech analytics',
+        parameters: [
+          {
+            name: 'startDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'Start date for analytics (ISO format)',
+          },
+          {
+            name: 'endDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'End date for analytics (ISO format)',
+          },
+          {
+            name: 'region',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Region filter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Fintech analytics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        creditScores: { type: 'object' },
+                        loans: { type: 'object' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Invalid parameters' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/analytics/impact': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Get impact analytics',
+        parameters: [
+          {
+            name: 'startDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'Start date for analytics (ISO format)',
+          },
+          {
+            name: 'endDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'End date for analytics (ISO format)',
+          },
+          {
+            name: 'region',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Region filter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Impact analytics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        economic: { type: 'object' },
+                        social: { type: 'object' },
+                        environmental: { type: 'object' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Invalid parameters' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/analytics/partners': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Get partner analytics',
+        parameters: [
+          {
+            name: 'startDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'Start date for analytics (ISO format)',
+          },
+          {
+            name: 'endDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'End date for analytics (ISO format)',
+          },
+          {
+            name: 'partnerId',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Partner ID filter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Partner analytics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        overview: { type: 'object' },
+                        topPerformers: { type: 'array' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Invalid parameters' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/analytics/weather': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Get weather analytics',
+        parameters: [
+          {
+            name: 'startDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'Start date for analytics (ISO format)',
+          },
+          {
+            name: 'endDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'End date for analytics (ISO format)',
+          },
+          {
+            name: 'region',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Region filter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Weather analytics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        overview: { type: 'object' },
+                        impact: { type: 'object' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Invalid parameters' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/analytics/report': {
+      post: {
+        tags: ['Analytics'],
+        summary: 'Generate analytics report',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['startDate', 'endDate', 'period'],
+                properties: {
+                  startDate: { type: 'string', format: 'date' },
+                  endDate: { type: 'string', format: 'date' },
+                  period: { type: 'string', enum: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] },
+                  region: { type: 'string' },
+                  partnerId: { type: 'string' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          201: {
+            description: 'Analytics report generated successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        reportId: { type: 'string' },
+                        date: { type: 'string', format: 'date-time' },
+                        period: { type: 'string' },
+                        region: { type: 'string' },
+                        metadata: { type: 'object' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Invalid request body' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/analytics/reports': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Get analytics reports',
+        parameters: [
+          {
+            name: 'startDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'Start date for analytics (ISO format)',
+          },
+          {
+            name: 'endDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'End date for analytics (ISO format)',
+          },
+          {
+            name: 'period',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', enum: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] },
+            description: 'Analytics period',
+          },
+          {
+            name: 'region',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Region filter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Analytics reports retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'string' },
+                          date: { type: 'string', format: 'date-time' },
+                          period: { type: 'string' },
+                          region: { type: 'string' },
+                          metadata: { type: 'object' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Invalid parameters' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/analytics/export': {
+      get: {
+        tags: ['Analytics'],
+        summary: 'Export analytics data for government/NGO reporting',
+        parameters: [
+          {
+            name: 'startDate',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', format: 'date' },
+            description: 'Start date for analytics (ISO format)',
+          },
+          {
+            name: 'endDate',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', format: 'date' },
+            description: 'End date for analytics (ISO format)',
+          },
+          {
+            name: 'period',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', enum: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] },
+            description: 'Analytics period',
+          },
+          {
+            name: 'region',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Region filter',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Analytics data exported successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    message: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        period: { type: 'string' },
+                        region: { type: 'string' },
+                        generatedAt: { type: 'string', format: 'date-time' },
+                        metrics: { type: 'object' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Invalid parameters' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/weather/climate-summary': {
+      get: {
+        tags: ['Weather'],
+        summary: 'Get climate summary for a location',
+        parameters: [
+          {
+            name: 'lat',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Latitude of the location',
+          },
+          {
+            name: 'lng',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Longitude of the location',
+          },
+          {
+            name: 'city',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'City name',
+          },
+          {
+            name: 'state',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'State/province name',
+          },
+          {
+            name: 'country',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Country name',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Climate summary retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        location: { $ref: '#/components/schemas/WeatherData/properties/location' },
+                        currentConditions: { type: 'object' },
+                        agriculturalRisk: { type: 'object' },
+                        recommendations: { type: 'object' },
+                        alerts: { type: 'array' },
+                        lastUpdated: { type: 'string', format: 'date-time' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Missing required parameters' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/weather/forecast/{location}': {
+      get: {
+        tags: ['Weather'],
+        summary: 'Get weather forecast for a specific location',
+        parameters: [
+          {
+            name: 'location',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Location name or coordinates'
+          },
+          {
+            name: 'days',
+            in: 'query',
+            required: false,
+            schema: { type: 'integer', minimum: 1, maximum: 7 },
+            description: 'Number of days for forecast (1-7)'
+          }
+        ],
+        responses: {
+          200: {
+            description: 'Weather forecast retrieved successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/WeatherForecast' }
+              }
+            }
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          404: { $ref: '#/components/responses/NotFound' },
+          500: { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+    '/api/verification/bvn': {
+      post: {
+        tags: ['BVN Verification'],
+        summary: 'Verify BVN for user identity',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/BVNVerificationRequest' }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'BVN verification completed successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/BVNVerificationResponse' }
+              }
+            }
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          422: {
+            description: 'BVN verification failed',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: false },
+                    message: { type: 'string' },
+                    errors: {
+                      type: 'array',
+                      items: { type: 'string' }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          500: { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+    '/api/verification/status/{userId}': {
+      get: {
+        tags: ['BVN Verification'],
+        summary: 'Get verification status for a user',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'userId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'User ID to check verification status'
+          }
+        ],
+        responses: {
+          200: {
+            description: 'Verification status retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        userId: { type: 'string' },
+                        verificationStatus: { type: 'string', enum: ['pending', 'verified', 'failed', 'manual_review'] },
+                        verificationMethod: { type: 'string', enum: ['online', 'offline', 'manual'] },
+                        verifiedAt: { type: 'string', format: 'date-time' },
+                        lastAttempt: { type: 'string', format: 'date-time' },
+                        attemptsCount: { type: 'integer' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          404: { $ref: '#/components/responses/NotFound' },
+          500: { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+    '/api/verification/bvn/offline': {
+      post: {
+        tags: ['BVN Verification'],
+        summary: 'Verify BVN offline (Admin only)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  bvn: { type: 'string', minLength: 11, maxLength: 11 },
+                  firstName: { type: 'string' },
+                  lastName: { type: 'string' },
+                  dateOfBirth: { type: 'string', format: 'date' },
+                  phoneNumber: { type: 'string' },
+                  adminNotes: { type: 'string' }
+                },
+                required: ['bvn', 'firstName', 'lastName', 'dateOfBirth', 'phoneNumber']
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'Offline verification initiated successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    message: { type: 'string' },
+                    verificationId: { type: 'string' },
+                    estimatedCompletionTime: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
+          500: { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+    '/api/verification/bvn/resend': {
+      post: {
+        tags: ['BVN Verification'],
+        summary: 'Resend verification request',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  bvn: { type: 'string', minLength: 11, maxLength: 11 },
+                  phoneNumber: { type: 'string' }
+                },
+                required: ['bvn', 'phoneNumber']
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'Verification request resent successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    message: { type: 'string' },
+                    newVerificationId: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          429: { $ref: '#/components/responses/TooManyRequests' },
+          500: { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+    '/api/ussd': {
+      post: {
+        tags: ['USSD Services'],
+        summary: 'Handle USSD requests from telecom providers',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/USSDRequest' }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'USSD response sent successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/USSDResponse' }
+              }
+            }
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          500: { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+    '/api/ussd/callback': {
+      post: {
+        tags: ['USSD Services'],
+        summary: 'Handle USSD callbacks from telecom providers',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  sessionId: { type: 'string' },
+                  phoneNumber: { type: 'string' },
+                  status: { type: 'string', enum: ['success', 'failed', 'timeout'] },
+                  userInput: { type: 'string' },
+                  timestamp: { type: 'string', format: 'date-time' }
+                },
+                required: ['sessionId', 'phoneNumber', 'status']
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'Callback processed successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          500: { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+    '/api/ussd/info': {
+      get: {
+        tags: ['USSD Services'],
+        summary: 'Get USSD service information',
+        responses: {
+          200: {
+            description: 'USSD service information retrieved successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/USSDServiceInfo' }
+              }
+            }
+          },
+          500: { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+    '/api/ussd/test': {
+      post: {
+        tags: ['USSD Services'],
+        summary: 'Test USSD service (Admin only)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  phoneNumber: { type: 'string' },
+                  testScenario: { type: 'string', enum: ['menu_navigation', 'input_validation', 'error_handling', 'session_management'] },
+                  customInput: { type: 'string' }
+                },
+                required: ['phoneNumber', 'testScenario']
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'USSD test completed successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    testResults: {
+                      type: 'object',
+                      properties: {
+                        scenario: { type: 'string' },
+                        status: { type: 'string' },
+                        responseTime: { type: 'number' },
+                        errors: { type: 'array', items: { type: 'string' } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
+          500: { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+    '/api/ussd/stats': {
+      get: {
+        tags: ['USSD Services'],
+        summary: 'Get USSD usage statistics (Admin only)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'startDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'Start date for statistics (YYYY-MM-DD)'
+          },
+          {
+            name: 'endDate',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+            description: 'End date for statistics (YYYY-MM-DD)'
+          },
+          {
+            name: 'network',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            description: 'Filter by network provider'
+          }
+        ],
+        responses: {
+          200: {
+            description: 'USSD statistics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        totalSessions: { type: 'integer' },
+                        activeUsers: { type: 'integer' },
+                        successRate: { type: 'number' },
+                        averageResponseTime: { type: 'number' },
+                        topFeatures: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              feature: { type: 'string' },
+                              usageCount: { type: 'integer' }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
+          500: { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+    '/api/ussd/register': {
+      post: {
+        tags: ['USSD Services'],
+        summary: 'Register USSD service with telecom provider (Admin only)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  provider: { type: 'string', enum: ['mtn', 'airtel', 'glo', '9mobile'] },
+                  serviceCode: { type: 'string' },
+                  callbackUrl: { type: 'string', format: 'uri' },
+                  apiKey: { type: 'string' },
+                  apiSecret: { type: 'string' }
+                },
+                required: ['provider', 'serviceCode', 'callbackUrl', 'apiKey', 'apiSecret']
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'USSD service registered successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    message: { type: 'string' },
+                    registrationId: { type: 'string' },
+                    status: { type: 'string', enum: ['active', 'pending', 'failed'] }
+                  }
+                }
+              }
+            }
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
+          500: { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    }
+  }
+>>>>>>> 455ef4fc (new commit now)
 };
 
 export default swaggerSpec;

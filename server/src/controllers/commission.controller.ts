@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { CommissionService } from '../services/commission.service';
 import Joi from 'joi';
-import { logger } from '../index';
+import { logger } from '../utils/logger';
 
 export class CommissionController {
   // Get commission summary for authenticated partner

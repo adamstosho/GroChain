@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { TranslationService } from '../services/translation.service';
-import { logger } from '../index';
+import { logger } from '../utils/logger';
 import Joi from 'joi';
 
 export class LanguageController {

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AIRecommendationService } from '../services/aiRecommendation.service';
 import { PredictiveAnalyticsService } from '../services/predictiveAnalytics.service';
-import { logger } from '../index';
+import { logger } from '../utils/logger';
 import Joi from 'joi';
 
 export class AIController {

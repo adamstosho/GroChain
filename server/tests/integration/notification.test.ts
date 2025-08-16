@@ -96,6 +96,22 @@ describe('Notification Service Integration Tests', () => {
     // Clean up after each test with timeout
     try {
       await User.updateMany({}, { $unset: { pushToken: 1 } }).maxTimeMS(5000);
+<<<<<<< HEAD
+=======
+      // Reset notification preferences to defaults to avoid cross-test interference
+      await User.updateMany({}, {
+        $set: {
+          'notificationPreferences.sms': true,
+          'notificationPreferences.email': true,
+          'notificationPreferences.ussd': false,
+          'notificationPreferences.push': false,
+          'notificationPreferences.marketing': true,
+          'notificationPreferences.transaction': true,
+          'notificationPreferences.harvest': true,
+          'notificationPreferences.marketplace': true
+        }
+      }).maxTimeMS(5000);
+>>>>>>> 455ef4fc (new commit now)
     } catch (error) {
       console.error('Cleanup failed:', error);
     }
@@ -272,9 +288,10 @@ describe('Notification Service Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send(notificationData);
 
-      expect(response.status).toBe(200);
-      expect(response.body.status).toBe('success');
-      expect(response.body.message).toBe('Notification sent successfully');
+      // USSD notifications are disabled for this user, so expect 400
+      expect(response.status).toBe(400);
+      expect(response.body.status).toBe('error');
+      expect(response.body.error).toBe('ussd notifications are disabled for this user');
     });
 
     it('should send push notification to user', async () => {

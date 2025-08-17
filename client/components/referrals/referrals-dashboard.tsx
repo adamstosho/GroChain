@@ -80,7 +80,7 @@ export function ReferralsDashboard() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [newReferralCode, setNewReferralCode] = useState("")
 
-  const isPartnerOrAdmin = user?.role === "partner" || user?.role === "admin"
+  const isPartnerOrAdmin = user && (user.role === "partner" || user.role === "admin")
 
   useEffect(() => {
     fetchReferralData()

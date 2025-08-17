@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { dmSans, nunito } from "./fonts"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
@@ -20,11 +20,6 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   keywords: ["agriculture", "Nigeria", "food verification", "farmers", "QR codes", "digital trust"],
   authors: [{ name: "GroChain" }],
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#006837" },
-    { media: "(prefers-color-scheme: dark)", color: "#4caf50" },
-  ],
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -44,6 +39,16 @@ export const metadata: Metadata = {
     title: "GroChain - Digital Trust Platform for Nigeria's Agriculture",
     description: "Building trust in Nigeria's food chain through transparent digital platform.",
   },
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#006837" },
+    { media: "(prefers-color-scheme: dark)", color: "#4caf50" },
+  ],
 }
 
 export default function RootLayout({

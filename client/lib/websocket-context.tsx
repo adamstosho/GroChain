@@ -10,6 +10,17 @@ interface WebSocketContextType {
   sendMessage: (message: any) => void
 }
 
+// Mock WebSocket interface for development
+interface MockWebSocket {
+  readyState: number
+  send: (data: any) => void
+  close: () => void
+  onmessage: ((event: MessageEvent) => void) | null
+  onopen: ((event: Event) => void) | null
+  onclose: ((event: CloseEvent) => void) | null
+  onerror: ((event: Event) => void) | null
+}
+
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined)
 
 export function useWebSocket() {
@@ -33,6 +44,58 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     if (!isAuthenticated || !user) {
       return
     }
+
+        // In development, we'll use a mock WebSocket connection for testing
+    // You can override this by setting NEXT_PUBLIC_USE_REAL_WEBSOCKET=true
+    if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_REAL_WEBSOCKET !== 'true') {
+      console.log('🔧 Development mode: Using mock WebSocket connection for testing')
+      
+      // Create a mock WebSocket-like object for development
+      const mockSocket: MockWebSocket = {
+        readyState: 1, // OPEN
+        send: (data: any) => {
+          console.log('🔧 Mock WebSocket: Message sent:', data)
+          // Simulate receiving a response
+          setTimeout(() => {
+            const mockResponse = {
+              type: 'mock_response',
+              data: { message: 'Mock response received', timestamp: Date.now() }
+            }
+            // Trigger a mock message event
+            if (mockSocket.onmessage) {
+              mockSocket.onmessage({ data: JSON.stringify(mockResponse) } as MessageEvent)
+            }
+          }, 100)
+        },
+        close: () => {
+          console.log('🔧 Mock WebSocket: Connection closed')
+          setIsConnected(false)
+        },
+        onmessage: null,
+        onopen: null,
+        onclose: null,
+        onerror: null
+      }
+
+      // Simulate connection
+      setTimeout(() => {
+        setIsConnected(true)
+        if (mockSocket.onopen) {
+          mockSocket.onopen({} as Event)
+        }
+        console.log('🔧 Mock WebSocket: Connected successfully')
+      }, 500)
+
+      setSocket(mockSocket as any)
+      return
+    }
+
+    // Production: Use real WebSocket connection
+    console.log('🚀 Production mode: Establishing real WebSocket connection')
+    
+    // Note: For Socket.IO integration, you would use:
+    // import { io } from 'socket.io-client'
+    // const socket = io(process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:5000')
 
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:5000'
     const ws = new WebSocket(`${wsUrl}/ws`)

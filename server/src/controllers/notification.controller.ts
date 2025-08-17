@@ -10,7 +10,7 @@ export class NotificationController {
    */
   async sendNotification(req: Request, res: Response): Promise<void> {
     try {
-      const { userId, type, title, message, data, priority, channel } = req.body;
+      const { userId, type, title, message, data, priority, channel } = req.body || {};
 
       // Validate required fields
       const requiredFields = ['userId', 'type', 'title', 'message'];

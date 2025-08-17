@@ -306,7 +306,8 @@ export function LandingPage() {
                         alt={testimonial.name}
                         width={40}
                         height={40}
-                        className="rounded-full mr-3"
+                        className="rounded-full mr-3 object-cover"
+                        style={{ width: "40px", height: "40px" }}
                       />
                       <div>
                         <div className="font-medium text-foreground">{testimonial.name}</div>
@@ -355,7 +356,7 @@ export function LandingPage() {
 
       {/* Footer */}
       <footer className="bg-card border-t border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-[#2C3E50]">
           <div className="grid md:grid-cols-4 gap-8">
             <div className="md:col-span-2">
               <div className="flex items-center space-x-2 mb-4">

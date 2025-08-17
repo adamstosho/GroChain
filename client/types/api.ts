@@ -11,22 +11,10 @@ export interface ApiResponse<T> {
 export interface User {
   id: string
   email: string
-  firstName: string
-  lastName: string
   name: string
   role: UserRole
-  phoneNumber: string
   phone: string
   emailVerified: boolean
-  phoneVerified: boolean
-  bvnVerified: boolean
-  location?: {
-    lat: number
-    lng: number
-    address: string
-    state: string
-    city: string
-  }
   createdAt: string
   updatedAt: string
 }
@@ -46,35 +34,26 @@ export interface LoginResponse {
 }
 
 export interface RegisterRequest {
+  name: string
   email: string
+  phone: string
   password: string
-  firstName: string
-  lastName: string
   role: UserRole
-  phoneNumber: string
 }
 
 // Harvest Types
 export interface Harvest {
   id: string
   batchId: string
-  farmerId: string
-  farmer: User
+  farmer: string | User
   cropType: string
   quantity: number
-  unit: string
-  harvestDate: string
-  location: {
+  date: string
+  geoLocation: {
     lat: number
     lng: number
-    address: string
-    state: string
-    city: string
   }
-  quality: 'A' | 'B' | 'C'
-  status: 'pending' | 'verified' | 'rejected'
   qrData: string
-  qrCode: string
   createdAt: string
   updatedAt: string
 }
@@ -82,25 +61,13 @@ export interface Harvest {
 // Marketplace Types
 export interface MarketplaceListing {
   id: string
-  sellerId: string
-  seller: User
-  harvestId: string
-  harvest: Harvest
-  title: string
-  description: string
+  product: string
   price: number
-  currency: string
   quantity: number
-  unit: string
+  farmer: string | User
+  partner: string | User
   images: string[]
-  status: 'active' | 'sold' | 'expired'
-  location: {
-    lat: number
-    lng: number
-    address: string
-    state: string
-    city: string
-  }
+  status: 'active' | 'sold' | 'removed'
   createdAt: string
   updatedAt: string
 }

@@ -96,8 +96,6 @@ describe('Notification Service Integration Tests', () => {
     // Clean up after each test with timeout
     try {
       await User.updateMany({}, { $unset: { pushToken: 1 } }).maxTimeMS(5000);
-<<<<<<< HEAD
-=======
       // Reset notification preferences to defaults to avoid cross-test interference
       await User.updateMany({}, {
         $set: {
@@ -111,7 +109,6 @@ describe('Notification Service Integration Tests', () => {
           'notificationPreferences.marketplace': true
         }
       }).maxTimeMS(5000);
->>>>>>> 455ef4fc (new commit now)
     } catch (error) {
       console.error('Cleanup failed:', error);
     }

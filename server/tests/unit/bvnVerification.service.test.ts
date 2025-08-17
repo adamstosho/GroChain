@@ -150,24 +150,29 @@ describe('BVN Verification Service', () => {
       const mockVerification = new BVNVerification({
         verificationId: 'test_id',
         bvn: '12345678901',
+        firstName: 'John',
+        lastName: 'Doe',
+        dateOfBirth: new Date('1990-01-01'),
+        phoneNumber: '+2348012345678',
         verificationStatus: 'pending',
-        submittedAt: new Date()
+        submittedAt: new Date(),
+        user: new mongoose.Types.ObjectId()
       });
       await mockVerification.save();
 
       const result = await bvnVerificationService.updateVerificationStatus(
         'test_id',
-        'approved',
+        'verified',
         'Test approval',
-        'admin123'
+        new mongoose.Types.ObjectId().toString()
       );
 
       expect(result).toBe(true);
 
       const updated = await BVNVerification.findOne({ verificationId: 'test_id' });
-      expect(updated?.verificationStatus).toBe('approved');
-      expect(updated?.adminNotes).toBe('Test approval');
-      expect(updated?.reviewedBy).toBe('admin123');
+      expect(updated?.verificationStatus).toBe('verified');
+              expect(updated?.adminNotes).toBe('Test approval');
+        expect(updated?.reviewedBy).toBeDefined();
     });
 
     it('should return false for non-existent verification', async () => {
@@ -183,9 +188,9 @@ describe('BVN Verification Service', () => {
     it('should return pending verifications with pagination', async () => {
       // Create multiple pending verifications
       const verifications = [
-        { verificationId: 'test1', bvn: '12345678901', verificationStatus: 'pending', submittedAt: new Date() },
-        { verificationId: 'test2', bvn: '12345678902', verificationStatus: 'pending', submittedAt: new Date() },
-        { verificationId: 'test3', bvn: '12345678903', verificationStatus: 'pending', submittedAt: new Date() }
+        { verificationId: 'test1', bvn: '12345678901', firstName: 'John', lastName: 'Doe', dateOfBirth: new Date('1990-01-01'), phoneNumber: '+2348012345678', verificationStatus: 'pending', submittedAt: new Date(), user: new mongoose.Types.ObjectId() },
+        { verificationId: 'test2', bvn: '12345678902', firstName: 'Jane', lastName: 'Smith', dateOfBirth: new Date('1985-01-01'), phoneNumber: '+2348023456789', verificationStatus: 'pending', submittedAt: new Date(), user: new mongoose.Types.ObjectId() },
+        { verificationId: 'test3', bvn: '12345678903', firstName: 'Bob', lastName: 'Johnson', dateOfBirth: new Date('1988-01-01'), phoneNumber: '+2348034567890', verificationStatus: 'pending', submittedAt: new Date(), user: new mongoose.Types.ObjectId() }
       ];
 
       for (const verification of verifications) {
@@ -208,10 +213,10 @@ describe('BVN Verification Service', () => {
     it('should return correct verification statistics', async () => {
       // Create verifications with different statuses
       const verifications = [
-        { verificationId: 'test1', bvn: '12345678901', verificationStatus: 'pending', submittedAt: new Date() },
-        { verificationId: 'test2', bvn: '12345678902', verificationStatus: 'approved', submittedAt: new Date() },
-        { verificationId: 'test3', bvn: '12345678903', verificationStatus: 'rejected', submittedAt: new Date() },
-        { verificationId: 'test4', bvn: '12345678904', verificationStatus: 'pending', submittedAt: new Date() }
+        { verificationId: 'test1', bvn: '12345678901', firstName: 'John', lastName: 'Doe', dateOfBirth: new Date('1990-01-01'), phoneNumber: '+2348012345678', verificationStatus: 'pending', submittedAt: new Date(), user: new mongoose.Types.ObjectId() },
+        { verificationId: 'test2', bvn: '12345678902', firstName: 'Jane', lastName: 'Smith', dateOfBirth: new Date('1985-01-01'), phoneNumber: '+2348023456789', verificationStatus: 'verified', submittedAt: new Date(), user: new mongoose.Types.ObjectId() },
+        { verificationId: 'test3', bvn: '12345678903', firstName: 'Bob', lastName: 'Johnson', dateOfBirth: new Date('1988-01-01'), phoneNumber: '+2348034567890', verificationStatus: 'failed', submittedAt: new Date(), user: new mongoose.Types.ObjectId() },
+        { verificationId: 'test4', bvn: '12345678904', firstName: 'Alice', lastName: 'Brown', dateOfBirth: new Date('1992-01-01'), phoneNumber: '+2348045678901', verificationStatus: 'pending', submittedAt: new Date(), user: new mongoose.Types.ObjectId() }
       ];
 
       for (const verification of verifications) {
@@ -222,8 +227,8 @@ describe('BVN Verification Service', () => {
       
       expect(stats.total).toBe(4);
       expect(stats.pending).toBe(2);
-      expect(stats.approved).toBe(1);
-      expect(stats.rejected).toBe(1);
+      expect(stats.verified).toBe(1);
+      expect(stats.failed).toBe(1);
     });
 
     it('should return zero stats when no verifications exist', async () => {

@@ -13,9 +13,20 @@ function isEmailConfigured(): boolean {
 
 export async function sendEmail({ to, subject, html, fromName }: EmailOptions) {
   if (!isEmailConfigured()) {
-    // Fallback to console in non-configured environments
-    // eslint-disable-next-line no-console
-    console.log(`[Email:DEV] To: ${to} | Subject: ${subject}\n${html.substring(0, 200)}...`);
+    // Enhanced development mode logging
+    console.log('\n' + '='.repeat(60));
+    console.log('📧 EMAIL NOT SENT (Development Mode)');
+    console.log('='.repeat(60));
+    console.log(`To: ${to}`);
+    console.log(`Subject: ${subject}`);
+    console.log(`From: ${fromName || 'GroChain'}`);
+    console.log('Content Preview:');
+    console.log(html.substring(0, 300) + (html.length > 300 ? '...' : ''));
+    console.log('='.repeat(60));
+    console.log('💡 To enable real email sending, configure SMTP environment variables:');
+    console.log('   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS');
+    console.log('='.repeat(60) + '\n');
+    
     return { success: true, messageId: 'dev-log' };
   }
 

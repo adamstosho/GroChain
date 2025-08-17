@@ -25,24 +25,29 @@ import aiRoutes from './routes/ai.routes';
 import iotRoutes from './routes/iot.routes';
 import imageRecognitionRoutes from './routes/imageRecognition.routes';
 import advancedMLRoutes from './routes/advancedML.routes';
-<<<<<<< HEAD
-import websocketRoutes from './routes/websocket.routes';
-=======
 import weatherRoutes from './routes/weather.routes';
 import websocketRoutes from './routes/websocket.routes';
 import bvnVerificationRoutes from './routes/bvnVerification.routes';
 import ussdRoutes from './routes/ussd.routes';
->>>>>>> 455ef4fc (new commit now)
 import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './swagger';
+// Use lightweight Swagger temporarily while full spec is reconciled
+import swaggerSpec from './swagger-lite';
 import { errorHandler } from './middlewares/error.middleware';
-import { apiLimiter, authLimiter } from './middlewares/rateLimit.middleware';
+import { apiLimiter, authLimiter, devLimiter } from './middlewares/rateLimit.middleware';
 import client from 'prom-client';
 import { sanitizeRequest } from './middlewares/sanitize.middleware';
 import { webSocketService } from './services/websocket.service';
 
 // Load environment variables
 dotenv.config();
+
+// Log current environment and configuration
+console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`🚀 Server starting with configuration:`);
+console.log(`   - Port: ${process.env.PORT || 5000}`);
+console.log(`   - Database: ${process.env.MONGODB_URI ? 'Configured' : 'Not configured'}`);
+console.log(`   - JWT: ${process.env.JWT_SECRET ? 'Configured' : 'Not configured'}`);
+console.log(`   - Rate Limiting: ${process.env.NODE_ENV === 'development' ? 'Development (1000 req/15min)' : 'Production (strict)'}`);
 
 // Validate environment variables (skip during tests)
 if (process.env.NODE_ENV !== 'test') {
@@ -98,14 +103,10 @@ app.use(cors({
 }));
 
 // Raw body parser for payment webhooks (must come before JSON parser)
-<<<<<<< HEAD
-app.use('/api/payments/verify', express.raw({ type: 'application/json' }));
-=======
 // Skip in test environment so Supertest JSON bodies are parsed normally
 if (process.env.NODE_ENV !== 'test') {
   app.use('/api/payments/verify', express.raw({ type: 'application/json' }));
 }
->>>>>>> 455ef4fc (new commit now)
 
 app.use(
   helmet({
@@ -120,14 +121,40 @@ app.use(sanitizeRequest);
 // Serve static files
 app.use('/public', express.static('public'));
 
-// Rate limiting (disabled in test environment)
-if (process.env.NODE_ENV !== 'test') {
+// Rate limiting - More lenient in development
+if (process.env.NODE_ENV === 'development') {
+  // Use development-friendly rate limiting
+  app.use('/api', devLimiter);
+  console.log('🔧 Development mode: Using lenient rate limiting (1000 requests per 15 minutes)');
+  
+  // Add development logging middleware
+  app.use('/api', (req, res, next) => {
+    if (req.path.startsWith('/auth/register')) {
+      console.log(`🔓 Registration endpoint accessed - rate limiting is lenient in development`);
+    }
+    next();
+  });
+  
+  // Add specific logging for rate limiting
+  app.use('/api', (req, res, next) => {
+    console.log(`🔒 Request to ${req.path} - applying dev rate limit`);
+    next();
+  });
+  
+  // Add specific bypass for registration in development
+  app.use('/api/auth/register', (req, res, next) => {
+    console.log(`🔓 Bypassing rate limit for registration in development`);
+    next();
+  });
+} else if (process.env.NODE_ENV !== 'test') {
+  // Use production rate limiting (but not in test environment)
   // Exclude payment webhook from generic limiter to avoid dropped provider callbacks
   app.use((req, res, next) => {
     if (req.path.startsWith('/api/payments/verify')) return next();
     return apiLimiter(req, res, next);
   });
   app.use('/api/auth', authLimiter);
+  console.log('🚀 Production mode: Using strict rate limiting');
 }
 
 // Health check endpoint
@@ -138,6 +165,36 @@ app.get('/health', (req, res) => {
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
+
+// Development endpoints (only in development)
+if (process.env.NODE_ENV === 'development') {
+  // Reset rate limits
+  app.get('/dev/reset-rate-limit', (req, res) => {
+    console.log(`🔄 Rate limits reset requested for development`);
+    res.status(200).json({
+      status: 'success',
+      message: 'Rate limits reset for development',
+      timestamp: new Date().toISOString(),
+      note: 'This endpoint is only available in development mode'
+    });
+  });
+  
+  // Check rate limiting status
+  app.get('/dev/rate-limit-status', (req, res) => {
+    console.log(`📊 Rate limiting status requested`);
+    res.status(200).json({
+      status: 'success',
+      environment: process.env.NODE_ENV,
+      rateLimiting: {
+        mode: 'development',
+        limit: '1000 requests per 15 minutes',
+        registration: 'bypassed',
+        note: 'Rate limiting is very lenient in development mode'
+      },
+      timestamp: new Date().toISOString()
+    });
+  });
+}
 
 // Prometheus metrics
 client.collectDefaultMetrics();
@@ -210,8 +267,7 @@ app.use('/api/ussd', ussdRoutes);
 // WebSocket routes
 app.use('/api/websocket', websocketRoutes);
 
-// WebSocket routes
-app.use('/api/websocket', websocketRoutes);
+// (deduplicated)
 
 // Swagger docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -226,6 +282,13 @@ if (process.env.NODE_ENV !== 'test') {
   server.listen(PORT, () => {
     logger.info(`GroChain backend running on port ${PORT}`);
     logger.info(`WebSocket service ready for real-time updates`);
+    
+    if (process.env.NODE_ENV === 'development') {
+      logger.info(`🔧 Development mode: Rate limiting is lenient (1000 requests per 15 minutes)`);
+      logger.info(`🔧 Reset rate limits: http://localhost:${PORT}/dev/reset-rate-limit`);
+    } else {
+      logger.info(`🚀 Production mode: Rate limiting is strict (5 auth requests per 15 minutes)`);
+    }
   });
 }
 

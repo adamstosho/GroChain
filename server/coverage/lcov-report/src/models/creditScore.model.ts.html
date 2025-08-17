@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>8/8</span>
+                <span class='fraction'>0/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>3/3</span>
+                <span class='fraction'>0/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>1/1</span>
+                <span class='fraction'>0/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>8/8</span>
+                <span class='fraction'>0/8</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -97,9 +97,6 @@
 <a name='L32'></a><a href='#L32'>32</a>
 <a name='L33'></a><a href='#L33'>33</a>
 <a name='L34'></a><a href='#L34'>34</a>
-<<<<<<< HEAD
-<a name='L35'></a><a href='#L35'>35</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
-=======
 <a name='L35'></a><a href='#L35'>35</a>
 <a name='L36'></a><a href='#L36'>36</a>
 <a name='L37'></a><a href='#L37'>37</a>
@@ -110,8 +107,7 @@
 <a name='L42'></a><a href='#L42'>42</a>
 <a name='L43'></a><a href='#L43'>43</a>
 <a name='L44'></a><a href='#L44'>44</a>
-<a name='L45'></a><a href='#L45'>45</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
->>>>>>> 455ef4fc (new commit now)
+<a name='L45'></a><a href='#L45'>45</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -126,11 +122,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<<<<<<< HEAD
-=======
 <span class="cline-any cline-neutral">&nbsp;</span>
->>>>>>> 455ef4fc (new commit now)
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -139,7 +132,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -148,20 +141,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<<<<<<< HEAD
-=======
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
->>>>>>> 455ef4fc (new commit now)
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import mongoose, { Document, Schema } from 'mongoose';
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import mongoose, { Document, Schema } from 'mongoose';</span>
 &nbsp;
 export interface ICreditScoreHistory {
   transactionId: string;
@@ -177,7 +167,7 @@ export interface ICreditScore extends Document {
   updatedAt: Date;
 }
 &nbsp;
-const CreditScoreHistorySchema = new Schema&lt;ICreditScoreHistory&gt;(
+const CreditScoreHistorySchema = <span class="cstat-no" title="statement not covered" >new Schema&lt;ICreditScoreHistory&gt;(</span>
   {
     transactionId: { type: String, required: true },
     amount: { type: Number, required: true },
@@ -186,7 +176,7 @@ const CreditScoreHistorySchema = new Schema&lt;ICreditScoreHistory&gt;(
   { _id: false }
 );
 &nbsp;
-const CreditScoreSchema = new Schema&lt;ICreditScore&gt;(
+const CreditScoreSchema = <span class="cstat-no" title="statement not covered" >new Schema&lt;ICreditScore&gt;(</span>
   {
     farmer: { type: Schema.Types.ObjectId, ref: 'User', required: false },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: false },
@@ -197,14 +187,14 @@ const CreditScoreSchema = new Schema&lt;ICreditScore&gt;(
 );
 &nbsp;
 // Normalize aliases
-CreditScoreSchema.pre('save', function(next) {
-  if (!this.farmer &amp;&amp; (this as any).userId) {
-    this.farmer = (this as any).userId as any;
+<span class="cstat-no" title="statement not covered" >CreditScoreSchema.pre('save', <span class="fstat-no" title="function not covered" >function(n</span>ext) {</span>
+<span class="cstat-no" title="statement not covered" >  <span class="missing-if-branch" title="if path not taken" >I</span>if (!this.farmer &amp;&amp; (this as any).userId) {</span>
+<span class="cstat-no" title="statement not covered" >    this.farmer = (this as any).userId as any;</span>
   }
-  next();
+<span class="cstat-no" title="statement not covered" >  next();</span>
 });
 &nbsp;
-export const CreditScore = mongoose.model&lt;ICreditScore&gt;('CreditScore', CreditScoreSchema);
+export const <span class="cstat-no" title="statement not covered" >CreditScore = mongoose.model&lt;ICreditScore&gt;('CreditScore', CreditScoreSchema);</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -212,11 +202,7 @@ export const CreditScore = mongoose.model&lt;ICreditScore&gt;('CreditScore', Cre
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-<<<<<<< HEAD
-                at 2025-08-14T11:02:31.032Z
-=======
-                at 2025-08-16T11:09:44.151Z
->>>>>>> 455ef4fc (new commit now)
+                at 2025-08-17T14:39:49.054Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

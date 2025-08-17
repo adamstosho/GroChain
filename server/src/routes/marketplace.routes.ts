@@ -1,5 +1,19 @@
 import { Router } from 'express';
-import { getListings, createListing, createOrder, updateOrderStatus, getSearchSuggestions } from '../controllers/marketplace.controller';
+import { 
+  getListings, 
+  getListing, 
+  createListing, 
+  createOrder, 
+  updateOrderStatus, 
+  getSearchSuggestions,
+  getBuyerOrders,
+  getOrderDetails,
+  cancelOrder,
+  getOrderTracking,
+  getFavorites,
+  addToFavorites,
+  removeFromFavorites
+} from '../controllers/marketplace.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
 import { authorizeRoles } from '../middlewares/rbac.middleware';
 import { validateRequest } from '../middlewares/validation.middleware';
@@ -11,6 +25,7 @@ import cloudinary from '../utils/cloudinary.util';
 const router = Router();
 
 router.get('/listings', getListings);
+router.get('/listings/:id', getListing);
 router.get('/search-suggestions', getSearchSuggestions);
 router.post(
   '/listings',
@@ -48,6 +63,63 @@ router.patch(
   authorizeRoles('partner', 'aggregator', 'admin'),
   validateRequest(Joi.object({ status: Joi.string().valid('pending', 'paid', 'delivered', 'cancelled').required() })),
   updateOrderStatus
+);
+
+// Buyer order management
+router.get(
+  '/orders/buyer/:buyerId',
+  authenticateJWT,
+  authorizeRoles('buyer', 'admin'),
+  getBuyerOrders
+);
+
+router.get(
+  '/orders/:id',
+  authenticateJWT,
+  authorizeRoles('buyer', 'farmer', 'partner', 'admin'),
+  getOrderDetails
+);
+
+router.patch(
+  '/orders/:id/cancel',
+  authenticateJWT,
+  authorizeRoles('buyer', 'admin'),
+  cancelOrder
+);
+
+router.get(
+  '/orders/:id/tracking',
+  authenticateJWT,
+  authorizeRoles('buyer', 'farmer', 'partner', 'admin'),
+  getOrderTracking
+);
+
+// Favorites/Wishlist
+router.get(
+  '/favorites/:userId',
+  authenticateJWT,
+  authorizeRoles('buyer', 'farmer', 'admin'),
+  getFavorites
+);
+
+router.post(
+  '/favorites',
+  authenticateJWT,
+  authorizeRoles('buyer', 'farmer', 'admin'),
+  validateRequest(
+    Joi.object({
+      userId: Joi.string().required(),
+      listingId: Joi.string().required(),
+    })
+  ),
+  addToFavorites
+);
+
+router.delete(
+  '/favorites/:userId/:listingId',
+  authenticateJWT,
+  authorizeRoles('buyer', 'farmer', 'admin'),
+  removeFromFavorites
 );
 
 // Cloudinary image upload

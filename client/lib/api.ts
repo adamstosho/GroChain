@@ -30,27 +30,44 @@ class ApiClient {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      ...options.headers,
+      "Accept": "application/json",
+      "X-Requested-With": "XMLHttpRequest",
+      ...(options.headers as Record<string, string> || {}),
     }
 
     if (this.token) {
       headers.Authorization = `Bearer ${this.token}`
     }
 
+    const requestOptions: RequestInit = {
+      ...options,
+      headers,
+      credentials: 'include', // Include cookies for CORS
+      mode: 'cors', // Enable CORS
+    }
+
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      })
+      const response = await fetch(url, requestOptions)
+
+      // Handle CORS errors
+      if (response.type === 'opaque') {
+        return {
+          success: false,
+          error: "CORS error: Unable to access the resource",
+        }
+      }
 
       const data = await response.json()
 
-      if (!response.ok) {
+      // Check if the response indicates success (either HTTP 2xx or backend status: 'success')
+      const isSuccess = response.ok && (data.status === 'success' || data.status === undefined)
+
+      if (!isSuccess) {
         return {
           success: false,
-          error: data.message || `HTTP ${response.status}`,
+          error: data.message || data.error || `HTTP ${response.status}`,
         }
       }
 
@@ -59,6 +76,14 @@ class ApiClient {
         data,
       }
     } catch (error) {
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return {
+          success: false,
+          error: "Network error: Unable to connect to the server",
+        }
+      }
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : "Network error",
@@ -68,12 +93,11 @@ class ApiClient {
 
   // Authentication - Updated to match backend endpoints
   async register(userData: {
+    name: string
     email: string
+    phone: string
     password: string
-    firstName: string
-    lastName: string
     role: string
-    phoneNumber: string
   }) {
     return this.request("/api/auth/register", {
       method: "POST",
@@ -82,24 +106,20 @@ class ApiClient {
   }
 
   async login(credentials: { email: string; password: string }) {
-    const response = await this.request<{ token: string; user: any }>("/api/auth/login", {
+    return this.request<{ 
+      status: string;
+      accessToken: string; 
+      refreshToken: string; 
+      user: any;
+      data?: {
+        accessToken: string;
+        refreshToken: string;
+        user: any;
+      }
+    }>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify(credentials),
     })
-
-    if (response.success && response.data?.token) {
-      this.setToken(response.data.token)
-    }
-
-    return response
-  }
-
-  async logout() {
-    const response = await this.request("/api/auth/logout", {
-      method: "POST",
-    })
-    this.clearToken()
-    return response
   }
 
   async refreshToken() {
@@ -108,24 +128,41 @@ class ApiClient {
     })
   }
 
-  async forgotPassword(email: string) {
+  // Logout - Clear token locally (backend doesn't have logout endpoint)
+  async logout() {
+    this.clearToken()
+    return { success: true, data: { message: 'Logged out successfully' } }
+  }
+
+  // Forgot Password
+  async forgotPassword(data: { email: string }) {
     return this.request("/api/auth/forgot-password", {
       method: "POST",
-      body: JSON.stringify({ email }),
+      body: JSON.stringify(data),
     })
   }
 
-  async resetPassword(token: string, password: string) {
+  // Reset Password
+  async resetPassword(data: { token: string; password: string }) {
     return this.request("/api/auth/reset-password", {
       method: "POST",
-      body: JSON.stringify({ token, password }),
+      body: JSON.stringify(data),
     })
   }
 
-  async verifyEmail(token: string) {
+  // Verify Email
+  async verifyEmail(data: { token: string }) {
     return this.request("/api/auth/verify-email", {
       method: "POST",
-      body: JSON.stringify({ token }),
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Resend Verification Email
+  async resendVerificationEmail(data: { email: string }) {
+    return this.request("/api/auth/resend-verification", {
+      method: "POST",
+      body: JSON.stringify(data),
     })
   }
 
@@ -145,11 +182,16 @@ class ApiClient {
 
   // Harvests - Updated endpoints
   async getHarvests(params?: {
+    farmer?: string
+    cropType?: string
+    startDate?: string
+    endDate?: string
+    minQuantity?: number
+    maxQuantity?: number
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
     page?: number
     limit?: number
-    category?: string
-    search?: string
-    location?: string
   }) {
     const queryParams = new URLSearchParams()
     if (params) {
@@ -164,7 +206,13 @@ class ApiClient {
     return this.request(endpoint)
   }
 
-  async createHarvest(harvestData: any) {
+  async createHarvest(harvestData: {
+    farmer: string
+    cropType: string
+    quantity: number
+    date: string | Date
+    geoLocation: { lat: number; lng: number }
+  }) {
     return this.request("/api/harvests", {
       method: "POST",
       body: JSON.stringify(harvestData),
@@ -204,18 +252,43 @@ class ApiClient {
     return this.request(endpoint)
   }
 
+  // Add missing marketplace methods for backward compatibility
+  async getMarketplaceProducts(params?: {
+    page?: number
+    limit?: number
+    category?: string
+    search?: string
+    location?: string
+  }) {
+    return this.getMarketplaceListings(params)
+  }
+
+  async getMarketplaceProduct(id: string) {
+    return this.request(`/api/marketplace/listings/${id}`)
+  }
+
   async getSearchSuggestions(query: string) {
     return this.request(`/api/marketplace/search-suggestions?q=${encodeURIComponent(query)}`)
   }
 
-  async createMarketplaceListing(listingData: any) {
+  async createMarketplaceListing(listingData: {
+    product: string
+    price: number
+    quantity: number
+    farmer: string
+    partner: string
+    images?: string[]
+  }) {
     return this.request("/api/marketplace/listings", {
       method: "POST",
       body: JSON.stringify(listingData),
     })
   }
 
-  async createMarketplaceOrder(orderData: any) {
+  async createMarketplaceOrder(orderData: {
+    buyer: string
+    items: Array<{ listing: string; quantity: number }>
+  }) {
     return this.request("/api/marketplace/orders", {
       method: "POST",
       body: JSON.stringify(orderData),
@@ -237,13 +310,74 @@ class ApiClient {
     })
   }
 
+  // Orders - Buyer order management
+  async getBuyerOrders(buyerId: string, params?: {
+    page?: number
+    limit?: number
+    status?: string
+    startDate?: string
+    endDate?: string
+  }) {
+    const queryParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString())
+        }
+      })
+    }
+
+    const endpoint = `/api/marketplace/orders/buyer/${buyerId}${queryParams.toString() ? `?${queryParams}` : ""}`
+    return this.request(endpoint)
+  }
+
+  async getOrderDetails(orderId: string) {
+    return this.request(`/api/marketplace/orders/${orderId}`)
+  }
+
+  async cancelOrder(orderId: string) {
+    return this.request(`/api/marketplace/orders/${orderId}/cancel`, {
+      method: "PATCH",
+    })
+  }
+
+  async getOrderTracking(orderId: string) {
+    return this.request(`/api/marketplace/orders/${orderId}/tracking`)
+  }
+
+  // Favorites/Wishlist
+  async getFavorites(userId: string) {
+    return this.request(`/api/marketplace/favorites/${userId}`)
+  }
+
+  async addToFavorites(userId: string, listingId: string) {
+    return this.request("/api/marketplace/favorites", {
+      method: "POST",
+      body: JSON.stringify({ userId, listingId }),
+    })
+  }
+
+  async removeFromFavorites(userId: string, listingId: string) {
+    return this.request(`/api/marketplace/favorites/${userId}/${listingId}`, {
+      method: "DELETE",
+    })
+  }
+
   // Payments - Updated endpoints
   async initializePayment(paymentData: {
-    amount: number
-    currency: string
-    productId: string
-    buyerId: string
-    sellerId: string
+    orderId: string
+    email: string
+  }) {
+    return this.request("/api/payments/initialize", {
+      method: "POST",
+      body: JSON.stringify(paymentData),
+    })
+  }
+
+  // Add missing payment method for backward compatibility
+  async initiatePayment(paymentData: {
+    orderId: string
+    email: string
   }) {
     return this.request("/api/payments/initialize", {
       method: "POST",

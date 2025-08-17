@@ -37,11 +37,6 @@ export default function VerifyPage() {
     router.push(`/verify/${batchId}`)
   }
 
-  const handleScanError = (error: string) => {
-    console.error("Scan error:", error)
-    setIsScanning(false)
-  }
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -125,8 +120,9 @@ export default function VerifyPage() {
                   ) : (
                     <div className="space-y-4">
                       <QrScanner
-                        onResult={handleScanResult}
-                        onError={handleScanError}
+                        onScan={handleScanResult}
+                        onClose={() => setIsScanning(false)}
+                        isOpen={isScanning}
                       />
                       <Button 
                         variant="outline" 

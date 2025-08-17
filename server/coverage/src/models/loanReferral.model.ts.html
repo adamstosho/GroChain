@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">44.44% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>4/9</span>
+                <span class='fraction'>0/9</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">44.44% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>4/9</span>
+                <span class='fraction'>0/9</span>
             </div>
         
             
@@ -85,9 +85,6 @@
 <a name='L20'></a><a href='#L20'>20</a>
 <a name='L21'></a><a href='#L21'>21</a>
 <a name='L22'></a><a href='#L22'>22</a>
-<<<<<<< HEAD
-<a name='L23'></a><a href='#L23'>23</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
-=======
 <a name='L23'></a><a href='#L23'>23</a>
 <a name='L24'></a><a href='#L24'>24</a>
 <a name='L25'></a><a href='#L25'>25</a>
@@ -103,8 +100,7 @@
 <a name='L35'></a><a href='#L35'>35</a>
 <a name='L36'></a><a href='#L36'>36</a>
 <a name='L37'></a><a href='#L37'>37</a>
-<a name='L38'></a><a href='#L38'>38</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
->>>>>>> 455ef4fc (new commit now)
+<a name='L38'></a><a href='#L38'>38</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -115,12 +111,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<<<<<<< HEAD
-=======
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
->>>>>>> 455ef4fc (new commit now)
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -130,15 +123,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<<<<<<< HEAD
-<span class="cline-any cline-yes">1x</span>
-=======
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -147,8 +137,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
->>>>>>> 455ef4fc (new commit now)
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import mongoose, { Document, Schema } from 'mongoose';
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import mongoose, { Document, Schema } from 'mongoose';</span>
 &nbsp;
 export interface ILoanReferral extends Document {
   farmer?: mongoose.Types.ObjectId;
@@ -161,7 +150,7 @@ export interface ILoanReferral extends Document {
   updatedAt: Date;
 }
 &nbsp;
-const LoanReferralSchema = new Schema&lt;ILoanReferral&gt;(
+const LoanReferralSchema = <span class="cstat-no" title="statement not covered" >new Schema&lt;ILoanReferral&gt;(</span>
   {
     farmer: { type: Schema.Types.ObjectId, ref: 'User', required: false },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: false },
@@ -173,10 +162,10 @@ const LoanReferralSchema = new Schema&lt;ILoanReferral&gt;(
   { timestamps: true }
 );
 &nbsp;
-export const LoanReferral = mongoose.model&lt;ILoanReferral&gt;('LoanReferral', LoanReferralSchema);
+export const <span class="cstat-no" title="statement not covered" >LoanReferral = mongoose.model&lt;ILoanReferral&gt;('LoanReferral', LoanReferralSchema);</span>
 &nbsp;
 // Normalize aliases for tests
-LoanReferralSchema.pre('save', <span class="fstat-no" title="function not covered" >function(n</span>ext) {
+<span class="cstat-no" title="statement not covered" >LoanReferralSchema.pre('save', <span class="fstat-no" title="function not covered" >function(n</span>ext) {</span>
 <span class="cstat-no" title="statement not covered" >  <span class="missing-if-branch" title="if path not taken" >I</span>if (!this.farmer &amp;&amp; (this as any).userId) {</span>
 <span class="cstat-no" title="statement not covered" >    this.farmer = (this as any).userId as any;</span>
   }
@@ -192,11 +181,7 @@ LoanReferralSchema.pre('save', <span class="fstat-no" title="function not covere
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-<<<<<<< HEAD
-                at 2025-08-14T11:02:31.881Z
-=======
-                at 2025-08-16T11:09:44.289Z
->>>>>>> 455ef4fc (new commit now)
+                at 2025-08-17T14:39:49.249Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

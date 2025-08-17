@@ -3831,11 +3831,302 @@ const swaggerSpec = {
           400: { description: 'Bad request' },
           401: { description: 'Unauthorized' }
         }
-<<<<<<< HEAD
       }
     },
-  },
-=======
+    '/api/harvests/{batchId}': {
+      get: {
+        tags: ['Harvests'],
+        summary: 'Get harvest provenance by batch ID (authenticated)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'batchId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Batch ID of the harvest',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Harvest provenance retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    harvest: { $ref: '#/components/schemas/Harvest' },
+                    farmer: { type: 'object' },
+                    provenance: { type: 'object' }
+                  }
+                }
+              }
+            }
+          },
+          404: { description: 'Harvest batch not found' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/weather/current': {
+      get: {
+        tags: ['Weather'],
+        summary: 'Get current weather for a location',
+        parameters: [
+          {
+            name: 'lat',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Latitude of the location',
+          },
+          {
+            name: 'lng',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Longitude of the location',
+          },
+          {
+            name: 'city',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'City name',
+          },
+          {
+            name: 'state',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'State/province name',
+          },
+          {
+            name: 'country',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Country name',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Current weather data retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    data: { $ref: '#/components/schemas/WeatherData' }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Missing required parameters' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/weather/forecast': {
+      get: {
+        tags: ['Weather'],
+        summary: 'Get weather forecast for a location',
+        parameters: [
+          {
+            name: 'lat',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Latitude of the location',
+          },
+          {
+            name: 'lng',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Longitude of the location',
+          },
+          {
+            name: 'city',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'City name',
+          },
+          {
+            name: 'state',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'State/province name',
+          },
+          {
+            name: 'country',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Country name',
+          },
+          {
+            name: 'days',
+            in: 'query',
+            required: false,
+            schema: { type: 'number', default: 7 },
+            description: 'Number of forecast days (default: 7)',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Weather forecast retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        location: { $ref: '#/components/schemas/WeatherData/properties/location' },
+                        forecast: { $ref: '#/components/schemas/WeatherData/properties/forecast' },
+                        metadata: { type: 'object' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Missing required parameters' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/weather/agricultural-insights': {
+      get: {
+        tags: ['Weather'],
+        summary: 'Get agricultural insights for a location',
+        parameters: [
+          {
+            name: 'lat',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Latitude of the location',
+          },
+          {
+            name: 'lng',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Longitude of the location',
+          },
+          {
+            name: 'city',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'City name',
+          },
+          {
+            name: 'state',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'State/province name',
+          },
+          {
+            name: 'country',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Country name',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Agricultural insights retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    data: { $ref: '#/components/schemas/WeatherData/properties/agricultural' }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Missing required parameters' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
+    '/api/weather/alerts': {
+      get: {
+        tags: ['Weather'],
+        summary: 'Get weather alerts for a location',
+        parameters: [
+          {
+            name: 'lat',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Latitude of the location',
+          },
+          {
+            name: 'lng',
+            in: 'query',
+            required: true,
+            schema: { type: 'number' },
+            description: 'Longitude of the location',
+          },
+          {
+            name: 'city',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'City name',
+          },
+          {
+            name: 'state',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'State/province name',
+          },
+          {
+            name: 'country',
+            in: 'query',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Country name',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Weather alerts retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string' },
+                    data: { $ref: '#/components/schemas/WeatherData/properties/alerts' }
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Missing required parameters' },
+          500: { description: 'Server error' }
+        }
+      }
+    },
       },
     },
     '/api/harvests/{batchId}': {
@@ -5375,7 +5666,6 @@ const swaggerSpec = {
       }
     }
   }
->>>>>>> 455ef4fc (new commit now)
 };
 
 export default swaggerSpec;

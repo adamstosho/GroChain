@@ -207,7 +207,7 @@ class BVNVerificationService {
    * Generate unique verification ID
    */
   private generateVerificationId(): string {
-    return `BVN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `bvn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   /**
@@ -265,7 +265,7 @@ class BVNVerificationService {
    */
   async updateVerificationStatus(
     verificationId: string, 
-    status: 'approved' | 'rejected', 
+    status: 'verified' | 'failed', 
     adminNotes?: string,
     adminId?: string
   ): Promise<boolean> {

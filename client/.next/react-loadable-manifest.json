@@ -1,8 +1,14 @@
 {
-  "components\\qr\\qr-scanner.tsx -> jsqr": {
-    "id": "components\\qr\\qr-scanner.tsx -> jsqr",
+  "components\\qr\\qr-code-generator.tsx -> qrcode": {
+    "id": 35819,
     "files": [
-      "static/chunks/_app-pages-browser_node_modules_jsqr_dist_jsQR_js.js"
+      "static/chunks/5819.7068f96019937260.js"
+    ]
+  },
+  "components\\qr\\qr-scanner.tsx -> jsqr": {
+    "id": 69801,
+    "files": [
+      "static/chunks/d0f5a89a.fdbc06535b88ff01.js"
     ]
   }
 }

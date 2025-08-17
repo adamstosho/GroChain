@@ -1,249 +1,280 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/Alert"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Upload, MapPin, Package, Loader2, X, CheckCircle, QrCode, Download } from "lucide-react"
-import Link from "next/link"
+import { 
+  Package, 
+  MapPin, 
+  Calendar, 
+  Upload, 
+  Loader2, 
+  CheckCircle2, 
+  AlertCircle,
+  X,
+  Camera
+} from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
-import Image from "next/image"
 
-const cropTypes = [
-  "Tomatoes",
-  "Yam",
-  "Cassava",
-  "Maize",
-  "Rice",
-  "Plantain",
-  "Cocoyam",
-  "Sweet Potato",
-  "Beans",
-  "Groundnut",
-  "Pepper",
-  "Onion",
-  "Okra",
-  "Cucumber",
-  "Watermelon",
-  "Pineapple",
-  "Orange",
-  "Mango",
-  "Banana",
-  "Other",
-]
-
-const units = ["kg", "tonnes", "bags", "tubers", "pieces", "bunches", "crates"]
-
-const nigerianStates = [
-  "Abia",
-  "Adamawa",
-  "Akwa Ibom",
-  "Anambra",
-  "Bauchi",
-  "Bayelsa",
-  "Benue",
-  "Borno",
-  "Cross River",
-  "Delta",
-  "Ebonyi",
-  "Edo",
-  "Ekiti",
-  "Enugu",
-  "FCT",
-  "Gombe",
-  "Imo",
-  "Jigawa",
-  "Kaduna",
-  "Kano",
-  "Katsina",
-  "Kebbi",
-  "Kogi",
-  "Kwara",
-  "Lagos",
-  "Nasarawa",
-  "Niger",
-  "Ogun",
-  "Ondo",
-  "Osun",
-  "Oyo",
-  "Plateau",
-  "Rivers",
-  "Sokoto",
-  "Taraba",
-  "Yobe",
-  "Zamfara",
-]
-
-interface FormData {
+interface HarvestFormData {
   cropType: string
-  customCropType: string
-  quantity: string
+  quantity: number
   unit: string
   harvestDate: string
   location: string
-  state: string
   description: string
+  quality: string
   images: File[]
-  coordinates: { lat: number; lng: number } | null
 }
 
+interface FormErrors {
+  cropType?: string
+  quantity?: string
+  unit?: string
+  harvestDate?: string
+  location?: string
+  description?: string
+  quality?: string
+  images?: string
+}
+
+const cropTypes = [
+  "Tomatoes", "Yam", "Cassava", "Rice", "Maize", "Beans", "Pepper", "Onions",
+  "Garlic", "Ginger", "Cocoa", "Coffee", "Tea", "Sugarcane", "Cotton", "Other"
+]
+
+const units = ["kg", "bags", "baskets", "tubers", "pieces", "liters", "bundles"]
+const qualityLevels = ["premium", "standard", "basic"]
+
 export function HarvestForm() {
-  const [formData, setFormData] = useState<FormData>({
-    cropType: "",
-    customCropType: "",
-    quantity: "",
-    unit: "",
-    harvestDate: "",
-    location: "",
-    state: "",
-    description: "",
-    images: [],
-    coordinates: null,
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [dragActive, setDragActive] = useState(false)
-  const [generatedQR, setGeneratedQR] = useState<string | null>(null)
-
+  const { user } = useAuth()
   const router = useRouter()
+  const [formData, setFormData] = useState<HarvestFormData>({
+    cropType: "",
+    quantity: 0,
+    unit: "kg",
+    harvestDate: new Date().toISOString().split('T')[0],
+    location: "",
+    description: "",
+    quality: "standard",
+    images: []
+  })
+  const [errors, setErrors] = useState<FormErrors>({})
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [harvestId, setHarvestId] = useState<string>("")
+  const [imagePreview, setImagePreview] = useState<string[]>([])
 
-  const handleImageUpload = (files: FileList | null) => {
-    if (!files) return
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {}
 
-    const newImages = Array.from(files).filter((file) => {
-      if (file.type.startsWith("image/") && file.size <= 5 * 1024 * 1024) {
+    if (!formData.cropType.trim()) {
+      newErrors.cropType = "Crop type is required"
+    }
+
+    if (formData.quantity <= 0) {
+      newErrors.quantity = "Quantity must be greater than 0"
+    }
+
+    if (!formData.unit) {
+      newErrors.unit = "Unit is required"
+    }
+
+    if (!formData.harvestDate) {
+      newErrors.harvestDate = "Harvest date is required"
+    }
+
+    if (!formData.location.trim()) {
+      newErrors.location = "Location is required"
+    }
+
+    if (!formData.description.trim()) {
+      newErrors.description = "Description is required"
+    }
+
+    if (!formData.quality) {
+      newErrors.quality = "Quality level is required"
+    }
+
+    if (formData.images.length === 0) {
+      newErrors.images = "At least one image is required"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleInputChange = (field: keyof HarvestFormData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }))
+    }
+  }
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    
+    if (files.length > 0) {
+      // Validate file types and sizes
+      const validFiles = files.filter(file => {
+        if (!file.type.startsWith('image/')) {
+          alert(`${file.name} is not an image file`)
+          return false
+        }
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          alert(`${file.name} is too large. Maximum size is 5MB`)
+          return false
+        }
         return true
-      }
-      return false
-    })
+      })
 
-    setFormData((prev) => ({
-      ...prev,
-      images: [...prev.images, ...newImages].slice(0, 5), // Max 5 images
-    }))
+      if (validFiles.length > 0) {
+        setFormData(prev => ({ ...prev, images: [...prev.images, ...validFiles] }))
+        
+        // Create preview URLs
+        const newPreviews = validFiles.map(file => URL.createObjectURL(file))
+        setImagePreview(prev => [...prev, ...newPreviews])
+      }
+    }
   }
 
   const removeImage = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }))
-  }
-
-  const getCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setFormData((prev) => ({
-            ...prev,
-            coordinates: {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            },
-          }))
-        },
-        (error) => {
-          console.error("Error getting location:", error)
-        },
-      )
-    }
+    setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }))
+    
+    // Revoke preview URL and remove from preview array
+    URL.revokeObjectURL(imagePreview[index])
+    setImagePreview(prev => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    setErrors({})
-
-    // Validation
-    const newErrors: Record<string, string> = {}
-
-    if (!formData.cropType) newErrors.cropType = "Crop type is required"
-    if (formData.cropType === "Other" && !formData.customCropType.trim())
-      newErrors.customCropType = "Please specify the crop type"
-    if (!formData.quantity.trim()) newErrors.quantity = "Quantity is required"
-    if (!formData.unit) newErrors.unit = "Unit is required"
-    if (!formData.harvestDate) newErrors.harvestDate = "Harvest date is required"
-    if (!formData.location.trim()) newErrors.location = "Location is required"
-    if (!formData.state) newErrors.state = "State is required"
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
-      setIsLoading(false)
+    
+    if (!validateForm()) {
       return
     }
 
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 3000))
+    if (!user) {
+      setErrors({ description: "You must be logged in to create a harvest" })
+      return
+    }
 
-      // Generate mock QR code
-      const qrCode = `QR${Date.now()}`
-      setGeneratedQR(qrCode)
-      setIsSubmitted(true)
+    setLoading(true)
+
+    try {
+      // Create harvest data
+      const harvestData = {
+        farmer: user.id,
+        cropType: formData.cropType,
+        quantity: formData.quantity,
+        unit: formData.unit,
+        harvestDate: formData.harvestDate,
+        location: formData.location,
+        description: formData.description,
+        quality: formData.quality
+      }
+
+      const response = await api.createHarvest(harvestData)
+
+      if (response.success) {
+        const harvest = response.data
+        setHarvestId(harvest.batchId || harvest.id)
+        setSuccess(true)
+        
+        // Upload images if harvest was created successfully
+        if (formData.images.length > 0) {
+          await uploadImages(harvest.batchId || harvest.id)
+        }
+      } else {
+        throw new Error(response.error || "Failed to create harvest")
+      }
     } catch (error) {
-      setErrors({ submit: "Failed to register harvest. Please try again." })
+      console.error("Harvest creation error:", error)
+      setErrors({ description: error instanceof Error ? error.message : "Failed to create harvest" })
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
-  if (isSubmitted) {
+  const uploadImages = async (harvestId: string) => {
+    try {
+      for (const image of formData.images) {
+        const formData = new FormData()
+        formData.append('image', image)
+        formData.append('harvestId', harvestId)
+        
+        await api.uploadMarketplaceImage(formData)
+      }
+    } catch (error) {
+      console.error("Image upload error:", error)
+      // Don't fail the whole process if image upload fails
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      cropType: "",
+      quantity: 0,
+      unit: "kg",
+      harvestDate: new Date().toISOString().split('T')[0],
+      location: "",
+      description: "",
+      quality: "standard",
+      images: []
+    })
+    setErrors({})
+    setSuccess(false)
+    setHarvestId("")
+    
+    // Revoke all preview URLs
+    imagePreview.forEach(url => URL.revokeObjectURL(url))
+    setImagePreview([])
+  }
+
+  if (success) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="max-w-2xl mx-auto p-6">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="w-full max-w-md"
         >
-          <Card>
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-success" />
+          <Card className="text-center">
+            <CardContent className="p-8">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
-              <h2 className="text-2xl font-heading font-bold text-foreground mb-2">Harvest Registered!</h2>
-              <p className="text-muted-foreground mb-6">
-                Your harvest has been successfully registered and is now being verified.
+              
+              <h2 className="text-2xl font-bold text-foreground mb-2">Harvest Created Successfully!</h2>
+              <p className="text-muted-foreground mb-4">
+                Your harvest has been registered and is now available in the marketplace.
               </p>
-
-              {generatedQR && (
-                <div className="bg-muted/50 rounded-lg p-4 mb-6">
-                  <div className="flex items-center justify-center mb-2">
-                    <QrCode className="w-6 h-6 text-primary mr-2" />
-                    <span className="font-medium">QR Code Generated</span>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg mb-3">
-                    <div className="w-32 h-32 bg-gray-200 mx-auto rounded flex items-center justify-center">
-                      <QrCode className="w-16 h-16 text-gray-400" />
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="mb-2">
-                    {generatedQR}
-                  </Badge>
-                  <Button variant="outline" size="sm" className="w-full bg-transparent">
-                    <Download className="w-4 h-4 mr-2" />
-                    Download QR Code
-                  </Button>
-                </div>
-              )}
-
+              
+              <div className="bg-muted/50 rounded-lg p-4 mb-6">
+                <p className="text-sm text-muted-foreground mb-2">Harvest ID:</p>
+                <p className="font-mono text-lg font-bold text-foreground">{harvestId}</p>
+              </div>
+              
               <div className="space-y-3">
-                <Link href="/harvests">
-                  <Button className="w-full">View My Products</Button>
-                </Link>
-                <Link href="/harvests/new">
-                  <Button variant="outline" className="w-full bg-transparent">
-                    Add Another Product
-                  </Button>
-                </Link>
+                <Button onClick={() => router.push(`/harvests/${harvestId}`)} className="w-full">
+                  View Harvest Details
+                </Button>
+                <Button variant="outline" onClick={resetForm} className="w-full">
+                  Create Another Harvest
+                </Button>
+                <Button variant="ghost" onClick={() => router.push("/harvests")} className="w-full">
+                  View All Harvests
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -253,258 +284,201 @@ export function HarvestForm() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="max-w-2xl mx-auto px-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          {/* Header */}
-          <div className="mb-8">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Link>
-            <h1 className="text-3xl font-heading font-bold text-foreground mb-2">Register New Harvest</h1>
-            <p className="text-muted-foreground">Add your farm produce to the GroChain platform</p>
-          </div>
+    <div className="max-w-2xl mx-auto p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
+              Register New Harvest
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Error Alert */}
+              {errors.description && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{errors.description}</AlertDescription>
+                </Alert>
+              )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Harvest Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Crop Type */}
+              {/* Crop Type */}
+              <div className="space-y-2">
+                <Label htmlFor="cropType">Crop Type *</Label>
+                <Select value={formData.cropType} onValueChange={(value) => handleInputChange("cropType", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select crop type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cropTypes.map((crop) => (
+                      <SelectItem key={crop} value={crop}>{crop}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.cropType && <p className="text-sm text-destructive">{errors.cropType}</p>}
+              </div>
+
+              {/* Quantity and Unit */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="cropType">Crop Type *</Label>
-                  <Select
-                    value={formData.cropType}
-                    onValueChange={(value) => setFormData({ ...formData, cropType: value })}
-                  >
-                    <SelectTrigger className={errors.cropType ? "border-destructive" : ""}>
-                      <SelectValue placeholder="Select crop type" />
+                  <Label htmlFor="quantity">Quantity *</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={formData.quantity}
+                    onChange={(e) => handleInputChange("quantity", parseFloat(e.target.value) || 0)}
+                    placeholder="0"
+                  />
+                  {errors.quantity && <p className="text-sm text-destructive">{errors.quantity}</p>}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="unit">Unit *</Label>
+                  <Select value={formData.unit} onValueChange={(value) => handleInputChange("unit", value)}>
+                    <SelectTrigger>
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {cropTypes.map((crop) => (
-                        <SelectItem key={crop} value={crop}>
-                          {crop}
-                        </SelectItem>
+                      {units.map((unit) => (
+                        <SelectItem key={unit} value={unit}>{unit}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {errors.cropType && <p className="text-sm text-destructive">{errors.cropType}</p>}
+                  {errors.unit && <p className="text-sm text-destructive">{errors.unit}</p>}
                 </div>
+              </div>
 
-                {/* Custom Crop Type */}
-                {formData.cropType === "Other" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="customCropType">Specify Crop Type *</Label>
-                    <Input
-                      id="customCropType"
-                      placeholder="Enter crop type"
-                      value={formData.customCropType}
-                      onChange={(e) => setFormData({ ...formData, customCropType: e.target.value })}
-                      className={errors.customCropType ? "border-destructive" : ""}
-                    />
-                    {errors.customCropType && <p className="text-sm text-destructive">{errors.customCropType}</p>}
-                  </div>
-                )}
+              {/* Harvest Date */}
+              <div className="space-y-2">
+                <Label htmlFor="harvestDate">Harvest Date *</Label>
+                <Input
+                  id="harvestDate"
+                  type="date"
+                  value={formData.harvestDate}
+                  onChange={(e) => handleInputChange("harvestDate", e.target.value)}
+                  max={new Date().toISOString().split('T')[0]}
+                />
+                {errors.harvestDate && <p className="text-sm text-destructive">{errors.harvestDate}</p>}
+              </div>
 
-                {/* Quantity and Unit */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity">Quantity *</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      placeholder="Enter quantity"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                      className={errors.quantity ? "border-destructive" : ""}
-                    />
-                    {errors.quantity && <p className="text-sm text-destructive">{errors.quantity}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="unit">Unit *</Label>
-                    <Select value={formData.unit} onValueChange={(value) => setFormData({ ...formData, unit: value })}>
-                      <SelectTrigger className={errors.unit ? "border-destructive" : ""}>
-                        <SelectValue placeholder="Select unit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {units.map((unit) => (
-                          <SelectItem key={unit} value={unit}>
-                            {unit}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.unit && <p className="text-sm text-destructive">{errors.unit}</p>}
-                  </div>
-                </div>
+              {/* Location */}
+              <div className="space-y-2">
+                <Label htmlFor="location">Location *</Label>
+                <Input
+                  id="location"
+                  placeholder="e.g., Lagos State, Ogun State"
+                  value={formData.location}
+                  onChange={(e) => handleInputChange("location", e.target.value)}
+                />
+                {errors.location && <p className="text-sm text-destructive">{errors.location}</p>}
+              </div>
 
-                {/* Harvest Date */}
-                <div className="space-y-2">
-                  <Label htmlFor="harvestDate">Harvest Date *</Label>
-                  <Input
-                    id="harvestDate"
-                    type="date"
-                    value={formData.harvestDate}
-                    onChange={(e) => setFormData({ ...formData, harvestDate: e.target.value })}
-                    className={errors.harvestDate ? "border-destructive" : ""}
+              {/* Quality */}
+              <div className="space-y-2">
+                <Label htmlFor="quality">Quality Level *</Label>
+                <Select value={formData.quality} onValueChange={(value) => handleInputChange("quality", value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {qualityLevels.map((quality) => (
+                      <SelectItem key={quality} value={quality}>
+                        <span className="capitalize">{quality}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.quality && <p className="text-sm text-destructive">{errors.quality}</p>}
+              </div>
+
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="description">Description *</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Describe your harvest, including any special characteristics, organic status, etc."
+                  value={formData.description}
+                  onChange={(e) => handleInputChange("description", e.target.value)}
+                  rows={4}
+                />
+                {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
+              </div>
+
+              {/* Image Upload */}
+              <div className="space-y-2">
+                <Label>Harvest Images *</Label>
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="image-upload"
                   />
-                  {errors.harvestDate && <p className="text-sm text-destructive">{errors.harvestDate}</p>}
-                </div>
-
-                {/* Location */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Farm Location *</Label>
-                    <Input
-                      id="location"
-                      placeholder="Enter farm location"
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      className={errors.location ? "border-destructive" : ""}
-                    />
-                    {errors.location && <p className="text-sm text-destructive">{errors.location}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="state">State *</Label>
-                    <Select
-                      value={formData.state}
-                      onValueChange={(value) => setFormData({ ...formData, state: value })}
-                    >
-                      <SelectTrigger className={errors.state ? "border-destructive" : ""}>
-                        <SelectValue placeholder="Select state" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {nigerianStates.map((state) => (
-                          <SelectItem key={state} value={state}>
-                            {state}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.state && <p className="text-sm text-destructive">{errors.state}</p>}
-                  </div>
-                </div>
-
-                {/* GPS Coordinates */}
-                <div className="space-y-2">
-                  <Label>GPS Coordinates (Optional)</Label>
-                  <div className="flex items-center space-x-2">
-                    <Button type="button" variant="outline" onClick={getCurrentLocation} className="bg-transparent">
-                      <MapPin className="w-4 h-4 mr-2" />
-                      Get Current Location
-                    </Button>
-                    {formData.coordinates && (
-                      <Badge variant="outline">
-                        {formData.coordinates.lat.toFixed(6)}, {formData.coordinates.lng.toFixed(6)}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description (Optional)</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Additional details about your harvest..."
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                  />
-                </div>
-
-                {/* Image Upload */}
-                <div className="space-y-2">
-                  <Label>Product Images (Optional)</Label>
-                  <div
-                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                      dragActive ? "border-primary bg-primary/5" : "border-border"
-                    }`}
-                    onDragEnter={(e) => {
-                      e.preventDefault()
-                      setDragActive(true)
-                    }}
-                    onDragLeave={(e) => {
-                      e.preventDefault()
-                      setDragActive(false)
-                    }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault()
-                      setDragActive(false)
-                      handleImageUpload(e.dataTransfer.files)
-                    }}
-                  >
+                  <label htmlFor="image-upload" className="cursor-pointer">
                     <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Drag and drop images here, or{" "}
-                      <label className="text-primary cursor-pointer hover:underline">
-                        browse
-                        <input
-                          type="file"
-                          multiple
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => handleImageUpload(e.target.files)}
-                        />
-                      </label>
+                    <p className="text-sm text-muted-foreground">
+                      Click to upload images or drag and drop
                     </p>
-                    <p className="text-xs text-muted-foreground">Max 5 images, 5MB each</p>
-                  </div>
-
-                  {/* Image Preview */}
-                  {formData.images.length > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-                      {formData.images.map((image, index) => (
-                        <div key={index} className="relative">
-                          <Image
-                            src={URL.createObjectURL(image) || "/placeholder.svg"}
-                            alt={`Upload ${index + 1}`}
-                            width={150}
-                            height={150}
-                            className="w-full h-24 object-cover rounded-lg"
-                          />
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            className="absolute -top-2 -right-2 w-6 h-6 rounded-full p-0"
-                            onClick={() => removeImage(index)}
-                          >
-                            <X className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      PNG, JPG up to 5MB each
+                    </p>
+                  </label>
                 </div>
+                {errors.images && <p className="text-sm text-destructive">{errors.images}</p>}
+              </div>
 
-                {errors.submit && <p className="text-sm text-destructive text-center">{errors.submit}</p>}
+              {/* Image Previews */}
+              {imagePreview.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Uploaded Images ({imagePreview.length})</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {imagePreview.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-24 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                {/* Submit Button */}
-                <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Registering Harvest...
-                    </>
-                  ) : (
-                    <>
-                      <Package className="w-4 h-4 mr-2" />
-                      Register Harvest
-                    </>
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
+              {/* Submit Button */}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating Harvest...
+                  </>
+                ) : (
+                  <>
+                    <Package className="w-4 h-4 mr-2" />
+                    Register Harvest
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   )
 }

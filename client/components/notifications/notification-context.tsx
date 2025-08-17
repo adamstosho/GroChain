@@ -82,8 +82,9 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
       // Check if VAPID key is available
       const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-      if (!vapidKey) {
-        console.log("[v0] VAPID public key not configured, skipping push notification setup")
+      if (!vapidKey || vapidKey === "your_vapid_public_key_here" || vapidKey.length < 50) {
+        console.log("[v0] VAPID public key not properly configured, skipping push notification setup")
+        console.log("[v0] Current VAPID key:", vapidKey ? `${vapidKey.substring(0, 20)}...` : "undefined")
         return
       }
 

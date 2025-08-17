@@ -13,9 +13,6 @@ module.exports = {
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/index.ts',
-<<<<<<< HEAD
-    '!src/swagger.ts'
-=======
     '!src/swagger.ts',
     // Exclude heavy AI/IoT modules from coverage for MVP
     '!src/controllers/advancedML.controller.ts',
@@ -33,23 +30,15 @@ module.exports = {
     '!src/services/translation.service.ts',
     '!src/utils/africastalking.util.ts',
     '!src/utils/paystack.util.ts'
->>>>>>> 455ef4fc (new commit now)
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   coverageThreshold: {
     global: {
-<<<<<<< HEAD
       branches: 80,
       functions: 80,
       lines: 80,
       statements: 80,
-=======
-      branches: 19,
-      functions: 20,
-      lines: 20,
-      statements: 20,
->>>>>>> 455ef4fc (new commit now)
     },
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
@@ -60,15 +49,11 @@ module.exports = {
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
-<<<<<<< HEAD
-  detectOpenHandles: true
-=======
   detectOpenHandles: true,
   globals: {
     'ts-jest': {
       diagnostics: false
     }
   }
->>>>>>> 455ef4fc (new commit now)
 };
 

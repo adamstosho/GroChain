@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>7/7</span>
+                <span class='fraction'>0/7</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>2/2</span>
+                <span class='fraction'>0/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>7/7</span>
+                <span class='fraction'>0/7</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -107,12 +107,7 @@
 <a name='L42'></a><a href='#L42'>42</a>
 <a name='L43'></a><a href='#L43'>43</a>
 <a name='L44'></a><a href='#L44'>44</a>
-<<<<<<< HEAD
-<a name='L45'></a><a href='#L45'>45</a>
-<a name='L46'></a><a href='#L46'>46</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
-=======
-<a name='L45'></a><a href='#L45'>45</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
->>>>>>> 455ef4fc (new commit now)
+<a name='L45'></a><a href='#L45'>45</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -136,45 +131,27 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<<<<<<< HEAD
-=======
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
->>>>>>> 455ef4fc (new commit now)
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<<<<<<< HEAD
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-=======
->>>>>>> 455ef4fc (new commit now)
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span></td><td class="text"><pre class="prettyprint lang-js">import mongoose, { Document, Schema } from 'mongoose';
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import mongoose, { Document, Schema } from 'mongoose';</span>
 &nbsp;
 export interface IHarvest extends Document {
   farmer: mongoose.Types.ObjectId;
@@ -198,38 +175,34 @@ export interface IHarvestPopulated extends Omit&lt;IHarvest, 'farmer'&gt; {
   };
 }
 &nbsp;
-const HarvestSchema = new Schema&lt;IHarvest&gt;(
+const HarvestSchema = <span class="cstat-no" title="statement not covered" >new Schema&lt;IHarvest&gt;(</span>
   {
     farmer: { type: Schema.Types.ObjectId, ref: 'User', required: false },
     cropType: { type: String, required: true },
     quantity: { type: Number, required: false, default: 0 },
-    date: { type: Date, required: false, default: () =&gt; new Date() },
+    date: { type: Date, required: false, default: <span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >new Date() </span>},
     geoLocation: {
       lat: { type: Number, required: false },
       lng: { type: Number, required: false },
     },
-    batchId: { type: String, required: false, unique: true, default: () =&gt; `BATCH-${Math.random().toString(36).slice(2, 10).toUpperCase()}` },
+    batchId: { type: String, required: false, unique: true, default: <span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >`BATCH-${Math.random().toString(36).slice(2, 10).toUpperCase()}` </span>},
     qrData: { type: String, required: false, default: '' },
   },
   { timestamps: true }
 );
 &nbsp;
-export const Harvest = mongoose.model&lt;IHarvest&gt;('Harvest', HarvestSchema);
+export const <span class="cstat-no" title="statement not covered" >Harvest = mongoose.model&lt;IHarvest&gt;('Harvest', HarvestSchema);</span>
 &nbsp;
 // Helpful indexes
-HarvestSchema.index({ 'geoLocation.lat': 1, 'geoLocation.lng': 1 });
-HarvestSchema.index({ createdAt: -1 });</pre></td></tr></table></pre>
+<span class="cstat-no" title="statement not covered" >HarvestSchema.index({ 'geoLocation.lat': 1, 'geoLocation.lng': 1 });</span>
+<span class="cstat-no" title="statement not covered" >HarvestSchema.index({ createdAt: -1 });</span></pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
             </div><!-- /wrapper -->
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-<<<<<<< HEAD
-                at 2025-08-14T11:02:31.032Z
-=======
-                at 2025-08-16T11:09:44.151Z
->>>>>>> 455ef4fc (new commit now)
+                at 2025-08-17T14:39:49.054Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

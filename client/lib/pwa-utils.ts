@@ -100,10 +100,10 @@ export const offlineStorage = new OfflineStorage()
 
 // Register background sync
 export function registerBackgroundSync(tag: string): void {
-  if ("serviceWorker" in navigator && "sync" in window.ServiceWorkerRegistration.prototype) {
+  if ("serviceWorker" in navigator && "sync" in (window.ServiceWorkerRegistration.prototype as any)) {
     navigator.serviceWorker.ready
       .then((registration) => {
-        return registration.sync.register(tag)
+        return (registration as any).sync.register(tag)
       })
       .catch((error) => {
         console.error("Background sync registration failed:", error)
@@ -160,9 +160,15 @@ export async function subscribeToPushNotifications(): Promise<PushSubscription |
   try {
     const registration = await navigator.serviceWorker.ready
 
+    const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    if (!vapidKey || vapidKey === "your_vapid_public_key_here" || vapidKey.length < 50) {
+      console.log("VAPID public key not properly configured, skipping push notification subscription")
+      return null
+    }
+
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""),
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
     })
 
     console.log("Push subscription successful:", subscription)
@@ -196,16 +202,22 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 
   const isPreview =
     window.location.hostname.includes("vusercontent.net") ||
-    window.location.hostname.includes("vercel.app") ||
-    process.env.NODE_ENV === "development"
+    window.location.hostname.includes("vercel.app")
 
   if (isPreview) {
-    console.log("Skipping service worker registration in preview/development environment")
+    console.log("Skipping service worker registration in preview environment")
     return null
   }
 
+  // Allow service worker in development for testing
+  if (process.env.NODE_ENV === "development") {
+    console.log("🔧 Development mode: Service worker registration enabled for testing")
+  }
+
   try {
-    const response = await fetch("/sw.js", { method: "HEAD" })
+    // Use development service worker in development mode
+    const swPath = process.env.NODE_ENV === "development" ? "/sw-dev.js" : "/sw.js"
+    const response = await fetch(swPath, { method: "HEAD" })
     if (!response.ok || response.headers.get("content-type")?.includes("text/html")) {
       console.log("Service worker file not available or served incorrectly, skipping registration")
       return null
@@ -216,7 +228,8 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   }
 
   try {
-    const registration = await navigator.serviceWorker.register("/sw.js")
+    const swPath = process.env.NODE_ENV === "development" ? "/sw-dev.js" : "/sw.js"
+    const registration = await navigator.serviceWorker.register(swPath)
     console.log("Service worker registered successfully:", registration)
 
     // Handle service worker updates

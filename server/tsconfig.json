@@ -13,11 +13,6 @@
     "allowSyntheticDefaultImports": true
   },
 
-<<<<<<< HEAD
   "include": ["src/**/*", "src/types/**/*"],
-  "exclude": ["node_modules", "dist", "tests"]
-=======
-  "include": ["src/**/*", "src/types/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "dist"]
->>>>>>> 455ef4fc (new commit now)
+  "exclude": ["node_modules", "dist", "tests", "src/swagger.ts"]
 }

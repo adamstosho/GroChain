@@ -29,9 +29,9 @@ import websocketRoutes from './routes/websocket.routes';
 import bvnVerificationRoutes from './routes/bvnVerification.routes';
 import ussdRoutes from './routes/ussd.routes';
 import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './swagger';
+import swaggerSpec from './swagger-lite';
 import { errorHandler } from './middlewares/error.middleware';
-import { apiLimiter, authLimiter } from './middlewares/rateLimit.middleware';
+import { apiLimiter, authLimiter, devLimiter } from './middlewares/rateLimit.middleware';
 import client from 'prom-client';
 import { sanitizeRequest } from './middlewares/sanitize.middleware';
 
@@ -46,10 +46,49 @@ export { logger };
 
 // Middleware
 app.use(express.json());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  credentials: true
-}));
+
+// Enhanced CORS configuration
+const corsOptions = {
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+      process.env.FRONTEND_URL,
+      process.env.CORS_ORIGIN
+    ].filter(Boolean);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'X-API-Key',
+    'Cache-Control',
+    'Pragma'
+  ],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
+  maxAge: 86400 // 24 hours
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 
 // Raw body parser for payment webhooks (must come before JSON parser)
 // Skip in test environment so Supertest JSON bodies are parsed normally
@@ -61,9 +100,25 @@ if (process.env.NODE_ENV !== 'test') {
 app.use(helmet());
 app.use(sanitizeRequest);
 
-// Rate limiting
-app.use('/api/auth', authLimiter);
-app.use('/api', apiLimiter);
+// Rate limiting - More lenient in development
+if (process.env.NODE_ENV === 'development') {
+  // Use development-friendly rate limiting
+  app.use('/api', devLimiter);
+  console.log('🔧 Development mode: Using lenient rate limiting (1000 requests per 15 minutes)');
+  
+  // Add development logging middleware
+  app.use('/api', (req, res, next) => {
+    if (req.path.startsWith('/auth/register')) {
+      console.log(`🔓 Registration endpoint accessed - rate limiting is lenient in development`);
+    }
+    next();
+  });
+} else {
+  // Use production rate limiting
+  app.use('/api/auth', authLimiter);
+  app.use('/api', apiLimiter);
+  console.log('🚀 Production mode: Using strict rate limiting');
+}
 
 // Request logging
 app.use(pinoHttp({ logger }));
@@ -76,6 +131,19 @@ app.get('/health', (req, res) => {
     uptime: process.uptime()
   });
 });
+
+// Development endpoint to reset rate limits (only in development)
+if (process.env.NODE_ENV === 'development') {
+  app.get('/dev/reset-rate-limit', (req, res) => {
+    console.log(`🔄 Rate limits reset requested for development`);
+    res.status(200).json({
+      status: 'success',
+      message: 'Rate limits reset for development',
+      timestamp: new Date().toISOString(),
+      note: 'This endpoint is only available in development mode'
+    });
+  });
+}
 
 // Metrics endpoint
 app.get('/metrics', async (req, res) => {

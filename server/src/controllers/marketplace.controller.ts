@@ -102,6 +102,24 @@ export const getListings = async (req: Request, res: Response) => {
   }
 };
 
+export const getListing = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const listing = await Listing.findById(id)
+      .populate('farmer', 'name email phone')
+      .populate('partner', 'name email phone');
+    
+    if (!listing) {
+      return res.status(404).json({ status: 'error', message: 'Listing not found.' });
+    }
+    
+    return res.status(200).json({ status: 'success', listing });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
 export const createListing = async (req: Request, res: Response) => {
   try {
     const { error, value } = listingSchema.validate(req.body);
@@ -184,6 +202,177 @@ export const getSearchSuggestions = async (req: Request, res: Response) => {
     return res.status(200).json({ 
       status: 'success', 
       suggestions 
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+// Buyer order management
+export const getBuyerOrders = async (req: Request, res: Response) => {
+  try {
+    const { buyerId } = req.params;
+    const { page = 1, limit = 10, status, startDate, endDate } = req.query;
+
+    // Build filter object
+    const filter: any = { buyer: buyerId };
+    
+    if (status) {
+      filter.status = status;
+    }
+    
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = new Date(startDate as string);
+      if (endDate) filter.createdAt.$lte = new Date(endDate as string);
+    }
+
+    // Calculate pagination
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+    // Execute query with pagination
+    const orders = await Order.find(filter)
+      .populate('items.listing', 'product price images')
+      .populate('buyer', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit as string));
+
+    // Get total count for pagination
+    const total = await Order.countDocuments(filter);
+
+    return res.status(200).json({ 
+      status: 'success', 
+      orders,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total,
+        pages: Math.ceil(total / parseInt(limit as string))
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+export const getOrderDetails = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const order = await Order.findById(id)
+      .populate('items.listing', 'product price images description')
+      .populate('buyer', 'name email phone')
+      .populate('items.listing.farmer', 'name email phone');
+    
+    if (!order) {
+      return res.status(404).json({ status: 'error', message: 'Order not found.' });
+    }
+    
+    return res.status(200).json({ status: 'success', order });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+export const cancelOrder = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ status: 'error', message: 'Order not found.' });
+    }
+    
+    if (order.status !== 'pending') {
+      return res.status(400).json({ status: 'error', message: 'Only pending orders can be cancelled.' });
+    }
+    
+    order.status = 'cancelled';
+    await order.save();
+    
+    return res.status(200).json({ status: 'success', order });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+export const getOrderTracking = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const order = await Order.findById(id).select('status createdAt updatedAt');
+    if (!order) {
+      return res.status(404).json({ status: 'error', message: 'Order not found.' });
+    }
+    
+    // Mock tracking data - in real implementation, this would come from logistics service
+    const tracking = {
+      orderId: id,
+      status: order.status,
+      timeline: [
+        {
+          status: 'order_placed',
+          timestamp: order.createdAt,
+          description: 'Order placed successfully'
+        },
+        {
+          status: 'confirmed',
+          timestamp: new Date(order.createdAt.getTime() + 1000 * 60 * 60), // 1 hour later
+          description: 'Order confirmed by seller'
+        },
+        ...(order.status !== 'pending' ? [{
+          status: order.status,
+          timestamp: order.updatedAt,
+          description: `Order ${order.status}`
+        }] : [])
+      ]
+    };
+    
+    return res.status(200).json({ status: 'success', tracking });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+// Favorites/Wishlist
+export const getFavorites = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    
+    // Mock favorites data - in real implementation, this would come from a Favorites model
+    const favorites = await Listing.find({ 
+      _id: { $in: [] } // Empty array for now - would be populated from favorites collection
+    }).populate('farmer', 'name email');
+    
+    return res.status(200).json({ status: 'success', favorites });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+export const addToFavorites = async (req: Request, res: Response) => {
+  try {
+    const { userId, listingId } = req.body;
+    
+    // Mock implementation - in real implementation, this would add to Favorites collection
+    return res.status(200).json({ 
+      status: 'success', 
+      message: 'Added to favorites successfully' 
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+export const removeFromFavorites = async (req: Request, res: Response) => {
+  try {
+    const { userId, listingId } = req.params;
+    
+    // Mock implementation - in real implementation, this would remove from Favorites collection
+    return res.status(200).json({ 
+      status: 'success', 
+      message: 'Removed from favorites successfully' 
     });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });

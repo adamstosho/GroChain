@@ -1,5 +1,10 @@
+import { ErrorBoundary } from "@/components/error-boundary"
 import { RoleSelection } from "@/components/auth/role-selection"
 
 export default function RegisterPage() {
-  return <RoleSelection />
+  return (
+    <ErrorBoundary>
+      <RoleSelection />
+    </ErrorBoundary>
+  )
 }

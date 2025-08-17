@@ -87,17 +87,23 @@ export default function ProductDetailPage() {
     if (!product) return
 
     try {
-      const paymentResponse = await apiClient.initiatePayment({
-        amount: product.price * orderForm.quantity,
-        currency: product.currency,
-        productId: product.id,
-        buyerId: "current-user-id", // This should come from auth context
-        sellerId: product.farmer.id,
+      // First create the order
+      const orderResponse = await apiClient.createMarketplaceOrder({
+        buyer: "current-user-id", // This should come from auth context
+        items: [{ listing: product.id, quantity: orderForm.quantity }]
       })
 
-      if (paymentResponse.success) {
-        // Redirect to payment page or show success message
-        alert("Order placed successfully! Redirecting to payment...")
+      if (orderResponse.success && orderResponse.data) {
+        // Then initialize payment with the order
+        const paymentResponse = await apiClient.initiatePayment({
+          orderId: orderResponse.data._id || orderResponse.data.id,
+          email: "user@example.com" // This should come from auth context
+        })
+
+        if (paymentResponse.success) {
+          // Redirect to payment page or show success message
+          alert("Order placed successfully! Redirecting to payment...")
+        }
       }
     } catch (error) {
       console.error("Error placing order:", error)

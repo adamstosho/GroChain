@@ -2,20 +2,22 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, Eye, EyeOff, Leaf, ShoppingCart, Building2, Users, Loader2 } from "lucide-react"
+import { Checkbox } from "@/components/ui/Checkbox"
+import { Alert, AlertDescription } from "@/components/ui/Alert"
+import { ArrowLeft, Eye, EyeOff, Leaf, ShoppingCart, Building2, Users, Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
-import { toast } from "sonner"
-import { UserRole } from "@/types/api"
 import { api } from "@/lib/api"
+import { ErrorBoundary } from "@/components/error-boundary"
+import { RegistrationErrorBoundary } from "@/components/auth/registration-error-boundary"
+import { RegistrationSuccess } from "@/components/auth/registration-success"
+import { PasswordStrengthIndicator } from "@/components/auth/password-strength-indicator"
 
 const roleConfig = {
   farmer: {
@@ -23,24 +25,28 @@ const roleConfig = {
     description: "Join thousands of farmers building trust in Nigerian agriculture",
     icon: Leaf,
     color: "text-green-600",
+    bgColor: "bg-green-50 dark:bg-green-950/20",
   },
   buyer: {
     title: "Buyer Registration",
     description: "Access verified products from trusted Nigerian farmers",
     icon: ShoppingCart,
     color: "text-amber-600",
+    bgColor: "bg-amber-50 dark:bg-amber-950/20",
   },
   partner: {
     title: "Partner Registration",
     description: "Partner with us to onboard farmers and earn commissions",
     icon: Building2,
     color: "text-blue-600",
+    bgColor: "bg-blue-50 dark:bg-blue-950/20",
   },
   aggregator: {
     title: "Aggregator Registration",
     description: "Aggregate products from multiple farmers",
     icon: Users,
     color: "text-purple-600",
+    bgColor: "bg-purple-50 dark:bg-purple-950/20",
   },
 }
 
@@ -48,8 +54,92 @@ interface RegistrationFormProps {
   role: string
 }
 
-export function RegistrationForm({ role }: RegistrationFormProps) {
-  const [formData, setFormData] = useState({
+interface FormData {
+  name: string
+  email: string
+  phone: string
+  password: string
+  confirmPassword: string
+  agreeToTerms: boolean
+}
+
+interface FormErrors {
+  name?: string
+  email?: string
+  phone?: string
+  password?: string
+  confirmPassword?: string
+  agreeToTerms?: string
+  submit?: string
+}
+
+interface ValidationRules {
+  [key: string]: {
+    required?: boolean
+    minLength?: number
+    pattern?: RegExp
+    custom?: (value: string, formData: FormData) => string | undefined
+  }
+}
+
+const validationRules: ValidationRules = {
+  name: {
+    required: true,
+    minLength: 2,
+    custom: (value) => {
+      if (value.trim().length < 2) return "Name must be at least 2 characters"
+      if (!/^[a-zA-Z\s]+$/.test(value.trim())) return "Name can only contain letters and spaces"
+      return undefined
+    }
+  },
+  email: {
+    required: true,
+    pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    custom: (value) => {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return "Please enter a valid email address"
+      return undefined
+    }
+  },
+  phone: {
+    required: true,
+    pattern: /^(\+234|0)[789][01]\d{8}$/,
+    custom: (value) => {
+      const cleanPhone = value.replace(/\s/g, "")
+      if (!/^(\+234|0)[789][01]\d{8}$/.test(cleanPhone)) {
+        return "Please enter a valid Nigerian phone number (e.g., +2348012345678 or 08012345678)"
+      }
+      return undefined
+    }
+  },
+  password: {
+    required: true,
+    minLength: 8,
+    custom: (value) => {
+      if (value.length < 8) return "Password must be at least 8 characters"
+      if (!/(?=.*[a-z])/.test(value)) return "Password must contain at least one lowercase letter"
+      if (!/(?=.*[A-Z])/.test(value)) return "Password must contain at least one uppercase letter"
+      if (!/(?=.*\d)/.test(value)) return "Password must contain at least one number"
+      return undefined
+    }
+  },
+  confirmPassword: {
+    required: true,
+    custom: (value, formData) => {
+      if (value !== formData.password) return "Passwords do not match"
+      return undefined
+    }
+  },
+  agreeToTerms: {
+    required: true,
+    custom: (value) => {
+      if (!value) return "You must agree to the terms and conditions"
+      return undefined
+    }
+  }
+}
+
+function RegistrationFormContent({ role }: RegistrationFormProps) {
+  const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
     phone: "",
@@ -60,65 +150,147 @@ export function RegistrationForm({ role }: RegistrationFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [errors, setErrors] = useState<FormErrors>({})
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   const router = useRouter()
   const config = roleConfig[role as keyof typeof roleConfig]
 
+  useEffect(() => {
+    if (!config) {
+      router.push("/register")
+      return
+    }
+  }, [config, router])
+
   if (!config) {
-    router.push("/register")
     return null
+  }
+
+  const validateField = (name: string, value: any): string | undefined => {
+    const rule = validationRules[name]
+    if (!rule) return undefined
+
+    if (rule.required && (!value || (typeof value === 'string' && !value.trim()))) {
+      return `${name.charAt(0).toUpperCase() + name.slice(1)} is required`
+    }
+
+    if (rule.minLength && typeof value === 'string' && value.length < rule.minLength) {
+      return `${name.charAt(0).toUpperCase() + name.slice(1)} must be at least ${rule.minLength} characters`
+    }
+
+    if (rule.pattern && typeof value === 'string' && !rule.pattern.test(value)) {
+      return `${name.charAt(0).toUpperCase() + name.slice(1)} format is invalid`
+    }
+
+    if (rule.custom) {
+      return rule.custom(value, formData)
+    }
+
+    return undefined
+  }
+
+  const handleFieldChange = (name: string, value: any) => {
+    setFormData(prev => ({ ...prev, [name]: value }))
+    
+    // Clear error when user starts typing
+    if (errors[name as keyof FormErrors]) {
+      setErrors(prev => ({ ...prev, [name]: undefined }))
+    }
+
+    // Validate field on blur
+    if (touched[name]) {
+      const error = validateField(name, value)
+      setErrors(prev => ({ ...prev, [name]: error }))
+    }
+  }
+
+  const handleFieldBlur = (name: string) => {
+    setTouched(prev => ({ ...prev, [name]: true }))
+    const error = validateField(name, formData[name as keyof FormData])
+    setErrors(prev => ({ ...prev, [name]: error }))
+  }
+
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {}
+    
+    Object.keys(validationRules).forEach(field => {
+      const error = validateField(field, formData[field as keyof FormData])
+      if (error) {
+        newErrors[field as keyof FormErrors] = error
+      }
+    })
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    setErrors({})
-
-    const newErrors: Record<string, string> = {}
-
-    if (!formData.name.trim()) newErrors.name = "Full name is required"
-    if (!formData.email.trim()) newErrors.email = "Email is required"
-    if (!formData.phone.trim()) newErrors.phone = "Phone number is required"
-    if (!formData.password) newErrors.password = "Password is required"
-    if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters"
-    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "Passwords do not match"
-    if (!formData.agreeToTerms) newErrors.agreeToTerms = "You must agree to the terms and conditions"
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
-      setIsLoading(false)
+    
+    if (!validateForm()) {
       return
     }
 
+    setIsLoading(true)
+    setErrors({})
+
     try {
       const response = await api.register({
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone: formData.phone.replace(/\s/g, ""),
         password: formData.password,
         role: role,
-        firstName: formData.name.split(" ")[0] || formData.name,
-        lastName: formData.name.split(" ").slice(1).join(" ") || "",
-        phoneNumber: formData.phone,
       })
 
       if (response.success) {
-        router.push("/dashboard")
+        setIsSuccess(true)
+        // Redirect after a short delay to show success message
+        setTimeout(() => {
+          router.push("/dashboard")
+        }, 2000)
       } else {
         setErrors({ submit: response.error || "Registration failed. Please try again." })
       }
     } catch (error) {
-      setErrors({ submit: "Registration failed. Please try again." })
+      console.error("Registration error:", error)
+      setErrors({ 
+        submit: "Network error. Please check your connection and try again." 
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
+  if (isSuccess) {
+    return (
+      <RegistrationSuccess
+        userData={{
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          role: role
+        }}
+        onContinue={() => {
+          // Use setTimeout to avoid calling router.push during render
+          setTimeout(() => {
+            router.push("/dashboard")
+          }, 0)
+        }}
+      />
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ duration: 0.5 }}
+        >
           <Card>
             <CardHeader className="text-center">
               <Link
@@ -130,8 +302,8 @@ export function RegistrationForm({ role }: RegistrationFormProps) {
               </Link>
 
               <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center">
-                  <config.icon className={`w-8 h-8 text-primary-foreground`} />
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${config.bgColor}`}>
+                  <config.icon className={`w-8 h-8 ${config.color}`} />
                 </div>
               </div>
 
@@ -140,6 +312,13 @@ export function RegistrationForm({ role }: RegistrationFormProps) {
             </CardHeader>
 
             <CardContent>
+              {errors.submit && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{errors.submit}</AlertDescription>
+                </Alert>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name</Label>
@@ -148,8 +327,10 @@ export function RegistrationForm({ role }: RegistrationFormProps) {
                     type="text"
                     placeholder="Enter your full name"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => handleFieldChange("name", e.target.value)}
+                    onBlur={() => handleFieldBlur("name")}
                     className={errors.name ? "border-destructive" : ""}
+                    disabled={isLoading}
                   />
                   {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
                 </div>
@@ -161,8 +342,10 @@ export function RegistrationForm({ role }: RegistrationFormProps) {
                     type="email"
                     placeholder="Enter your email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => handleFieldChange("email", e.target.value)}
+                    onBlur={() => handleFieldBlur("email")}
                     className={errors.email ? "border-destructive" : ""}
+                    disabled={isLoading}
                   />
                   {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                 </div>
@@ -174,8 +357,10 @@ export function RegistrationForm({ role }: RegistrationFormProps) {
                     type="tel"
                     placeholder="+234 800 000 0000"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => handleFieldChange("phone", e.target.value)}
+                    onBlur={() => handleFieldBlur("phone")}
                     className={errors.phone ? "border-destructive" : ""}
+                    disabled={isLoading}
                   />
                   {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
                 </div>
@@ -186,20 +371,30 @@ export function RegistrationForm({ role }: RegistrationFormProps) {
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Create a password"
+                      placeholder="Create a strong password"
                       value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      onChange={(e) => handleFieldChange("password", e.target.value)}
+                      onBlur={() => handleFieldBlur("password")}
                       className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      disabled={isLoading}
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                   {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                  
+                  {/* Password Strength Indicator */}
+                  <PasswordStrengthIndicator 
+                    password={formData.password} 
+                    showDetails={true}
+                    className="mt-3"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -210,13 +405,16 @@ export function RegistrationForm({ role }: RegistrationFormProps) {
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder="Confirm your password"
                       value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      onChange={(e) => handleFieldChange("confirmPassword", e.target.value)}
+                      onBlur={() => handleFieldBlur("confirmPassword")}
                       className={errors.confirmPassword ? "border-destructive pr-10" : "pr-10"}
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      disabled={isLoading}
                     >
                       {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -228,7 +426,8 @@ export function RegistrationForm({ role }: RegistrationFormProps) {
                   <Checkbox
                     id="terms"
                     checked={formData.agreeToTerms}
-                    onCheckedChange={(checked) => setFormData({ ...formData, agreeToTerms: checked as boolean })}
+                    onCheckedChange={(checked) => handleFieldChange("agreeToTerms", checked)}
+                    disabled={isLoading}
                   />
                   <Label htmlFor="terms" className="text-sm">
                     I agree to the{" "}
@@ -242,8 +441,6 @@ export function RegistrationForm({ role }: RegistrationFormProps) {
                   </Label>
                 </div>
                 {errors.agreeToTerms && <p className="text-sm text-destructive">{errors.agreeToTerms}</p>}
-
-                {errors.submit && <p className="text-sm text-destructive text-center">{errors.submit}</p>}
 
                 <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                   {isLoading ? (
@@ -268,5 +465,14 @@ export function RegistrationForm({ role }: RegistrationFormProps) {
         </motion.div>
       </div>
     </div>
+  )
+}
+
+// Wrapped with Specialized Registration Error Boundary
+export function RegistrationForm({ role }: RegistrationFormProps) {
+  return (
+    <RegistrationErrorBoundary role={role}>
+      <RegistrationFormContent role={role} />
+    </RegistrationErrorBoundary>
   )
 }

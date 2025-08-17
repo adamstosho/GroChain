@@ -14,22 +14,14 @@ beforeAll(async () => {
   await mongoose.connect(mongoUri);
 
   // Create test user
-<<<<<<< HEAD
-  const user = await User.create({
-=======
   const user: any = await User.create({
->>>>>>> 455ef4fc (new commit now)
     name: 'Test User',
     email: 'test@example.com',
     phone: '+2348012345678',
     password: 'password123',
     role: UserRole.FARMER
   });
-<<<<<<< HEAD
-  userId = user._id.toString();
-=======
   userId = (user._id as any).toString();
->>>>>>> 455ef4fc (new commit now)
 
   // Login to get token
   const loginResponse = await request(app)

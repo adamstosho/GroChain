@@ -25,8 +25,14 @@ const authRoutes = [
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const token = request.cookies.get('auth_token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '')
+  
+  // Check for token in multiple places to handle both client-side and server-side auth
+  let token = request.cookies.get('auth_token')?.value || 
+              request.headers.get('authorization')?.replace('Bearer ', '')
+  
+  // For client-side navigation, we can't access localStorage in middleware
+  // So we'll rely on cookies and headers, and let the client-side auth context handle the rest
+  // This prevents redirect loops while maintaining security
 
   // Check if the current path is a protected route
   const isProtectedRoute = protectedRoutes.some(route => 
@@ -38,14 +44,20 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(route)
   )
 
-  // Redirect unauthenticated users to login page
+  // Only redirect unauthenticated users to login if we have a token check
+  // For client-side navigation, let the auth context handle authentication
   if (isProtectedRoute && !token) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(loginUrl)
+    // Check if this is a client-side navigation (has _rsc parameter)
+    const isClientNavigation = request.nextUrl.searchParams.has('_rsc')
+    
+    if (!isClientNavigation) {
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
   }
 
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages only if we have a token
   if (isAuthRoute && token) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }

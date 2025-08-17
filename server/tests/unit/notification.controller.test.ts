@@ -54,7 +54,13 @@ describe('Notification Controller', () => {
         mockResponse as Response
       );
 
-      expect(mockSendNotification).toHaveBeenCalledWith(notificationData);
+      expect(mockSendNotification).toHaveBeenCalledWith(
+        'test-user-id',
+        'harvest_reminder',
+        'Time to harvest your crops',
+        'Harvest Reminder',
+        { cropType: 'maize' }
+      );
       expect(mockStatus).toHaveBeenCalledWith(200);
       expect(mockJson).toHaveBeenCalledWith({
         status: 'success',

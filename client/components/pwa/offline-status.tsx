@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Wifi, WifiOff, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { getPendingOfflineData } from "@/lib/offline-storage"
+import { OfflineDataManager } from "@/lib/offline-storage"
 
 export default function OfflineStatus() {
   const [isOnline, setIsOnline] = useState(true)
@@ -16,8 +16,8 @@ export default function OfflineStatus() {
 
     const updatePendingCount = async () => {
       try {
-        const pendingData = await getPendingOfflineData()
-        setPendingCount(pendingData.total)
+        const pendingData = await OfflineDataManager.getOfflineData()
+        setPendingCount(pendingData.length)
       } catch (error) {
         console.error("Failed to get pending offline data:", error)
       }

@@ -6,15 +6,13 @@ dotenv.config({ path: '.env.test' });
 // Set test environment
 process.env.NODE_ENV = 'test';
 
-<<<<<<< HEAD
 // Global test timeout - increased for integration tests
 jest.setTimeout(120000);
-=======
+
 // Set required environment variables for testing if they don't exist
 if (!process.env.MONGODB_URI) {
   process.env.MONGODB_URI = 'mongodb://localhost:27017/grochain-test';
 }
->>>>>>> 455ef4fc (new commit now)
 
 if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'test_jwt_secret_key_at_least_32_characters_long_for_testing';

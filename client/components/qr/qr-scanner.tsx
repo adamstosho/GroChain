@@ -188,3 +188,7 @@ export function QRScanner({ onScan, onClose, isOpen }: QRScannerProps) {
     </div>
   )
 }
+
+// Add default export alias for backward compatibility
+export default QRScanner
+export { QRScanner as QrScanner }

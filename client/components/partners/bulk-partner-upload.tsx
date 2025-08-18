@@ -6,10 +6,12 @@ import { useState, useRef } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
+import { Progress } from "@/components/ui/Progress"
 import { Badge } from "@/components/ui/badge"
 import { Upload, Download, FileText, ArrowLeft, Check, X, AlertCircle } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { api } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 
 interface UploadResult {
@@ -22,16 +24,9 @@ interface UploadResult {
   }>
 }
 
-// Mock user for layout
-const mockUser = {
-  id: "1",
-  name: "Agency Admin",
-  email: "admin@agency.com",
-  role: "agency",
-  avatar: "/placeholder.svg",
-}
-
 export function BulkPartnerUpload() {
+  const { user } = useAuth()
+
   const [file, setFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -69,20 +64,16 @@ export function BulkPartnerUpload() {
         })
       }, 200)
 
-      const response = await fetch("/api/partners/upload-csv", {
-        method: "POST",
-        body: formData,
-      })
+      const response = await api.uploadPartnersCSV(formData)
 
       clearInterval(progressInterval)
       setUploadProgress(100)
 
-      const result = await response.json()
-
-      if (response.ok) {
-        setUploadResult(result)
+      if (response.success && response.data) {
+        const payload: any = response.data
+        setUploadResult(payload.data || payload)
       } else {
-        throw new Error(result.message || "Upload failed")
+        throw new Error(response.error || "Upload failed")
       }
     } catch (error) {
       console.error("Upload error:", error)
@@ -125,7 +116,7 @@ Jane,Smith,jane@example.com,+234 802 345 6789,Ogun,Abeokuta North,1.8,"Cassava, 
   }
 
   return (
-    <DashboardLayout user={mockUser}>
+    <DashboardLayout user={user as any}>
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center space-x-4">

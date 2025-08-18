@@ -166,6 +166,8 @@ app.use('/api/fintech', fintechRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
+// Support both plural and singular for backward compatibility
+app.use('/api/commissions', commissionRoutes);
 app.use('/api/commission', commissionRoutes);
 app.use('/api/verify', verifyRoutes);
 app.use('/api/pwa', pwaRoutes);

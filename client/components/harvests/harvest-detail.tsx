@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,9 +18,12 @@ import {
   Clock,
   XCircle,
   Map,
+  AlertCircle,
+  Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { api } from "@/lib/api"
 
 interface HarvestDetailProps {
   harvestId: string
@@ -79,9 +82,110 @@ const statusConfig = {
 
 export function HarvestDetail({ harvestId }: HarvestDetailProps) {
   const [selectedImage, setSelectedImage] = useState(0)
-  const harvest = mockHarvest // In real app, fetch by harvestId
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [harvestData, setHarvestData] = useState<any>(null)
 
-  const status = statusConfig[harvest.status as keyof typeof statusConfig]
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        // Try provenance endpoint first
+        const resp = await api.getHarvestProvenance(harvestId)
+        if (resp.success) {
+          const payload: any = resp.data
+          const prov = (payload as any)?.provenance || (payload as any)?.data?.provenance || payload
+          if (!cancelled) setHarvestData(prov)
+        } else {
+          // Fallback to alias /:batchId
+          const resp2 = await api.getHarvest(harvestId)
+          if (resp2.success) {
+            const payload2: any = resp2.data
+            const prov2 = (payload2 as any)?.provenance || (payload2 as any)?.data?.provenance || payload2
+            if (!cancelled) setHarvestData(prov2)
+          } else {
+            throw new Error(resp.error || "Failed to load harvest")
+          }
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load harvest")
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [harvestId])
+
+  if (loading && !harvestData) {
+    return (
+      <div className="min-h-screen bg-background py-8">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="flex items-center justify-center min-h-[300px]">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading harvest provenance…</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error && !harvestData) {
+    return (
+      <div className="min-h-screen bg-background py-8">
+        <div className="max-w-4xl mx-auto px-4">
+          <Card>
+            <CardContent className="p-8 text-center space-y-3">
+              <AlertCircle className="w-8 h-8 text-destructive mx-auto" />
+              <div className="text-destructive font-medium">Failed to load harvest</div>
+              <div className="text-sm text-muted-foreground">{error}</div>
+              <div className="pt-2">
+                <Button asChild variant="outline">
+                  <Link href="/harvests">Back to Harvests</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  const serverHarvest = harvestData
+    ? {
+        cropType: harvestData.cropType,
+        quantity: harvestData.quantity,
+        unit: (harvestData as any).unit || "kg",
+        harvestDate: (harvestData as any).date || (harvestData as any).harvestDate,
+        location:
+          (harvestData as any).location ||
+          (harvestData as any).geoLocation ||
+          { lat: (harvestData as any)?.geoLocation?.lat, lng: (harvestData as any)?.geoLocation?.lng },
+        status: "verified",
+        qrCode: (harvestData as any).batchId,
+        images: (harvestData as any).images || [],
+        description: (harvestData as any).description || "",
+        coordinates: (harvestData as any).geoLocation || undefined,
+        farmer: {
+          name: (harvestData as any)?.farmer?.name || "",
+          id: (harvestData as any)?.farmer?._id || "",
+          firstName: (harvestData as any)?.farmer?.firstName,
+          lastName: (harvestData as any)?.farmer?.lastName,
+          emailVerified: undefined,
+        },
+        verificationDetails: undefined,
+        createdAt: (harvestData as any).createdAt,
+        updatedAt: (harvestData as any).updatedAt,
+      }
+    : null
+
+  const harvest = serverHarvest || mockHarvest
+
+  const status = statusConfig[(harvest.status as keyof typeof statusConfig) || "verified"]
   const StatusIcon = status.icon
 
   return (

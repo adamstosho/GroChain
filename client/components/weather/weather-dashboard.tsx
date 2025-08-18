@@ -5,9 +5,9 @@ import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import { 
   Cloud, 
   Sun, 
@@ -23,7 +23,7 @@ import {
   Download
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { apiClient } from "@/lib/api"
+import { api } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 
 interface WeatherData {
@@ -89,6 +89,12 @@ export function WeatherDashboard() {
   const [location, setLocation] = useState({ lat: 9.0765, lng: 7.3986 }) // Default to Abuja
   const [searchLocation, setSearchLocation] = useState("")
   const [selectedRegion, setSelectedRegion] = useState("FCT")
+  const [coordsInput, setCoordsInput] = useState({ lat: "", lng: "" })
+  const [coordsWeather, setCoordsWeather] = useState<WeatherData | null>(null)
+  const [historicalParams, setHistoricalParams] = useState({ startDate: "", endDate: "" })
+  const [historicalData, setHistoricalData] = useState<any[]>([])
+  const [regionalAlertsData, setRegionalAlertsData] = useState<WeatherAlert[]>([])
+  const [statisticsData, setStatisticsData] = useState<any | null>(null)
 
   const nigerianStates = [
     "FCT", "Lagos", "Kano", "Kaduna", "Rivers", "Ogun", "Oyo", "Delta", 
@@ -99,52 +105,59 @@ export function WeatherDashboard() {
     fetchWeatherData()
   }, [location, selectedRegion])
 
+  useEffect(() => {
+    fetchRegionalAndStats()
+  }, [selectedRegion])
+
   const fetchWeatherData = async () => {
     setLoading(true)
     try {
       // Fetch current weather
-      const currentResponse = await apiClient.getCurrentWeather({
+      const currentResponse = await api.getCurrentWeather({
         lat: location.lat,
         lng: location.lng,
         country: "Nigeria"
       })
 
-      if (currentResponse.success) {
-        setCurrentWeather(currentResponse.data)
+      if (currentResponse.success && currentResponse.data) {
+        setCurrentWeather(currentResponse.data as any)
       }
 
       // Fetch forecast
-      const forecastResponse = await apiClient.getWeatherForecast({
+      const forecastResponse = await api.getWeatherForecast({
         lat: location.lat,
         lng: location.lng,
         country: "Nigeria",
         days: 7
       })
 
-      if (forecastResponse.success) {
-        setForecast(forecastResponse.data?.forecast || [])
+      if (forecastResponse.success && forecastResponse.data) {
+        const payload: any = forecastResponse.data
+        setForecast(payload.forecast || [])
       }
 
       // Fetch agricultural insights
-      const insightsResponse = await apiClient.getAgriculturalInsights({
+      const insightsResponse = await api.getAgriculturalInsights({
         lat: location.lat,
         lng: location.lng,
         country: "Nigeria"
       })
 
-      if (insightsResponse.success) {
-        setInsights(insightsResponse.data?.insights || mockInsights)
+      if (insightsResponse.success && insightsResponse.data) {
+        const payload: any = insightsResponse.data
+        setInsights(payload.insights || mockInsights)
       }
 
       // Fetch weather alerts
-      const alertsResponse = await apiClient.getWeatherAlerts({
+      const alertsResponse = await api.getWeatherAlerts({
         lat: location.lat,
         lng: location.lng,
         country: "Nigeria"
       })
 
-      if (alertsResponse.success) {
-        setAlerts(alertsResponse.data?.alerts || mockAlerts)
+      if (alertsResponse.success && alertsResponse.data) {
+        const payload: any = alertsResponse.data
+        setAlerts(payload.alerts || mockAlerts)
       }
 
     } catch (error) {
@@ -156,6 +169,24 @@ export function WeatherDashboard() {
       setAlerts(mockAlerts)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchRegionalAndStats = async () => {
+    try {
+      const [regResp, statsResp] = await Promise.all([
+        api.getRegionalWeatherAlerts(selectedRegion),
+        api.getWeatherStatistics(selectedRegion)
+      ])
+      if (regResp.success && regResp.data) {
+        const payload: any = regResp.data
+        setRegionalAlertsData(payload.alerts || payload.data || [])
+      }
+      if (statsResp.success && statsResp.data) {
+        setStatisticsData((statsResp.data as any).data || statsResp.data)
+      }
+    } catch (e) {
+      // noop
     }
   }
 
@@ -190,6 +221,50 @@ export function WeatherDashboard() {
       case "low": return "bg-green-500"
       default: return "bg-gray-500"
     }
+  }
+
+  const handleCoordinatesLookup = async () => {
+    const lat = parseFloat(coordsInput.lat)
+    const lng = parseFloat(coordsInput.lng)
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return
+    try {
+      const resp = await api.getWeatherByCoordinates(lat, lng)
+      if (resp.success && resp.data) {
+        setCoordsWeather((resp.data as any).data || (resp.data as any))
+      }
+    } catch {}
+  }
+
+  const handleFetchHistorical = async () => {
+    if (!historicalParams.startDate || !historicalParams.endDate) return
+    try {
+      const resp = await api.getHistoricalWeather({
+        lat: location.lat,
+        lng: location.lng,
+        startDate: historicalParams.startDate,
+        endDate: historicalParams.endDate,
+      })
+      if (resp.success && resp.data) {
+        const payload: any = resp.data
+        const rows = payload.days || payload.records || payload.data || []
+        setHistoricalData(Array.isArray(rows) ? rows : [])
+      }
+    } catch {}
+  }
+
+  const exportHistoricalCSV = () => {
+    if (!historicalData.length) return
+    const keys = Object.keys(historicalData[0])
+    const csv = [keys.join(",")].concat(
+      historicalData.map((row: any) => keys.map(k => JSON.stringify(row[k] ?? "")).join(","))
+    ).join("\n")
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `historical-weather-${historicalParams.startDate}_to_${historicalParams.endDate}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const getWeatherIcon = (condition: string) => {
@@ -252,9 +327,9 @@ export function WeatherDashboard() {
     }
   ]
 
-  if (loading) {
+  if (loading || !user) {
     return (
-      <DashboardLayout user={user}>
+      <DashboardLayout user={user as any}>
         <div className="flex items-center justify-center min-h-screen">
           <RefreshCw className="h-8 w-8 animate-spin" />
           <span className="ml-2">Loading weather data...</span>
@@ -264,7 +339,7 @@ export function WeatherDashboard() {
   }
 
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
         <motion.div
@@ -371,11 +446,14 @@ export function WeatherDashboard() {
           transition={{ delay: 0.2 }}
         >
           <Tabs defaultValue="forecast" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="forecast">7-Day Forecast</TabsTrigger>
               <TabsTrigger value="insights">Agricultural Insights</TabsTrigger>
               <TabsTrigger value="alerts">Weather Alerts</TabsTrigger>
               <TabsTrigger value="statistics">Regional Statistics</TabsTrigger>
+              <TabsTrigger value="regional">Regional Alerts</TabsTrigger>
+              <TabsTrigger value="coordinates">By Coordinates</TabsTrigger>
+              <TabsTrigger value="historical">Historical</TabsTrigger>
             </TabsList>
 
             <TabsContent value="forecast" className="space-y-4">
@@ -478,18 +556,9 @@ export function WeatherDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Average</span>
-                        <span className="font-semibold">26°C</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Maximum</span>
-                        <span className="font-semibold">35°C</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Minimum</span>
-                        <span className="font-semibold">18°C</span>
-                      </div>
+                      <div className="flex justify-between"><span>Average</span><span className="font-semibold">{(statisticsData?.temperature?.average ?? 26)}°C</span></div>
+                      <div className="flex justify-between"><span>Maximum</span><span className="font-semibold">{(statisticsData?.temperature?.max ?? 35)}°C</span></div>
+                      <div className="flex justify-between"><span>Minimum</span><span className="font-semibold">{(statisticsData?.temperature?.min ?? 18)}°C</span></div>
                     </div>
                   </CardContent>
                 </Card>
@@ -500,18 +569,9 @@ export function WeatherDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>This Month</span>
-                        <span className="font-semibold">120mm</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Last Month</span>
-                        <span className="font-semibold">85mm</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Annual Average</span>
-                        <span className="font-semibold">1,200mm</span>
-                      </div>
+                      <div className="flex justify-between"><span>This Month</span><span className="font-semibold">{(statisticsData?.rainfall?.thisMonth ?? 120)}mm</span></div>
+                      <div className="flex justify-between"><span>Last Month</span><span className="font-semibold">{(statisticsData?.rainfall?.lastMonth ?? 85)}mm</span></div>
+                      <div className="flex justify-between"><span>Annual Average</span><span className="font-semibold">{(statisticsData?.rainfall?.annualAverage ?? 1200)}mm</span></div>
                     </div>
                   </CardContent>
                 </Card>
@@ -522,22 +582,118 @@ export function WeatherDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Soil Moisture</span>
-                        <Badge className="bg-green-500">Optimal</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>UV Index</span>
-                        <Badge className="bg-yellow-500">Moderate</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Wind Speed</span>
-                        <Badge className="bg-green-500">Good</Badge>
-                      </div>
+                      <div className="flex justify-between"><span>Soil Moisture</span><Badge className="bg-green-500">{(statisticsData?.growing?.soilMoisture ?? 'Optimal')}</Badge></div>
+                      <div className="flex justify-between"><span>UV Index</span><Badge className="bg-yellow-500">{(statisticsData?.growing?.uv ?? 'Moderate')}</Badge></div>
+                      <div className="flex justify-between"><span>Wind Speed</span><Badge className="bg-green-500">{(statisticsData?.growing?.wind ?? 'Good')}</Badge></div>
                     </div>
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            <TabsContent value="regional" className="space-y-4">
+              {regionalAlertsData.length > 0 ? (
+                <div className="space-y-4">
+                  {regionalAlertsData.map((alert) => (
+                    <Card key={alert.id} className="border-l-4 border-blue-500">
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center space-x-2">
+                            <AlertTriangle className="h-5 w-5 text-blue-500" />
+                            <span>{alert.title}</span>
+                          </CardTitle>
+                          <Badge className={getSeverityColor(alert.severity)}>
+                            {alert.severity.toUpperCase()}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-muted-foreground mb-4">{alert.description}</p>
+                        <div className="flex flex-col space-y-2 text-sm">
+                          <p><strong>Valid:</strong> {new Date(alert.validFrom).toLocaleString()} - {new Date(alert.validTo).toLocaleString()}</p>
+                          <p><strong>Affected Regions:</strong> {(alert.regions || []).join(", ")}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No active regional alerts for {selectedRegion}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="coordinates" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Lookup Weather by Coordinates</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <Input placeholder="Latitude" value={coordsInput.lat} onChange={(e)=> setCoordsInput({ ...coordsInput, lat: e.target.value })} />
+                    <Input placeholder="Longitude" value={coordsInput.lng} onChange={(e)=> setCoordsInput({ ...coordsInput, lng: e.target.value })} />
+                    <Button onClick={handleCoordinatesLookup}>Fetch</Button>
+                  </div>
+                  {coordsWeather && (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="flex items-center space-x-2"><MapPin className="h-5 w-5" /><span>{coordsWeather.location.name}, {coordsWeather.location.country}</span></div>
+                      <div className="flex items-center space-x-2"><Thermometer className="h-5 w-5 text-red-500" /><span>{coordsWeather.current.temp_c}°C</span></div>
+                      <div className="flex items-center space-x-2"><Wind className="h-5 w-5 text-blue-500" /><span>{coordsWeather.current.wind_kph} km/h</span></div>
+                      <div className="flex items-center space-x-2"><Droplets className="h-5 w-5 text-blue-500" /><span>{coordsWeather.current.humidity}%</span></div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="historical" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Historical Weather</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                    <div className="md:col-span-2">
+                      <label className="text-sm text-muted-foreground">Start Date</label>
+                      <Input type="date" value={historicalParams.startDate} onChange={(e)=> setHistoricalParams({ ...historicalParams, startDate: e.target.value })} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm text-muted-foreground">End Date</label>
+                      <Input type="date" value={historicalParams.endDate} onChange={(e)=> setHistoricalParams({ ...historicalParams, endDate: e.target.value })} />
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button onClick={handleFetchHistorical}>Fetch</Button>
+                      <Button variant="outline" onClick={exportHistoricalCSV} disabled={!historicalData.length}><Download className="h-4 w-4 mr-2" />Export</Button>
+                    </div>
+                  </div>
+                  {historicalData.length > 0 ? (
+                    <div className="overflow-x-auto border rounded-md">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left">
+                            {Object.keys(historicalData[0]).map((k) => (<th key={k} className="px-3 py-2 border-b">{k}</th>))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {historicalData.map((row: any, idx: number) => (
+                            <tr key={idx} className="odd:bg-muted/30">
+                              {Object.keys(historicalData[0]).map((k) => (<td key={k} className="px-3 py-2 border-b">{String(row[k] ?? "")}</td>))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Select a date range and fetch to see results.</p>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </motion.div>

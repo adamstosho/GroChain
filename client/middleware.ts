@@ -6,15 +6,18 @@ const protectedRoutes = [
   '/dashboard',
   '/harvests',
   '/marketplace/create',
+  '/orders',
   '/payments',
   '/commissions',
   '/partners',
   '/notifications',
+  '/analytics',
   '/settings',
   '/profile',
   '/ai',
   '/image-recognition',
-  '/iot'
+  '/iot',
+  '/ussd'
 ]
 
 // Define public routes that should redirect authenticated users
@@ -26,14 +29,11 @@ const authRoutes = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // Check for token in multiple places to handle both client-side and server-side auth
-  let token = request.cookies.get('auth_token')?.value || 
-              request.headers.get('authorization')?.replace('Bearer ', '')
+  // Get token from cookies
+  const token = request.cookies.get('auth_token')?.value
   
-  // For client-side navigation, we can't access localStorage in middleware
-  // So we'll rely on cookies and headers, and let the client-side auth context handle the rest
-  // This prevents redirect loops while maintaining security
-
+  console.log('🔍 Middleware - Path:', pathname, 'Token:', token ? 'present' : 'missing')
+  
   // Check if the current path is a protected route
   const isProtectedRoute = protectedRoutes.some(route => 
     pathname.startsWith(route)
@@ -44,27 +44,35 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(route)
   )
 
-  // Only redirect unauthenticated users to login if we have a token check
-  // For client-side navigation, let the auth context handle authentication
+  console.log('🔍 Middleware - Protected route:', isProtectedRoute, 'Auth route:', isAuthRoute)
+
+  // Redirect unauthenticated users to login for protected routes
   if (isProtectedRoute && !token) {
-    // Check if this is a client-side navigation (has _rsc parameter)
-    const isClientNavigation = request.nextUrl.searchParams.has('_rsc')
-    
-    if (!isClientNavigation) {
-      const loginUrl = new URL('/login', request.url)
-      loginUrl.searchParams.set('redirect', pathname)
-      return NextResponse.redirect(loginUrl)
-    }
+    console.log('🔍 Middleware - Redirecting to login (no token for protected route)')
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
-  // Redirect authenticated users away from auth pages only if we have a token
+  // Redirect authenticated users away from auth pages (and avoid loops)
   if (isAuthRoute && token) {
+    console.log('🔍 Middleware - Authenticated user on auth page, redirecting')
+    // Check if there's a redirect parameter
+    const redirect = request.nextUrl.searchParams.get('redirect')
+    if (redirect && redirect !== '/login' && redirect !== '/register') {
+      console.log('🔍 Middleware - Redirecting to original destination:', redirect)
+      return NextResponse.redirect(new URL(redirect, request.url))
+    }
+    console.log('🔍 Middleware - Redirecting to dashboard')
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Add security headers
+  console.log('🔍 Middleware - Allowing request to proceed')
+
+  // Create response and add security headers
   const response = NextResponse.next()
   
+  // Add security headers
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'origin-when-cross-origin')
@@ -72,6 +80,17 @@ export function middleware(request: NextRequest) {
     'Permissions-Policy',
     'camera=(), microphone=(), geolocation=()'
   )
+
+  // If user is authenticated and accessing a protected route, ensure the cookie persists
+  if (token && isProtectedRoute) {
+    // Refresh the cookie expiration
+    response.cookies.set('auth_token', token, {
+      path: '/',
+      maxAge: 86400, // 24 hours
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
+    })
+  }
 
   return response
 }

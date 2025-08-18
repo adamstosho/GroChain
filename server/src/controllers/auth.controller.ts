@@ -92,6 +92,17 @@ export const register = async (req: Request, res: Response) => {
     const accessToken = sign(payload, process.env.JWT_SECRET as string, { expiresIn: accessExpiresIn as any });
     const refreshToken = sign(payload, process.env.JWT_REFRESH_SECRET as string, { expiresIn: refreshExpiresIn as any });
 
+    // Set auth cookie for frontend middleware
+    try {
+      res.cookie('auth_token', accessToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 24 * 60 * 60 * 1000,
+      })
+    } catch {}
+
     return res.status(201).json({ 
       status: 'success', 
       user: { _id: user._id, name: user.name, email: user.email, role: user.role },
@@ -124,6 +135,17 @@ export const login = async (req: Request, res: Response) => {
     const refreshExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ?? '7d') as unknown as number | string;
     const accessToken = sign(payload, process.env.JWT_SECRET as string, { expiresIn: accessExpiresIn as any });
     const refreshToken = sign(payload, process.env.JWT_REFRESH_SECRET as string, { expiresIn: refreshExpiresIn as any });
+    // Set auth cookie for frontend middleware
+    try {
+      res.cookie('auth_token', accessToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 24 * 60 * 60 * 1000,
+      })
+    } catch {}
+
     return res.status(200).json({
       status: 'success',
       // Backward compatible fields
@@ -164,6 +186,15 @@ export const refresh = async (req: Request, res: Response) => {
     const refreshExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ?? '7d') as unknown as number | string;
     const newAccessToken = sign({ id: user._id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: accessExpiresIn as any });
     const newRefreshToken = sign({ id: user._id, role: user.role }, process.env.JWT_REFRESH_SECRET as string, { expiresIn: refreshExpiresIn as any });
+    try {
+      res.cookie('auth_token', newAccessToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 24 * 60 * 60 * 1000,
+      })
+    } catch {}
     return res.status(200).json({ status: 'success', accessToken: newAccessToken, refreshToken: newRefreshToken });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });

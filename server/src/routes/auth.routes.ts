@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { register, login, refresh, forgotPassword, resetPassword, verifyEmail, sendSmsOtp, verifySmsOtp } from '../controllers/auth.controller';
 import { validateRequest } from '../middlewares/validation.middleware';
 import Joi from 'joi';
-import { authenticateJWT } from '../middlewares/auth.middleware';
+import { authenticateJWT, AuthRequest } from '../middlewares/auth.middleware';
+import { User } from '../models/user.model';
 import { authorizeRoles } from '../middlewares/rbac.middleware';
 
 const router = Router();
@@ -50,8 +51,25 @@ router.post('/send-sms-otp', validateRequest(sendSmsOtpSchema), sendSmsOtp);
 router.post('/verify-sms-otp', validateRequest(verifySmsOtpSchema), verifySmsOtp);
 
 // Example protected route
-router.get('/protected', authenticateJWT, (req, res) => {
-  res.json({ status: 'success', message: 'Protected data' });
+router.get('/protected', authenticateJWT, async (req: AuthRequest, res) => {
+  try {
+    const uid = (req.user as any)?.id
+    if (!uid) return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+    const user = await User.findById(uid).select('_id name email role phone emailVerified createdAt updatedAt')
+    if (!user) return res.status(404).json({ status: 'error', message: 'User not found' })
+    return res.json({ status: 'success', user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: (user as any).phone,
+      emailVerified: (user as any).emailVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    } })
+  } catch (e) {
+    return res.status(500).json({ status: 'error', message: 'Server error' })
+  }
 });
 
 export default router;

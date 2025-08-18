@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema, Model } from 'mongoose';
 
 export interface IUSSDSession extends Document {
   sessionId: string;
@@ -10,6 +10,12 @@ export interface IUSSDSession extends Document {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface IUSSDSessionModel extends Model<IUSSDSession> {
+  findActiveByPhone(phoneNumber: string): Promise<IUSSDSession | null>;
+  findActiveById(sessionId: string): Promise<IUSSDSession | null>;
+  cleanupExpired(): Promise<any>;
 }
 
 const ussdSessionSchema = new Schema<IUSSDSession>({
@@ -92,5 +98,5 @@ ussdSessionSchema.statics.cleanupExpired = function() {
   );
 };
 
-export default mongoose.model<IUSSDSession>('USSDSession', ussdSessionSchema);
+export default mongoose.model<IUSSDSession, IUSSDSessionModel>('USSDSession', ussdSessionSchema);
 

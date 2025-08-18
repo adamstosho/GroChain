@@ -16,7 +16,7 @@ import {
 
 interface AnalyticsTablesProps {
   data: any
-  type: "farmers" | "harvests" | "marketplace" | "impact"
+  type: "farmers" | "harvests" | "marketplace" | "impact" | "transactions" | "fintech" | "partners" | "weather"
 }
 
 export function AnalyticsTables({ data, type }: AnalyticsTablesProps) {
@@ -346,6 +346,136 @@ export function AnalyticsTables({ data, type }: AnalyticsTablesProps) {
     </div>
   )
 
+  const renderTransactionsTable = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-green-600" />
+            Transactions Overview
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <p className="text-2xl font-bold text-blue-600">{data.transactions.total}</p>
+              <p className="text-sm text-muted-foreground">Total</p>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(data.transactions.volume)}</p>
+              <p className="text-sm text-muted-foreground">Volume</p>
+            </div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <p className="text-2xl font-bold text-purple-600">{formatCurrency(data.transactions.averageValue)}</p>
+              <p className="text-sm text-muted-foreground">Avg Value</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-emerald-600" />
+            By Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Object.entries(data.transactions.byStatus).map(([status, count]: [string, any]) => (
+              <div key={status} className="text-center p-4 bg-muted/50 rounded-lg">
+                <p className="text-2xl font-bold">{count}</p>
+                <p className="text-sm text-muted-foreground capitalize">{status}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  const renderFintechTable = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Award className="w-5 h-5 text-purple-600" />
+            Credit Scores
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Object.entries(data.fintech.creditScores.distribution).map(([band, count]: [string, any]) => (
+              <div key={band} className="text-center p-4 bg-muted/50 rounded-lg">
+                <p className="text-2xl font-bold">{count}</p>
+                <p className="text-sm text-muted-foreground">{band}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-green-600" />
+            Loans
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg"><p className="text-2xl font-bold text-blue-600">{data.fintech.loans.total}</p><p className="text-sm text-muted-foreground">Total</p></div>
+            <div className="text-center p-4 bg-green-50 rounded-lg"><p className="text-2xl font-bold text-green-600">{formatCurrency(data.fintech.loans.amount)}</p><p className="text-sm text-muted-foreground">Amount</p></div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg"><p className="text-2xl font-bold text-purple-600">{formatCurrency(data.fintech.loans.averageAmount)}</p><p className="text-sm text-muted-foreground">Average</p></div>
+            <div className="text-center p-4 bg-emerald-50 rounded-lg"><p className="text-2xl font-bold text-emerald-600">{data.fintech.loans.repaymentRate}%</p><p className="text-sm text-muted-foreground">Repayment</p></div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  const renderPartnersTable = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-blue-600" />
+            Partners Overview
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg"><p className="text-2xl font-bold text-blue-600">{data.partners.total}</p><p className="text-sm text-muted-foreground">Total</p></div>
+            <div className="text-center p-4 bg-green-50 rounded-lg"><p className="text-2xl font-bold text-green-600">{data.partners.active}</p><p className="text-sm text-muted-foreground">Active</p></div>
+            <div className="text-center p-4 bg-orange-50 rounded-lg"><p className="text-2xl font-bold text-orange-600">{data.partners.farmerReferrals}</p><p className="text-sm text-muted-foreground">Referrals</p></div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg"><p className="text-2xl font-bold text-purple-600">{formatCurrency(data.partners.revenueGenerated)}</p><p className="text-sm text-muted-foreground">Revenue</p></div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  const renderWeatherTable = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-green-600" />
+            Weather Overview
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg"><p className="text-2xl font-bold text-blue-600">{data.weather.averageTemperature}°C</p><p className="text-sm text-muted-foreground">Avg Temp</p></div>
+            <div className="text-center p-4 bg-cyan-50 rounded-lg"><p className="text-2xl font-bold text-cyan-600">{data.weather.averageHumidity}%</p><p className="text-sm text-muted-foreground">Avg Humidity</p></div>
+            <div className="text-center p-4 bg-emerald-50 rounded-lg"><p className="text-2xl font-bold text-emerald-600">{data.weather.favorableDays}</p><p className="text-sm text-muted-foreground">Favorable Days</p></div>
+            <div className="text-center p-4 bg-rose-50 rounded-lg"><p className="text-2xl font-bold text-rose-600">{data.weather.unfavorable}</p><p className="text-sm text-muted-foreground">Unfavorable</p></div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
   const renderTable = () => {
     switch (type) {
       case "farmers":
@@ -356,6 +486,14 @@ export function AnalyticsTables({ data, type }: AnalyticsTablesProps) {
         return renderMarketplaceTable()
       case "impact":
         return renderImpactTable()
+      case "transactions":
+        return renderTransactionsTable()
+      case "fintech":
+        return renderFintechTable()
+      case "partners":
+        return renderPartnersTable()
+      case "weather":
+        return renderWeatherTable()
       default:
         return null
     }

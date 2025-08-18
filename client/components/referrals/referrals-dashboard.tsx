@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Input } from "@/components/ui/input"
 import { 
   Users,
@@ -22,7 +22,7 @@ import {
   Download
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { apiClient } from "@/lib/api"
+import { api } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 
 interface ReferralStats {
@@ -124,7 +124,7 @@ export function ReferralsDashboard() {
 
   const completeReferral = async (farmerId: string) => {
     try {
-      const response = await apiClient.completeReferral(farmerId)
+      const response = await api.completeReferral(farmerId)
       if (response.success) {
         fetchReferralData()
       }
@@ -271,7 +271,7 @@ export function ReferralsDashboard() {
 
   if (loading) {
     return (
-      <DashboardLayout user={user}>
+      <DashboardLayout user={user as any}>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <Share className="h-8 w-8 animate-pulse mx-auto mb-4" />
@@ -283,7 +283,7 @@ export function ReferralsDashboard() {
   }
 
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
         <motion.div

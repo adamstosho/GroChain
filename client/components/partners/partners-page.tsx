@@ -6,10 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Users, UserPlus, Search, Filter, Eye, MapPin, Calendar, TrendingUp, Upload } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { useAuth } from "@/lib/auth-context"
+import { api } from "@/lib/api"
 import Link from "next/link"
 
 interface Partner {
@@ -88,16 +90,9 @@ const mockStats = {
   totalCommission: 45000,
 }
 
-// Mock user for layout
-const mockUser = {
-  id: "1",
-  name: "Agency Admin",
-  email: "admin@agency.com",
-  role: "agency",
-  avatar: "/placeholder.svg",
-}
-
 export function PartnersPage() {
+  const { user } = useAuth()
+
   const [partners, setPartners] = useState<Partner[]>(mockPartners)
   const [filteredPartners, setFilteredPartners] = useState<Partner[]>(mockPartners)
   const [searchTerm, setSearchTerm] = useState("")
@@ -137,7 +132,7 @@ export function PartnersPage() {
   }
 
   return (
-    <DashboardLayout user={mockUser}>
+    <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

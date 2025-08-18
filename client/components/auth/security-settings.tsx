@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth-context"
 import { TwoFactorAuth } from "./two-factor-auth"
 import { SessionManager } from "./session-manager"
 import { PasswordStrengthIndicator } from "./password-strength-indicator"
+import { api } from "@/lib/api"
 
 interface SecuritySettingsProps {
   onBack?: () => void
@@ -68,7 +69,10 @@ export function SecuritySettings({ onBack }: SecuritySettingsProps) {
       description: "Verify your email address for account security",
       icon: Mail,
       status: user?.emailVerified ? "verified" : "unverified",
-      action: () => {},
+      action: async () => {
+        if (user?.emailVerified) return
+        await api.resendVerificationEmail({ email: user?.email || "" })
+      },
       color: user?.emailVerified ? "text-green-600" : "text-red-600"
     },
     {
@@ -77,7 +81,7 @@ export function SecuritySettings({ onBack }: SecuritySettingsProps) {
       description: "Verify your phone number for SMS notifications",
       icon: Smartphone,
       status: user?.phoneVerified ? "verified" : "unverified",
-      action: () => {},
+      action: () => setShowTwoFactorSetup(true),
       color: user?.phoneVerified ? "text-green-600" : "text-red-600"
     }
   ]

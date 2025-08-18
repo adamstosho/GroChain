@@ -5,9 +5,9 @@ import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
+import { Progress } from "@/components/ui/Progress"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import { 
   Brain,
   Zap,
@@ -23,7 +23,7 @@ import {
   Database
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { apiClient } from "@/lib/api"
+import { api } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 
 interface SensorMaintenance {
@@ -109,36 +109,37 @@ export function AdvancedMLDashboard() {
     setLoading(true)
     try {
       // Fetch sensor health insights
-      const healthResponse = await apiClient.getSensorHealthInsights()
+      const healthResponse = await api.getSensorHealthInsights()
       if (healthResponse.success) {
         setSensorHealth(healthResponse.data)
       }
 
       // Fetch efficiency score
-      const efficiencyResponse = await apiClient.getEfficiencyScore()
-      if (efficiencyResponse.success) {
-        setEfficiencyScore(efficiencyResponse.data)
+      const efficiencyResponse = await api.getEfficiencyScore()
+      if (efficiencyResponse.success && efficiencyResponse.data) {
+        setEfficiencyScore(efficiencyResponse.data as EfficiencyScore)
       } else {
         setEfficiencyScore(mockEfficiencyScore)
       }
 
       // Fetch ML model performance
-      const modelsResponse = await apiClient.getMLModelsPerformance()
-      if (modelsResponse.success) {
-        setModelPerformance(modelsResponse.data?.models || mockModels)
+      const modelsResponse = await api.getMLModelsPerformance()
+      if (modelsResponse.success && modelsResponse.data) {
+        const payload: any = modelsResponse.data
+        setModelPerformance((payload.models as MLModelPerformance[]) || mockModels)
       } else {
         setModelPerformance(mockModels)
       }
 
       // Fetch optimization recommendations
-      const irrigationOpt = await apiClient.getIrrigationOptimization()
-      const fertilizerOpt = await apiClient.getFertilizerOptimization()
-      const harvestOpt = await apiClient.getHarvestOptimization()
+      const irrigationOpt = await api.getIrrigationOptimization()
+      const fertilizerOpt = await api.getFertilizerOptimization()
+      const harvestOpt = await api.getHarvestOptimization()
 
-      const optimizations = []
-      if (irrigationOpt.success) optimizations.push(irrigationOpt.data)
-      if (fertilizerOpt.success) optimizations.push(fertilizerOpt.data)
-      if (harvestOpt.success) optimizations.push(harvestOpt.data)
+      const optimizations: OptimizationResult[] = [] as OptimizationResult[]
+      if (irrigationOpt.success && irrigationOpt.data) optimizations.push(irrigationOpt.data as OptimizationResult)
+      if (fertilizerOpt.success && fertilizerOpt.data) optimizations.push(fertilizerOpt.data as OptimizationResult)
+      if (harvestOpt.success && harvestOpt.data) optimizations.push(harvestOpt.data as OptimizationResult)
       
       if (optimizations.length === 0) {
         setOptimization(mockOptimizations)
@@ -148,14 +149,14 @@ export function AdvancedMLDashboard() {
 
       // Fetch sensor-specific data if sensor selected
       if (selectedSensor) {
-        const maintenanceResponse = await apiClient.getSensorMaintenance(selectedSensor)
-        const anomalyResponse = await apiClient.getSensorAnomalies(selectedSensor)
+        const maintenanceResponse = await api.getSensorMaintenance(selectedSensor)
+        const anomalyResponse = await api.getSensorAnomalies(selectedSensor)
         
-        if (maintenanceResponse.success) {
-          setSensorMaintenance([maintenanceResponse.data])
+        if (maintenanceResponse.success && maintenanceResponse.data) {
+          setSensorMaintenance([maintenanceResponse.data as SensorMaintenance])
         }
-        if (anomalyResponse.success) {
-          setSensorAnomalies([anomalyResponse.data])
+        if (anomalyResponse.success && anomalyResponse.data) {
+          setSensorAnomalies([anomalyResponse.data as SensorAnomaly])
         }
       } else {
         // Mock data for demo
@@ -181,13 +182,13 @@ export function AdvancedMLDashboard() {
       let response
       switch (type) {
         case "irrigation":
-          response = await apiClient.getIrrigationOptimization()
+          response = await api.getIrrigationOptimization()
           break
         case "fertilizer":
-          response = await apiClient.getFertilizerOptimization()
+          response = await api.getFertilizerOptimization()
           break
         case "harvest":
-          response = await apiClient.getHarvestOptimization()
+          response = await api.getHarvestOptimization()
           break
         default:
           return
@@ -204,7 +205,7 @@ export function AdvancedMLDashboard() {
 
   const generateOptimizationReport = async () => {
     try {
-      const response = await apiClient.getOptimizationReport()
+      const response = await api.getOptimizationReport()
       if (response.success) {
         // Trigger download or display report
         const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
@@ -351,9 +352,9 @@ export function AdvancedMLDashboard() {
     }
   }
 
-  if (loading) {
+  if (loading || !user) {
     return (
-      <DashboardLayout user={user}>
+      <DashboardLayout user={user as any}>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <Brain className="h-8 w-8 animate-pulse mx-auto mb-4" />
@@ -365,7 +366,7 @@ export function AdvancedMLDashboard() {
   }
 
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
         <motion.div

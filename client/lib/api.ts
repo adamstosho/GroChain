@@ -5,6 +5,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5
 class ApiClient {
   private baseURL: string
   private token: string | null = null
+  private isRefreshing: boolean = false
+  private refreshPromise: Promise<string | null> | null = null
 
   constructor(baseURL: string) {
     this.baseURL = baseURL
@@ -28,7 +30,54 @@ class ApiClient {
     }
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  private setAuthCookie(token: string) {
+    try {
+      const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''
+      document.cookie = `auth_token=${token}; Path=/; Max-Age=86400; SameSite=Lax${secure}`
+    } catch {}
+  }
+
+  private async refreshAccessToken(): Promise<string | null> {
+    if (this.isRefreshing && this.refreshPromise) {
+      return this.refreshPromise
+    }
+    this.isRefreshing = true
+    this.refreshPromise = (async () => {
+      try {
+        const storedRefresh = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null
+        if (!storedRefresh) return null
+
+        const resp = await fetch(`${this.baseURL}/api/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ refreshToken: storedRefresh })
+        })
+        if (!resp.ok) return null
+        const data = await resp.json()
+        if (data && data.status === 'success' && data.accessToken) {
+          const newAccess = data.accessToken as string
+          const newRefresh = data.refreshToken as string | undefined
+          this.token = newAccess
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('auth_token', newAccess)
+            if (newRefresh) localStorage.setItem('refresh_token', newRefresh)
+          }
+          this.setAuthCookie(newAccess)
+          return newAccess
+        }
+        return null
+      } catch {
+        return null
+      } finally {
+        this.isRefreshing = false
+        this.refreshPromise = null
+      }
+    })()
+    return this.refreshPromise
+  }
+
+  private async request<T>(endpoint: string, options: (RequestInit & { _retry?: boolean }) = {}): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -49,10 +98,41 @@ class ApiClient {
     }
 
     try {
+      console.log('🔐 API - Making request to:', url)
+      console.log('🔐 API - Request options:', {
+        method: requestOptions.method,
+        headers: requestOptions.headers,
+        hasBody: !!requestOptions.body
+      })
+      
       const response = await fetch(url, requestOptions)
+
+      console.log('🔐 API - Response status:', response.status)
+      console.log('🔐 API - Response ok:', response.ok)
+
+      // Handle Unauthorized: attempt token refresh once
+      if (response.status === 401 && !options._retry) {
+        const refreshed = await this.refreshAccessToken()
+        if (refreshed) {
+          headers.Authorization = `Bearer ${refreshed}`
+          const retryOptions: RequestInit & { _retry?: boolean } = { ...options, headers, _retry: true }
+          const retryResp = await fetch(url, {
+            ...retryOptions,
+            credentials: 'include',
+            mode: 'cors',
+          })
+          const retryData = await retryResp.json().catch(() => ({}))
+          const retrySuccess = retryResp.ok && (retryData.status === 'success' || retryData.status === undefined)
+          if (retrySuccess) {
+            return { success: true, data: retryData }
+          }
+          return { success: false, error: retryData.message || `HTTP ${retryResp.status}` }
+        }
+      }
 
       // Handle CORS errors
       if (response.type === 'opaque') {
+        console.error('🔐 API - CORS error detected')
         return {
           success: false,
           error: "CORS error: Unable to access the resource",
@@ -60,17 +140,24 @@ class ApiClient {
       }
 
       const data = await response.json()
+      console.log('🔐 API - Response data:', data)
 
       // Check if the response indicates success (either HTTP 2xx or backend status: 'success')
       const isSuccess = response.ok && (data.status === 'success' || data.status === undefined)
 
       if (!isSuccess) {
+        console.error('🔐 API - Request failed:', {
+          status: response.status,
+          ok: response.ok,
+          data: data
+        })
         return {
           success: false,
           error: data.message || data.error || `HTTP ${response.status}`,
         }
       }
 
+      console.log('🔐 API - Request successful')
       return {
         success: true,
         data,
@@ -106,7 +193,13 @@ class ApiClient {
   }
 
   async login(credentials: { email: string; password: string }) {
-    return this.request<{ 
+    // Temporarily clear any existing token for login request
+    const oldToken = this.token
+    this.token = null
+    
+    console.log('🔐 API - Making login request without token')
+    
+    const result = await this.request<{ 
       status: string;
       accessToken: string; 
       refreshToken: string; 
@@ -120,11 +213,22 @@ class ApiClient {
       method: "POST",
       body: JSON.stringify(credentials),
     })
+    
+    // Restore old token if login failed
+    if (!result.success) {
+      this.token = oldToken
+    }
+    
+    console.log('🔐 API - Login request result:', result)
+    
+    return result
   }
 
   async refreshToken() {
+    const storedRefresh = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null
     return this.request("/api/auth/refresh", {
       method: "POST",
+      body: JSON.stringify({ refreshToken: storedRefresh }),
     })
   }
 
@@ -271,6 +375,19 @@ class ApiClient {
     return this.request(`/api/marketplace/search-suggestions?q=${encodeURIComponent(query)}`)
   }
 
+  async updateMarketplaceListing(listingId: string, updates: Partial<{ product: string; price: number; quantity: number; images: string[] }>) {
+    return this.request(`/api/marketplace/listings/${listingId}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async unpublishMarketplaceListing(listingId: string) {
+    return this.request(`/api/marketplace/listings/${listingId}/unpublish`, {
+      method: "PATCH",
+    })
+  }
+
   async createMarketplaceListing(listingData: {
     product: string
     price: number
@@ -343,6 +460,11 @@ class ApiClient {
 
   async getOrderTracking(orderId: string) {
     return this.request(`/api/marketplace/orders/${orderId}/tracking`)
+  }
+
+  // Websocket status
+  async getWebsocketStatus() {
+    return this.request(`/api/websocket/status`)
   }
 
   // Favorites/Wishlist
@@ -451,8 +573,30 @@ class ApiClient {
     })
   }
 
-  async exportAnalytics() {
-    return this.request("/api/analytics/export")
+  async exportAnalytics(params?: { format?: 'json' | 'csv' | 'excel'; period?: string; region?: string; startDate?: string; endDate?: string }) {
+    const queryParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) queryParams.append(key, value.toString())
+      })
+    }
+    const url = `${this.baseURL}/api/analytics/export${queryParams.toString() ? `?${queryParams}` : ''}`
+    const headers: Record<string, string> = {
+      Accept: params?.format === 'csv' ? 'text/csv' : 'application/json',
+    }
+    if (this.token) headers.Authorization = `Bearer ${this.token}`
+    try {
+      const resp = await fetch(url, { headers, credentials: 'include', mode: 'cors' })
+      if (!resp.ok) return { success: false, error: `HTTP ${resp.status}` }
+      if (params?.format === 'csv') {
+        const text = await resp.text()
+        return { success: true, data: text }
+      }
+      const data = await resp.json()
+      return { success: true, data }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Network error' }
+    }
   }
 
   // Fintech
@@ -687,8 +831,16 @@ class ApiClient {
     })
   }
 
-  async getSensorReadings(sensorId: string) {
-    return this.request(`/api/iot/sensors/${sensorId}/readings`)
+  async getSensorReadings(
+    sensorId: string,
+    params?: { startDate?: string; endDate?: string; limit?: number }
+  ) {
+    const qs = new URLSearchParams()
+    if (params?.startDate) qs.append('startDate', params.startDate)
+    if (params?.endDate) qs.append('endDate', params.endDate)
+    if (params?.limit !== undefined) qs.append('limit', String(params.limit))
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    return this.request(`/api/iot/sensors/${sensorId}/readings${suffix}`)
   }
 
   async getSensorAlerts(sensorId: string) {
@@ -977,6 +1129,29 @@ class ApiClient {
 
   async getPWAInstall() {
     return this.request("/api/pwa/install")
+  }
+
+  // USSD Services
+  async getUSSDInfo() {
+    return this.request("/api/ussd/info")
+  }
+
+  async getUSSDStats() {
+    return this.request("/api/ussd/stats")
+  }
+
+  async testUSSD(payload: { phoneNumber: string; text: string }) {
+    return this.request("/api/ussd/test", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async registerUSSD(payload: { provider: string; serviceCode?: string; callbackUrl: string }) {
+    return this.request("/api/ussd/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
   }
 }
 

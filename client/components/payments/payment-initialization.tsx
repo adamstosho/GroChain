@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { CreditCard, Shield, Clock, CheckCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { api } from "@/lib/api"
 
 interface PaymentItem {
   id: string
@@ -25,40 +26,26 @@ interface PaymentInitializationProps {
 export function PaymentInitialization({ items, totalAmount, orderId }: PaymentInitializationProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const router = useRouter()
+  const userEmail = typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('user_data') || '{}')?.email || '') : ''
 
   const handlePayment = async () => {
     setIsProcessing(true)
 
     try {
-      // Initialize payment
-      const response = await fetch("/api/payments/initialize", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          orderId,
-          amount: totalAmount,
-          items: items.map((item) => ({
-            id: item.id,
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-          })),
-        }),
-      })
+      // Initialize payment via backend API client
+      const resp = await api.initializePayment({ orderId, email: userEmail || "user@example.com" })
 
-      const data = await response.json()
-
-      if (data.success) {
-        // Redirect to payment provider or status page
+      if (resp.success && resp.data) {
+        const data: any = resp.data
         if (data.paymentUrl) {
           window.location.href = data.paymentUrl
-        } else {
+        } else if (data.paymentId) {
           router.push(`/payments/${data.paymentId}`)
+        } else {
+          router.push(`/payments/${orderId}`)
         }
       } else {
-        throw new Error(data.message || "Payment initialization failed")
+        throw new Error(resp.error || "Payment initialization failed")
       }
     } catch (error) {
       console.error("Payment error:", error)

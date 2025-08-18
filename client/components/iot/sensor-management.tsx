@@ -1,17 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Settings, Plus, Edit, Trash2, Wifi, WifiOff, AlertTriangle, ArrowLeft } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { api } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 
 interface Sensor {
@@ -61,19 +63,33 @@ const mockSensors: Sensor[] = [
   },
 ]
 
-// Mock user for layout
-const mockUser = {
-  id: "1",
-  name: "John Farmer",
-  email: "john@farm.com",
-  role: "farmer",
-  avatar: "/placeholder.svg",
-}
-
 export function SensorManagement() {
-  const [sensors, setSensors] = useState<Sensor[]>(mockSensors)
+  const { user } = useAuth()
+  const [sensors, setSensors] = useState<Sensor[]>([])
   const [activeTab, setActiveTab] = useState("sensors")
   const [editingSensor, setEditingSensor] = useState<Sensor | null>(null)
+  const [form, setForm] = useState({ name: "", type: "temperature", location: "", min: "", max: "" })
+
+  useEffect(() => {
+    const load = async () => {
+      const resp = await api.getSensors()
+      if (resp.success && resp.data) {
+        const list: any[] = ((resp.data as any).data || resp.data) as any[]
+        const mapped: Sensor[] = list.map((s: any) => ({
+          id: s._id || s.id,
+          name: s.metadata?.model || s.sensorId || 'Sensor',
+          type: (s.sensorType === 'soil' ? 'soil_moisture' : s.sensorType) as Sensor['type'],
+          location: `${s.location?.latitude ?? ''}, ${s.location?.longitude ?? ''}`,
+          status: (s.status === 'active' ? 'online' : (s.status === 'inactive' ? 'offline' : 'warning')) as Sensor['status'],
+          enabled: s.status !== 'inactive',
+          alertsEnabled: true,
+          thresholds: { min: s.thresholds?.min ?? 0, max: s.thresholds?.max ?? 100 }
+        }))
+        setSensors(mapped)
+      }
+    }
+    load()
+  }, [])
 
   const getStatusIcon = (status: Sensor["status"]) => {
     switch (status) {
@@ -114,7 +130,7 @@ export function SensorManagement() {
   }
 
   return (
-    <DashboardLayout user={mockUser}>
+    <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center space-x-4">
@@ -170,6 +186,9 @@ export function SensorManagement() {
                           <Button variant="ghost" size="sm" onClick={() => setEditingSensor(sensor)}>
                             <Edit className="w-4 h-4" />
                           </Button>
+                          <Link href={`/iot/sensors/${sensor.id}`}>
+                            <Button variant="outline" size="sm">View</Button>
+                          </Link>
                           <Button variant="ghost" size="sm">
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -220,11 +239,11 @@ export function SensorManagement() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="sensor-name">Sensor Name</Label>
-                    <Input id="sensor-name" placeholder="e.g., Temperature Sensor A" />
+                    <Input id="sensor-name" placeholder="e.g., Temperature Sensor A" value={form.name} onChange={(e)=> setForm({ ...form, name: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="sensor-type">Sensor Type</Label>
-                    <Select>
+                    <Select value={form.type} onValueChange={(v)=> setForm({ ...form, type: v })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select sensor type" />
                       </SelectTrigger>
@@ -241,17 +260,17 @@ export function SensorManagement() {
 
                 <div className="space-y-2">
                   <Label htmlFor="sensor-location">Location</Label>
-                  <Input id="sensor-location" placeholder="e.g., Field A - North Section" />
+                  <Input id="sensor-location" placeholder="lat,lng (e.g., 9.0765,7.3986)" value={form.location} onChange={(e)=> setForm({ ...form, location: e.target.value })} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="min-threshold">Minimum Threshold</Label>
-                    <Input id="min-threshold" type="number" placeholder="0" />
+                    <Input id="min-threshold" type="number" placeholder="0" value={form.min} onChange={(e)=> setForm({ ...form, min: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="max-threshold">Maximum Threshold</Label>
-                    <Input id="max-threshold" type="number" placeholder="100" />
+                    <Input id="max-threshold" type="number" placeholder="100" value={form.max} onChange={(e)=> setForm({ ...form, max: e.target.value })} />
                   </div>
                 </div>
 
@@ -259,7 +278,18 @@ export function SensorManagement() {
                   <Button variant="outline" onClick={() => setActiveTab("sensors")}>
                     Cancel
                   </Button>
-                  <Button>
+                  <Button onClick={async ()=> {
+                    const [latStr,lngStr] = form.location.split(',')
+                    const sensorData = {
+                      sensorId: `sensor_${Date.now()}`,
+                      sensorType: form.type === 'soil_moisture' ? 'soil' : form.type,
+                      location: { latitude: parseFloat(latStr), longitude: parseFloat(lngStr) },
+                      thresholds: { min: Number(form.min||0), max: Number(form.max||0), critical: Number(form.max||0) },
+                      metadata: { manufacturer: 'Generic', model: form.name || 'Sensor', firmware: '1.0.0', installationDate: new Date().toISOString(), lastCalibration: new Date().toISOString(), nextCalibration: new Date().toISOString() }
+                    }
+                    await api.createSensor(sensorData)
+                    setActiveTab('sensors')
+                  }}>
                     <Plus className="w-4 h-4 mr-2" />
                     Add Sensor
                   </Button>

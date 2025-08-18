@@ -1,14 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Switch } from "@/components/ui/switch"
 import { Bell, Settings, Check, Clock, Package, CreditCard, CloudRain, Users } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { api } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 
 interface Notification {
   id: string
@@ -98,9 +100,41 @@ const mockUser = {
 }
 
 export function NotificationsPage() {
+  const { user } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
   const [preferences, setPreferences] = useState<NotificationPreferences>(defaultPreferences)
   const [activeTab, setActiveTab] = useState("notifications")
+  const [prefLoading, setPrefLoading] = useState(false)
+  const canSend = user?.role === 'admin' || user?.role === 'partner'
+  const [sendForm, setSendForm] = useState({ audience: 'all', role: 'farmer', userId: '', type: 'system', title: '', message: '' })
+  const [bulkForm, setBulkForm] = useState({ userIds: '', type: 'system', title: '', message: '' })
+
+  useEffect(() => {
+    const loadPrefs = async () => {
+      try {
+        setPrefLoading(true)
+        const resp = await api.getNotificationPreferences()
+        if (resp.success && resp.data) {
+          const backend: any = (resp.data as any)
+          const data = (backend && backend.data) ? backend.data : backend
+          const mapped: NotificationPreferences = {
+            orderUpdates: Boolean(data?.marketplace),
+            paymentConfirmations: Boolean(data?.transaction),
+            weatherAlerts: Boolean(data?.marketing),
+            systemNotifications: Boolean(data?.marketing),
+            partnerUpdates: Boolean(data?.marketing),
+            pushNotifications: Boolean(data?.push),
+            emailNotifications: Boolean(data?.email),
+            smsNotifications: Boolean(data?.sms),
+          }
+          setPreferences(mapped)
+        }
+      } finally {
+        setPrefLoading(false)
+      }
+    }
+    loadPrefs()
+  }, [])
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
@@ -112,7 +146,8 @@ export function NotificationsPage() {
     // API call to mark as read
     try {
       await fetch(`/api/notifications/${notificationId}/read`, {
-        method: "PATCH",
+        method: "PUT",
+        headers: { 'Content-Type': 'application/json' },
       })
     } catch (error) {
       console.error("Failed to mark notification as read:", error)
@@ -123,8 +158,10 @@ export function NotificationsPage() {
     setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
 
     try {
-      await fetch("/api/notifications/mark-all-read", {
-        method: "PATCH",
+      await fetch("/api/notifications/read-all", {
+        method: "PUT",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id })
       })
     } catch (error) {
       console.error("Failed to mark all notifications as read:", error)
@@ -135,16 +172,31 @@ export function NotificationsPage() {
     setPreferences(newPreferences)
 
     try {
-      await fetch("/api/notifications/preferences", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newPreferences),
-      })
+      const payload: any = {
+        marketplace: Boolean(newPreferences.orderUpdates),
+        transaction: Boolean(newPreferences.paymentConfirmations),
+        marketing: Boolean(newPreferences.systemNotifications || newPreferences.partnerUpdates || newPreferences.weatherAlerts),
+        push: Boolean(newPreferences.pushNotifications),
+        email: Boolean(newPreferences.emailNotifications),
+        sms: Boolean(newPreferences.smsNotifications),
+      }
+      await api.updateNotificationPreferences(payload)
     } catch (error) {
       console.error("Failed to update preferences:", error)
     }
+  }
+
+  const handleSend = async () => {
+    const payload: any = { type: sendForm.type, title: sendForm.title, message: sendForm.message }
+    if (sendForm.audience === 'user' && sendForm.userId) payload.userId = sendForm.userId
+    if (sendForm.audience === 'role') payload.role = sendForm.role
+    try { await api.sendNotification(payload) } catch {}
+  }
+
+  const handleSendBulk = async () => {
+    const userIds = bulkForm.userIds.split(',').map(s => s.trim()).filter(Boolean)
+    const payload: any = { userIds, type: bulkForm.type, title: bulkForm.title, message: bulkForm.message }
+    try { await api.sendBulkNotifications(payload) } catch {}
   }
 
   const getNotificationIcon = (type: Notification["type"]) => {
@@ -190,7 +242,7 @@ export function NotificationsPage() {
   }
 
   return (
-    <DashboardLayout user={mockUser}>
+    <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -215,7 +267,7 @@ export function NotificationsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="notifications">
               Notifications
               {unreadCount > 0 && (
@@ -228,6 +280,7 @@ export function NotificationsPage() {
               <Settings className="w-4 h-4 mr-2" />
               Preferences
             </TabsTrigger>
+            <TabsTrigger value="send" disabled={!canSend}>Send</TabsTrigger>
           </TabsList>
 
           <TabsContent value="notifications" className="space-y-4">
@@ -294,6 +347,7 @@ export function NotificationsPage() {
                 <CardTitle>Notification Types</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                {prefLoading && <div className="text-sm text-muted-foreground">Loading preferences…</div>}
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <h4 className="font-medium">Order Updates</h4>
@@ -407,6 +461,116 @@ export function NotificationsPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {canSend && (
+            <TabsContent value="send" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Send Notification</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Audience</label>
+                      <Select value={sendForm.audience} onValueChange={(v)=> setSendForm({ ...sendForm, audience: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Users</SelectItem>
+                          <SelectItem value="role">By Role</SelectItem>
+                          <SelectItem value="user">Single User</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {sendForm.audience === 'role' && (
+                      <div>
+                        <label className="text-sm font-medium">Role</label>
+                        <Select value={sendForm.role} onValueChange={(v)=> setSendForm({ ...sendForm, role: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="farmer">Farmer</SelectItem>
+                            <SelectItem value="buyer">Buyer</SelectItem>
+                            <SelectItem value="partner">Partner</SelectItem>
+                            <SelectItem value="aggregator">Aggregator</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {sendForm.audience === 'user' && (
+                      <div>
+                        <label className="text-sm font-medium">User ID</label>
+                        <input className="w-full border rounded px-3 py-2 text-sm" value={sendForm.userId} onChange={(e)=> setSendForm({ ...sendForm, userId: e.target.value })} placeholder="user id" />
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-sm font-medium">Type</label>
+                      <Select value={sendForm.type} onValueChange={(v)=> setSendForm({ ...sendForm, type: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="order">Order</SelectItem>
+                          <SelectItem value="payment">Payment</SelectItem>
+                          <SelectItem value="weather">Weather</SelectItem>
+                          <SelectItem value="partner">Partner</SelectItem>
+                          <SelectItem value="system">System</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Title</label>
+                      <input className="w-full border rounded px-3 py-2 text-sm" value={sendForm.title} onChange={(e)=> setSendForm({ ...sendForm, title: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Message</label>
+                      <input className="w-full border rounded px-3 py-2 text-sm" value={sendForm.message} onChange={(e)=> setSendForm({ ...sendForm, message: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button onClick={handleSend}>Send</Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Send Bulk Notifications</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Type</label>
+                      <Select value={bulkForm.type} onValueChange={(v)=> setBulkForm({ ...bulkForm, type: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="order">Order</SelectItem>
+                          <SelectItem value="payment">Payment</SelectItem>
+                          <SelectItem value="weather">Weather</SelectItem>
+                          <SelectItem value="partner">Partner</SelectItem>
+                          <SelectItem value="system">System</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Title</label>
+                      <input className="w-full border rounded px-3 py-2 text-sm" value={bulkForm.title} onChange={(e)=> setBulkForm({ ...bulkForm, title: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Message</label>
+                      <input className="w-full border rounded px-3 py-2 text-sm" value={bulkForm.message} onChange={(e)=> setBulkForm({ ...bulkForm, message: e.target.value })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">User IDs (comma-separated)</label>
+                    <textarea className="w-full border rounded px-3 py-2 text-sm min-h-[100px]" value={bulkForm.userIds} onChange={(e)=> setBulkForm({ ...bulkForm, userIds: e.target.value })} placeholder="id1,id2,id3" />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button onClick={handleSendBulk}>Send Bulk</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </DashboardLayout>

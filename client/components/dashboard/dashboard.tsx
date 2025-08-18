@@ -11,39 +11,26 @@ import { Button } from "@/components/ui/button"
 import { Loader2, Lock } from "lucide-react"
 import Link from "next/link"
 import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export function Dashboard() {
-  const { user, loading, testSetUser } = useAuth()
+  const { user, loading } = useAuth()
+  const router = useRouter()
 
   console.log('🔍 Dashboard render - user:', user, 'loading:', loading)
-  console.log('🔍 Dashboard render - user type:', typeof user)
-  console.log('🔍 Dashboard render - user keys:', user ? Object.keys(user) : 'null')
-  console.log('🔍 Dashboard render - localStorage auth_token:', typeof window !== 'undefined' ? localStorage.getItem('auth_token') : 'N/A')
-  console.log('🔍 Dashboard render - document.cookie:', typeof document !== 'undefined' ? document.cookie : 'N/A')
 
-  // Add useEffect to track user state changes
+  // Add useEffect to track user state changes and handle redirects
   useEffect(() => {
-    console.log('🔍 Dashboard useEffect - user changed:', user)
-  }, [user])
-
-  // Test function to manually set user state
-  const handleTestSetUser = () => {
-    const testUser = {
-      id: "test-123",
-      email: "test@example.com",
-      name: "Test User",
-      role: "farmer" as const,
-      phone: "+2348012345678",
-      emailVerified: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    // If not loading and no user, redirect to login
+    if (!loading && !user) {
+      console.log('🔍 Dashboard: No user found, redirecting to login')
+      router.push('/login')
     }
-    console.log('🔍 Test: Setting test user:', testUser)
-    testSetUser(testUser)
-  }
+  }, [user, loading, router])
+
+
 
   if (loading) {
-    console.log('🔍 Dashboard: Showing loading state')
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">
@@ -60,7 +47,6 @@ export function Dashboard() {
   }
 
   if (!user) {
-    console.log('🔍 Dashboard: No user found, showing auth required')
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">
@@ -77,21 +63,7 @@ export function Dashboard() {
                 <Button asChild>
                   <Link href="/login">Go to Login</Link>
                 </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    console.log('🔍 Test button clicked - current user state:', user)
-                    console.log('🔍 Test button clicked - current loading state:', loading)
-                  }}
-                >
-                  Debug Auth State
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={handleTestSetUser}
-                >
-                  Test Set User
-                </Button>
+
               </div>
             </div>
           </CardContent>
@@ -100,7 +72,7 @@ export function Dashboard() {
     )
   }
 
-  console.log('🔍 Dashboard: User found, rendering role-specific dashboard for role:', user.role)
+  console.log('🔍 Dashboard: Rendering dashboard for role:', user.role)
   
   switch (user.role) {
     case "farmer":
@@ -114,7 +86,6 @@ export function Dashboard() {
     case "admin":
       return <AdminDashboard user={user} />
     default:
-      console.log('🔍 Dashboard: Unknown role, defaulting to farmer dashboard')
       return <FarmerDashboard user={user} />
   }
 }

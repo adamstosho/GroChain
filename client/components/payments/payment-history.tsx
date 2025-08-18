@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import { CreditCard, Search, Filter, Eye, Download } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import Link from "next/link"
@@ -53,16 +53,10 @@ const mockPayments: Payment[] = [
   },
 ]
 
-// Mock user for layout
-const mockUser = {
-  id: "1",
-  name: "John Doe",
-  email: "john@example.com",
-  role: "buyer",
-  avatar: "/placeholder.svg",
-}
+import { useAuth } from "@/lib/auth-context"
 
 export function PaymentHistory() {
+  const { user } = useAuth()
   const [payments, setPayments] = useState<Payment[]>(mockPayments)
   const [filteredPayments, setFilteredPayments] = useState<Payment[]>(mockPayments)
   const [searchTerm, setSearchTerm] = useState("")
@@ -108,7 +102,7 @@ export function PaymentHistory() {
   }
 
   return (
-    <DashboardLayout user={mockUser}>
+    <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

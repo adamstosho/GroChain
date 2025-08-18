@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/Alert"
 import { ArrowLeft, Eye, EyeOff, Loader2, AlertCircle, Mail, Lock, Leaf } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { api } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 import { RegistrationErrorBoundary } from "@/components/auth/registration-error-boundary"
@@ -37,7 +37,17 @@ function LoginFormContent() {
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   const router = useRouter()
-  const { login } = useAuth()
+  const searchParams = useSearchParams()
+  const { login, user, loading } = useAuth()
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!loading && user) {
+      console.log('🔐 Login Form: User already authenticated, redirecting to dashboard')
+      const redirectTo = searchParams.get('redirect') || '/dashboard'
+      router.replace(redirectTo)
+    }
+  }, [user, loading, router, searchParams])
 
   const validateField = (name: string, value: string): string | undefined => {
     if (name === "email") {
@@ -104,19 +114,29 @@ function LoginFormContent() {
 
     try {
       console.log('🔐 Login form: calling login with:', { email: formData.email, password: formData.password })
-      const success = await login(formData.email.trim().toLowerCase(), formData.password)
+      // Prefer hitting our Next proxy to ensure Set-Cookie on same-site
+      const proxyResp = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: formData.email.trim().toLowerCase(), password: formData.password })
+      })
+      const proxyData = await proxyResp.json().catch(() => ({}))
+      const success = proxyResp.ok && (proxyData.status === 'success')
       
       console.log('🔐 Login form: login result:', success)
       
       if (success) {
-        // Redirect to dashboard - auth context already shows success message
-        console.log('🔐 Login successful, redirecting to dashboard...')
+        // Hydrate client auth state (localStorage, context) to avoid flicker
+        try { await login(formData.email.trim().toLowerCase(), formData.password) } catch {}
+        console.log('🔐 Login successful!')
         
-        // Small delay to ensure auth state is properly updated
-        setTimeout(() => {
-          router.push("/dashboard")
-          console.log('🔐 Router.push called after delay')
-        }, 100)
+        // Get redirect parameter from URL, default to dashboard
+        const redirectTo = searchParams.get('redirect') || '/dashboard'
+        console.log('🔐 Redirecting to:', redirectTo)
+        
+        // Use Next.js router for navigation
+        router.replace(redirectTo)
       } else {
         console.log('🔐 Login failed, showing error')
         setErrors({ submit: "Invalid email or password. Please try again." })
@@ -129,6 +149,23 @@ function LoginFormContent() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Don't render form if user is already authenticated
+  if (!loading && user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center space-y-4 p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="text-center">
+              <h3 className="text-lg font-semibold">Redirecting...</h3>
+              <p className="text-sm text-muted-foreground">Taking you to your dashboard...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

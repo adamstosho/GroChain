@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import { Alert, AlertDescription } from "@/components/ui/Alert"
 import { 
   Search, 
@@ -269,15 +269,7 @@ export default function MarketplacePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               {/* Search */}
               <div className="lg:col-span-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    placeholder="Search products..."
-                    value={filters.search}
-                    onChange={(e) => handleFilterChange("search", e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+                <SearchWithSuggestions value={filters.search} onChange={(v) => handleFilterChange('search', v)} />
               </div>
 
               {/* Category */}
@@ -451,6 +443,55 @@ export default function MarketplacePage() {
           </Card>
         )}
       </div>
+    </div>
+  )
+}
+
+function SearchWithSuggestions({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [items, setItems] = useState<{ label: string; value: string }[]>([])
+  useEffect(() => {
+    const q = value.trim()
+    if (q.length < 2) { setItems([]); setOpen(false); return }
+    let active = true
+    setLoading(true)
+    api.getSearchSuggestions(q).then(resp => {
+      if (!active) return
+      if (resp.success && (resp.data as any)?.suggestions) {
+        const arr = (resp.data as any).suggestions.map((s: any) => ({ label: s.label, value: s.value }))
+        setItems(arr); setOpen(arr.length > 0)
+      } else { setItems([]); setOpen(false) }
+    }).finally(() => setLoading(false))
+    return () => { active = false }
+  }, [value])
+
+  return (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+      <Input
+        placeholder="Search products..."
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="pl-10"
+        onFocus={() => value.trim().length >= 2 && setOpen(items.length > 0)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-card border border-border rounded-md shadow-sm max-h-56 overflow-auto">
+          {loading ? (
+            <div className="px-3 py-2 text-sm text-muted-foreground">Searching…</div>
+          ) : items.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-muted-foreground">No suggestions</div>
+          ) : (
+            items.map((it) => (
+              <button key={it.value} className="w-full text-left px-3 py-2 text-sm hover:bg-muted" onMouseDown={(e) => { e.preventDefault(); onChange(it.value); setOpen(false) }}>
+                {it.label}
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -5,10 +5,10 @@ import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import { 
   Smartphone, 
   Users, 
@@ -24,7 +24,7 @@ import {
   WifiOff
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { apiClient } from "@/lib/api"
+import { api } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 
 interface USSDServiceInfo {
@@ -78,18 +78,20 @@ export function USSDDashboard() {
     setLoading(true)
     try {
       // Fetch USSD service info
-      const infoResponse = await apiClient.request("/api/ussd/info")
-      if (infoResponse.success) {
-        setServiceInfo(infoResponse.data)
+      const infoResp = await api.getUSSDInfo()
+      if (infoResp.success && infoResp.data) {
+        const payload: any = infoResp.data
+        setServiceInfo(payload.data || payload)
       } else {
         setServiceInfo(mockServiceInfo)
       }
 
       // Fetch stats (admin only)
       if (isAdmin) {
-        const statsResponse = await apiClient.request("/api/ussd/stats")
-        if (statsResponse.success) {
-          setStats(statsResponse.data?.data)
+        const statsResp = await api.getUSSDStats()
+        if (statsResp.success && statsResp.data) {
+          const payload: any = statsResp.data
+          setStats(payload.data || payload)
         } else {
           setStats(mockStats)
         }
@@ -107,18 +109,23 @@ export function USSDDashboard() {
   const handleTestUSSD = async () => {
     if (!testPhoneNumber.trim()) return
 
-    try {
-      const response = await apiClient.request("/api/ussd/test", {
-        method: "POST",
-        body: JSON.stringify({
-          phoneNumber: testPhoneNumber,
-          testScenario,
-          customInput: testInput
-        })
-      })
+    // Map scenario to a representative USSD text flow
+    const scenarioTextMap: Record<string, string> = {
+      menu_navigation: '1',                   // Go to Harvest menu
+      market_prices: '2*1',                   // Marketplace → Browse Products
+      weather_info: '4*2',                    // Support & Training → FAQ (placeholder)
+      loan_status: '3*1*12345678901',         // Fintech → Check Credit → sample BVN
+    }
 
-      if (response.success) {
-        setTestResult(response.data)
+    const text = (testInput && testInput.trim()) || scenarioTextMap[testScenario] || ''
+
+    try {
+      const resp = await api.testUSSD({ phoneNumber: testPhoneNumber, text })
+      if (resp.success && resp.data) {
+        const payload: any = resp.data
+        setTestResult(payload.data || payload)
+      } else {
+        setTestResult({ success: false, error: resp.error || 'Test failed' })
       }
     } catch (error) {
       console.error("Error testing USSD:", error)
@@ -131,15 +138,10 @@ export function USSDDashboard() {
 
   const registerUSSDService = async (provider: string) => {
     try {
-      const response = await apiClient.request("/api/ussd/register", {
-        method: "POST",
-        body: JSON.stringify({
-          provider,
-          serviceCode: serviceInfo?.serviceCode,
-          callbackUrl: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ussd`,
-          apiKey: `provider_api_key_${provider}`,
-          apiSecret: `provider_secret_${provider}`
-        })
+      const response = await api.registerUSSD({
+        provider,
+        serviceCode: serviceInfo?.serviceCode,
+        callbackUrl: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ussd`,
       })
 
       if (response.success) {
@@ -200,9 +202,9 @@ export function USSDDashboard() {
     }
   ]
 
-  if (loading) {
+  if (loading || !user) {
     return (
-      <DashboardLayout user={user}>
+      <DashboardLayout user={user as any}>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <Smartphone className="h-8 w-8 animate-pulse mx-auto mb-4" />

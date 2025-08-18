@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -27,6 +27,7 @@ import {
   Trash2,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { api } from "@/lib/api"
 
 interface UserProfile {
   id: string
@@ -103,6 +104,13 @@ export function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [bvnForm, setBvnForm] = useState({ bvn: "", firstName: "", lastName: "", dateOfBirth: "", phoneNumber: "" })
+  const [bvnStatus, setBvnStatus] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Prefill from user
+    setBvnForm({ bvn: "", firstName: user.firstName, lastName: user.lastName, dateOfBirth: "1990-01-01", phoneNumber: user.phone })
+  }, [])
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
     setIsLoading(true)
@@ -127,17 +135,32 @@ export function SettingsPage() {
   const handleBVNVerification = async () => {
     setIsLoading(true)
     try {
-      // API call for BVN verification
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      setUser((prev) => ({
-        ...prev,
-        verification: { ...prev.verification, bvn: true },
-      }))
+      const payload = bvnForm
+      const resp = await api.verifyBVN(payload)
+      if (resp.success) {
+        setUser((prev) => ({ ...prev, verification: { ...prev.verification, bvn: true } }))
+      }
     } catch (error) {
       console.error("BVN verification failed:", error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleBVNOffline = async () => {
+    setIsLoading(true)
+    try {
+      await api.offlineBVNVerification({ bvn: "00000000000", phoneNumber: user.phone })
+    } catch {}
+    setIsLoading(false)
+  }
+
+  const handleBVNResend = async () => {
+    setIsLoading(true)
+    try {
+      await api.resendBVNVerification({ bvn: "00000000000", phoneNumber: user.phone })
+    } catch {}
+    setIsLoading(false)
   }
 
   const getVerificationBadge = (verified: boolean) => {
@@ -155,7 +178,7 @@ export function SettingsPage() {
   }
 
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -309,11 +332,45 @@ export function SettingsPage() {
                       <div>
                         <h4 className="font-medium">BVN Verification</h4>
                         <p className="text-sm text-muted-foreground">Verify your Bank Verification Number</p>
+                        {bvnStatus && <p className="text-xs mt-1">Status: {bvnStatus}</p>}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                          <div className="space-y-1">
+                            <Label htmlFor="bvn">BVN</Label>
+                            <Input id="bvn" value={bvnForm.bvn} onChange={e=> setBvnForm({ ...bvnForm, bvn: e.target.value })} placeholder="11-digit BVN" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="dob">Date of Birth</Label>
+                            <Input id="dob" type="date" value={bvnForm.dateOfBirth} onChange={e=> setBvnForm({ ...bvnForm, dateOfBirth: e.target.value })} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="first">First Name</Label>
+                            <Input id="first" value={bvnForm.firstName} onChange={e=> setBvnForm({ ...bvnForm, firstName: e.target.value })} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="last">Last Name</Label>
+                            <Input id="last" value={bvnForm.lastName} onChange={e=> setBvnForm({ ...bvnForm, lastName: e.target.value })} />
+                          </div>
+                          <div className="space-y-1 md:col-span-2">
+                            <Label htmlFor="phone">Phone</Label>
+                            <Input id="phone" value={bvnForm.phoneNumber} onChange={e=> setBvnForm({ ...bvnForm, phoneNumber: e.target.value })} />
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" onClick={handleBVNVerification} disabled={isLoading}>
-                      {isLoading ? "Verifying..." : "Verify BVN"}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleBVNVerification} disabled={isLoading}>
+                        {isLoading ? "Verifying..." : "Verify BVN"}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleBVNOffline} disabled={isLoading}>
+                        Offline
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleBVNResend} disabled={isLoading}>
+                        Resend
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={async ()=>{ const r = await api.getVerificationStatus(user.id); if ((r as any).success) setBvnStatus('verified'); }} disabled={isLoading}>
+                        Check Status
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between p-4 border rounded-lg">

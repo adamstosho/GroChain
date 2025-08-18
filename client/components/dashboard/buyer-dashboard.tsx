@@ -5,10 +5,10 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import { 
   Search, 
   ShoppingCart, 
@@ -132,8 +132,9 @@ export function BuyerDashboard({ user }: BuyerDashboardProps) {
       // Fetch orders for stats calculation
       const ordersResponse = await api.getBuyerOrders(user.id, { limit: 100 })
       
-      if (ordersResponse.success) {
-        const ordersData = ordersResponse.data.orders || []
+      if (ordersResponse.success && ordersResponse.data) {
+        const payload: any = ordersResponse.data
+        const ordersData = payload.orders || []
         setOrders(ordersData)
         
         // Calculate stats from orders data
@@ -159,8 +160,9 @@ export function BuyerDashboard({ user }: BuyerDashboardProps) {
     try {
       const response = await api.getBuyerOrders(user.id, orderFilters)
       
-      if (response.success) {
-        setOrders(response.data.orders || [])
+      if (response.success && response.data) {
+        const payload: any = response.data
+        setOrders(payload.orders || [])
       } else {
         throw new Error(response.error || "Failed to fetch orders")
       }
@@ -174,8 +176,9 @@ export function BuyerDashboard({ user }: BuyerDashboardProps) {
     try {
       const response = await api.getFavorites(user.id)
       
-      if (response.success) {
-        setFavorites(response.data.favorites || [])
+      if (response.success && response.data) {
+        const payload: any = response.data
+        setFavorites(payload.favorites || [])
       } else {
         throw new Error(response.error || "Failed to fetch favorites")
       }
@@ -300,7 +303,7 @@ export function BuyerDashboard({ user }: BuyerDashboardProps) {
         price: 8000
       }],
       total: 8000,
-      status: "in-transit",
+      status: "pending",
       createdAt: "2025-01-12T10:00:00Z",
       updatedAt: "2025-01-12T10:00:00Z"
     }

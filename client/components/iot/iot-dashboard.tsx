@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
+import { Progress } from "@/components/ui/Progress"
 import {
   Thermometer,
   Droplets,
@@ -20,6 +20,8 @@ import {
   Plus,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { api } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 
 interface Sensor {
@@ -105,18 +107,43 @@ const mockStats = {
   avgBattery: 74,
 }
 
-// Mock user for layout
-const mockUser = {
-  id: "1",
-  name: "John Farmer",
-  email: "john@farm.com",
-  role: "farmer",
-  avatar: "/placeholder.svg",
-}
-
 export function IoTDashboard() {
-  const [sensors, setSensors] = useState<Sensor[]>(mockSensors)
+  const { user } = useAuth()
+  const [sensors, setSensors] = useState<Sensor[]>([])
   const [activeTab, setActiveTab] = useState("overview")
+  const [stats, setStats] = useState(mockStats)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true)
+        const resp = await api.getSensors()
+        if (resp.success && resp.data) {
+          const list: any[] = ((resp.data as any).data || resp.data) as any[]
+          const mapped: Sensor[] = list.map((s: any) => ({
+            id: s._id || s.id,
+            name: s.metadata?.model || s.sensorId || 'Sensor',
+            type: (s.sensorType === 'soil' ? 'soil_moisture' : s.sensorType) as Sensor['type'],
+            location: `${s.location?.latitude ?? ''}, ${s.location?.longitude ?? ''}`,
+            status: (s.status === 'active' ? 'online' : (s.status === 'inactive' ? 'offline' : 'warning')) as Sensor['status'],
+            lastReading: { value: s.readings?.[s.readings.length-1]?.value ?? 0, unit: s.readings?.[s.readings.length-1]?.unit ?? '', timestamp: s.readings?.[s.readings.length-1]?.timestamp ?? new Date().toISOString() },
+            batteryLevel: s.batteryLevel ?? 100,
+          }))
+          setSensors(mapped)
+          setStats({
+            totalSensors: mapped.length,
+            onlineSensors: mapped.filter(x=> x.status==='online').length,
+            alertsCount: 0,
+            avgBattery: Math.round(mapped.reduce((a,b)=> a + (b.batteryLevel||0),0)/Math.max(mapped.length,1)),
+          })
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
 
   const getSensorIcon = (type: Sensor["type"]) => {
     switch (type) {
@@ -168,7 +195,7 @@ export function IoTDashboard() {
   }
 
   return (
-    <DashboardLayout user={mockUser}>
+    <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -210,7 +237,7 @@ export function IoTDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Total Sensors</p>
-                        <p className="text-2xl font-bold text-foreground">{mockStats.totalSensors}</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.totalSensors}</p>
                       </div>
                       <Settings className="w-8 h-8 text-primary" />
                     </div>
@@ -228,7 +255,7 @@ export function IoTDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Online</p>
-                        <p className="text-2xl font-bold text-foreground">{mockStats.onlineSensors}</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.onlineSensors}</p>
                       </div>
                       <Wifi className="w-8 h-8 text-success" />
                     </div>
@@ -246,7 +273,7 @@ export function IoTDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Alerts</p>
-                        <p className="text-2xl font-bold text-foreground">{mockStats.alertsCount}</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.alertsCount}</p>
                       </div>
                       <AlertTriangle className="w-8 h-8 text-warning" />
                     </div>
@@ -264,7 +291,7 @@ export function IoTDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Avg Battery</p>
-                        <p className="text-2xl font-bold text-foreground">{mockStats.avgBattery}%</p>
+                        <p className="text-2xl font-bold text-foreground">{stats.avgBattery}%</p>
                       </div>
                       <TrendingUp className="w-8 h-8 text-primary" />
                     </div>
@@ -397,7 +424,10 @@ export function IoTDashboard() {
                         <Progress value={sensor.batteryLevel} className="h-2" />
                       </div>
 
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
+                        <Link href={`/iot/sensors/${sensor.id}`}>
+                          <Button variant="outline" size="sm">View</Button>
+                        </Link>
                         <Button variant="ghost" size="sm">
                           <Settings className="w-4 h-4 mr-2" />
                           Configure

@@ -32,6 +32,8 @@ import Link from "next/link"
 import { useTheme } from "next-themes"
 import OfflineStatus from "@/components/pwa/offline-status"
 import NotificationBell from "@/components/notifications/notification-bell"
+import { usePathname } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 
 interface User {
   id: string
@@ -76,11 +78,13 @@ const navigationItems = {
 export function DashboardLayout({ children, user }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { theme, setTheme } = useTheme()
+  const pathname = usePathname()
+  const { logout } = useAuth()
 
   const navigation = user?.role ? (navigationItems[user.role as keyof typeof navigationItems] || navigationItems.farmer) : navigationItems.farmer
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -88,9 +92,9 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:relative lg:z-auto ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:static lg:inset-0`}
+        }`}
       >
         <div className="flex h-full flex-col">
           {/* Logo */}
@@ -108,17 +112,25 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
 
           {/* Navigation */}
           <nav className="flex-1 px-3 sm:px-4 py-4 sm:py-6 space-y-1 sm:space-y-2 overflow-y-auto">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                <span className="truncate">{item.name}</span>
-              </Link>
-            ))}
+            {navigation.map((item) => {
+              const isActive = pathname?.startsWith(item.href)
+              const base = "flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors"
+              const cls = isActive
+                ? `${base} text-foreground bg-muted`
+                : `${base} text-muted-foreground hover:text-foreground hover:bg-muted`
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cls}
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  <span className="truncate">{item.name}</span>
+                </Link>
+              )
+            })}
           </nav>
 
           {/* Settings */}
@@ -136,7 +148,7 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top navigation */}
         <header className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
           <div className="flex h-16 items-center justify-between px-4 sm:px-6">
@@ -162,18 +174,18 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
-                                             <AvatarImage src="/placeholder.svg" alt={user?.name || "User"} />
-                                             <AvatarFallback className="text-xs">
-                         {user?.name?.charAt(0) || user?.email?.charAt(0) || "U"}
-                       </AvatarFallback>
+                      <AvatarImage src="/placeholder.svg" alt={user?.name || "User"} />
+                      <AvatarFallback className="text-xs">
+                        {user?.name?.charAt(0) || user?.email?.charAt(0) || "U"}
+                      </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                                             <p className="text-sm font-medium leading-none truncate">{user?.name || "Unknown User"}</p>
-                                             <p className="text-xs leading-none text-muted-foreground truncate">{user?.email || ""}</p>
+                      <p className="text-sm font-medium leading-none truncate">{user?.name || "Unknown User"}</p>
+                      <p className="text-xs leading-none text-muted-foreground truncate">{user?.email || ""}</p>
                       <p className="text-xs leading-none text-muted-foreground capitalize">{user?.role || "user"}</p>
                     </div>
                   </DropdownMenuLabel>
@@ -198,7 +210,7 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
                     )}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => logout()}>
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Log out</span>
                   </DropdownMenuItem>
@@ -209,7 +221,11 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="p-4 sm:p-6 min-h-[calc(100vh-4rem)]">{children}</main>
+        <main className="flex-1 p-4 sm:p-6">
+          <div className="mx-auto w-full max-w-7xl">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   )

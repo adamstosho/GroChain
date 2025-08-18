@@ -4,6 +4,7 @@ import { dmSans, nunito } from "./fonts"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
 import { WebSocketProvider } from "@/lib/websocket-context"
+import { SocketProvider } from "@/components/realtime/socket-provider"
 import InstallPrompt from "@/components/pwa/install-prompt"
 import OfflineIndicator from "@/components/pwa/offline-indicator"
 import PWAProvider from "@/components/pwa/pwa-provider"
@@ -11,6 +12,7 @@ import { NotificationProvider } from "@/components/notifications/notification-co
 import { ErrorBoundary } from "@/components/error-boundary"
 import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
+import { cookies } from "next/headers"
 
 export const metadata: Metadata = {
   title: "GroChain - Digital Trust Platform for Nigeria's Agriculture",
@@ -56,6 +58,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // SSR hint: check auth cookie presence; client will finalize session
+  const cookieStore = cookies()
+  const _auth = cookieStore.get('auth_token')?.value
   return (
     <html lang="en" className={`${dmSans.variable} ${nunito.variable} antialiased`}>
       <head>
@@ -75,12 +80,14 @@ export default function RootLayout({
             <AuthProvider>
               <WebSocketProvider>
                 <NotificationProvider>
-                  <PWAProvider>
-                    {children}
-                    <InstallPrompt />
-                    <OfflineIndicator />
-                    <Toaster richColors position="top-right" />
-                  </PWAProvider>
+                  <SocketProvider>
+                    <PWAProvider>
+                      {children}
+                      <InstallPrompt />
+                      <OfflineIndicator />
+                      <Toaster richColors position="top-right" />
+                    </PWAProvider>
+                  </SocketProvider>
                 </NotificationProvider>
               </WebSocketProvider>
             </AuthProvider>

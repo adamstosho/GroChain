@@ -1,6 +1,7 @@
 import { logger } from '../utils/logger';
 import axios from 'axios';
 import USSD from '../models/ussd.model';
+import USSDSession from '../models/ussdSession.model';
 
 export interface USSDRequest {
   sessionId: string;
@@ -109,16 +110,26 @@ class USSDService {
    * Get or create user session
    */
   private async getUserSession(sessionId: string, phoneNumber: string): Promise<USSDUserSession> {
-    // In production, this would query/update a database
-    // For now, creating a new session each time
+    const existing = await USSDSession.findActiveById(sessionId) as any
+    if (existing) {
+      return {
+        sessionId: existing.sessionId,
+        phoneNumber: existing.phoneNumber,
+        currentMenu: existing.currentMenu,
+        userData: existing.userData || {},
+        lastActivity: existing.lastActivity || new Date(),
+        step: existing.step || 0,
+      }
+    }
+    const created = await USSDSession.create({ sessionId, phoneNumber, currentMenu: 'main', userData: {}, step: 0 })
     return {
-      sessionId,
-      phoneNumber,
-      currentMenu: 'main',
-      userData: {},
-      lastActivity: new Date(),
-      step: 0
-    };
+      sessionId: created.sessionId,
+      phoneNumber: created.phoneNumber,
+      currentMenu: created.currentMenu,
+      userData: created.userData || {},
+      lastActivity: created.lastActivity || new Date(),
+      step: created.step || 0,
+    }
   }
 
   /**
@@ -530,13 +541,12 @@ Thank you for using GroChain USSD Service!`;
     session.currentMenu = currentMenu;
     session.step = currentStep;
     session.lastActivity = new Date();
-    
-    // In production, save to database
-    logger.info({ 
-      sessionId: session.sessionId, 
-      currentMenu, 
-      step: currentStep 
-    }, 'USSD session updated');
+    await USSDSession.findOneAndUpdate(
+      { sessionId: session.sessionId },
+      { currentMenu, step: currentStep, lastActivity: new Date(), userData: session.userData, isActive: true },
+      { upsert: true }
+    )
+    logger.info({ sessionId: session.sessionId, currentMenu, step: currentStep }, 'USSD session updated');
   }
 
   /**

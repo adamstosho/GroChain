@@ -13,6 +13,17 @@ export default function PWAProvider({ children }: PWAProviderProps) {
   useEffect(() => {
     const initializePWA = async () => {
       try {
+        // Disable service worker in development to avoid navigation/cache issues
+        if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_ENABLE_PWA !== 'true') {
+          try {
+            if ('serviceWorker' in navigator) {
+              const regs = await navigator.serviceWorker.getRegistrations()
+              await Promise.all(regs.map(r => r.unregister()))
+              console.log('Development: Unregistered service workers to prevent caching issues')
+            }
+          } catch {}
+          return
+        }
         // Check if service worker is supported
         if (!("serviceWorker" in navigator)) {
           console.log("Service workers are not supported in this browser")

@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import {
   ArrowLeft,
   Search,
@@ -80,11 +80,11 @@ const mockQRCodes = [
   },
 ]
 
-const statusColors = {
+const statusColors: Record<"verified" | "pending" | "rejected", "default" | "secondary" | "destructive"> = {
   verified: "default",
   pending: "secondary",
   rejected: "destructive",
-} as const
+}
 
 export function QRCodeManagement() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -295,7 +295,7 @@ export function QRCodeManagement() {
                         <div className="space-y-4">
                           {/* Header */}
                           <div className="flex items-center justify-between">
-                            <Badge variant={statusColors[qr.status]}>{qr.status}</Badge>
+                            <Badge variant={statusColors[qr.status as keyof typeof statusColors]}>{qr.status}</Badge>
                             <Badge variant="outline">{qr.batchId}</Badge>
                           </div>
 

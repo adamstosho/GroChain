@@ -5,8 +5,8 @@ import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { 
@@ -33,6 +33,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { AnalyticsCharts } from "./analytics-charts"
 import { AnalyticsMetrics } from "./analytics-metrics"
 import { AnalyticsTables } from "./analytics-tables"
+import { Alert, AlertDescription } from "@/components/ui/Alert"
 
 interface AnalyticsData {
   overview: {
@@ -138,7 +139,14 @@ export function AnalyticsDashboard() {
     startDate: "",
     endDate: ""
   })
+  const [reportLoading, setReportLoading] = useState(false)
+  const [compareLoading, setCompareLoading] = useState(false)
+  const [regionalLoading, setRegionalLoading] = useState(false)
+  const [exportFormat, setExportFormat] = useState<'json'|'csv'|'excel'>('json')
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [reportResult, setReportResult] = useState<any | null>(null)
+  const [compareResult, setCompareResult] = useState<any | null>(null)
+  const [regionalResult, setRegionalResult] = useState<Record<string, any> | null>(null)
 
   useEffect(() => {
     fetchAnalyticsData()
@@ -149,14 +157,26 @@ export function AnalyticsDashboard() {
       setLoading(true)
       setError("")
 
-      // Fetch comprehensive dashboard metrics
-      const response = await api.getDashboardAnalytics()
-      
-      if (response.success) {
-        setAnalyticsData(response.data)
+      // Fetch comprehensive dashboard metrics and sub-areas
+      const [dash, farmers, harvests, marketplace, impact] = await Promise.all([
+        api.getDashboardAnalytics(),
+        api.getFarmersAnalytics(),
+        api.getHarvestsAnalytics(),
+        api.getMarketplaceAnalytics(),
+        api.getImpactAnalytics(),
+      ])
+
+      if (dash.success) {
+        const base: any = dash.data
+        const data: any = base
+        if (farmers.success && farmers.data) data.farmers = (farmers.data as any).data || farmers.data
+        if (harvests.success && harvests.data) data.harvests = (harvests.data as any).data || harvests.data
+        if (marketplace.success && marketplace.data) data.marketplace = (marketplace.data as any).data || marketplace.data
+        if (impact.success && impact.data) data.impact = (impact.data as any).data || impact.data
+        setAnalyticsData(data)
         setLastUpdated(new Date())
       } else {
-        throw new Error(response.error || "Failed to fetch analytics data")
+        throw new Error(dash.error || "Failed to fetch analytics data")
       }
     } catch (error) {
       console.error("Analytics fetch error:", error)
@@ -273,14 +293,23 @@ export function AnalyticsDashboard() {
 
   const handleExport = async () => {
     try {
-      const response = await api.exportAnalytics()
+      const response = await api.exportAnalytics({
+        format: 'json',
+        period: filters.period,
+        region: filters.region || undefined,
+        startDate: filters.startDate || undefined,
+        endDate: filters.endDate || undefined,
+      })
       if (response.success) {
-        // Create download link
-        const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
+        const data = response.data as any
+        const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2)
+        const type = typeof data === 'string' ? 'text/csv' : 'application/json'
+        const ext = typeof data === 'string' ? 'csv' : 'json'
+        const blob = new Blob([content], { type })
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `grochain-analytics-${new Date().toISOString().split('T')[0]}.json`
+        a.download = `grochain-analytics-${new Date().toISOString().split('T')[0]}.${ext}`
         document.body.appendChild(a)
         a.click()
         window.URL.revokeObjectURL(url)
@@ -428,14 +457,173 @@ export function AnalyticsDashboard() {
           </CardContent>
         </Card>
 
+        {/* Actions: Report/Compare/Regional/Export */}
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Generate Report</Label>
+                <Button disabled={reportLoading} onClick={async () => {
+                  setReportLoading(true)
+                  const resp = await api.generateAnalyticsReport({
+                    period: filters.period,
+                    region: filters.region || undefined,
+                    startDate: filters.startDate || undefined,
+                    endDate: filters.endDate || undefined,
+                  })
+                  if ((resp as any)?.success) setReportResult((resp.data as any)?.data || resp.data)
+                  setReportLoading(false)
+                }}>{reportLoading ? 'Generating…' : 'Generate'}</Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Compare Periods</Label>
+                <Button disabled={compareLoading} onClick={async () => {
+                  setCompareLoading(true)
+                  const resp = await api.compareAnalytics({
+                    baselineStartDate: filters.startDate || undefined,
+                    baselineEndDate: filters.endDate || undefined,
+                    currentStartDate: filters.startDate || undefined,
+                    currentEndDate: filters.endDate || undefined,
+                    period: filters.period,
+                    region: filters.region || undefined,
+                  })
+                  if ((resp as any)?.success) setCompareResult((resp.data as any)?.data || resp.data)
+                  setCompareLoading(false)
+                }}>{compareLoading ? 'Comparing…' : 'Compare'}</Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Regional Analytics</Label>
+                <Button disabled={regionalLoading} onClick={async () => {
+                  setRegionalLoading(true)
+                  const resp = await api.getRegionalAnalytics({
+                    startDate: filters.startDate || undefined,
+                    endDate: filters.endDate || undefined,
+                    period: filters.period,
+                    regions: ['Lagos','Kano','Kaduna']
+                  })
+                  if ((resp as any)?.success) setRegionalResult((resp.data as any)?.data || resp.data)
+                  setRegionalLoading(false)
+                }}>{regionalLoading ? 'Loading…' : 'Load Regions'}</Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Export Format</Label>
+                <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as any)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="json">JSON</SelectItem>
+                    <SelectItem value="csv">CSV</SelectItem>
+                    <SelectItem value="excel">Excel (JSON stub)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button onClick={async () => {
+                  const resp = await api.exportAnalytics({
+                    format: exportFormat,
+                    period: filters.period,
+                    region: filters.region || undefined,
+                    startDate: filters.startDate || undefined,
+                    endDate: filters.endDate || undefined,
+                  })
+                  if (resp.success) {
+                    const data = resp.data as any
+                    const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2)
+                    const type = exportFormat === 'csv' ? 'text/csv' : 'application/json'
+                    const ext = exportFormat === 'csv' ? 'csv' : 'json'
+                    const blob = new Blob([content], { type })
+                    const url = window.URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `grochain-analytics-${new Date().toISOString().split('T')[0]}.${ext}`
+                    document.body.appendChild(a)
+                    a.click()
+                    window.URL.revokeObjectURL(url)
+                    document.body.removeChild(a)
+                  }
+                }}>Export Now</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Results: Report / Compare / Regional */}
+        {(reportResult || compareResult || regionalResult) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Results</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {reportResult && (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Generated Report</div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+                    <div><span className="text-muted-foreground">Report ID</span><div className="font-medium break-all">{reportResult.reportId || reportResult.id || '—'}</div></div>
+                    <div><span className="text-muted-foreground">Date</span><div className="font-medium">{reportResult.date ? new Date(reportResult.date).toLocaleString() : '—'}</div></div>
+                    <div><span className="text-muted-foreground">Period</span><div className="font-medium">{reportResult.period || '—'}</div></div>
+                    <div><span className="text-muted-foreground">Region</span><div className="font-medium">{reportResult.region || 'all'}</div></div>
+                  </div>
+                </div>
+              )}
+
+              {compareResult && (
+                <div className="space-y-3">
+                  <div className="text-sm font-medium">Comparative Analytics</div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {['farmers','transactions','revenue','harvests'].map((key) => {
+                      const change = (compareResult.changes || {})[key] || { absolute: 0, percentage: 0 }
+                      return (
+                        <div key={key} className="p-3 rounded border">
+                          <div className="text-xs text-muted-foreground capitalize">{key}</div>
+                          <div className="text-sm">Δ {Math.round(change.absolute)}</div>
+                          <div className="text-xs text-muted-foreground">{change.percentage?.toFixed?.(1) || 0}%</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {regionalResult && (
+                <div className="space-y-3">
+                  <div className="text-sm font-medium">Regional Analytics</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.entries(regionalResult).map(([region, metrics]) => (
+                      <div key={region} className="p-3 rounded border text-sm">
+                        <div className="font-medium mb-2">{region}</div>
+                        <div className="flex items-center justify-between"><span className="text-muted-foreground">Farmers</span><span className="font-medium">{metrics?.farmers?.total ?? 0}</span></div>
+                        <div className="flex items-center justify-between"><span className="text-muted-foreground">Transactions</span><span className="font-medium">{metrics?.transactions?.total ?? 0}</span></div>
+                        <div className="flex items-center justify-between"><span className="text-muted-foreground">Revenue</span><span className="font-medium">{metrics?.marketplace?.revenue ?? 0}</span></div>
+                        <div className="flex items-center justify-between"><span className="text-muted-foreground">Growth</span><span className="font-medium">{metrics?.overview?.growthRate ?? 0}%</span></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-10">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="farmers">Farmers</TabsTrigger>
+            <TabsTrigger value="transactions">Transactions</TabsTrigger>
             <TabsTrigger value="harvests">Harvests</TabsTrigger>
             <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
+            <TabsTrigger value="fintech">Fintech</TabsTrigger>
             <TabsTrigger value="impact">Impact</TabsTrigger>
+            <TabsTrigger value="partners">Partners</TabsTrigger>
+            <TabsTrigger value="weather">Weather</TabsTrigger>
+            <TabsTrigger value="predictive">Predictive</TabsTrigger>
+            <TabsTrigger value="summary">Summary</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -449,6 +637,11 @@ export function AnalyticsDashboard() {
             <AnalyticsTables data={analyticsData} type="farmers" />
           </TabsContent>
 
+          {/* Transactions Tab */}
+          <TabsContent value="transactions" className="space-y-6">
+            <AnalyticsTables data={analyticsData} type="transactions" />
+          </TabsContent>
+
           {/* Harvests Tab */}
           <TabsContent value="harvests" className="space-y-6">
             <AnalyticsTables data={analyticsData} type="harvests" />
@@ -459,12 +652,97 @@ export function AnalyticsDashboard() {
             <AnalyticsTables data={analyticsData} type="marketplace" />
           </TabsContent>
 
+          {/* Fintech Tab */}
+          <TabsContent value="fintech" className="space-y-6">
+            <AnalyticsTables data={analyticsData} type="fintech" />
+          </TabsContent>
+
           {/* Impact Tab */}
           <TabsContent value="impact" className="space-y-6">
             <AnalyticsTables data={analyticsData} type="impact" />
           </TabsContent>
+
+          {/* Partners Tab */}
+          <TabsContent value="partners" className="space-y-6">
+            <AnalyticsTables data={analyticsData} type="partners" />
+          </TabsContent>
+
+          {/* Weather Tab */}
+          <TabsContent value="weather" className="space-y-6">
+            <AnalyticsTables data={analyticsData} type="weather" />
+          </TabsContent>
+
+          {/* Predictive Tab */}
+          <TabsContent value="predictive" className="space-y-6">
+            <PredictivePanel />
+          </TabsContent>
+
+          {/* Summary Tab */}
+          <TabsContent value="summary" className="space-y-6">
+            <SummaryPanel />
+          </TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
+  )
+}
+
+function PredictivePanel() {
+  const [loading, setLoading] = useState(false)
+  const [data, setData] = useState<any>(null)
+  const load = async () => {
+    setLoading(true)
+    const resp = await api.getPredictiveAnalytics()
+    if (resp.success) setData((resp.data as any).data || resp.data)
+    setLoading(false)
+  }
+  useEffect(() => { load() }, [])
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Predictive Forecast</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? <div className="text-muted-foreground text-sm">Loading…</div> : (
+          data ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-blue-50 rounded"><div className="text-xs text-muted-foreground">Next Month Farmers</div><div className="text-2xl font-bold">{data.nextMonth?.farmers}</div></div>
+              <div className="p-4 bg-green-50 rounded"><div className="text-xs text-muted-foreground">Next Month Transactions</div><div className="text-2xl font-bold">{data.nextMonth?.transactions}</div></div>
+              <div className="p-4 bg-purple-50 rounded"><div className="text-xs text-muted-foreground">Next Month Revenue</div><div className="text-2xl font-bold">{data.nextMonth?.revenue}</div></div>
+            </div>
+          ) : <div className="text-muted-foreground text-sm">No data</div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function SummaryPanel() {
+  const [loading, setLoading] = useState(false)
+  const [data, setData] = useState<any>(null)
+  const load = async () => {
+    setLoading(true)
+    const resp = await api.getAnalyticsSummary()
+    if (resp.success) setData((resp.data as any).data || resp.data)
+    setLoading(false)
+  }
+  useEffect(() => { load() }, [])
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Summary</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? <div className="text-muted-foreground text-sm">Loading…</div> : (
+          data ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-blue-50 rounded"><div className="text-xs text-muted-foreground">Total Farmers</div><div className="text-2xl font-bold">{data.keyMetrics?.totalFarmers}</div></div>
+              <div className="p-4 bg-green-50 rounded"><div className="text-xs text-muted-foreground">Total Revenue</div><div className="text-2xl font-bold">{data.keyMetrics?.totalRevenue}</div></div>
+              <div className="p-4 bg-orange-50 rounded"><div className="text-xs text-muted-foreground">Growth Rate</div><div className="text-2xl font-bold">{data.keyMetrics?.growthRate}%</div></div>
+            </div>
+          ) : <div className="text-muted-foreground text-sm">No data</div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

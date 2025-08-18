@@ -13,150 +13,165 @@ interface AuthContextType {
   register: (userData: any) => Promise<boolean>
   logout: () => void
   isAuthenticated: boolean
-  testSetUser: (user: User) => void // Add test function
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+// Helper: set cookie via server route so middleware always sees it
+const setCookie = async (name: string, value: string, days: number = 1) => {
+  const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString()
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''
+  // Always set client cookie immediately
+  try {
+    document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax${secure}`
+  } catch {}
+  // Also ask server to set cookie for middleware reliability
+  if (name === 'auth_token') {
+    try {
+      await fetch('/api/auth/set-cookie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: value, maxAge: days * 24 * 60 * 60 })
+      })
+    } catch {}
+  }
+}
+
+// Helper function to remove cookie
+const removeCookie = async (name: string) => {
+  try {
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`
+  } catch {}
+  if (name === 'auth_token') {
+    await fetch('/api/auth/clear-cookie', { method: 'POST' }).catch(() => {})
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  console.log('🔐 AuthProvider render - user:', user, 'loading:', loading)
-
+  // Initialize auth state on mount
   useEffect(() => {
-    console.log('🔐 AuthProvider useEffect - user state changed:', user)
-    console.log('🔐 AuthProvider useEffect - user type:', typeof user)
-    console.log('🔐 AuthProvider useEffect - user keys:', user ? Object.keys(user) : 'null')
-  }, [user])
-
-  useEffect(() => {
-    console.log('🔐 AuthProvider useEffect - loading state changed:', loading)
-  }, [loading])
-
-  useEffect(() => {
-    // Check for existing token on mount
-    const token = localStorage.getItem("auth_token")
-    if (token) {
-      api.setToken(token)
-      
-      // Also set the cookie for middleware authentication
-      document.cookie = `auth_token=${token}; path=/; max-age=3600; samesite=lax`
-      
-      // TODO: Validate token with server instead of setting mock user
-      // For now, we'll check if we have user data in localStorage
-      const savedUser = localStorage.getItem("user_data")
-      if (savedUser) {
-        try {
+    const initAuth = async () => {
+      try {
+        console.log('🔐 Auth Context - Initializing auth...')
+        
+        const token = localStorage.getItem("auth_token")
+        const savedUser = localStorage.getItem("user_data")
+        
+        console.log('🔐 Auth Context - Init data:', { 
+          hasToken: !!token, 
+          hasSavedUser: !!savedUser,
+          currentCookie: document.cookie
+        })
+        
+        if (token && savedUser) {
+          console.log('🔐 Auth Context - Found existing auth data, restoring session')
+          
           const userData = JSON.parse(savedUser)
+          api.setToken(token)
+          
+          // Ensure cookie is set
+          // Cookie will also be set by backend; keep client copy
+          await setCookie('auth_token', token)
+          
+          console.log('🔐 Auth Context - Setting user from saved data:', userData)
           setUser(userData)
-        } catch (error) {
-          console.error("Error parsing saved user data:", error)
-          // Clear invalid data
-          localStorage.removeItem("user_data")
-          localStorage.removeItem("auth_token")
-          document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+        } else {
+          console.log('🔐 Auth Context - No saved auth data found, trying /api/auth/me')
+          try {
+            const me = await fetch('/api/auth/me', { cache: 'no-store', credentials: 'include' })
+              .then(r => r.json()).catch(() => null)
+            if (me && me.status === 'success' && me.data?.user) {
+              const u = me.data.user
+              const normalizedUser = {
+                id: u._id || u.id,
+                email: u.email,
+                name: u.name,
+                role: u.role || 'farmer',
+                phone: u.phone || "",
+                emailVerified: u.emailVerified || false,
+                createdAt: u.createdAt || new Date().toISOString(),
+                updatedAt: u.updatedAt || new Date().toISOString(),
+              }
+              setUser(normalizedUser)
+              localStorage.setItem("user_data", JSON.stringify(normalizedUser))
+            }
+          } catch {}
         }
+      } catch (error) {
+        console.error("🔐 Auth Context - Error initializing auth:", error)
+        // Clear invalid data
+        localStorage.removeItem("auth_token")
+        localStorage.removeItem("user_data")
+        removeCookie("auth_token")
+      } finally {
+        console.log('🔐 Auth Context - Init complete, setting loading to false')
+        setLoading(false)
       }
     }
-    setLoading(false)
+
+    initAuth()
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      console.log('🔐 Starting login process...')
       const response = await api.login({ email, password })
 
-      console.log('🔐 Full API response:', response)
-      console.log('🔐 Response success:', response.success)
-      console.log('🔐 Response data:', response.data)
-      console.log('🔐 Response error:', response.error)
-      console.log('🔐 Response data keys:', response.data ? Object.keys(response.data) : 'No data')
-      console.log('🔐 Response data.status:', response.data?.status)
-      console.log('🔐 Response data.user:', response.data?.user)
-      console.log('🔐 Response data.accessToken:', response.data?.accessToken)
-
       if (response.success && response.data) {
-        // Backend returns: { status: 'success', user: {...}, accessToken: '...' }
-        // response.data contains the actual response body from backend
-        // Handle both response formats: direct properties or nested in data
-        let userData = response.data.user
-        let token = response.data.accessToken
+        const { user: userData, accessToken: token, refreshToken } = response.data as any
         
-        // If the main response doesn't have user/token, check the nested data property
-        if (!userData && response.data.data) {
-          userData = response.data.data.user
-          token = response.data.data.accessToken
-        }
-
-        console.log('🔐 Login response data:', response.data)
-        console.log('🔐 User data extracted:', userData)
-        console.log('🔐 Token extracted:', token)
-
-        if (!userData) {
-          console.error('🔐 No user data found in response!')
-          console.error('🔐 Available keys in response.data:', Object.keys(response.data))
-          if (response.data.data) {
-            console.error('🔐 Available keys in response.data.data:', Object.keys(response.data.data))
-          }
-          toast.error("Login response missing user data")
+        console.log('🔐 Auth Context - Login response data:', { userData, token })
+        
+        if (!userData || !token) {
+          console.error('🔐 Auth Context - Missing user data or token')
+          toast.error("Login failed: Invalid response from server")
           return false
         }
 
-        if (token) {
-          localStorage.setItem("auth_token", token)
-          api.setToken(token)
-          
-          // Also set a cookie for middleware authentication
-          document.cookie = `auth_token=${token}; path=/; max-age=3600; samesite=lax`
-          
-          console.log('🔐 Token saved to localStorage, API client, and cookie')
-        } else {
-          console.error('🔐 No token found in response!')
-          toast.error("Login response missing token")
-          return false
-        }
-
-        // Ensure we have the correct user data structure
-        const user = {
-          id: userData._id || userData.id, // Backend returns _id
+        // Create normalized user object first
+        const normalizedUser = {
+          id: userData._id || userData.id,
           email: userData.email,
           name: userData.name,
-          role: userData.role || 'farmer', // Default to farmer if no role
+          role: userData.role || 'farmer',
           phone: userData.phone || "",
           emailVerified: userData.emailVerified || false,
           createdAt: userData.createdAt || new Date().toISOString(),
           updatedAt: userData.updatedAt || new Date().toISOString(),
         }
 
-        console.log('🔐 Final user object:', user)
-        
-        // Save user data to localStorage for persistence
-        localStorage.setItem("user_data", JSON.stringify(user))
-        
-        console.log('🔐 About to call setUser with:', user)
-        setUser(user)
-        console.log('🔐 setUser called')
-        
-        // Show role-specific welcome message
-        const roleNames = {
-          farmer: 'Farmer',
-          buyer: 'Buyer', 
-          partner: 'Partner',
-          aggregator: 'Aggregator',
-          admin: 'Administrator'
+        console.log('🔐 Auth Context - Normalized user:', normalizedUser)
+
+        // Save everything synchronously
+        localStorage.setItem("auth_token", token)
+        if (refreshToken) {
+          localStorage.setItem("refresh_token", refreshToken)
         }
+        localStorage.setItem("user_data", JSON.stringify(normalizedUser))
+        api.setToken(token)
         
-        toast.success(`Login successful! Welcome back, ${roleNames[user.role as keyof typeof roleNames] || 'User'}!`)
+        // Set cookie immediately
+        await setCookie('auth_token', token)
+        
+        console.log('🔐 Auth Context - About to set user state')
+        
+        // Update state immediately
+        setUser(normalizedUser)
+        
+        console.log('🔐 Auth Context - User state set, login successful')
+        
+        toast.success(`Welcome back, ${normalizedUser.name}!`)
         return true
       }
 
-      console.error('🔐 Login failed:', response.error || 'Unknown error')
+      console.error('🔐 Auth Context - Login failed:', response.error)
       toast.error(response.error || "Login failed. Please try again.")
       return false
     } catch (error) {
-      console.error("Login error:", error)
+      console.error("🔐 Auth Context - Login error:", error)
       toast.error("Network error. Please check your connection.")
       return false
     }
@@ -167,30 +182,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.register(userData)
 
       if (response.success && response.data) {
-        const user = (response.data as any).user
-        const token = (response.data as any).accessToken || (response.data as any).token
+        const responseData = response.data as any
+        const { user: responseUser, accessToken: token } = responseData
 
         if (token) {
           localStorage.setItem("auth_token", token)
           api.setToken(token)
+          setCookie('auth_token', token)
+        }
+        if ((responseData as any).refreshToken) {
+          localStorage.setItem("refresh_token", (responseData as any).refreshToken)
         }
 
-        setUser({
-          id: user.id || user._id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          phone: user.phone || "",
-          emailVerified: user.emailVerified || false,
-          createdAt: user.createdAt || new Date().toISOString(),
-          updatedAt: user.updatedAt || new Date().toISOString(),
-        })
+        const normalizedUser = {
+          id: responseUser._id || responseUser.id,
+          email: responseUser.email,
+          name: responseUser.name,
+          role: responseUser.role,
+          phone: responseUser.phone || "",
+          emailVerified: responseUser.emailVerified || false,
+          createdAt: responseUser.createdAt || new Date().toISOString(),
+          updatedAt: responseUser.updatedAt || new Date().toISOString(),
+        }
+
+        localStorage.setItem("user_data", JSON.stringify(normalizedUser))
+        setUser(normalizedUser)
+        toast.success("Registration successful!")
         return true
       }
 
+      toast.error(response.error || "Registration failed. Please try again.")
       return false
     } catch (error) {
       console.error("Registration error:", error)
+      toast.error("Network error. Please check your connection.")
       return false
     }
   }
@@ -201,15 +226,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("user_data")
     api.clearToken()
     
-    // Also clear the auth cookie
-    document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    // Clear auth cookie
+    removeCookie("auth_token")
     
-    api.logout()
-  }
-
-  const testSetUser = (user: User) => {
-    console.log('🔐 Test function called to set user:', user)
-    setUser(user)
+    toast.success("Logged out successfully")
+    router.push("/login")
   }
 
   return (
@@ -221,7 +242,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         isAuthenticated: !!user,
-        testSetUser,
       }}
     >
       {children}

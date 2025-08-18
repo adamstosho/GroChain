@@ -5,10 +5,10 @@ import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import { 
   Truck,
   Package,
@@ -25,7 +25,7 @@ import {
   Phone
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { apiClient } from "@/lib/api"
+import { api } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 
 interface Shipment {
@@ -116,7 +116,7 @@ export function ShipmentsDashboard() {
     setLoading(true)
     try {
       // For now, use mock data since we don't have GET endpoint for shipments
-      // In the future, this would be: const response = await apiClient.getShipments({ status: statusFilter })
+      // In the future, this would be: const response = await api.getShipments({ status: statusFilter })
       setShipments(mockShipments)
     } catch (error) {
       console.error("Error fetching shipments:", error)
@@ -128,7 +128,7 @@ export function ShipmentsDashboard() {
 
   const createShipment = async () => {
     try {
-      const response = await apiClient.createShipment(createFormData)
+      const response = await api.createShipment(createFormData)
       if (response.success) {
         fetchShipments()
         setShowCreateForm(false)
@@ -336,9 +336,9 @@ export function ShipmentsDashboard() {
     }
   ]
 
-  if (loading) {
+  if (loading || !user) {
     return (
-      <DashboardLayout user={user}>
+      <DashboardLayout user={user as any}>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <Truck className="h-8 w-8 animate-pulse mx-auto mb-4" />
@@ -350,7 +350,7 @@ export function ShipmentsDashboard() {
   }
 
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
         <motion.div

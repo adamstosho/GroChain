@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { toast } from "@/hooks/use-toast"
+import { api } from "@/lib/api"
 
 interface Notification {
   id: string
@@ -115,13 +116,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         })
 
         // Send subscription to server
-        await fetch("/api/notifications/push-token", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(subscription),
-        })
+        await api.setPushToken(JSON.stringify(subscription))
 
         console.log("[v0] Successfully subscribed to push notifications")
       } catch (error) {

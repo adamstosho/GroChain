@@ -21,12 +21,40 @@ import Joi from 'joi';
 import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import cloudinary from '../utils/cloudinary.util';
+import { Listing } from '../models/listing.model';
 
 const router = Router();
 
 router.get('/listings', getListings);
 router.get('/listings/:id', getListing);
 router.get('/search-suggestions', getSearchSuggestions);
+// Listing management
+router.patch('/listings/:id', authenticateJWT, authorizeRoles('farmer','partner','admin'), validateRequest(Joi.object({
+  product: Joi.string().optional(),
+  price: Joi.number().positive().optional(),
+  quantity: Joi.number().integer().positive().optional(),
+  images: Joi.array().items(Joi.string().uri()).optional(),
+})), async (req, res) => {
+  try {
+    const { id } = req.params
+    const updates: any = req.body
+    const listing = await Listing.findByIdAndUpdate(id, updates, { new: true })
+    if (!listing) return res.status(404).json({ status: 'error', message: 'Listing not found' })
+    return res.json({ status: 'success', listing })
+  } catch (e) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' })
+  }
+});
+router.patch('/listings/:id/unpublish', authenticateJWT, authorizeRoles('farmer','partner','admin'), async (req, res) => {
+  try {
+    const { id } = req.params
+    const listing = await Listing.findByIdAndUpdate(id, { status: 'removed' }, { new: true })
+    if (!listing) return res.status(404).json({ status: 'error', message: 'Listing not found' })
+    return res.json({ status: 'success', listing })
+  } catch (e) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' })
+  }
+});
 router.post(
   '/listings',
   authenticateJWT,

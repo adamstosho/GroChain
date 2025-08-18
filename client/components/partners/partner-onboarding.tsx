@@ -8,10 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import { Textarea } from "@/components/ui/textarea"
 import { UserPlus, ArrowLeft, Check } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { api } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
@@ -69,16 +71,9 @@ const nigerianStates = [
   "Zamfara",
 ]
 
-// Mock user for layout
-const mockUser = {
-  id: "1",
-  name: "Agency Admin",
-  email: "admin@agency.com",
-  role: "agency",
-  avatar: "/placeholder.svg",
-}
-
 export function PartnerOnboarding() {
+  const { user } = useAuth()
+
   const [formData, setFormData] = useState<PartnerFormData>({
     firstName: "",
     lastName: "",
@@ -105,16 +100,20 @@ export function PartnerOnboarding() {
     setIsSubmitting(true)
 
     try {
-      // API call to onboard partner
-      const response = await fetch("/api/partners/onboard", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      })
+      const payload = {
+        partnerId: user?.id,
+        farmers: [
+          {
+            name: `${formData.firstName} ${formData.lastName}`.trim(),
+            email: formData.email,
+            phone: formData.phone,
+            password: `GroChain-${Date.now()}`,
+          },
+        ],
+      }
+      const response = await api.bulkOnboardPartners(payload)
 
-      if (response.ok) {
+      if (response.success) {
         setIsSuccess(true)
         setTimeout(() => {
           router.push("/partners")
@@ -132,7 +131,7 @@ export function PartnerOnboarding() {
 
   if (isSuccess) {
     return (
-      <DashboardLayout user={mockUser}>
+      <DashboardLayout user={user as any}>
         <div className="max-w-2xl mx-auto">
           <Card>
             <CardContent className="text-center py-12">
@@ -154,7 +153,7 @@ export function PartnerOnboarding() {
   }
 
   return (
-    <DashboardLayout user={mockUser}>
+    <DashboardLayout user={user as any}>
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center space-x-4">

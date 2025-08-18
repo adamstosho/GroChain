@@ -5,10 +5,10 @@ import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import {
   DollarSign,
   TrendingUp,
@@ -21,6 +21,8 @@ import {
   ArrowDownRight,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { api } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 
 interface Commission {
   id: string
@@ -92,21 +94,42 @@ const mockSummary: CommissionSummary = {
   lastMonth: 12000,
 }
 
-// Mock user for layout
-const mockUser = {
-  id: "1",
-  name: "Agency Admin",
-  email: "admin@agency.com",
-  role: "agency",
-  avatar: "/placeholder.svg",
-}
-
 export function CommissionsPage() {
-  const [commissions] = useState<Commission[]>(mockCommissions)
-  const [summary] = useState<CommissionSummary>(mockSummary)
+  const { user } = useAuth()
+  const [commissions, setCommissions] = useState<Commission[]>(mockCommissions)
+  const [summary, setSummary] = useState<CommissionSummary>(mockSummary)
   const [activeTab, setActiveTab] = useState("overview")
   const [withdrawAmount, setWithdrawAmount] = useState("")
   const [isWithdrawing, setIsWithdrawing] = useState(false)
+
+  async function loadData() {
+    try {
+      const [sumResp, histResp] = await Promise.all([
+        api.getCommissionsSummary(),
+        api.getCommissionsHistory(),
+      ])
+      if (sumResp.success && sumResp.data) {
+        const p: any = sumResp.data
+        setSummary(p.data || p)
+      }
+      if (histResp.success && histResp.data) {
+        const p: any = histResp.data
+        const list = (p.data || p || []).map((r: any, i: number) => ({
+          id: r._id || r.id || String(i + 1),
+          type: r.amount >= 0 ? 'earned' : 'withdrawn',
+          amount: r.amount,
+          description: r.description || 'Commission',
+          date: r.createdAt || new Date().toISOString(),
+          status: r.status || 'completed',
+        }))
+        setCommissions(list)
+      }
+    } catch (e) {
+      // keep mock fallback
+    }
+  }
+
+  useState(() => { loadData() })
 
   const handleWithdraw = async () => {
     const amount = Number.parseFloat(withdrawAmount)
@@ -118,15 +141,8 @@ export function CommissionsPage() {
     setIsWithdrawing(true)
 
     try {
-      const response = await fetch("/api/commissions/withdraw", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ amount }),
-      })
-
-      if (response.ok) {
+      const resp = await api.withdrawCommissions({ amount })
+      if (resp.success) {
         alert("Withdrawal request submitted successfully")
         setWithdrawAmount("")
       } else {
@@ -162,7 +178,7 @@ export function CommissionsPage() {
   }
 
   return (
-    <DashboardLayout user={mockUser}>
+    <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

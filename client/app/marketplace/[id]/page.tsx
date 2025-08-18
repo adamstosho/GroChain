@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, MapPin, Star, Calendar, Shield, Leaf, ShoppingCart, MessageCircle, Share2 } from "lucide-react"
+import { ArrowLeft, MapPin, Star, Calendar, Shield, Leaf, ShoppingCart, MessageCircle, Share2, Edit3, EyeOff, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { apiClient } from "@/lib/api"
+import { api } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
 
 interface Product {
@@ -47,6 +48,7 @@ interface Product {
 export default function ProductDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useAuth()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [orderQuantity, setOrderQuantity] = useState(1)
@@ -57,6 +59,9 @@ export default function ProductDetailPage() {
     deliveryAddress: "",
     phoneNumber: "",
   })
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState<{ name: string; price: number; quantity: number }>({ name: "", price: 0, quantity: 0 })
+  const isSeller = user?.role === 'farmer' || user?.role === 'partner' || user?.role === 'admin'
 
   useEffect(() => {
     if (params.id) {
@@ -67,10 +72,12 @@ export default function ProductDetailPage() {
   const fetchProduct = async (id: string) => {
     setLoading(true)
     try {
-      const response = await apiClient.getMarketplaceProduct(id)
+      const response = await api.getMarketplaceProduct(id)
 
       if (response.success && response.data) {
-        setProduct(response.data)
+        const payload: any = response.data
+        const p = (payload as any).listing || payload
+        setProduct(p)
       } else {
         // Fallback to mock data for demo
         setProduct(mockProduct)
@@ -83,26 +90,57 @@ export default function ProductDetailPage() {
     }
   }
 
+  const startEdit = () => {
+    if (!product) return
+    setDraft({ name: product.name, price: product.price, quantity: product.quantity })
+    setEditing(true)
+  }
+
+  const saveEdit = async () => {
+    if (!product) return
+    try {
+      const resp = await api.updateMarketplaceListing(product.id, { product: draft.name, price: draft.price, quantity: draft.quantity })
+      if (resp.success) {
+        await fetchProduct(product.id)
+        setEditing(false)
+      }
+    } catch {}
+  }
+
+  const unpublish = async () => {
+    if (!product) return
+    try {
+      const resp = await api.unpublishMarketplaceListing(product.id)
+      if (resp.success) await fetchProduct(product.id)
+    } catch {}
+  }
+
   const handleOrder = async () => {
     if (!product) return
 
     try {
       // First create the order
-      const orderResponse = await apiClient.createMarketplaceOrder({
-        buyer: "current-user-id", // This should come from auth context
+      const orderResponse = await api.createMarketplaceOrder({
+        buyer: user?.id || "",
         items: [{ listing: product.id, quantity: orderForm.quantity }]
       })
 
       if (orderResponse.success && orderResponse.data) {
         // Then initialize payment with the order
-        const paymentResponse = await apiClient.initiatePayment({
-          orderId: orderResponse.data._id || orderResponse.data.id,
-          email: "user@example.com" // This should come from auth context
+        const orderData: any = orderResponse.data
+        const paymentResponse = await api.initiatePayment({
+          orderId: orderData._id || orderData.id,
+          email: (JSON.parse(localStorage.getItem('user_data') || '{}')?.email) || "user@example.com"
         })
 
         if (paymentResponse.success) {
-          // Redirect to payment page or show success message
-          alert("Order placed successfully! Redirecting to payment...")
+          // Redirect to payment page if paymentId returned, else show message
+          const pr: any = paymentResponse.data
+          if (pr?.paymentId) {
+            router.push(`/payments/${pr.paymentId}`)
+          } else {
+            alert("Order placed successfully! Check your payments.")
+          }
         }
       }
     } catch (error) {
@@ -213,7 +251,11 @@ export default function ProductDetailPage() {
           <div className="space-y-6">
             <div>
               <div className="flex items-start justify-between mb-2">
-                <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
+                {editing ? (
+                  <Input value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} />
+                ) : (
+                  <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
+                )}
                 <Button variant="outline" size="icon">
                   <Share2 className="h-4 w-4" />
                 </Button>
@@ -236,19 +278,39 @@ export default function ProductDetailPage() {
               </div>
 
               <p className="text-gray-600 text-lg leading-relaxed">{product.description}</p>
+              {isSeller && (
+                <div className="mt-3 flex gap-2">
+                  {!editing ? (
+                    <>
+                      <Button variant="outline" size="sm" onClick={startEdit}><Edit3 className="w-4 h-4 mr-1" /> Edit</Button>
+                      <Button variant="destructive" size="sm" onClick={unpublish}><EyeOff className="w-4 h-4 mr-1" /> Unpublish</Button>
+                    </>
+                  ) : (
+                    <Button size="sm" onClick={saveEdit}><Save className="w-4 h-4 mr-1" /> Save</Button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Price and Availability */}
             <div className="bg-white p-6 rounded-lg border">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <span className="text-3xl font-bold text-green-600">₦{product.price.toLocaleString()}</span>
+                  {editing ? (
+                    <Input type="number" value={draft.price} onChange={(e)=> setDraft({ ...draft, price: Number(e.target.value)||0 })} />
+                  ) : (
+                    <span className="text-3xl font-bold text-green-600">₦{product.price.toLocaleString()}</span>
+                  )}
                   <span className="text-gray-600 ml-2">per {product.unit}</span>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-600">Available</p>
                   <p className="font-semibold">
-                    {product.quantity} {product.unit}
+                    {editing ? (
+                      <Input type="number" value={draft.quantity} onChange={(e)=> setDraft({ ...draft, quantity: Number(e.target.value)||0 })} />
+                    ) : (
+                      <>{product.quantity} {product.unit}</>
+                    )}
                   </p>
                 </div>
               </div>

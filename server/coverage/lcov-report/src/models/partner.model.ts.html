@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/11</span>
+                <span class='fraction'>11/11</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>2/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>2/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/11</span>
+                <span class='fraction'>11/11</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -116,16 +116,14 @@
 <a name='L51'></a><a href='#L51'>51</a>
 <a name='L52'></a><a href='#L52'>52</a>
 <a name='L53'></a><a href='#L53'>53</a>
-<a name='L54'></a><a href='#L54'>54</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L54'></a><a href='#L54'>54</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -145,16 +143,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -168,15 +163,20 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import mongoose, { Document, Schema } from 'mongoose';</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import mongoose, { Document, Schema } from 'mongoose';
 &nbsp;
-<span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >export enum P</span>artnerType {</span>
-<span class="cstat-no" title="statement not covered" >  AGENCY = 'agency',</span>
-<span class="cstat-no" title="statement not covered" >  COOPERATIVE = 'cooperative',</span>
-<span class="cstat-no" title="statement not covered" >  NGO = 'ngo',</span>
-<span class="cstat-no" title="statement not covered" >  ASSOCIATION = 'association',</span>
-<span class="cstat-no" title="statement not covered" >  OTHER = 'other',</span>
+export enum PartnerType {
+  AGENCY = 'agency',
+  COOPERATIVE = 'cooperative',
+  NGO = 'ngo',
+  ASSOCIATION = 'association',
+  OTHER = 'other',
 }
 &nbsp;
 export interface IPartner extends Document {
@@ -197,12 +197,12 @@ export interface IPartner extends Document {
   updatedAt: Date;
 }
 &nbsp;
-function <span class="fstat-no" title="function not covered" >generateReferralCode(</span>): string {
-  const random = <span class="cstat-no" title="statement not covered" >Math.random().toString(36).substring(2, 8).toUpperCase();</span>
-<span class="cstat-no" title="statement not covered" >  return `PART-${random}`;</span>
+function generateReferralCode(): string {
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `PART-${random}`;
 }
 &nbsp;
-const PartnerSchema = <span class="cstat-no" title="statement not covered" >new Schema&lt;IPartner&gt;(</span>
+const PartnerSchema = new Schema&lt;IPartner&gt;(
   {
     name: { type: String, required: true },
     type: { type: String, enum: Object.values(PartnerType), default: PartnerType.OTHER },
@@ -221,7 +221,7 @@ const PartnerSchema = <span class="cstat-no" title="statement not covered" >new 
   { timestamps: true }
 );
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" >Partner = mongoose.model&lt;IPartner&gt;('Partner', PartnerSchema);</span>
+export const Partner = mongoose.model&lt;IPartner&gt;('Partner', PartnerSchema);
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -229,7 +229,7 @@ export const <span class="cstat-no" title="statement not covered" >Partner = mon
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-17T14:39:49.054Z
+                at 2025-08-18T09:19:13.450Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

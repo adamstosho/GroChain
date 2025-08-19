@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/11</span>
+                <span class='fraction'>11/11</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/11</span>
+                <span class='fraction'>11/11</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -87,53 +87,53 @@
 <a name='L22'></a><a href='#L22'>22</a>
 <a name='L23'></a><a href='#L23'>23</a>
 <a name='L24'></a><a href='#L24'>24</a>
-<a name='L25'></a><a href='#L25'>25</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<a name='L25'></a><a href='#L25'>25</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { Router } from 'express';</span>
-<span class="cstat-no" title="statement not covered" >import { PWAController } from '../controllers/pwa.controller';</span>
-<span class="cstat-no" title="statement not covered" >import { detectLanguage, addLanguageInfo } from '../middlewares/language.middleware';</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from 'express';
+import { PWAController } from '../controllers/pwa.controller';
+import { detectLanguage, addLanguageInfo } from '../middlewares/language.middleware';
 &nbsp;
-const router = <span class="cstat-no" title="statement not covered" >Router();</span>
+const router = Router();
 &nbsp;
 // Apply language detection to all PWA routes
-<span class="cstat-no" title="statement not covered" >router.use(detectLanguage);</span>
-<span class="cstat-no" title="statement not covered" >router.use(addLanguageInfo);</span>
+router.use(detectLanguage);
+router.use(addLanguageInfo);
 &nbsp;
 // PWA Manifest
-<span class="cstat-no" title="statement not covered" >router.get('/manifest', PWAController.getPWAManifest);</span>
+router.get('/manifest', PWAController.getPWAManifest);
 &nbsp;
 // Service Worker
-<span class="cstat-no" title="statement not covered" >router.get('/service-worker', PWAController.getServiceWorker);</span>
+router.get('/service-worker', PWAController.getServiceWorker);
 &nbsp;
 // Offline Page
-<span class="cstat-no" title="statement not covered" >router.get('/offline', PWAController.getOfflinePage);</span>
+router.get('/offline', PWAController.getOfflinePage);
 &nbsp;
 // Installation Instructions
-<span class="cstat-no" title="statement not covered" >router.get('/install', PWAController.getInstallInstructions);</span>
+router.get('/install', PWAController.getInstallInstructions);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export default router;</span>
+export default router;
 &nbsp;
 &nbsp;</pre></td></tr></table></pre>
 
@@ -142,7 +142,7 @@ const router = <span class="cstat-no" title="statement not covered" >Router();</
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-17T14:39:49.054Z
+                at 2025-08-18T09:19:13.450Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

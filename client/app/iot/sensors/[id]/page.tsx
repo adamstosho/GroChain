@@ -7,3 +7,4 @@ export default function SensorDetailPage({ params }: { params: { id: string } })
 export const dynamic = 'force-dynamic'
 
 
+

@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/19</span>
+                <span class='fraction'>19/19</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/19</span>
+                <span class='fraction'>19/19</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -95,69 +95,69 @@
 <a name='L30'></a><a href='#L30'>30</a>
 <a name='L31'></a><a href='#L31'>31</a>
 <a name='L32'></a><a href='#L32'>32</a>
-<a name='L33'></a><a href='#L33'>33</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<a name='L33'></a><a href='#L33'>33</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { Router } from 'express';</span>
-<span class="cstat-no" title="statement not covered" >import { AdvancedMLController } from '../controllers/advancedML.controller';</span>
-<span class="cstat-no" title="statement not covered" >import { authenticateJWT } from '../middlewares/auth.middleware';</span>
-<span class="cstat-no" title="statement not covered" >import { authorizeRoles } from '../middlewares/rbac.middleware';</span>
-<span class="cstat-no" title="statement not covered" >import { detectLanguage, addLanguageInfo } from '../middlewares/language.middleware';</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from 'express';
+import { AdvancedMLController } from '../controllers/advancedML.controller';
+import { authenticateJWT } from '../middlewares/auth.middleware';
+import { authorizeRoles } from '../middlewares/rbac.middleware';
+import { detectLanguage, addLanguageInfo } from '../middlewares/language.middleware';
 &nbsp;
-const router = <span class="cstat-no" title="statement not covered" >Router();</span>
+const router = Router();
 &nbsp;
 // Apply middleware
-<span class="cstat-no" title="statement not covered" >router.use(detectLanguage);</span>
-<span class="cstat-no" title="statement not covered" >router.use(addLanguageInfo);</span>
+router.use(detectLanguage);
+router.use(addLanguageInfo);
 &nbsp;
 // Predictive Maintenance &amp; Anomaly Detection
-<span class="cstat-no" title="statement not covered" >router.get('/sensors/:sensorId/maintenance', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getPredictiveMaintenance);</span>
-<span class="cstat-no" title="statement not covered" >router.get('/sensors/:sensorId/anomalies', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.detectAnomalies);</span>
+router.get('/sensors/:sensorId/maintenance', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getPredictiveMaintenance);
+router.get('/sensors/:sensorId/anomalies', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.detectAnomalies);
 &nbsp;
 // Optimization Algorithms
-<span class="cstat-no" title="statement not covered" >router.get('/optimize/irrigation', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.optimizeIrrigation);</span>
-<span class="cstat-no" title="statement not covered" >router.get('/optimize/fertilizer', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.optimizeFertilizer);</span>
-<span class="cstat-no" title="statement not covered" >router.get('/optimize/harvest', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.optimizeHarvest);</span>
-<span class="cstat-no" title="statement not covered" >router.get('/optimize/report', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getOptimizationReport);</span>
+router.get('/optimize/irrigation', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.optimizeIrrigation);
+router.get('/optimize/fertilizer', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.optimizeFertilizer);
+router.get('/optimize/harvest', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.optimizeHarvest);
+router.get('/optimize/report', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getOptimizationReport);
 &nbsp;
 // Insights &amp; Analytics
-<span class="cstat-no" title="statement not covered" >router.get('/insights/sensor-health', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getSensorHealthInsights);</span>
-<span class="cstat-no" title="statement not covered" >router.get('/insights/efficiency-score', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getFarmingEfficiencyScore);</span>
-<span class="cstat-no" title="statement not covered" >router.get('/insights/predictive', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getPredictiveInsights);</span>
+router.get('/insights/sensor-health', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getSensorHealthInsights);
+router.get('/insights/efficiency-score', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getFarmingEfficiencyScore);
+router.get('/insights/predictive', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getPredictiveInsights);
 &nbsp;
 // ML Model Performance
-<span class="cstat-no" title="statement not covered" >router.get('/models/performance', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getMLModelPerformance);</span>
+router.get('/models/performance', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), AdvancedMLController.getMLModelPerformance);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export default router;</span>
+export default router;
 &nbsp;
 &nbsp;</pre></td></tr></table></pre>
 
@@ -166,7 +166,7 @@ const router = <span class="cstat-no" title="statement not covered" >Router();</
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-17T14:39:49.054Z
+                at 2025-08-18T09:19:13.450Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

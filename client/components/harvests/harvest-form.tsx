@@ -2,183 +2,194 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/Alert"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/Alert"
 import { 
   Package, 
   MapPin, 
   Calendar, 
+  Leaf, 
+  QrCode, 
   Upload, 
   Loader2, 
-  CheckCircle2, 
+  CheckCircle, 
   AlertCircle,
-  X,
-  Camera
+  Download,
+  Camera,
+  X
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
-import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 interface HarvestFormData {
   cropType: string
   quantity: number
   unit: string
   harvestDate: string
+  geoLocation: {
+    lat: number
+    lng: number
+  }
   location: string
   description: string
-  quality: string
+  quality: 'excellent' | 'good' | 'fair' | 'poor'
   images: File[]
 }
 
-interface FormErrors {
-  cropType?: string
-  quantity?: string
-  unit?: string
-  harvestDate?: string
-  location?: string
-  description?: string
-  quality?: string
-  images?: string
+interface CropType {
+  id: string
+  name: string
+  category: string
+  season: string[]
 }
 
-const cropTypes = [
-  "Tomatoes", "Yam", "Cassava", "Rice", "Maize", "Beans", "Pepper", "Onions",
-  "Garlic", "Ginger", "Cocoa", "Coffee", "Tea", "Sugarcane", "Cotton", "Other"
+const cropTypes: CropType[] = [
+  { id: "tomatoes", name: "Tomatoes", category: "Vegetables", season: ["All Year", "Rainy Season"] },
+  { id: "yams", name: "Yams", category: "Tubers", season: ["Rainy Season", "Dry Season"] },
+  { id: "cassava", name: "Cassava", category: "Tubers", season: ["All Year"] },
+  { id: "maize", name: "Maize", category: "Grains", season: ["Rainy Season"] },
+  { id: "rice", name: "Rice", category: "Grains", season: ["Rainy Season"] },
+  { id: "beans", name: "Beans", category: "Legumes", season: ["Rainy Season"] },
+  { id: "pepper", name: "Pepper", category: "Vegetables", season: ["All Year"] },
+  { id: "okra", name: "Okra", category: "Vegetables", season: ["Rainy Season"] },
+  { id: "cucumber", name: "Cucumber", category: "Vegetables", season: ["Rainy Season"] },
+  { id: "plantain", name: "Plantain", category: "Fruits", season: ["All Year"] }
 ]
 
-const units = ["kg", "bags", "baskets", "tubers", "pieces", "liters", "bundles"]
-const qualityLevels = ["premium", "standard", "basic"]
+const units = [
+  { id: "kg", name: "Kilograms (kg)" },
+  { id: "tons", name: "Metric Tons" },
+  { id: "pieces", name: "Pieces" },
+  { id: "bundles", name: "Bundles" },
+  { id: "bags", name: "Bags (50kg)" },
+  { id: "crates", name: "Crates" }
+]
 
 export function HarvestForm() {
-  const { user } = useAuth()
   const router = useRouter()
+  const { user } = useAuth()
   const [formData, setFormData] = useState<HarvestFormData>({
     cropType: "",
     quantity: 0,
     unit: "kg",
     harvestDate: new Date().toISOString().split('T')[0],
+    geoLocation: { lat: 0, lng: 0 },
     location: "",
     description: "",
-    quality: "standard",
+    quality: "good",
     images: []
   })
-  const [errors, setErrors] = useState<FormErrors>({})
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
-  const [harvestId, setHarvestId] = useState<string>("")
-  const [imagePreview, setImagePreview] = useState<string[]>([])
+  const [harvestId, setHarvestId] = useState("")
+  const [qrCode, setQrCode] = useState("")
+  const [showLocationPicker, setShowLocationPicker] = useState(false)
 
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {}
-
-    if (!formData.cropType.trim()) {
-      newErrors.cropType = "Crop type is required"
+  useEffect(() => {
+    // Get user's current location if available
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setFormData(prev => ({
+            ...prev,
+            geoLocation: {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            }
+          }))
+        },
+        (error) => {
+          console.log("Location access denied:", error)
+        }
+      )
     }
-
-    if (formData.quantity <= 0) {
-      newErrors.quantity = "Quantity must be greater than 0"
-    }
-
-    if (!formData.unit) {
-      newErrors.unit = "Unit is required"
-    }
-
-    if (!formData.harvestDate) {
-      newErrors.harvestDate = "Harvest date is required"
-    }
-
-    if (!formData.location.trim()) {
-      newErrors.location = "Location is required"
-    }
-
-    if (!formData.description.trim()) {
-      newErrors.description = "Description is required"
-    }
-
-    if (!formData.quality) {
-      newErrors.quality = "Quality level is required"
-    }
-
-    if (formData.images.length === 0) {
-      newErrors.images = "At least one image is required"
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+  }, [])
 
   const handleInputChange = (field: keyof HarvestFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }))
-    }
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
   }
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || [])
+    const validFiles = files.filter(file => 
+      file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024 // 5MB limit
+    )
     
-    if (files.length > 0) {
-      // Validate file types and sizes
-      const validFiles = files.filter(file => {
-        if (!file.type.startsWith('image/')) {
-          alert(`${file.name} is not an image file`)
-          return false
-        }
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
-          alert(`${file.name} is too large. Maximum size is 5MB`)
-          return false
-        }
-        return true
-      })
-
-      if (validFiles.length > 0) {
-        setFormData(prev => ({ ...prev, images: [...prev.images, ...validFiles] }))
-        
-        // Create preview URLs
-        const newPreviews = validFiles.map(file => URL.createObjectURL(file))
-        setImagePreview(prev => [...prev, ...newPreviews])
-      }
+    if (validFiles.length !== files.length) {
+      toast.error("Some files were invalid. Only images under 5MB are allowed.")
     }
+    
+    setFormData(prev => ({
+      ...prev,
+      images: [...prev.images, ...validFiles]
+    }))
   }
 
   const removeImage = (index: number) => {
-    setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }))
-    
-    // Revoke preview URL and remove from preview array
-    URL.revokeObjectURL(imagePreview[index])
-    setImagePreview(prev => prev.filter((_, i) => i !== index))
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }))
+  }
+
+  const handleLocationSelect = (lat: number, lng: number, address: string) => {
+    setFormData(prev => ({
+      ...prev,
+      geoLocation: { lat, lng },
+      location: address
+    }))
+    setShowLocationPicker(false)
+  }
+
+  const validateForm = (): boolean => {
+    if (!formData.cropType) {
+      setError("Please select a crop type")
+      return false
+    }
+    if (formData.quantity <= 0) {
+      setError("Please enter a valid quantity")
+      return false
+    }
+    if (!formData.location) {
+      setError("Please enter harvest location")
+      return false
+    }
+    if (formData.geoLocation.lat === 0 && formData.geoLocation.lng === 0) {
+      setError("Please set the harvest location coordinates")
+      return false
+    }
+    return true
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateForm()) {
-      return
-    }
-
-    if (!user) {
-      setErrors({ description: "You must be logged in to create a harvest" })
-      return
-    }
-
+    if (!validateForm()) return
+    
     setLoading(true)
+    setError("")
 
     try {
-      // Create harvest data
+      // Prepare harvest data for API
       const harvestData = {
-        farmer: user.id,
+        farmer: user?.id,
         cropType: formData.cropType,
         quantity: formData.quantity,
         unit: formData.unit,
         harvestDate: formData.harvestDate,
+        geoLocation: formData.geoLocation,
         location: formData.location,
         description: formData.description,
         quality: formData.quality
@@ -186,59 +197,65 @@ export function HarvestForm() {
 
       const response = await api.createHarvest(harvestData)
 
-      if (response.success) {
+      if (response.success && response.data) {
         const harvest = response.data
         setHarvestId(harvest.batchId || harvest.id)
+        setQrCode(harvest.qrData || `QR${harvest.batchId || harvest.id}`)
         setSuccess(true)
+        toast.success("Harvest created successfully!")
         
-        // Upload images if harvest was created successfully
-        if (formData.images.length > 0) {
-          await uploadImages(harvest.batchId || harvest.id)
+        // Save to local storage for offline access
+        if (typeof window !== 'undefined') {
+          const offlineHarvests = JSON.parse(localStorage.getItem('offline_harvests') || '[]')
+          offlineHarvests.push({
+            ...harvestData,
+            id: harvest.batchId || harvest.id,
+            qrCode: harvest.qrData || `QR${harvest.batchId || harvest.id}`,
+            createdAt: new Date().toISOString(),
+            status: 'pending_sync'
+          })
+          localStorage.setItem('offline_harvests', JSON.stringify(offlineHarvests))
         }
       } else {
         throw new Error(response.error || "Failed to create harvest")
       }
     } catch (error) {
       console.error("Harvest creation error:", error)
-      setErrors({ description: error instanceof Error ? error.message : "Failed to create harvest" })
+      setError(error instanceof Error ? error.message : "Failed to create harvest")
+      toast.error("Failed to create harvest. Please try again.")
     } finally {
       setLoading(false)
     }
   }
 
-  const uploadImages = async (harvestId: string) => {
-    try {
-      for (const image of formData.images) {
-        const formData = new FormData()
-        formData.append('image', image)
-        formData.append('harvestId', harvestId)
-        
-        await api.uploadMarketplaceImage(formData)
-      }
-    } catch (error) {
-      console.error("Image upload error:", error)
-      // Don't fail the whole process if image upload fails
-    }
-  }
+  const downloadQRCode = () => {
+    // Create a canvas to generate QR code image
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-  const resetForm = () => {
-    setFormData({
-      cropType: "",
-      quantity: 0,
-      unit: "kg",
-      harvestDate: new Date().toISOString().split('T')[0],
-      location: "",
-      description: "",
-      quality: "standard",
-      images: []
-    })
-    setErrors({})
-    setSuccess(false)
-    setHarvestId("")
+    canvas.width = 200
+    canvas.height = 200
     
-    // Revoke all preview URLs
-    imagePreview.forEach(url => URL.revokeObjectURL(url))
-    setImagePreview([])
+    // Draw QR code placeholder (in real app, use a QR library)
+    ctx.fillStyle = '#000'
+    ctx.fillRect(50, 50, 100, 100)
+    ctx.fillStyle = '#fff'
+    ctx.fillRect(60, 60, 80, 80)
+    ctx.fillStyle = '#000'
+    ctx.fillRect(70, 70, 60, 60)
+    
+    // Add text
+    ctx.fillStyle = '#000'
+    ctx.font = '12px Arial'
+    ctx.textAlign = 'center'
+    ctx.fillText(harvestId, 100, 190)
+    
+    // Download
+    const link = document.createElement('a')
+    link.download = `harvest-${harvestId}.png`
+    link.href = canvas.toDataURL()
+    link.click()
   }
 
   if (success) {
@@ -247,37 +264,68 @@ export function HarvestForm() {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
+          className="text-center"
         >
-          <Card className="text-center">
-            <CardContent className="p-8">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-8 h-8 text-green-600" />
-              </div>
-              
-              <h2 className="text-2xl font-bold text-foreground mb-2">Harvest Created Successfully!</h2>
-              <p className="text-muted-foreground mb-4">
-                Your harvest has been registered and is now available in the marketplace.
-              </p>
-              
-              <div className="bg-muted/50 rounded-lg p-4 mb-6">
-                <p className="text-sm text-muted-foreground mb-2">Harvest ID:</p>
-                <p className="font-mono text-lg font-bold text-foreground">{harvestId}</p>
-              </div>
-              
-              <div className="space-y-3">
-                <Button onClick={() => router.push(`/harvests/${harvestId}`)} className="w-full">
-                  View Harvest Details
-                </Button>
-                <Button variant="outline" onClick={resetForm} className="w-full">
-                  Create Another Harvest
-                </Button>
-                <Button variant="ghost" onClick={() => router.push("/harvests")} className="w-full">
-                  View All Harvests
-                </Button>
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-green-600" />
+          </div>
+          <h1 className="text-2xl font-bold mb-2">Harvest Created Successfully!</h1>
+          <p className="text-muted-foreground mb-6">
+            Your harvest has been registered and a QR code has been generated.
+          </p>
+          
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-primary" />
+                Harvest QR Code
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <QrCode className="w-24 h-24 text-gray-400" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">QR Code: {qrCode}</p>
+                  <p className="text-sm text-muted-foreground">Batch ID: {harvestId}</p>
+                </div>
+                
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={downloadQRCode} variant="outline">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download QR
+                  </Button>
+                  <Button onClick={() => router.push('/harvests')}>
+                    <Package className="w-4 h-4 mr-2" />
+                    View All Harvests
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
+          
+          <div className="space-y-2">
+            <Button 
+              onClick={() => {
+                setSuccess(false)
+                setFormData({
+                  cropType: "",
+                  quantity: 0,
+                  unit: "kg",
+                  harvestDate: new Date().toISOString().split('T')[0],
+                  geoLocation: { lat: 0, lng: 0 },
+                  location: "",
+                  description: "",
+                  quality: "good",
+                  images: []
+                })
+              }}
+              variant="outline"
+            >
+              Add Another Harvest
+            </Button>
+          </div>
         </motion.div>
       </div>
     )
@@ -290,37 +338,53 @@ export function HarvestForm() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold mb-2">Register New Harvest</h1>
+          <p className="text-muted-foreground">
+            Add your harvest details to track and verify your produce
+          </p>
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-primary" />
-              Register New Harvest
+              <Leaf className="w-5 h-5 text-primary" />
+              Harvest Information
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Error Alert */}
-              {errors.description && (
+              {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{errors.description}</AlertDescription>
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
               {/* Crop Type */}
               <div className="space-y-2">
                 <Label htmlFor="cropType">Crop Type *</Label>
-                <Select value={formData.cropType} onValueChange={(value) => handleInputChange("cropType", value)}>
+                <Select
+                  value={formData.cropType}
+                  onValueChange={(value) => handleInputChange('cropType', value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select crop type" />
                   </SelectTrigger>
                   <SelectContent>
                     {cropTypes.map((crop) => (
-                      <SelectItem key={crop} value={crop}>{crop}</SelectItem>
+                      <SelectItem key={crop.id} value={crop.id}>
+                        <div className="flex items-center justify-between w-full">
+                          <span>{crop.name}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {crop.category}
+                          </Badge>
+                        </div>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.cropType && <p className="text-sm text-destructive">{errors.cropType}</p>}
               </div>
 
               {/* Quantity and Unit */}
@@ -331,27 +395,29 @@ export function HarvestForm() {
                     id="quantity"
                     type="number"
                     min="0"
-                    step="0.1"
+                    step="0.01"
                     value={formData.quantity}
-                    onChange={(e) => handleInputChange("quantity", parseFloat(e.target.value) || 0)}
-                    placeholder="0"
+                    onChange={(e) => handleInputChange('quantity', parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
                   />
-                  {errors.quantity && <p className="text-sm text-destructive">{errors.quantity}</p>}
                 </div>
-                
                 <div className="space-y-2">
-                  <Label htmlFor="unit">Unit *</Label>
-                  <Select value={formData.unit} onValueChange={(value) => handleInputChange("unit", value)}>
+                  <Label htmlFor="unit">Unit</Label>
+                  <Select
+                    value={formData.unit}
+                    onValueChange={(value) => handleInputChange('unit', value)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {units.map((unit) => (
-                        <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                        <SelectItem key={unit.id} value={unit.id}>
+                          {unit.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {errors.unit && <p className="text-sm text-destructive">{errors.unit}</p>}
                 </div>
               </div>
 
@@ -362,107 +428,116 @@ export function HarvestForm() {
                   id="harvestDate"
                   type="date"
                   value={formData.harvestDate}
-                  onChange={(e) => handleInputChange("harvestDate", e.target.value)}
+                  onChange={(e) => handleInputChange('harvestDate', e.target.value)}
                   max={new Date().toISOString().split('T')[0]}
                 />
-                {errors.harvestDate && <p className="text-sm text-destructive">{errors.harvestDate}</p>}
               </div>
 
               {/* Location */}
               <div className="space-y-2">
-                <Label htmlFor="location">Location *</Label>
-                <Input
-                  id="location"
-                  placeholder="e.g., Lagos State, Ogun State"
-                  value={formData.location}
-                  onChange={(e) => handleInputChange("location", e.target.value)}
-                />
-                {errors.location && <p className="text-sm text-destructive">{errors.location}</p>}
+                <Label htmlFor="location">Harvest Location *</Label>
+                <div className="space-y-2">
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) => handleInputChange('location', e.target.value)}
+                    placeholder="e.g., Lagos State, Nigeria"
+                  />
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="w-4 h-4" />
+                    <span>
+                      Coordinates: {formData.geoLocation.lat.toFixed(6)}, {formData.geoLocation.lng.toFixed(6)}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowLocationPicker(true)}
+                    >
+                      <Camera className="w-4 h-4 mr-2" />
+                      Set Location
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               {/* Quality */}
               <div className="space-y-2">
-                <Label htmlFor="quality">Quality Level *</Label>
-                <Select value={formData.quality} onValueChange={(value) => handleInputChange("quality", value)}>
+                <Label htmlFor="quality">Quality Grade</Label>
+                <Select
+                  value={formData.quality}
+                  onValueChange={(value) => handleInputChange('quality', value)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {qualityLevels.map((quality) => (
-                      <SelectItem key={quality} value={quality}>
-                        <span className="capitalize">{quality}</span>
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="excellent">Excellent</SelectItem>
+                    <SelectItem value="good">Good</SelectItem>
+                    <SelectItem value="fair">Fair</SelectItem>
+                    <SelectItem value="poor">Poor</SelectItem>
                   </SelectContent>
                 </Select>
-                {errors.quality && <p className="text-sm text-destructive">{errors.quality}</p>}
               </div>
 
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
+                <Label htmlFor="description">Description (Optional)</Label>
                 <Textarea
                   id="description"
-                  placeholder="Describe your harvest, including any special characteristics, organic status, etc."
                   value={formData.description}
-                  onChange={(e) => handleInputChange("description", e.target.value)}
-                  rows={4}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Additional details about your harvest..."
+                  rows={3}
                 />
-                {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
               </div>
 
               {/* Image Upload */}
               <div className="space-y-2">
-                <Label>Harvest Images *</Label>
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-                  <input
+                <Label>Harvest Images (Optional)</Label>
+                <div className="space-y-2">
+                  <Input
                     type="file"
-                    multiple
                     accept="image/*"
+                    multiple
                     onChange={handleImageUpload}
-                    className="hidden"
-                    id="image-upload"
+                    className="cursor-pointer"
                   />
-                  <label htmlFor="image-upload" className="cursor-pointer">
-                    <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Click to upload images or drag and drop
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      PNG, JPG up to 5MB each
-                    </p>
-                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Upload up to 5 images (max 5MB each)
+                  </p>
+                  
+                  {formData.images.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {formData.images.map((file, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-1 right-1 w-6 h-6 p-0"
+                            onClick={() => removeImage(index)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {errors.images && <p className="text-sm text-destructive">{errors.images}</p>}
               </div>
 
-              {/* Image Previews */}
-              {imagePreview.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Uploaded Images ({imagePreview.length})</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {imagePreview.map((preview, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={preview}
-                          alt={`Preview ${index + 1}`}
-                          className="w-full h-24 object-cover rounded-lg"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Submit Button */}
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading}
+              >
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />

@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">84% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/25</span>
+                <span class='fraction'>21/25</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">60% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/5</span>
+                <span class='fraction'>3/5</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>2/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">82.6% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/23</span>
+                <span class='fraction'>19/23</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -107,84 +107,84 @@
 <a name='L42'></a><a href='#L42'>42</a>
 <a name='L43'></a><a href='#L43'>43</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Request, Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
-<span class="cstat-no" title="statement not covered" >import { CreditScore } from '../models/creditScore.model';</span>
-<span class="cstat-no" title="statement not covered" >import { LoanReferral } from '../models/loanReferral.model';</span>
-<span class="cstat-no" title="statement not covered" >import Joi from 'joi';</span>
+import { CreditScore } from '../models/creditScore.model';
+import { LoanReferral } from '../models/loanReferral.model';
+import Joi from 'joi';
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" >getCreditScore = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >a</span>sync </span>(req: AuthRequest, res: Response) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >  try {</span>
-    const { farmerId } = <span class="cstat-no" title="statement not covered" >req.params;</span>
+export const getCreditScore = async (req: AuthRequest, res: Response) =&gt; {
+  try {
+    const { farmerId } = req.params;
     // Ownership/role check: farmers can only read their own; partners/admins allowed via route guard
-<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (req.user?.role === 'farmer' &amp;&amp; req.user.id !== farmerId) {</span>
-<span class="cstat-no" title="statement not covered" >      return res.status(403).json({ status: 'error', message: 'Forbidden' });</span>
+    if (req.user?.role === 'farmer' &amp;&amp; req.user.id !== farmerId) {
+      return res.status(403).json({ status: 'error', message: 'Forbidden' });
     }
-    const creditScore = <span class="cstat-no" title="statement not covered" >await CreditScore.findOne({ farmer: farmerId });</span>
-<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!creditScore) {</span>
+    const creditScore = await CreditScore.findOne({ farmer: farmerId });
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (!creditScore) {
 <span class="cstat-no" title="statement not covered" >      return res.status(404).json({ status: 'error', message: 'Credit score not found.' });</span>
     }
-<span class="cstat-no" title="statement not covered" >    return res.status(200).json({ status: 'success', creditScore });</span>
+    return res.status(200).json({ status: 'success', creditScore });
   } catch (err) {
 <span class="cstat-no" title="statement not covered" >    return res.status(500).json({ status: 'error', message: 'Server error.' });</span>
   }
 };
 &nbsp;
-const loanReferralSchema = <span class="cstat-no" title="statement not covered" >Joi.object({</span>
+const loanReferralSchema = Joi.object({
   farmer: Joi.string().required(),
   amount: Joi.number().required(),
   partner: Joi.string().required(),
 });
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" >createLoanReferral = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >a</span>sync </span>(req: Request, res: Response) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >  try {</span>
-    const { error, value } = <span class="cstat-no" title="statement not covered" >loanReferralSchema.validate(req.body);</span>
-<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (error) {</span>
+export const createLoanReferral = async (req: Request, res: Response) =&gt; {
+  try {
+    const { error, value } = loanReferralSchema.validate(req.body);
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (error) {
 <span class="cstat-no" title="statement not covered" >      return res.status(400).json({ status: 'error', message: error.details[0].message });</span>
     }
-    const referral = <span class="cstat-no" title="statement not covered" >new LoanReferral(value);</span>
-<span class="cstat-no" title="statement not covered" >    await referral.save();</span>
-<span class="cstat-no" title="statement not covered" >    return res.status(201).json({ status: 'success', referral });</span>
+    const referral = new LoanReferral(value);
+    await referral.save();
+    return res.status(201).json({ status: 'success', referral });
   } catch (err) {
 <span class="cstat-no" title="statement not covered" >    return res.status(500).json({ status: 'error', message: 'Server error.' });</span>
   }
@@ -196,7 +196,7 @@ export const <span class="cstat-no" title="statement not covered" >createLoanRef
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-17T14:39:49.249Z
+                at 2025-08-18T09:19:13.886Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/9</span>
+                <span class='fraction'>9/9</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>2/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/9</span>
+                <span class='fraction'>9/9</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -199,7 +199,7 @@
 <a name='L134'></a><a href='#L134'>134</a>
 <a name='L135'></a><a href='#L135'>135</a>
 <a name='L136'></a><a href='#L136'>136</a>
-<a name='L137'></a><a href='#L137'>137</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L137'></a><a href='#L137'>137</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">12x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -266,7 +266,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -320,22 +320,22 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import mongoose, { Document, Schema } from 'mongoose';</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import mongoose, { Document, Schema } from 'mongoose';
 &nbsp;
 export interface IWeatherData {
   location: {
@@ -402,7 +402,7 @@ export interface IWeatherDataDocument extends IWeatherData, Document {
   updatedAt: Date;
 }
 &nbsp;
-const WeatherDataSchema = <span class="cstat-no" title="statement not covered" >new Schema&lt;IWeatherDataDocument&gt;({</span>
+const WeatherDataSchema = new Schema&lt;IWeatherDataDocument&gt;({
   location: {
     lat: { type: Number, required: true },
     lng: { type: Number, required: true },
@@ -456,21 +456,21 @@ const WeatherDataSchema = <span class="cstat-no" title="statement not covered" >
   },
   metadata: {
     source: { type: String, required: false, default: 'test' },
-    lastUpdated: { type: Date, required: false, default: <span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >new Date() </span>},
+    lastUpdated: { type: Date, required: false, default: () =&gt; new Date() },
     dataQuality: { type: String, enum: ['high', 'medium', 'low'], required: false, default: 'high' },
-    nextUpdate: { type: Date, required: false, default: <span class="fstat-no" title="function not covered" >() =</span>&gt; <span class="cstat-no" title="statement not covered" >new Date(Date.now() + 3600 * 1000) </span>}
+    nextUpdate: { type: Date, required: false, default: () =&gt; new Date(Date.now() + 3600 * 1000) }
   }
 }, {
   timestamps: true
 });
 &nbsp;
 // Indexes for efficient querying
-<span class="cstat-no" title="statement not covered" >WeatherDataSchema.index({ 'location.lat': 1, 'location.lng': 1 });</span>
-<span class="cstat-no" title="statement not covered" >WeatherDataSchema.index({ 'metadata.lastUpdated': -1 });</span>
-<span class="cstat-no" title="statement not covered" >WeatherDataSchema.index({ 'alerts.severity': 1, 'alerts.type': 1 });</span>
-<span class="cstat-no" title="statement not covered" >WeatherDataSchema.index({ 'agricultural.frostRisk': 1, 'agricultural.droughtIndex': 1 });</span>
+WeatherDataSchema.index({ 'location.lat': 1, 'location.lng': 1 });
+WeatherDataSchema.index({ 'metadata.lastUpdated': -1 });
+WeatherDataSchema.index({ 'alerts.severity': 1, 'alerts.type': 1 });
+WeatherDataSchema.index({ 'agricultural.frostRisk': 1, 'agricultural.droughtIndex': 1 });
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" >WeatherData = mongoose.model&lt;IWeatherDataDocument&gt;('WeatherData', WeatherDataSchema);</span>
+export const WeatherData = mongoose.model&lt;IWeatherDataDocument&gt;('WeatherData', WeatherDataSchema);
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -478,7 +478,7 @@ export const <span class="cstat-no" title="statement not covered" >WeatherData =
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-17T14:39:49.249Z
+                at 2025-08-18T09:19:13.886Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

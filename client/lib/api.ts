@@ -93,8 +93,8 @@ class ApiClient {
     const requestOptions: RequestInit = {
       ...options,
       headers,
-      credentials: 'include', // Include cookies for CORS
-      mode: 'cors', // Enable CORS
+      credentials: 'include', 
+      mode: 'cors', 
     }
 
     try {
@@ -267,7 +267,10 @@ class ApiClient {
     return this.request("/api/auth/resend-verification", {
       method: "POST",
       body: JSON.stringify(data),
-    })
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
   }
 
   async sendSmsOtp(phoneNumber: string) {

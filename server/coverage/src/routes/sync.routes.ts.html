@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/15</span>
+                <span class='fraction'>15/15</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/15</span>
+                <span class='fraction'>15/15</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -97,73 +97,73 @@
 <a name='L32'></a><a href='#L32'>32</a>
 <a name='L33'></a><a href='#L33'>33</a>
 <a name='L34'></a><a href='#L34'>34</a>
-<a name='L35'></a><a href='#L35'>35</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<a name='L35'></a><a href='#L35'>35</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { Router } from 'express';</span>
-<span class="cstat-no" title="statement not covered" >import { SyncController } from '../controllers/sync.controller';</span>
-<span class="cstat-no" title="statement not covered" >import { authenticateJWT } from '../middlewares/auth.middleware';</span>
-<span class="cstat-no" title="statement not covered" >import { detectLanguage, addLanguageInfo } from '../middlewares/language.middleware';</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from 'express';
+import { SyncController } from '../controllers/sync.controller';
+import { authenticateJWT } from '../middlewares/auth.middleware';
+import { detectLanguage, addLanguageInfo } from '../middlewares/language.middleware';
 &nbsp;
-const router = <span class="cstat-no" title="statement not covered" >Router();</span>
+const router = Router();
 &nbsp;
 // Apply language detection to all sync routes
-<span class="cstat-no" title="statement not covered" >router.use(detectLanguage);</span>
-<span class="cstat-no" title="statement not covered" >router.use(addLanguageInfo);</span>
+router.use(detectLanguage);
+router.use(addLanguageInfo);
 &nbsp;
 // Queue offline data for synchronization
-<span class="cstat-no" title="statement not covered" >router.post('/offline-data', authenticateJWT, SyncController.queueOfflineData);</span>
+router.post('/offline-data', authenticateJWT, SyncController.queueOfflineData);
 &nbsp;
 // Sync user's offline data
-<span class="cstat-no" title="statement not covered" >router.post('/sync-user', authenticateJWT, SyncController.syncUserData);</span>
+router.post('/sync-user', authenticateJWT, SyncController.syncUserData);
 &nbsp;
 // Get sync status for a user
-<span class="cstat-no" title="statement not covered" >router.get('/status/:userId', authenticateJWT, SyncController.getSyncStatus);</span>
+router.get('/status/:userId', authenticateJWT, SyncController.getSyncStatus);
 &nbsp;
 // Force sync for specific data
-<span class="cstat-no" title="statement not covered" >router.post('/force-sync', authenticateJWT, SyncController.forceSync);</span>
+router.post('/force-sync', authenticateJWT, SyncController.forceSync);
 &nbsp;
 // Get sync history for a user
-<span class="cstat-no" title="statement not covered" >router.get('/history/:userId', authenticateJWT, SyncController.getSyncHistory);</span>
+router.get('/history/:userId', authenticateJWT, SyncController.getSyncHistory);
 &nbsp;
 // Clear failed sync items
-<span class="cstat-no" title="statement not covered" >router.delete('/clear-failed/:userId', authenticateJWT, SyncController.clearFailedSyncItems);</span>
+router.delete('/clear-failed/:userId', authenticateJWT, SyncController.clearFailedSyncItems);
 &nbsp;
 // Get sync statistics (admin only)
-<span class="cstat-no" title="statement not covered" >router.get('/stats', authenticateJWT, SyncController.getSyncStats);</span>
+router.get('/stats', authenticateJWT, SyncController.getSyncStats);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export default router;</span>
+export default router;
 &nbsp;
 &nbsp;</pre></td></tr></table></pre>
 
@@ -172,7 +172,7 @@ const router = <span class="cstat-no" title="statement not covered" >Router();</
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-17T14:39:49.249Z
+                at 2025-08-18T09:19:13.886Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

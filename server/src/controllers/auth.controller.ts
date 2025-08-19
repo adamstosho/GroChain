@@ -86,28 +86,12 @@ export const register = async (req: Request, res: Response) => {
       fromName: 'GroChain'
     });
     
-    const payload = { id: user._id, role: user.role } as any;
-    const accessExpiresIn = (process.env.JWT_EXPIRES_IN ?? '1h') as unknown as number | string;
-    const refreshExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ?? '7d') as unknown as number | string;
-    const accessToken = sign(payload, process.env.JWT_SECRET as string, { expiresIn: accessExpiresIn as any });
-    const refreshToken = sign(payload, process.env.JWT_REFRESH_SECRET as string, { expiresIn: refreshExpiresIn as any });
-
-    // Set auth cookie for frontend middleware
-    try {
-      res.cookie('auth_token', accessToken, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-        maxAge: 24 * 60 * 60 * 1000,
-      })
-    } catch {}
-
+    // Don't issue JWT tokens - user must verify email first
     return res.status(201).json({ 
       status: 'success', 
+      message: 'Registration successful! Please check your email to verify your account before logging in.',
       user: { _id: user._id, name: user.name, email: user.email, role: user.role },
-      accessToken,
-      refreshToken
+      requiresVerification: true
     });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });
@@ -129,6 +113,17 @@ export const login = async (req: Request, res: Response) => {
     if (!isMatch) {
       return res.status(401).json({ status: 'error', message: 'Invalid credentials.' });
     }
+
+    // Check if email is verified
+    if (!user.emailVerified) {
+      return res.status(403).json({ 
+        status: 'error', 
+        message: 'Please verify your email address before logging in. Check your email for a verification link or request a new one.',
+        requiresVerification: true,
+        email: user.email
+      });
+    }
+
     // JWT payload
     const payload = { id: user._id, role: user.role } as any;
     const accessExpiresIn = (process.env.JWT_EXPIRES_IN ?? '1h') as unknown as number | string;
@@ -361,6 +356,70 @@ export const verifyEmail = async (req: Request, res: Response) => {
     return res.status(200).json({ 
       status: 'success', 
       message: 'Email verified successfully. You can now log in to your account.' 
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+export const resendVerificationEmail = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ status: 'error', message: 'Email is required.' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Don't reveal if email exists or not for security
+      return res.status(200).json({ 
+        status: 'success', 
+        message: 'If the email exists, a new verification link has been sent.' 
+      });
+    }
+
+    if (user.emailVerified) {
+      return res.status(400).json({ status: 'error', message: 'Email is already verified.' });
+    }
+
+    // Generate new verification token
+    const verificationToken = sign(
+      { email, type: 'email_verification' },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '24h' }
+    );
+
+    // Update user with new token
+    user.emailVerificationToken = verificationToken;
+    user.emailVerificationExpires = new Date(Date.now() + 86400000); // 24 hours
+    await user.save();
+
+    // Send new verification email
+    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+    const emailContent = `
+      <h2>Email Verification - GroChain</h2>
+      <p>Hello ${user.name},</p>
+      <p>You requested a new email verification link for your GroChain account.</p>
+      <p>Please verify your email address by clicking the link below:</p>
+      <a href="${verificationUrl}" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-decoration: none; border-radius: 4px;">
+        Verify Email
+      </a>
+      <p>This link will expire in 24 hours.</p>
+      <p>If you didn't request this, please ignore this email.</p>
+      <p>Best regards,<br>GroChain Team</p>
+    `;
+
+    await sendEmail({
+      to: email,
+      subject: 'New Email Verification - GroChain',
+      html: emailContent,
+      fromName: 'GroChain'
+    });
+    
+    return res.status(200).json({ 
+      status: 'success', 
+      message: 'If the email exists, a new verification link has been sent.' 
     });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });

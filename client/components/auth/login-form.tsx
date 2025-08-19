@@ -14,6 +14,7 @@ import { api } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 import { RegistrationErrorBoundary } from "@/components/auth/registration-error-boundary"
 import { AuthLayout } from "@/components/auth/auth-layout"
+import { useToast } from "@/hooks/use-toast"
 
 interface LoginFormData {
   email: string
@@ -39,6 +40,7 @@ function LoginFormContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { login, user, loading } = useAuth()
+  const { toast } = useToast()
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -99,57 +101,65 @@ function LoginFormContent() {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    console.log('🔐 Login form: handleSubmit called')
+    e.preventDefault();
     
     if (!validateForm()) {
-      console.log('🔐 Login form: validation failed')
-      return
+      return;
     }
 
-    console.log('🔐 Login form: validation passed, calling login function')
-    setIsLoading(true)
-    setErrors({})
+    setIsLoading(true);
+    setErrors({});
 
     try {
-      console.log('🔐 Login form: calling login with:', { email: formData.email, password: formData.password })
-      // Prefer hitting our Next proxy to ensure Set-Cookie on same-site
-      const proxyResp = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: formData.email.trim().toLowerCase(), password: formData.password })
-      })
-      const proxyData = await proxyResp.json().catch(() => ({}))
-      const success = proxyResp.ok && (proxyData.status === 'success')
-      
-      console.log('🔐 Login form: login result:', success)
-      
-      if (success) {
-        // Hydrate client auth state (localStorage, context) to avoid flicker
-        try { await login(formData.email.trim().toLowerCase(), formData.password) } catch {}
-        console.log('🔐 Login successful!')
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          email: formData.email.trim().toLowerCase(), 
+          password: formData.password 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.status === "success") {
+        // Check if user needs to verify email
+        if (data.requiresVerification) {
+          setErrors({ 
+            submit: "Please verify your email address before logging in. Check your email for a verification link." 
+          });
+          return;
+        }
+
+        // Login successful
+        await login(formData.email.trim().toLowerCase(), formData.password);
         
-        // Get redirect parameter from URL, default to dashboard
-        const redirectTo = searchParams.get('redirect') || '/dashboard'
-        console.log('🔐 Redirecting to:', redirectTo)
-        
-        // Use Next.js router for navigation
-        router.replace(redirectTo)
+        // Redirect to dashboard or intended page
+        const redirectTo = searchParams.get("redirect") || "/dashboard";
+        router.replace(redirectTo);
       } else {
-        console.log('🔐 Login failed, showing error')
-        setErrors({ submit: "Invalid email or password. Please try again." })
+        // Handle specific error cases
+        if (data.requiresVerification) {
+          setErrors({ 
+            submit: "Please verify your email address before logging in. Check your email for a verification link." 
+          });
+        } else {
+          setErrors({ 
+            submit: data.message || "Login failed. Please check your credentials and try again." 
+          });
+        }
       }
-    } catch (error) {
-      console.error("Login error:", error)
+    } catch (err) {
+      console.error("Login error:", err);
       setErrors({ 
         submit: "Network error. Please check your connection and try again." 
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Don't render form if user is already authenticated
   if (!loading && user) {

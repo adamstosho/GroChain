@@ -246,11 +246,20 @@ function RegistrationFormContent({ role }: RegistrationFormProps) {
       })
 
       if (response.success) {
-        setIsSuccess(true)
-        // Redirect after a short delay to show success message
-        setTimeout(() => {
-          router.push("/dashboard")
-        }, 2000)
+        // Check if email verification is required
+        if (response.requiresVerification) {
+          setIsSuccess(true)
+          // Redirect to verification page after a short delay
+          setTimeout(() => {
+            router.push(`/verify-email?email=${encodeURIComponent(formData.email.trim().toLowerCase())}`)
+          }, 2000)
+        } else {
+          // If no verification required (shouldn't happen with new flow)
+          setIsSuccess(true)
+          setTimeout(() => {
+            router.push("/dashboard")
+          }, 2000)
+        }
       } else {
         setErrors({ submit: response.error || "Registration failed. Please try again." })
       }

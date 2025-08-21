@@ -204,6 +204,18 @@ export function IoTDashboard() {
             <p className="text-muted-foreground">Monitor your farm sensors and environmental conditions</p>
           </div>
           <div className="flex gap-2">
+            <Link href="/iot/monitoring">
+              <Button variant="outline" size="lg" className="bg-transparent">
+                <Activity className="w-4 h-4 mr-2" />
+                Live Monitoring
+              </Button>
+            </Link>
+            <Link href="/iot/alerts">
+              <Button variant="outline" size="lg" className="bg-transparent">
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Alerts
+              </Button>
+            </Link>
             <Link href="/iot/sensors">
               <Button variant="outline" size="lg" className="bg-transparent">
                 <Settings className="w-4 h-4 mr-2" />
@@ -441,16 +453,90 @@ export function IoTDashboard() {
           </TabsContent>
 
           <TabsContent value="analytics">
-            <Card>
-              <CardHeader>
-                <CardTitle>Sensor Analytics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Detailed sensor analytics and historical data visualization will be implemented in the next phase.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              {/* Sensor Performance Overview */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Sensor Performance Overview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-success mb-2">
+                        {sensors.filter(s => s.status === 'online').length}
+                      </div>
+                      <p className="text-sm text-muted-foreground">Online Sensors</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {sensors.length > 0 ? Math.round((sensors.filter(s => s.status === 'online').length / sensors.length) * 100) : 0}% uptime
+                      </p>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-warning mb-2">
+                        {sensors.filter(s => s.batteryLevel < 30).length}
+                      </div>
+                      <p className="text-sm text-muted-foreground">Low Battery</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Sensors needing attention
+                      </p>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-primary mb-2">
+                        {sensors.length > 0 ? Math.round(sensors.reduce((acc, s) => acc + s.batteryLevel, 0) / sensors.length) : 0}%
+                      </div>
+                      <p className="text-sm text-muted-foreground">Avg Battery</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Overall system health
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Sensor Type Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Sensor Type Distribution</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    {['temperature', 'humidity', 'soil_moisture', 'ph', 'light'].map((type) => {
+                      const count = sensors.filter(s => s.type === type).length
+                      return (
+                        <div key={type} className="text-center p-3 border rounded-lg">
+                          <div className="text-lg font-bold text-foreground mb-1">{count}</div>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {type.replace('_', ' ')}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Link href="/iot/monitoring">
+                      <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
+                        <Activity className="w-8 h-8 mb-2" />
+                        <span>Live Monitoring</span>
+                      </Button>
+                    </Link>
+                    <Link href="/iot/alerts">
+                      <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
+                        <AlertTriangle className="w-8 h-8 mb-2" />
+                        <span>View Alerts</span>
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

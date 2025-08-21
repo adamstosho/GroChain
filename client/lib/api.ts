@@ -12,7 +12,13 @@ class ApiClient {
     this.baseURL = baseURL
     // Get token from localStorage if available
     if (typeof window !== "undefined") {
-      this.token = localStorage.getItem("auth_token")
+      const storedToken = localStorage.getItem("auth_token")
+      if (storedToken) {
+        this.token = storedToken
+        console.log('🔐 API - Token loaded from localStorage:', storedToken.substring(0, 20) + '...')
+      } else {
+        console.log('🔐 API - No token found in localStorage')
+      }
     }
   }
 
@@ -39,41 +45,70 @@ class ApiClient {
 
   private async refreshAccessToken(): Promise<string | null> {
     if (this.isRefreshing && this.refreshPromise) {
+      console.log('🔐 API - Token refresh already in progress, waiting...')
       return this.refreshPromise
     }
+    
     this.isRefreshing = true
     this.refreshPromise = (async () => {
       try {
+        console.log('🔐 API - Starting token refresh...')
         const storedRefresh = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null
-        if (!storedRefresh) return null
+        
+        if (!storedRefresh) {
+          console.log('🔐 API - No refresh token found')
+          return null
+        }
 
+        console.log('🔐 API - Attempting refresh with stored refresh token')
         const resp = await fetch(`${this.baseURL}/api/auth/refresh`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ refreshToken: storedRefresh })
         })
-        if (!resp.ok) return null
+        
+        console.log('🔐 API - Refresh response status:', resp.status)
+        
+        if (!resp.ok) {
+          console.log('🔐 API - Refresh request failed with status:', resp.status)
+          return null
+        }
+        
         const data = await resp.json()
+        console.log('🔐 API - Refresh response data:', data)
+        
         if (data && data.status === 'success' && data.accessToken) {
           const newAccess = data.accessToken as string
           const newRefresh = data.refreshToken as string | undefined
+          
+          console.log('🔐 API - Setting new tokens')
           this.token = newAccess
+          
           if (typeof window !== 'undefined') {
             localStorage.setItem('auth_token', newAccess)
-            if (newRefresh) localStorage.setItem('refresh_token', newRefresh)
+            if (newRefresh) {
+              localStorage.setItem('refresh_token', newRefresh)
+              console.log('🔐 API - New refresh token stored')
+            }
           }
+          
           this.setAuthCookie(newAccess)
+          console.log('🔐 API - Token refresh successful')
           return newAccess
         }
+        
+        console.log('🔐 API - Invalid refresh response format')
         return null
-      } catch {
+      } catch (error) {
+        console.error('🔐 API - Error during token refresh:', error)
         return null
       } finally {
         this.isRefreshing = false
         this.refreshPromise = null
       }
     })()
+    
     return this.refreshPromise
   }
 
@@ -88,6 +123,9 @@ class ApiClient {
 
     if (this.token) {
       headers.Authorization = `Bearer ${this.token}`
+      console.log('🔐 API - Using token:', this.token.substring(0, 20) + '...')
+    } else {
+      console.log('🔐 API - No token available for request')
     }
 
     const requestOptions: RequestInit = {
@@ -102,18 +140,22 @@ class ApiClient {
       console.log('🔐 API - Request options:', {
         method: requestOptions.method,
         headers: requestOptions.headers,
-        hasBody: !!requestOptions.body
+        hasBody: !!requestOptions.body,
+        hasAuth: !!headers.Authorization
       })
       
       const response = await fetch(url, requestOptions)
 
       console.log('🔐 API - Response status:', response.status)
       console.log('🔐 API - Response ok:', response.ok)
+      console.log('🔐 API - Response headers:', Object.fromEntries(response.headers.entries()))
 
-      // Handle Unauthorized: attempt token refresh once
-      if (response.status === 401 && !options._retry) {
+      // Handle Unauthorized or Forbidden: attempt token refresh once
+      if ((response.status === 401 || response.status === 403) && !options._retry) {
+        console.log('🔐 API - Token expired or invalid, attempting refresh...')
         const refreshed = await this.refreshAccessToken()
         if (refreshed) {
+          console.log('🔐 API - Token refreshed successfully, retrying request...')
           headers.Authorization = `Bearer ${refreshed}`
           const retryOptions: RequestInit & { _retry?: boolean } = { ...options, headers, _retry: true }
           const retryResp = await fetch(url, {
@@ -124,9 +166,21 @@ class ApiClient {
           const retryData = await retryResp.json().catch(() => ({}))
           const retrySuccess = retryResp.ok && (retryData.status === 'success' || retryData.status === undefined)
           if (retrySuccess) {
+            console.log('🔐 API - Retry successful after token refresh')
             return { success: true, data: retryData }
           }
+          console.log('🔐 API - Retry failed after token refresh')
           return { success: false, error: retryData.message || `HTTP ${retryResp.status}` }
+        } else {
+          console.log('🔐 API - Token refresh failed, clearing auth data')
+          // Clear invalid tokens
+          this.clearToken()
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('refresh_token')
+            // Emit event for auth context to handle
+            window.dispatchEvent(new CustomEvent('auth:token-expired'))
+          }
+          return { success: false, error: 'Authentication failed. Please log in again.' }
         }
       }
 
@@ -641,6 +695,29 @@ class ApiClient {
     })
   }
 
+  async getReferralStats() {
+    return this.request("/api/referrals/stats")
+  }
+
+  async getReferrals() {
+    return this.request("/api/referrals")
+  }
+
+  async getReferralCodes() {
+    return this.request("/api/referrals/codes")
+  }
+
+  async createReferralCode(codeData: any) {
+    return this.request("/api/referrals/codes", {
+      method: "POST",
+      body: JSON.stringify(codeData),
+    })
+  }
+
+  async getReferralBonusHistory() {
+    return this.request("/api/referrals/bonuses")
+  }
+
   // Commissions - Updated to use plural endpoints
   async getCommissionsSummary() {
     return this.request("/api/commissions/summary")
@@ -1134,6 +1211,769 @@ class ApiClient {
     return this.request("/api/pwa/install")
   }
 
+  // Payment Services
+  async getPaymentHistory() {
+    return this.request("/api/payments/history")
+  }
+
+  async initializePayment(payload: { orderId: string; email: string }) {
+    return this.request("/api/payments/initialize", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async verifyPayment(reference: string) {
+    return this.request("/api/payments/verify", {
+      method: "POST",
+      body: JSON.stringify({ reference }),
+    })
+  }
+
+  // Shipment Services
+  async getShipments() {
+    return this.request("/api/shipments")
+  }
+
+  async getShipment(shipmentId: string) {
+    return this.request(`/api/shipments/${shipmentId}`)
+  }
+
+  async createShipment(payload: { harvestBatch: string; source: string; destination: string; timestamp: string }) {
+    return this.request("/api/shipments", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateShipmentStatus(shipmentId: string, status: string) {
+    return this.request(`/api/shipments/${shipmentId}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    })
+  }
+
+  async getShipmentTracking(trackingNumber: string) {
+    return this.request(`/api/shipments/track/${trackingNumber}`)
+  }
+
+  // BVN Verification Services
+  async verifyBVN(payload: { bvn: string; firstName: string; lastName: string; dateOfBirth: string; phoneNumber: string; documentType?: string; documentNumber?: string; bankName?: string; accountNumber?: string }) {
+    return this.request("/api/verification/bvn", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async getVerificationStatus(userId: string) {
+    return this.request(`/api/verification/status/${userId}`)
+  }
+
+  async getVerificationHistory() {
+    return this.request("/api/verification/history")
+  }
+
+  async resendVerification(verificationId: string) {
+    return this.request(`/api/verification/bvn/resend`, {
+      method: "POST",
+      body: JSON.stringify({ verificationId }),
+    })
+  }
+
+  // Notification Services
+  async getNotifications() {
+    return this.request("/api/notifications")
+  }
+
+  async getNotificationPreferences() {
+    return this.request("/api/notifications/preferences")
+  }
+
+  async updateNotificationPreferences(preferences: any) {
+    return this.request("/api/notifications/preferences", {
+      method: "PUT",
+      body: JSON.stringify(preferences),
+    })
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    return this.request(`/api/notifications/${notificationId}/read`, {
+      method: "PUT",
+    })
+  }
+
+  async markAllNotificationsAsRead() {
+    return this.request("/api/notifications/read-all", {
+      method: "PUT",
+    })
+  }
+
+  async deleteNotification(notificationId: string) {
+    return this.request(`/api/notifications/${notificationId}`, {
+      method: "DELETE",
+    })
+  }
+
+  async sendNotification(payload: { userId: string; title: string; message: string; type: string; category: string; priority: string }) {
+    return this.request("/api/notifications/send", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  // User Management Services
+  async getUsers() {
+    return this.request("/api/users")
+  }
+
+  async getUser(userId: string) {
+    return this.request(`/api/users/${userId}`)
+  }
+
+  async createUser(payload: any) {
+    return this.request("/api/users", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateUser(userId: string, payload: any) {
+    return this.request(`/api/users/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteUser(userId: string) {
+    return this.request(`/api/users/${userId}`, {
+      method: "DELETE",
+    })
+  }
+
+  async updateUserStatus(userId: string, status: string) {
+    return this.request(`/api/users/${userId}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    })
+  }
+
+  async updateUserRole(userId: string, role: string) {
+    return this.request(`/api/users/${userId}/role`, {
+      method: "PUT",
+      body: JSON.stringify({ role }),
+    })
+  }
+
+  async getUserProfile(userId: string) {
+    return this.request(`/api/users/${userId}/profile`)
+  }
+
+  async updateUserProfile(userId: string, payload: any) {
+    return this.request(`/api/users/${userId}/profile`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async getUserPermissions(userId: string) {
+    return this.request(`/api/users/${userId}/permissions`)
+  }
+
+  async updateUserPermissions(userId: string, payload: any) {
+    return this.request(`/api/users/${userId}/permissions`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  // Reporting & Analytics Services
+  async getAnalyticsOverview() {
+    return this.request("/api/analytics/overview")
+  }
+
+  async getAnalyticsData(metric: string, timeframe: string, filters?: any) {
+    return this.request(`/api/analytics/${metric}?timeframe=${timeframe}`, {
+      method: "POST",
+      body: JSON.stringify(filters || {}),
+    })
+  }
+
+  async generateReport(reportType: string, parameters: any) {
+    return this.request("/api/reports/generate", {
+      method: "POST",
+      body: JSON.stringify({ type: reportType, parameters }),
+    })
+  }
+
+  async getReportHistory() {
+    return this.request("/api/reports/history")
+  }
+
+  async downloadReport(reportId: string, format: string) {
+    return this.request(`/api/reports/${reportId}/download?format=${format}`)
+  }
+
+  async scheduleReport(reportType: string, schedule: any) {
+    return this.request("/api/reports/schedule", {
+      method: "POST",
+      body: JSON.stringify({ type: reportType, schedule }),
+    })
+  }
+
+  async getScheduledReports() {
+    return this.request("/api/reports/scheduled")
+  }
+
+  async updateScheduledReport(scheduleId: string, updates: any) {
+    return this.request(`/api/reports/schedule/${scheduleId}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async deleteScheduledReport(scheduleId: string) {
+    return this.request(`/api/reports/schedule/${scheduleId}`, {
+      method: "DELETE",
+    })
+  }
+
+  async getReportTemplates() {
+    return this.request("/api/reports/templates")
+  }
+
+  async saveReportTemplate(template: any) {
+    return this.request("/api/reports/templates", {
+      method: "POST",
+      body: JSON.stringify(template),
+    })
+  }
+
+  async updateReportTemplate(templateId: string, updates: any) {
+    return this.request(`/api/reports/templates/${templateId}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async deleteReportTemplate(templateId: string) {
+    return this.request(`/api/reports/templates/${templateId}`, {
+      method: "DELETE",
+    })
+  }
+
+  async exportData(dataType: string, format: string, filters?: any) {
+    return this.request("/api/analytics/export", {
+      method: "POST",
+      body: JSON.stringify({ dataType, format, filters }),
+    })
+  }
+
+  async getDataInsights(insightType: string, parameters?: any) {
+    return this.request(`/api/analytics/insights/${insightType}`, {
+      method: "POST",
+      body: JSON.stringify(parameters || {}),
+    })
+  }
+
+  async getPerformanceMetrics(metricType: string, timeframe: string) {
+    return this.request(`/api/analytics/performance/${metricType}?timeframe=${timeframe}`)
+  }
+
+  async getTrendAnalysis(metric: string, period: string) {
+    return this.request(`/api/analytics/trends/${metric}?period=${period}`)
+  }
+
+  async getComparativeAnalysis(metrics: string[], comparisonType: string) {
+    return this.request("/api/analytics/compare", {
+      method: "POST",
+      body: JSON.stringify({ metrics, comparisonType }),
+    })
+  }
+
+  // Inventory & Supply Chain Management Services
+  async getInventoryOverview() {
+    return this.request("/api/inventory/overview")
+  }
+
+  async getInventoryItems(filters?: any) {
+    return this.request("/api/inventory/items", {
+      method: "POST",
+      body: JSON.stringify(filters || {}),
+    })
+  }
+
+  async getInventoryItem(itemId: string) {
+    return this.request(`/api/inventory/items/${itemId}`)
+  }
+
+  async createInventoryItem(payload: any) {
+    return this.request("/api/inventory/items", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateInventoryItem(itemId: string, payload: any) {
+    return this.request(`/api/inventory/items/${itemId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteInventoryItem(itemId: string) {
+    return this.request(`/api/inventory/items/${itemId}`, {
+      method: "DELETE",
+    })
+  }
+
+  async getStockLevels() {
+    return this.request("/api/inventory/stock-levels")
+  }
+
+  async updateStockLevel(itemId: string, quantity: number, reason: string) {
+    return this.request(`/api/inventory/items/${itemId}/stock`, {
+      method: "PUT",
+      body: JSON.stringify({ quantity, reason }),
+    })
+  }
+
+  async getStockMovements(itemId?: string) {
+    const url = itemId ? `/api/inventory/movements?itemId=${itemId}` : "/api/inventory/movements"
+    return this.request(url)
+  }
+
+  async recordStockMovement(payload: any) {
+    return this.request("/api/inventory/movements", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async getLowStockAlerts() {
+    return this.request("/api/inventory/alerts/low-stock")
+  }
+
+  async getExpiringItems() {
+    return this.request("/api/inventory/alerts/expiring")
+  }
+
+  async getInventoryCategories() {
+    return this.request("/api/inventory/categories")
+  }
+
+  async createInventoryCategory(payload: any) {
+    return this.request("/api/inventory/categories", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateInventoryCategory(categoryId: string, payload: any) {
+    return this.request(`/api/inventory/categories/${categoryId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteInventoryCategory(categoryId: string) {
+    return this.request(`/api/inventory/categories/${categoryId}`, {
+      method: "DELETE",
+    })
+  }
+
+  async getSuppliers() {
+    return this.request("/api/inventory/suppliers")
+  }
+
+  async getSupplier(supplierId: string) {
+    return this.request(`/api/inventory/suppliers/${supplierId}`)
+  }
+
+  async createSupplier(payload: any) {
+    return this.request("/api/inventory/suppliers", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateSupplier(supplierId: string, payload: any) {
+    return this.request(`/api/inventory/suppliers/${supplierId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteSupplier(supplierId: string) {
+    return this.request(`/api/inventory/suppliers/${supplierId}`, {
+      method: "DELETE",
+    })
+  }
+
+  async getWarehouses() {
+    return this.request("/api/inventory/warehouses")
+  }
+
+  async getWarehouse(warehouseId: string) {
+    return this.request(`/api/inventory/warehouses/${warehouseId}`)
+  }
+
+  async createWarehouse(payload: any) {
+    return this.request("/api/inventory/warehouses", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateWarehouse(warehouseId: string, payload: any) {
+    return this.request(`/api/inventory/warehouses/${warehouseId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteWarehouse(warehouseId: string) {
+    return this.request(`/api/inventory/warehouses/${warehouseId}`, {
+      method: "DELETE",
+    })
+  }
+
+  async getInventoryReports(reportType: string, parameters: any) {
+    return this.request("/api/inventory/reports", {
+      method: "POST",
+      body: JSON.stringify({ reportType, parameters }),
+    })
+  }
+
+  async exportInventoryData(format: string, filters?: any) {
+    return this.request("/api/inventory/export", {
+      method: "POST",
+      body: JSON.stringify({ format, filters }),
+    })
+  }
+
+  async getSupplyChainMetrics() {
+    return this.request("/api/supply-chain/metrics")
+  }
+
+  async getSupplyChainNodes() {
+    return this.request("/api/supply-chain/nodes")
+  }
+
+  async createSupplyChainNode(payload: any) {
+    return this.request("/api/supply-chain/nodes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateSupplyChainNode(nodeId: string, payload: any) {
+    return this.request(`/api/supply-chain/nodes/${nodeId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteSupplyChainNode(nodeId: string) {
+    return this.request(`/api/supply-chain/nodes/${nodeId}`, {
+      method: "DELETE",
+    })
+  }
+
+  async getSupplyChainFlow(nodeId?: string) {
+    const url = nodeId ? `/api/supply-chain/flow?nodeId=${nodeId}` : "/api/supply-chain/flow"
+    return this.request(url)
+  }
+
+  async trackSupplyChainItem(itemId: string) {
+    return this.request(`/api/supply-chain/track/${itemId}`)
+  }
+
+  async getSupplyChainAnalytics(timeframe: string) {
+    return this.request(`/api/supply-chain/analytics?timeframe=${timeframe}`)
+  }
+
+  async optimizeSupplyChain(parameters: any) {
+    return this.request("/api/supply-chain/optimize", {
+      method: "POST",
+      body: JSON.stringify(parameters),
+    })
+  }
+
+  async getProcurementOrders() {
+    return this.request("/api/procurement/orders")
+  }
+
+  async createProcurementOrder(payload: any) {
+    return this.request("/api/procurement/orders", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateProcurementOrder(orderId: string, payload: any) {
+    return this.request(`/api/procurement/orders/${orderId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async approveProcurementOrder(orderId: string) {
+    return this.request(`/api/procurement/orders/${orderId}/approve`, {
+      method: "PUT",
+    })
+  }
+
+  async rejectProcurementOrder(orderId: string, reason: string) {
+    return this.request(`/api/procurement/orders/${orderId}/reject`, {
+      method: "PUT",
+      body: JSON.stringify({ reason }),
+    })
+  }
+
+  // Quality Control & Standards Services
+  async getQualityOverview() {
+    return this.request("/api/quality/overview")
+  }
+
+  async getQualityStandards() {
+    return this.request("/api/quality/standards")
+  }
+
+  async getQualityStandard(standardId: string) {
+    return this.request(`/api/quality/standards/${standardId}`)
+  }
+
+  async createQualityStandard(payload: any) {
+    return this.request("/api/quality/standards", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateQualityStandard(standardId: string, payload: any) {
+    return this.request(`/api/quality/standards/${standardId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteQualityStandard(standardId: string) {
+    return this.request(`/api/quality/standards/${standardId}`, {
+      method: "DELETE",
+    })
+  }
+
+  async getQualityInspections(filters?: any) {
+    return this.request("/api/quality/inspections", {
+      method: "POST",
+      body: JSON.stringify(filters || {}),
+    })
+  }
+
+  async getQualityInspection(inspectionId: string) {
+    return this.request(`/api/quality/inspections/${inspectionId}`)
+  }
+
+  async createQualityInspection(payload: any) {
+    return this.request("/api/quality/inspections", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateQualityInspection(inspectionId: string, payload: any) {
+    return this.request(`/api/quality/inspections/${inspectionId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async approveQualityInspection(inspectionId: string) {
+    return this.request(`/api/quality/inspections/${inspectionId}/approve`, {
+      method: "PUT",
+    })
+  }
+
+  async rejectQualityInspection(inspectionId: string, reason: string) {
+    return this.request(`/api/quality/inspections/${inspectionId}/reject`, {
+      method: "PUT",
+      body: JSON.stringify({ reason }),
+    })
+  }
+
+  async getQualityTests() {
+    return this.request("/api/quality/tests")
+  }
+
+  async getQualityTest(testId: string) {
+    return this.request(`/api/quality/tests/${testId}`)
+  }
+
+  async createQualityTest(payload: any) {
+    return this.request("/api/quality/tests", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateQualityTest(testId: string, payload: any) {
+    return this.request(`/api/quality/tests/${testId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteQualityTest(testId: string) {
+    return this.request(`/api/quality/tests/${testId}`, {
+      method: "DELETE",
+    })
+  }
+
+  async runQualityTest(testId: string, parameters: any) {
+    return this.request(`/api/quality/tests/${testId}/run`, {
+      method: "POST",
+      body: JSON.stringify(parameters),
+    })
+  }
+
+  async getQualityTestResults(testId?: string) {
+    const url = testId ? `/api/quality/test-results?testId=${testId}` : "/api/quality/test-results"
+    return this.request(url)
+  }
+
+  async getQualityCertifications() {
+    return this.request("/api/quality/certifications")
+  }
+
+  async getQualityCertification(certificationId: string) {
+    return this.request(`/api/quality/certifications/${certificationId}`)
+  }
+
+  async createQualityCertification(payload: any) {
+    return this.request("/api/quality/certifications", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateQualityCertification(certificationId: string, payload: any) {
+    return this.request(`/api/quality/certifications/${certificationId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async revokeQualityCertification(certificationId: string, reason: string) {
+    return this.request(`/api/quality/certifications/${certificationId}/revoke`, {
+      method: "PUT",
+      body: JSON.stringify({ reason }),
+    })
+  }
+
+  async getQualityCompliance(complianceType: string) {
+    return this.request(`/api/quality/compliance/${complianceType}`)
+  }
+
+  async checkQualityCompliance(itemId: string, standardId: string) {
+    return this.request("/api/quality/compliance/check", {
+      method: "POST",
+      body: JSON.stringify({ itemId, standardId }),
+    })
+  }
+
+  async getQualityMetrics(timeframe: string) {
+    return this.request(`/api/quality/metrics?timeframe=${timeframe}`)
+  }
+
+  async getQualityReports(reportType: string, parameters: any) {
+    return this.request("/api/quality/reports", {
+      method: "POST",
+      body: JSON.stringify({ reportType, parameters }),
+    })
+  }
+
+  async exportQualityData(format: string, filters?: any) {
+    return this.request("/api/quality/export", {
+      method: "POST",
+      body: JSON.stringify({ format, filters }),
+    })
+  }
+
+  async getQualityAlerts() {
+    return this.request("/api/quality/alerts")
+  }
+
+  async acknowledgeQualityAlert(alertId: string) {
+    return this.request(`/api/quality/alerts/${alertId}/acknowledge`, {
+      method: "PUT",
+    })
+  }
+
+  async getQualityTraining() {
+    return this.request("/api/quality/training")
+  }
+
+  async createQualityTraining(payload: any) {
+    return this.request("/api/quality/training", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateQualityTraining(trainingId: string, payload: any) {
+    return this.request(`/api/quality/training/${trainingId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteQualityTraining(trainingId: string) {
+    return this.request(`/api/quality/training/${trainingId}`, {
+      method: "DELETE",
+    })
+  }
+
+  async assignQualityTraining(trainingId: string, userIds: string[]) {
+    return this.request(`/api/quality/training/${trainingId}/assign`, {
+      method: "PUT",
+      body: JSON.stringify({ userIds }),
+    })
+  }
+
+  async getQualityTrainingProgress(userId?: string) {
+    const url = userId ? `/api/quality/training/progress?userId=${userId}` : "/api/quality/training/progress"
+    return this.request(url)
+  }
+
+  async getQualityAudits() {
+    return this.request("/api/quality/audits")
+  }
+
+  async getQualityAudit(auditId: string) {
+    return this.request(`/api/quality/audits/${auditId}`)
+  }
+
+  async createQualityAudit(payload: any) {
+    return this.request("/api/quality/audits", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateQualityAudit(auditId: string, payload: any) {
+    return this.request(`/api/quality/audits/${auditId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async completeQualityAudit(auditId: string, findings: any) {
+    return this.request(`/api/quality/audits/${auditId}/complete`, {
+      method: "PUT",
+      body: JSON.stringify({ findings }),
+    })
+  }
+
   // USSD Services
   async getUSSDInfo() {
     return this.request("/api/ussd/info")
@@ -1141,6 +1981,10 @@ class ApiClient {
 
   async getUSSDStats() {
     return this.request("/api/ussd/stats")
+  }
+
+  async getUSSDSessions() {
+    return this.request("/api/ussd/sessions")
   }
 
   async testUSSD(payload: { phoneNumber: string; text: string }) {
@@ -1155,6 +1999,72 @@ class ApiClient {
       method: "POST",
       body: JSON.stringify(payload),
     })
+  }
+
+  // QR Code Services
+  async getUserQRCodes() {
+    return this.request("/api/qr-codes")
+  }
+
+  async generateNewQRCode(payload: { harvestId: string; customData?: string }) {
+    return this.request("/api/qr-codes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async getQRCodeStats() {
+    return this.request("/api/qr-codes/stats")
+  }
+
+  // Language Services
+  async getSupportedLanguages() {
+    return this.request("/api/language")
+  }
+
+  async getTranslations(language: string) {
+    return this.request(`/api/language/translations/${language}`)
+  }
+
+  async updateLanguagePreference(payload: { language: string }) {
+    return this.request("/api/language/preference", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  }
+
+  // Check if current token is valid
+  async validateToken(): Promise<boolean> {
+    if (!this.token) {
+      console.log('🔐 API - No token to validate')
+      return false
+    }
+
+    try {
+      // Use the request method to ensure proper error handling and token refresh
+      const response = await this.request('/api/auth/me')
+      return response.success
+    } catch (error) {
+      console.error('🔐 API - Error validating token:', error)
+      return false
+    }
+  }
+
+  // Debug method to check current authentication state
+  debugAuthState() {
+    const token = this.token
+    const hasLocalToken = typeof window !== 'undefined' ? !!localStorage.getItem('auth_token') : false
+    const hasRefreshToken = typeof window !== 'undefined' ? !!localStorage.getItem('refresh_token') : false
+    
+    console.log('🔐 API - Debug Auth State:', {
+      hasToken: !!token,
+      tokenPreview: token ? token.substring(0, 20) + '...' : 'none',
+      hasLocalToken,
+      hasRefreshToken,
+      baseURL: this.baseURL
+    })
+    
+    return { hasToken: !!token, hasLocalToken, hasRefreshToken }
   }
 }
 

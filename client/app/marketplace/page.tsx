@@ -61,8 +61,8 @@ export default function MarketplacePage() {
   const [error, setError] = useState("")
   const [filters, setFilters] = useState<MarketplaceFilters>({
     search: "",
-    category: "",
-    location: "",
+    category: "all",
+    location: "all",
     minPrice: "",
     maxPrice: "",
     sortBy: "newest"
@@ -82,8 +82,8 @@ export default function MarketplacePage() {
       // Build query parameters
       const queryParams: any = {}
       if (filters.search) queryParams.search = filters.search
-      if (filters.category) queryParams.category = filters.category
-      if (filters.location) queryParams.location = filters.location
+      if (filters.category && filters.category !== "all") queryParams.category = filters.category
+      if (filters.location && filters.location !== "all") queryParams.location = filters.location
       if (filters.minPrice) queryParams.minPrice = parseFloat(filters.minPrice)
       if (filters.maxPrice) queryParams.maxPrice = parseFloat(filters.maxPrice)
       if (filters.sortBy) queryParams.sortBy = filters.sortBy
@@ -107,76 +107,16 @@ export default function MarketplacePage() {
       console.error("Marketplace fetch error:", error)
       setError(error instanceof Error ? error.message : "Failed to fetch marketplace listings")
       
-      // Set mock data for development/demo purposes
-      setListings(getMockListings())
-      setCategories(["Vegetables", "Grains", "Tubers", "Fruits", "Herbs"])
-      setLocations(["Lagos", "Kano", "Kaduna", "Ogun", "Rivers"])
+      // Set empty states when API fails
+      setListings([])
+      setCategories([])
+      setLocations([])
     } finally {
       setLoading(false)
     }
   }
 
-  const getMockListings = (): MarketplaceListing[] => {
-    return [
-      {
-        id: "1",
-        product: "Fresh Tomatoes",
-        price: 1500,
-        quantity: 50,
-        farmer: {
-          id: "f1",
-          name: "Adunni Farms",
-          location: "Lagos State",
-          rating: 4.8
-        },
-        images: ["/fresh-tomatoes.png"],
-        description: "Fresh, organic tomatoes harvested this morning. Perfect for cooking and salads.",
-        category: "Vegetables",
-        unit: "kg",
-        harvestDate: "2025-01-15",
-        status: "available",
-        createdAt: "2025-01-15T08:00:00Z"
-      },
-      {
-        id: "2",
-        product: "Organic Yam",
-        price: 800,
-        quantity: 20,
-        farmer: {
-          id: "f2",
-          name: "Ibrahim Agro",
-          location: "Kano State",
-          rating: 4.6
-        },
-        images: ["/fresh-tomatoes.png"],
-        description: "Premium organic yam tubers. Great for traditional dishes and modern cuisine.",
-        category: "Tubers",
-        unit: "tubers",
-        harvestDate: "2025-01-12",
-        status: "available",
-        createdAt: "2025-01-12T10:00:00Z"
-      },
-      {
-        id: "3",
-        product: "Cassava Flour",
-        price: 1250,
-        quantity: 25,
-        farmer: {
-          id: "f3",
-          name: "Grace Farms",
-          location: "Ogun State",
-          rating: 4.9
-        },
-        images: ["/fresh-tomatoes.png"],
-        description: "High-quality cassava flour. Perfect for baking and traditional recipes.",
-        category: "Grains",
-        unit: "kg",
-        harvestDate: "2025-01-10",
-        status: "available",
-        createdAt: "2025-01-10T09:00:00Z"
-      }
-    ]
-  }
+  // No mock data - all data comes from real APIs
 
   const handleFilterChange = (key: keyof MarketplaceFilters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -185,8 +125,8 @@ export default function MarketplacePage() {
   const clearFilters = () => {
     setFilters({
       search: "",
-      category: "",
-      location: "",
+      category: "all",
+      location: "all",
       minPrice: "",
       maxPrice: "",
       sortBy: "newest"
@@ -279,7 +219,7 @@ export default function MarketplacePage() {
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Categories</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
                     {categories.map((category) => (
                       <SelectItem key={category} value={category}>{category}</SelectItem>
                     ))}
@@ -294,7 +234,7 @@ export default function MarketplacePage() {
                     <SelectValue placeholder="Location" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Locations</SelectItem>
+                    <SelectItem value="all">All Locations</SelectItem>
                     {locations.map((location) => (
                       <SelectItem key={location} value={location}>{location}</SelectItem>
                     ))}

@@ -27,6 +27,7 @@ import {
   Trash2,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { LanguageSelector } from "@/components/language/language-selector"
 import { api } from "@/lib/api"
 
 interface UserProfile {
@@ -609,18 +610,7 @@ export function SettingsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="language">Language</Label>
-                    <Select value={user.preferences.language}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="ha">Hausa</SelectItem>
-                        <SelectItem value="yo">Yoruba</SelectItem>
-                        <SelectItem value="ig">Igbo</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <LanguageSelector variant="menu" />
                   </div>
                 </div>
               </CardContent>

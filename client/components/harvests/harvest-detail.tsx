@@ -86,30 +86,63 @@ export function HarvestDetail({ harvestId }: HarvestDetailProps) {
   const [error, setError] = useState<string | null>(null)
   const [harvestData, setHarvestData] = useState<any>(null)
 
+  // Helper function to safely format location display
+  const formatLocation = (location: any): string => {
+    if (typeof location === 'string' && location.trim() !== '') {
+      return location
+    }
+    
+    if (location && typeof location === 'object' && location.lat && location.lng) {
+      return `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`
+    }
+    
+    return "Location not specified"
+  }
+
   useEffect(() => {
     let cancelled = false
     const load = async () => {
       try {
         setLoading(true)
         setError(null)
-        // Try provenance endpoint first
-        const resp = await api.getHarvestProvenance(harvestId)
-        if (resp.success) {
-          const payload: any = resp.data
-          const prov = (payload as any)?.provenance || (payload as any)?.data?.provenance || payload
-          if (!cancelled) setHarvestData(prov)
+        
+        console.log("🔍 Loading harvest with ID:", harvestId)
+        
+        // Try to get harvest by ID first
+        const resp = await api.getHarvest(harvestId)
+        console.log("🔍 Harvest response:", resp)
+        
+        if (resp.success && resp.data) {
+          const harvestData = resp.data
+          if (!cancelled) setHarvestData(harvestData)
         } else {
-          // Fallback to alias /:batchId
-          const resp2 = await api.getHarvest(harvestId)
-          if (resp2.success) {
-            const payload2: any = resp2.data
-            const prov2 = (payload2 as any)?.provenance || (payload2 as any)?.data?.provenance || payload2
-            if (!cancelled) setHarvestData(prov2)
-          } else {
-            throw new Error(resp.error || "Failed to load harvest")
+          // Fallback: try to find harvest in user's harvests list
+          try {
+            const userResponse = await api.getHarvests({ limit: 100 })
+            if (userResponse.success && userResponse.data) {
+              const allHarvests = Array.isArray(userResponse.data) 
+                ? userResponse.data 
+                : userResponse.data.harvests || userResponse.data.data || []
+              
+              const foundHarvest = allHarvests.find((h: any) => 
+                h.id === harvestId || h.batchId === harvestId || h._id === harvestId
+              )
+              
+              if (foundHarvest) {
+                if (!cancelled) setHarvestData(foundHarvest)
+              } else {
+                throw new Error("Harvest not found")
+              }
+            } else {
+              throw new Error("Failed to fetch user harvests")
+            }
+          } catch (fallbackError) {
+            console.error("Fallback error:", fallbackError)
+            throw new Error("Harvest not found")
           }
         }
       } catch (e) {
+        console.error("Error loading harvest:", e)
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load harvest")
       } finally {
         if (!cancelled) setLoading(false)
@@ -142,10 +175,18 @@ export function HarvestDetail({ harvestId }: HarvestDetailProps) {
             <CardContent className="p-8 text-center space-y-3">
               <AlertCircle className="w-8 h-8 text-destructive mx-auto" />
               <div className="text-destructive font-medium">Failed to load harvest</div>
-              <div className="text-sm text-muted-foreground">{error}</div>
-              <div className="pt-2">
+              <div className="text-sm text-muted-foreground">
+                {error === "Harvest not found" 
+                  ? "The harvest you're looking for doesn't exist or you don't have permission to view it."
+                  : error
+                }
+              </div>
+              <div className="pt-2 space-x-2">
                 <Button asChild variant="outline">
                   <Link href="/harvests">Back to Harvests</Link>
+                </Button>
+                <Button asChild variant="default">
+                  <Link href="/harvests/new">Add New Harvest</Link>
                 </Button>
               </div>
             </CardContent>
@@ -157,31 +198,44 @@ export function HarvestDetail({ harvestId }: HarvestDetailProps) {
 
   const serverHarvest = harvestData
     ? {
-        cropType: harvestData.cropType,
-        quantity: harvestData.quantity,
+        cropType: harvestData.cropType || "Unknown Crop",
+        quantity: harvestData.quantity || 0,
         unit: (harvestData as any).unit || "kg",
-        harvestDate: (harvestData as any).date || (harvestData as any).harvestDate,
-        location:
-          (harvestData as any).location ||
-          (harvestData as any).geoLocation ||
-          { lat: (harvestData as any)?.geoLocation?.lat, lng: (harvestData as any)?.geoLocation?.lng },
+        harvestDate: (harvestData as any).date || (harvestData as any).harvestDate || new Date().toISOString(),
+        location: (() => {
+          // If we have a text location, use it
+          if ((harvestData as any).location && typeof (harvestData as any).location === 'string') {
+            return (harvestData as any).location
+          }
+          // If we have coordinates, format them as a readable string
+          if ((harvestData as any).geoLocation?.lat && (harvestData as any).geoLocation?.lng) {
+            return `${(harvestData as any).geoLocation.lat.toFixed(4)}, ${(harvestData as any).geoLocation.lng.toFixed(4)}`
+          }
+          // Fallback
+          return "Location not specified"
+        })(),
         status: "verified",
-        qrCode: (harvestData as any).batchId,
+        qrCode: (harvestData as any).batchId || harvestData.id || "No QR Code",
         images: (harvestData as any).images || [],
         description: (harvestData as any).description || "",
         coordinates: (harvestData as any).geoLocation || undefined,
         farmer: {
-          name: (harvestData as any)?.farmer?.name || "",
+          name: (harvestData as any)?.farmer?.name || "Unknown Farmer",
           id: (harvestData as any)?.farmer?._id || "",
-          firstName: (harvestData as any)?.farmer?.firstName,
-          lastName: (harvestData as any)?.farmer?.lastName,
+          firstName: (harvestData as any)?.farmer?.firstName || "",
+          lastName: (harvestData as any)?.farmer?.lastName || "",
           emailVerified: undefined,
         },
         verificationDetails: undefined,
-        createdAt: (harvestData as any).createdAt,
-        updatedAt: (harvestData as any).updatedAt,
+        createdAt: (harvestData as any).createdAt || new Date().toISOString(),
+        updatedAt: (harvestData as any).updatedAt || new Date().toISOString(),
       }
     : null
+
+  // Debug logging
+  console.log("🔍 Harvest Detail - harvestData:", harvestData)
+  console.log("🔍 Harvest Detail - serverHarvest:", serverHarvest)
+  console.log("🔍 Harvest Detail - final harvest:", harvest)
 
   const harvest = serverHarvest || mockHarvest
 
@@ -205,7 +259,7 @@ export function HarvestDetail({ harvestId }: HarvestDetailProps) {
               <div>
                 <h1 className="text-3xl font-heading font-bold text-foreground mb-2">{harvest.cropType}</h1>
                 <p className="text-muted-foreground">
-                  {harvest.quantity} {harvest.unit} • Harvested on {new Date(harvest.harvestDate).toLocaleDateString()}
+                  {harvest.quantity} {harvest.unit} • Harvested on {harvest.harvestDate ? new Date(harvest.harvestDate).toLocaleDateString() : "Date not specified"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -385,17 +439,19 @@ export function HarvestDetail({ harvestId }: HarvestDetailProps) {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Harvest Date</span>
-                    <span className="font-medium">{new Date(harvest.harvestDate).toLocaleDateString()}</span>
+                    <span className="font-medium">
+                      {harvest.harvestDate ? new Date(harvest.harvestDate).toLocaleDateString() : "Date not specified"}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Location</span>
                     <span className="font-medium">{harvest.location}</span>
                   </div>
-                  {harvest.coordinates && (
+                  {harvest.coordinates && harvest.coordinates.lat && harvest.coordinates.lng && (
                     <div className="pt-2">
                       <Button variant="outline" size="sm" className="w-full bg-transparent">
                         <Map className="w-4 h-4 mr-2" />
-                        View on Map
+                        View on Map ({harvest.coordinates.lat.toFixed(4)}, {harvest.coordinates.lng.toFixed(4)})
                       </Button>
                     </div>
                   )}
@@ -410,11 +466,15 @@ export function HarvestDetail({ harvestId }: HarvestDetailProps) {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Created</span>
-                    <span className="text-sm">{new Date(harvest.createdAt).toLocaleDateString()}</span>
+                    <span className="text-sm">
+                      {harvest.createdAt ? new Date(harvest.createdAt).toLocaleDateString() : "Date not specified"}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Last Updated</span>
-                    <span className="text-sm">{new Date(harvest.updatedAt).toLocaleDateString()}</span>
+                    <span className="text-sm">
+                      {harvest.updatedAt ? new Date(harvest.updatedAt).toLocaleDateString() : "Date not specified"}
+                    </span>
                   </div>
                 </CardContent>
               </Card>

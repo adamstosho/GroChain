@@ -7,7 +7,7 @@ dotenv.config({ path: '.env.test' });
 process.env.NODE_ENV = 'test';
 
 // Global test timeout - increased for integration tests
-jest.setTimeout(120000);
+(global as any).jest?.setTimeout?.(120000);
 
 // Set required environment variables for testing if they don't exist
 if (!process.env.MONGODB_URI) {
@@ -98,7 +98,7 @@ export const shouldRunIntegrationTests = (): boolean => {
 };
 
 // Global test cleanup
-afterAll(async () => {
+(global as any).afterAll?.(async () => {
   // Wait for any pending operations to complete
   await new Promise(resolve => setTimeout(resolve, 1000));
 });

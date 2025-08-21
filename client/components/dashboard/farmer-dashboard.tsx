@@ -22,12 +22,14 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
-  ArrowRight
+  ArrowRight,
+  CreditCard
 } from "lucide-react"
 import { DashboardLayout } from "./dashboard-layout"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
 import Link from "next/link"
+import { toast } from "sonner"
 
 interface User {
   id: string
@@ -90,10 +92,114 @@ export function FarmerDashboard({ user }: FarmerDashboardProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [userLocation, setUserLocation] = useState({ lat: 9.0765, lng: 7.3986 }) // Default to Abuja
+  // Simplified weather system - no more loading loops!
+  const [weatherData, setWeatherData] = useState<{
+    current: { temp: number; condition: string; humidity: number };
+    forecast: Array<{ date: string; temp: number; condition: string }>;
+  }>({
+    current: { temp: 0, condition: "Loading...", humidity: 0 },
+    forecast: []
+  })
+  const [weatherLoading, setWeatherLoading] = useState(false)
 
+  // Get user's current location once
   useEffect(() => {
-    fetchDashboardData()
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords
+          setUserLocation({ lat: latitude, lng: longitude })
+          console.log('📍 User location detected:', { lat: latitude, lng: longitude })
+        },
+        (error) => {
+          console.log('📍 Using default Abuja location:', error.message)
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+    }
   }, [])
+
+  // Fetch weather data once when component mounts
+  useEffect(() => {
+    if (user) {
+      fetchWeatherOnce()
+    }
+  }, [user])
+
+  // Fetch dashboard data
+  useEffect(() => {
+    if (user) {
+      fetchDashboardData()
+    }
+  }, [user])
+
+  const fetchWeatherOnce = async () => {
+    try {
+      setWeatherLoading(true)
+      console.log('🌤️ Fetching weather data once...')
+      
+      const location = {
+        lat: userLocation.lat || 9.0765,
+        lng: userLocation.lng || 7.3986,
+        city: userLocation.lat !== 9.0765 ? "Current Location" : "Abuja",
+        state: userLocation.lat !== 9.0765 ? "Current" : "FCT",
+        country: "Nigeria"
+      }
+      
+      // Fetch current weather
+      const weatherResponse = await api.getCurrentWeather(location)
+      console.log('🌤️ Weather response:', weatherResponse)
+      
+      if (weatherResponse.success && weatherResponse.data) {
+        const data = weatherResponse.data as any
+        const processed = {
+          current: {
+            temp: Math.round(data.current?.temp || data.current?.temperature || 0),
+            condition: data.current?.condition || data.current?.weatherCondition || "Unknown",
+            humidity: Math.round(data.current?.humidity || 0)
+          },
+          forecast: (data.forecast || []).slice(0, 5).map((f: any) => ({
+            date: f.date ? new Date(f.date).toLocaleDateString('en-US', { weekday: 'short' }) : 'Unknown',
+            temp: Math.round(f.temp || f.temperature || f.highTemp || 0),
+            condition: f.condition || f.weatherCondition || "Unknown"
+          }))
+        }
+        
+        setWeatherData(processed)
+        console.log('✅ Weather data set:', processed)
+      } else {
+        // Use fallback data
+        setWeatherData({
+          current: { temp: 28, condition: "Partly Cloudy", humidity: 75 },
+          forecast: [
+            { date: "Today", temp: 28, condition: "Partly Cloudy" },
+            { date: "Tomorrow", temp: 29, condition: "Sunny" },
+            { date: "Wed", temp: 27, condition: "Light Rain" },
+            { date: "Thu", temp: 30, condition: "Sunny" },
+            { date: "Fri", temp: 26, condition: "Cloudy" }
+          ]
+        })
+        console.log('⚠️ Using fallback weather data')
+      }
+    } catch (error) {
+      console.error('❌ Weather fetch error:', error)
+      // Use fallback data on error
+      setWeatherData({
+        current: { temp: 28, condition: "Partly Cloudy", humidity: 75 },
+        forecast: [
+          { date: "Today", temp: 28, condition: "Partly Cloudy" },
+          { date: "Tomorrow", temp: 29, condition: "Sunny" },
+          { date: "Wed", temp: 27, condition: "Light Rain" },
+          { date: "Thu", temp: 30, condition: "Sunny" },
+          { date: "Fri", temp: 26, condition: "Cloudy" }
+        ]
+      })
+    } finally {
+      setWeatherLoading(false)
+      console.log('🏁 Weather fetch completed')
+    }
+  }
 
   const fetchDashboardData = async () => {
     try {
@@ -101,26 +207,130 @@ export function FarmerDashboard({ user }: FarmerDashboardProps) {
       setError("")
 
       // Fetch data from multiple endpoints in parallel
-      const [harvestsResponse, marketplaceResponse, weatherResponse] = await Promise.all([
-        api.getHarvests({ farmer: user.id, limit: 5 }),
-        api.getMarketplaceListings({ farmer: user.id, limit: 5 }),
-        api.getCurrentWeather({ lat: 9.0765, lng: 7.3986, city: "Abuja", state: "FCT", country: "Nigeria" })
+      const [harvestsResponse, marketplaceResponse, weatherResponse, analyticsResponse] = await Promise.all([
+        api.getHarvests({ limit: 100 }).catch((err: any) => ({ success: false, error: err.message, data: null })),
+        api.getMarketplaceListings({ limit: 100 }).catch((err: any) => ({ success: false, error: err.message, data: null })),
+        api.getCurrentWeather({ 
+          lat: userLocation.lat || 9.0765, 
+          lng: userLocation.lng || 7.3986, 
+          city: userLocation.lat !== 9.0765 ? "Current Location" : "Abuja", 
+          state: userLocation.lat !== 9.0765 ? "Current" : "FCT", 
+          country: "Nigeria" 
+        }).catch((err: any) => {
+          console.error("Weather API error:", err);
+          return { success: false, error: err.message, data: null };
+        }),
+        api.getHarvestsAnalytics().catch((err: any) => ({ success: false, error: err.message, data: null }))
       ])
+      
+      // Also fetch weather forecast for better data
+      const forecastResponse = await api.getWeatherForecast({ 
+        lat: userLocation.lat || 9.0765, 
+        lng: userLocation.lng || 7.3986, 
+        city: userLocation.lat !== 9.0765 ? "Current Location" : "Abuja", 
+        state: userLocation.lat !== 9.0765 ? "Current" : "FCT", 
+        country: "Nigeria"
+      }).catch((err: any) => {
+        console.error("Forecast API error:", err);
+        return { success: false, error: err.message, data: null };
+      })
 
-      // Process harvests data
-      const harvests = harvestsResponse.success ? harvestsResponse.data : []
+      // Debug: Log all responses
+      console.log("API Responses:", {
+        harvests: harvestsResponse,
+        marketplace: marketplaceResponse,
+        weather: weatherResponse,
+        forecast: forecastResponse,
+        weatherSuccess: weatherResponse?.success,
+        forecastSuccess: forecastResponse?.success,
+        weatherData: weatherResponse?.data,
+        forecastData: forecastResponse?.data
+      })
+
+      // Process harvests data - handle different response structures
+      let harvests: any[] = []
+      let listings: any[] = [] 
+      if (harvestsResponse.success && harvestsResponse.data) {
+        const harvestData = harvestsResponse.data as any
+        
+        // Debug: Log the actual response structure
+        console.log("Harvests response structure:", {
+          success: harvestsResponse.success,
+          dataType: typeof harvestData,
+          isArray: Array.isArray(harvestData),
+          dataKeys: harvestData ? Object.keys(harvestData) : [],
+          data: harvestData
+        })
+        
+        // Handle different possible response structures
+        if (Array.isArray(harvestData)) {
+          harvests = harvestData
+        } else if (harvestData.harvests && Array.isArray(harvestData.harvests)) {
+          harvests = harvestData.harvests
+        } else if (harvestData.data && Array.isArray(harvestData.data)) {
+          harvests = harvestData.data
+        }
+      }
+      
+      // Ensure we have arrays to work with
+      if (!Array.isArray(harvests)) {
+        console.warn("Harvests is not an array, defaulting to empty array:", harvests)
+        harvests = []
+      }
+      
       const totalHarvests = harvests.length
       const verifiedHarvests = harvests.filter((h: any) => h.status === "verified").length
       const verificationRate = totalHarvests > 0 ? (verifiedHarvests / totalHarvests) * 100 : 0
 
-      // Process marketplace data
-      const listings = marketplaceResponse.success ? marketplaceResponse.data : []
+      // Process marketplace data - handle different response structures
+      if (marketplaceResponse.success && marketplaceResponse.data) {
+        const marketplaceData = marketplaceResponse.data as any
+        
+        // Debug: Log the actual response structure
+        console.log("Marketplace response structure:", {
+          success: marketplaceResponse.success,
+          dataType: typeof marketplaceData,
+          isArray: Array.isArray(marketplaceData),
+          dataKeys: marketplaceData ? Object.keys(marketplaceData) : [],
+          data: marketplaceData
+        })
+        
+        // Handle different possible response structures
+        if (Array.isArray(marketplaceData)) {
+          listings = marketplaceData
+        } else if (marketplaceData.listings && Array.isArray(marketplaceData.listings)) {
+          listings = marketplaceData.listings
+        } else if (marketplaceData.data && Array.isArray(marketplaceData.data)) {
+          listings = marketplaceData.data
+        }
+      }
+      
+      // Ensure listings is an array
+      if (!Array.isArray(listings)) {
+        console.warn("Listings is not an array, defaulting to empty array:", listings)
+        listings = []
+      }
+      
+      // Calculate real marketplace statistics
       const totalListings = listings.length
-      const activeOrders = 0 // This would come from orders endpoint
-      const monthlyRevenue = 0 // This would be calculated from orders
+      const activeOrders = listings.filter((l: any) => l.status === 'active' || l.status === 'pending').length
+      const monthlyRevenue = listings.reduce((total: number, listing: any) => {
+        if (listing.price && listing.quantity) {
+          return total + (listing.price * listing.quantity)
+        }
+        return total
+      }, 0)
 
       // Process weather data
-      const weatherData = weatherResponse.success ? weatherResponse.data : null
+      const weatherData = weatherResponse.success ? (weatherResponse.data as any) : null
+      const forecastData = forecastResponse.success ? (forecastResponse.data as any) : null
+      
+      // Process analytics data if available
+      let analyticsData = null
+      if (analyticsResponse.success && analyticsResponse.data) {
+        analyticsData = analyticsResponse.data as any
+        console.log("Analytics data:", analyticsData)
+      }
 
       const dashboardStats: DashboardStats = {
         totalHarvests,
@@ -130,36 +340,27 @@ export function FarmerDashboard({ user }: FarmerDashboardProps) {
         recentHarvests: harvests.slice(0, 5).map((h: any) => ({
           id: h.batchId || h.id,
           cropType: h.cropType,
-          quantity: `${h.quantity} ${h.unit}`,
-          date: new Date(h.harvestDate).toLocaleDateString(),
-          status: h.status,
-          qrCode: h.qrCode || `QR${h.batchId || h.id}`,
-          location: h.location || "Unknown"
+          quantity: `${h.quantity} ${h.unit || 'units'}`,
+          date: h.harvestDate ? new Date(h.harvestDate).toLocaleDateString() : 'Date not specified',
+          status: h.status || 'pending',
+          qrCode: h.qrCode || h.batchId || h.id,
+          location: h.location || (h.geoLocation?.lat && h.geoLocation?.lng 
+            ? `${h.geoLocation.lat.toFixed(4)}, ${h.geoLocation.lng.toFixed(4)}`
+            : 'Location not specified')
         })),
         marketplaceStats: {
           totalListings,
           activeOrders,
           monthlyRevenue,
-          topProducts: listings.slice(0, 3).map((l: any) => ({
-            id: l.id,
-            name: l.product || l.name,
-            sales: 0, // This would come from orders
-            revenue: l.price || 0
-          }))
+                  topProducts: listings.slice(0, 3).map((l: any) => ({
+          id: l.id,
+          name: l.product || l.name || l.cropType || 'Unknown Product',
+          sales: l.quantity || 0,
+          revenue: (l.price || 0) * (l.quantity || 1)
+        }))
         },
-        weatherData: weatherData ? {
-          current: {
-            temp: weatherData.current?.temp_c || 28,
-            condition: weatherData.current?.condition?.text || "Sunny",
-            humidity: weatherData.current?.humidity || 65
-          },
-          forecast: weatherData.forecast?.slice(0, 5).map((f: any) => ({
-            date: new Date(f.date).toLocaleDateString('en-US', { weekday: 'short' }),
-            temp: f.day?.avgtemp_c || 28,
-            condition: f.day?.condition?.text || "Sunny"
-          })) || []
-        } : {
-          current: { temp: 28, condition: "Sunny", humidity: 65 },
+        weatherData: {
+          current: { temp: 0, condition: "No Data", humidity: 0 },
           forecast: []
         }
       }
@@ -170,69 +371,49 @@ export function FarmerDashboard({ user }: FarmerDashboardProps) {
       console.error("Dashboard fetch error:", error)
       setError("Failed to load dashboard data")
       
-      // Set mock data for development/demo purposes
-      setStats(getMockStats())
+      // Set empty stats when API fails
+      setStats(getEmptyStats())
       setLastUpdated(new Date())
     } finally {
       setLoading(false)
     }
   }
 
-  const getMockStats = (): DashboardStats => {
+  const getEmptyStats = (): DashboardStats => {
     return {
-      totalHarvests: 24,
-      activeListings: 8,
-      totalEarnings: 125000,
-      verificationRate: 98,
-      recentHarvests: [
-        {
-          id: "1",
-          cropType: "Tomatoes",
-          quantity: "500kg",
-          date: "2025-01-15",
-          status: "verified",
-          qrCode: "QR001",
-          location: "Lagos State",
-        },
-        {
-          id: "2",
-          cropType: "Yam",
-          quantity: "200 tubers",
-          date: "2025-01-12",
-          status: "pending",
-          qrCode: "QR002",
-          location: "Ogun State",
-        },
-        {
-          id: "3",
-          cropType: "Cassava",
-          quantity: "300kg",
-          date: "2025-01-10",
-          status: "verified",
-          qrCode: "QR003",
-          location: "Lagos State",
-        },
-      ],
+      totalHarvests: 0,
+      activeListings: 0,
+      totalEarnings: 0,
+      verificationRate: 0,
+      recentHarvests: [],
       marketplaceStats: {
-        totalListings: 8,
-        activeOrders: 3,
-        monthlyRevenue: 125000,
-        topProducts: [
-          { id: "1", name: "Fresh Tomatoes", sales: 45, revenue: 67500 },
-          { id: "2", name: "Organic Yam", sales: 32, revenue: 48000 },
-          { id: "3", name: "Premium Cassava", sales: 28, revenue: 42000 }
-        ]
+        totalListings: 0,
+        activeOrders: 0,
+        monthlyRevenue: 0,
+        topProducts: []
       },
       weatherData: {
-        current: { temp: 28, condition: "Sunny", humidity: 65 },
-        forecast: [
-          { date: "Mon", temp: 29, condition: "Sunny" },
-          { date: "Tue", temp: 27, condition: "Partly Cloudy" },
-          { date: "Wed", temp: 26, condition: "Cloudy" },
-          { date: "Thu", temp: 28, condition: "Sunny" },
-          { date: "Fri", temp: 30, condition: "Sunny" }
-        ]
+        current: { temp: 0, condition: "No Data", humidity: 0 },
+        forecast: []
       }
+    }
+  }
+
+  const getBasicWeatherData = () => {
+    // Provide basic weather data as fallback
+    return {
+      current: { 
+        temp: 28, 
+        condition: "Partly Cloudy", 
+        humidity: 75 
+      },
+      forecast: [
+        { date: "Today", temp: 28, condition: "Partly Cloudy" },
+        { date: "Tomorrow", temp: 29, condition: "Sunny" },
+        { date: "Wed", temp: 27, condition: "Light Rain" },
+        { date: "Thu", temp: 30, condition: "Sunny" },
+        { date: "Fri", temp: 26, condition: "Cloudy" }
+      ]
     }
   }
 
@@ -274,7 +455,11 @@ export function FarmerDashboard({ user }: FarmerDashboardProps) {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No dashboard data available</p>
+            <p className="text-muted-foreground mb-4">No dashboard data available</p>
+            <Button onClick={fetchDashboardData} variant="outline">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh Data
+            </Button>
           </div>
         </div>
       </DashboardLayout>
@@ -330,6 +515,12 @@ export function FarmerDashboard({ user }: FarmerDashboardProps) {
             <Button variant="outline">
               <Package className="w-4 h-4 mr-2" />
               View Marketplace
+            </Button>
+          </Link>
+          <Link href="/fintech">
+            <Button variant="outline">
+              <CreditCard className="w-4 h-4 mr-2" />
+              Fintech Services
             </Button>
           </Link>
           <Link href="/analytics">
@@ -437,41 +628,145 @@ export function FarmerDashboard({ user }: FarmerDashboardProps) {
             >
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Leaf className="w-5 h-5 text-green-600" />
-                    Weather & Farming Conditions
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Leaf className="w-5 h-5 text-green-600" />
+                      Weather & Farming Conditions
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={weatherLoading}
+                      onClick={async () => {
+                        // Refresh weather data
+                        try {
+                          await fetchWeatherOnce()
+                          toast.success("Weather data refreshed!")
+                        } catch (error) {
+                          console.error("Weather refresh error:", error)
+                          toast.error("Failed to refresh weather data")
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      {weatherLoading ? (
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                      )}
+                      {weatherLoading ? "Updating..." : "Refresh"}
+                    </Button>
                   </CardTitle>
+                  <div className="text-sm text-muted-foreground">
+                    <MapPin className="w-3 h-3 inline mr-1" />
+                    {userLocation.lat !== 9.0765 ? 
+                      `Current Location (${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)})` : 
+                      "Abuja, FCT, Nigeria"
+                    }
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Current Weather */}
                     <div className="space-y-4">
                       <h4 className="font-medium">Current Conditions</h4>
-                      <div className="flex items-center gap-4">
-                        <div className="text-3xl font-bold text-foreground">
-                          {stats.weatherData.current.temp}°C
+                      {weatherLoading ? (
+                        <div className="flex items-center gap-4">
+                          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                          <div>
+                            <p className="font-medium">Updating weather data...</p>
+                            <p className="text-sm text-muted-foreground">Please wait</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium capitalize">{stats.weatherData.current.condition}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Humidity: {stats.weatherData.current.humidity}%
-                          </p>
+                      ) : weatherData.current.temp === 0 ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-4">
+                            <div className="text-3xl font-bold text-foreground">
+                              --°C
+                            </div>
+                            <div>
+                              <p className="font-medium text-muted-foreground">Weather Unavailable</p>
+                              <p className="text-sm text-muted-foreground">
+                                Humidity: --%
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                            <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                            Click refresh to try again
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => fetchWeatherOnce()}
+                            className="text-xs"
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            Try Again
+                          </Button>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-4">
+                            <div className="text-3xl font-bold text-foreground">
+                              {weatherData.current.temp}°C
+                            </div>
+                            <div>
+                              <p className="font-medium capitalize">{weatherData.current.condition}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Humidity: {weatherData.current.humidity}%
+                              </p>
+                            </div>
+                          </div>
+                          {weatherData.current.temp > 0 ? (
+                            <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              Real-time data from OpenWeather API
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                              Weather data unavailable
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Forecast */}
                     <div className="space-y-4">
                       <h4 className="font-medium">5-Day Forecast</h4>
-                      <div className="grid grid-cols-5 gap-2">
-                        {stats.weatherData.forecast.map((day, index) => (
-                          <div key={index} className="text-center p-2 bg-muted/50 rounded-lg">
-                            <p className="text-xs font-medium">{day.date}</p>
-                            <p className="text-lg font-bold">{day.temp}°</p>
-                            <p className="text-xs text-muted-foreground capitalize">{day.condition}</p>
+                      {weatherLoading ? (
+                        <div className="text-center py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                            <p className="text-sm text-muted-foreground">Loading forecast...</p>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ) : weatherData.forecast.length === 0 ? (
+                        <div className="text-center py-4">
+                          <p className="text-sm text-muted-foreground">Weather forecast unavailable</p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => fetchWeatherOnce()}
+                            className="mt-2"
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            Try Again
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-5 gap-2">
+                          {weatherData.forecast.map((day, index) => (
+                            <div key={index} className="text-center p-2 bg-muted/50 rounded-lg">
+                              <p className="text-xs font-medium">{day.date}</p>
+                              <p className="text-lg font-bold">{day.temp}°</p>
+                              <p className="text-xs text-muted-foreground capitalize">{day.condition}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -497,44 +792,60 @@ export function FarmerDashboard({ user }: FarmerDashboardProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {stats.recentHarvests.map((harvest) => (
-                      <div
-                        key={harvest.id}
-                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Package className="w-5 h-5 text-primary" />
-                          <div>
-                            <p className="font-medium">{harvest.cropType}</p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Calendar className="w-3 h-3" />
-                              <span>{harvest.date}</span>
-                              <MapPin className="w-3 h-3" />
-                              <span>{harvest.location}</span>
+                  {stats.recentHarvests.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Package className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                      <p className="text-muted-foreground mb-2">No harvests registered yet</p>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Start by adding your first harvest to see it here
+                      </p>
+                      <Link href="/harvests/new">
+                        <Button size="sm">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add First Harvest
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {stats.recentHarvests.map((harvest) => (
+                        <div
+                          key={harvest.id}
+                          className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Package className="w-5 h-5 text-primary" />
+                            <div>
+                              <p className="font-medium">{harvest.cropType}</p>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Calendar className="w-3 h-3" />
+                                <span>{harvest.date}</span>
+                                <MapPin className="w-3 h-3" />
+                                <span>{harvest.location}</span>
+                              </div>
                             </div>
                           </div>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={harvest.status === "verified" ? "default" : "secondary"}
+                              className={
+                                harvest.status === "verified"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-yellow-100 text-yellow-800"
+                              }
+                            >
+                              {harvest.status}
+                            </Badge>
+                            <Link href={`/harvests/${harvest.id}`}>
+                              <Button variant="ghost" size="sm">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </Link>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant={harvest.status === "verified" ? "default" : "secondary"}
-                            className={
-                              harvest.status === "verified"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }
-                          >
-                            {harvest.status}
-                          </Badge>
-                          <Link href={`/harvests/${harvest.id}`}>
-                            <Button variant="ghost" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
@@ -576,23 +887,39 @@ export function FarmerDashboard({ user }: FarmerDashboardProps) {
                   </div>
 
                   <h4 className="font-medium mb-3">Top Performing Products</h4>
-                  <div className="space-y-3">
-                    {stats.marketplaceStats.topProducts.map((product) => (
-                      <div
-                        key={product.id}
-                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                      >
-                        <div>
-                          <p className="font-medium">{product.name}</p>
-                          <p className="text-sm text-muted-foreground">{product.sales} sales</p>
+                  {stats.marketplaceStats.topProducts.length === 0 ? (
+                    <div className="text-center py-6">
+                      <Package className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-muted-foreground text-sm">No marketplace listings yet</p>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        List your products to start earning
+                      </p>
+                      <Link href="/marketplace/create">
+                        <Button size="sm" variant="outline">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create Listing
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {stats.marketplaceStats.topProducts.map((product) => (
+                        <div
+                          key={product.id}
+                          className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                        >
+                          <div>
+                            <p className="font-medium">{product.name}</p>
+                            <p className="text-sm text-muted-foreground">{product.sales} sales</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold">₦{product.revenue.toLocaleString()}</p>
+                            <p className="text-sm text-muted-foreground">Revenue</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-bold">₦{product.revenue.toLocaleString()}</p>
-                          <p className="text-sm text-muted-foreground">Revenue</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

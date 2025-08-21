@@ -180,6 +180,29 @@ export class USSDController {
   }
 
   /**
+   * Get active USSD sessions
+   * GET /api/ussd/sessions
+   */
+  async getUSSDSessions(req: Request, res: Response): Promise<void> {
+    try {
+      const sessions = await ussdService.getActiveSessions();
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'USSD sessions retrieved successfully',
+        data: sessions
+      });
+
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting USSD sessions');
+      res.status(500).json({
+        status: 'error',
+        message: 'Internal server error retrieving USSD sessions'
+      });
+    }
+  }
+
+  /**
    * Register USSD service with telecom provider
    * POST /api/ussd/register
    */

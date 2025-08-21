@@ -156,8 +156,8 @@ export function MarketplaceListings() {
       console.error("Failed to fetch listings:", error)
       setError("Failed to load marketplace listings")
       
-      // Mock data fallback
-      setListings(getMockListings())
+      // Set empty state when API fails
+      setListings([])
       setHasMore(false)
     } finally {
       setLoading(false)
@@ -178,68 +178,7 @@ export function MarketplaceListings() {
     }
   }
 
-  const getMockListings = (): MarketplaceListing[] => [
-    {
-      _id: "1",
-      product: "Fresh Tomatoes",
-      price: 15000,
-      quantity: 50,
-      unit: "kg",
-      farmer: {
-        _id: "farmer1",
-        name: "Adunni Okafor",
-        location: "Lagos State",
-        rating: 4.8
-      },
-      images: [],
-      status: "active",
-      createdAt: "2025-01-15T10:00:00Z",
-      updatedAt: "2025-01-15T10:00:00Z",
-      description: "Fresh, organic tomatoes from our farm",
-      quality: "excellent",
-      location: "Lagos State"
-    },
-    {
-      _id: "2",
-      product: "Organic Yam",
-      price: 8000,
-      quantity: 20,
-      unit: "tubers",
-      farmer: {
-        _id: "farmer2",
-        name: "Ibrahim Mohammed",
-        location: "Kano State",
-        rating: 4.6
-      },
-      images: [],
-      status: "active",
-      createdAt: "2025-01-14T15:00:00Z",
-      updatedAt: "2025-01-14T15:00:00Z",
-      description: "Premium quality yam tubers",
-      quality: "good",
-      location: "Kano State"
-    },
-    {
-      _id: "3",
-      product: "Premium Cassava",
-      price: 6000,
-      quantity: 100,
-      unit: "kg",
-      farmer: {
-        _id: "farmer3",
-        name: "Choma Ezeh",
-        location: "Enugu State",
-        rating: 4.9
-      },
-      images: [],
-      status: "active",
-      createdAt: "2025-01-13T09:00:00Z",
-      updatedAt: "2025-01-13T09:00:00Z",
-      description: "High-quality cassava for processing",
-      quality: "excellent",
-      location: "Enugu State"
-    }
-  ]
+  // No mock data - all data comes from real APIs
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }))

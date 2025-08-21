@@ -25,60 +25,7 @@ import Link from "next/link"
 import { QRCodeGenerator } from "./qr-code-generator"
 import { generateQRCodeData } from "@/lib/qr-utils"
 
-const mockQRCodes = [
-  {
-    id: "1",
-    batchId: "QR001",
-    cropType: "Tomatoes",
-    quantity: "500",
-    unit: "kg",
-    harvestDate: "2025-01-15",
-    location: "Ikeja, Lagos State",
-    status: "verified",
-    scans: 24,
-    lastScanned: "2025-01-16T14:30:00Z",
-    createdAt: "2025-01-15T10:00:00Z",
-  },
-  {
-    id: "2",
-    batchId: "QR002",
-    cropType: "Yam",
-    quantity: "200",
-    unit: "tubers",
-    harvestDate: "2025-01-12",
-    location: "Abeokuta, Ogun State",
-    status: "pending",
-    scans: 8,
-    lastScanned: "2025-01-15T09:15:00Z",
-    createdAt: "2025-01-12T16:20:00Z",
-  },
-  {
-    id: "3",
-    batchId: "QR003",
-    cropType: "Cassava",
-    quantity: "300",
-    unit: "kg",
-    harvestDate: "2025-01-10",
-    location: "Ibadan, Oyo State",
-    status: "verified",
-    scans: 45,
-    lastScanned: "2025-01-16T11:45:00Z",
-    createdAt: "2025-01-10T12:30:00Z",
-  },
-  {
-    id: "4",
-    batchId: "QR004",
-    cropType: "Maize",
-    quantity: "150",
-    unit: "bags",
-    harvestDate: "2025-01-08",
-    location: "Kaduna, Kaduna State",
-    status: "rejected",
-    scans: 3,
-    lastScanned: "2025-01-12T08:20:00Z",
-    createdAt: "2025-01-08T14:10:00Z",
-  },
-]
+// No mock data - QR codes will be fetched from real APIs
 
 const statusColors: Record<"verified" | "pending" | "rejected", "default" | "secondary" | "destructive"> = {
   verified: "default",
@@ -91,31 +38,57 @@ export function QRCodeManagement() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [sortBy, setSortBy] = useState("date")
   const [selectedQR, setSelectedQR] = useState<string | null>(null)
+  const [qrCodes, setQrCodes] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
-  const filteredQRCodes = mockQRCodes
+  // Fetch QR codes from backend
+  useEffect(() => {
+    const fetchQRCodes = async () => {
+      try {
+        setLoading(true)
+        const response = await api.getUserQRCodes()
+        if (response.success && response.data) {
+          setQrCodes(response.data)
+        } else {
+          setQrCodes([])
+        }
+      } catch (error) {
+        console.error("Failed to fetch QR codes:", error)
+        setError("Failed to load QR codes")
+        setQrCodes([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchQRCodes()
+  }, [])
+
+  const filteredQRCodes = qrCodes
     .filter((qr) => {
       const matchesSearch =
-        qr.cropType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        qr.batchId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        qr.location.toLowerCase().includes(searchTerm.toLowerCase())
+        qr.cropType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        qr.batchId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        qr.location?.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesStatus = statusFilter === "all" || qr.status === statusFilter
       return matchesSearch && matchesStatus
     })
     .sort((a, b) => {
       if (sortBy === "date") {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
       }
       if (sortBy === "scans") {
-        return b.scans - a.scans
+        return (b.scans || 0) - (a.scans || 0)
       }
       if (sortBy === "crop") {
-        return a.cropType.localeCompare(b.cropType)
+        return (a.cropType || "").localeCompare(b.cropType || "")
       }
       return 0
     })
 
-  const totalScans = mockQRCodes.reduce((sum, qr) => sum + qr.scans, 0)
-  const verifiedCount = mockQRCodes.filter((qr) => qr.status === "verified").length
+  const totalScans = qrCodes.reduce((sum, qr) => sum + (qr.scans || 0), 0)
+  const verifiedCount = qrCodes.filter((qr) => qr.status === "verified").length
 
   return (
     <div className="min-h-screen bg-background py-8">
@@ -157,7 +130,7 @@ export function QRCodeManagement() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Total QR Codes</p>
-                        <p className="text-2xl font-bold text-foreground">{mockQRCodes.length}</p>
+                        <p className="text-2xl font-bold text-foreground">{qrCodes.length}</p>
                       </div>
                       <QrCode className="w-8 h-8 text-primary" />
                     </div>
@@ -191,7 +164,7 @@ export function QRCodeManagement() {
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Avg. Scans</p>
                         <p className="text-2xl font-bold text-foreground">
-                          {Math.round(totalScans / mockQRCodes.length)}
+                          {qrCodes.length > 0 ? Math.round(totalScans / qrCodes.length) : 0}
                         </p>
                       </div>
                       <BarChart3 className="w-8 h-8 text-primary" />
@@ -207,8 +180,8 @@ export function QRCodeManagement() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {mockQRCodes
-                      .sort((a, b) => new Date(b.lastScanned).getTime() - new Date(a.lastScanned).getTime())
+                    {qrCodes
+                      .sort((a, b) => new Date(b.lastScanned || 0).getTime() - new Date(a.lastScanned || 0).getTime())
                       .slice(0, 5)
                       .map((qr, index) => (
                         <motion.div

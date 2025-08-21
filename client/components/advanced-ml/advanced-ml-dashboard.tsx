@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,63 +8,71 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Progress } from "@/components/ui/Progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
-import { 
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import {
   Brain,
-  Zap,
   TrendingUp,
-  AlertTriangle,
+  Lightbulb,
+  AlertCircle,
   Settings,
-  Download,
-  RefreshCw,
-  Target,
   BarChart3,
+  Leaf,
+  Droplets,
+  Sun,
+  Bug,
+  Zap,
   Activity,
-  Cpu,
-  Database
+  Gauge,
+  Target,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  Wifi,
+  RefreshCw,
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { api } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
+import { api } from "@/lib/api"
+import { toast } from "sonner"
+import Link from "next/link"
 
-interface SensorMaintenance {
+interface SensorHealth {
   sensorId: string
   sensorName: string
-  maintenanceSchedule: {
-    nextMaintenance: string
-    maintenanceType: string
-    urgency: "low" | "medium" | "high"
-  }
   healthScore: number
-  recommendations: string[]
-}
-
-interface SensorAnomaly {
-  sensorId: string
-  sensorName: string
-  anomalies: Array<{
-    timestamp: string
-    type: "drift" | "spike" | "dropout" | "noise"
-    severity: "low" | "medium" | "high"
-    description: string
-    confidence: number
-  }>
+  lastMaintenance: string
+  nextMaintenance: string
+  anomalies: number
+  status: "healthy" | "warning" | "critical"
 }
 
 interface OptimizationResult {
   type: "irrigation" | "fertilizer" | "harvest"
-  recommendations: Array<{
-    field: string
-    action: string
-    timing: string
-    expectedBenefit: string
-    confidence: number
-  }>
-  potentialSavings: {
-    water: number
-    fertilizer: number
-    time: number
-    cost: number
-  }
+  currentEfficiency: number
+  optimizedEfficiency: number
+  recommendations: string[]
+  estimatedSavings: number
+  implementationTime: string
+}
+
+interface EfficiencyScore {
+  overall: number
+  irrigation: number
+  fertilizer: number
+  harvest: number
+  pestControl: number
+  weatherAdaptation: number
+}
+
+interface PredictiveInsight {
+  type: "maintenance" | "optimization" | "risk"
+  title: string
+  description: string
+  confidence: number
+  timeframe: string
+  impact: "high" | "medium" | "low"
 }
 
 interface MLModelPerformance {
@@ -74,657 +82,597 @@ interface MLModelPerformance {
   recall: number
   f1Score: number
   lastUpdated: string
-  dataPoints: number
   status: "active" | "training" | "deprecated"
-}
-
-interface EfficiencyScore {
-  overall: number
-  irrigation: number
-  fertilizer: number
-  harvest: number
-  trends: Array<{
-    date: string
-    score: number
-  }>
 }
 
 export function AdvancedMLDashboard() {
   const { user } = useAuth()
-  const [sensorMaintenance, setSensorMaintenance] = useState<SensorMaintenance[]>([])
-  const [sensorAnomalies, setSensorAnomalies] = useState<SensorAnomaly[]>([])
-  const [optimization, setOptimization] = useState<OptimizationResult[]>([])
-  const [modelPerformance, setModelPerformance] = useState<MLModelPerformance[]>([])
-  const [efficiencyScore, setEfficiencyScore] = useState<EfficiencyScore | null>(null)
-  const [sensorHealth, setSensorHealth] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState("overview")
   const [selectedSensor, setSelectedSensor] = useState<string>("")
-  const [optimizationType, setOptimizationType] = useState<string>("irrigation")
+  const [sensors, setSensors] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  
+  // State for different ML services
+  const [sensorHealth, setSensorHealth] = useState<SensorHealth[]>([])
+  const [optimizationResults, setOptimizationResults] = useState<OptimizationResult[]>([])
+  const [efficiencyScore, setEfficiencyScore] = useState<EfficiencyScore | null>(null)
+  const [predictiveInsights, setPredictiveInsights] = useState<PredictiveInsight[]>([])
+  const [modelPerformance, setModelPerformance] = useState<MLModelPerformance[]>([])
 
+  // Fetch sensors on component mount
   useEffect(() => {
-    fetchAdvancedMLData()
-  }, [selectedSensor])
+    fetchSensors()
+  }, [])
 
-  const fetchAdvancedMLData = async () => {
-    setLoading(true)
+  const fetchSensors = async () => {
     try {
-      // Fetch sensor health insights
-      const healthResponse = await api.getSensorHealthInsights()
-      if (healthResponse.success) {
-        setSensorHealth(healthResponse.data)
-      }
-
-      // Fetch efficiency score
-      const efficiencyResponse = await api.getEfficiencyScore()
-      if (efficiencyResponse.success && efficiencyResponse.data) {
-        setEfficiencyScore(efficiencyResponse.data as EfficiencyScore)
-      } else {
-        setEfficiencyScore(mockEfficiencyScore)
-      }
-
-      // Fetch ML model performance
-      const modelsResponse = await api.getMLModelsPerformance()
-      if (modelsResponse.success && modelsResponse.data) {
-        const payload: any = modelsResponse.data
-        setModelPerformance((payload.models as MLModelPerformance[]) || mockModels)
-      } else {
-        setModelPerformance(mockModels)
-      }
-
-      // Fetch optimization recommendations
-      const irrigationOpt = await api.getIrrigationOptimization()
-      const fertilizerOpt = await api.getFertilizerOptimization()
-      const harvestOpt = await api.getHarvestOptimization()
-
-      const optimizations: OptimizationResult[] = [] as OptimizationResult[]
-      if (irrigationOpt.success && irrigationOpt.data) optimizations.push(irrigationOpt.data as OptimizationResult)
-      if (fertilizerOpt.success && fertilizerOpt.data) optimizations.push(fertilizerOpt.data as OptimizationResult)
-      if (harvestOpt.success && harvestOpt.data) optimizations.push(harvestOpt.data as OptimizationResult)
-      
-      if (optimizations.length === 0) {
-        setOptimization(mockOptimizations)
-      } else {
-        setOptimization(optimizations)
-      }
-
-      // Fetch sensor-specific data if sensor selected
-      if (selectedSensor) {
-        const maintenanceResponse = await api.getSensorMaintenance(selectedSensor)
-        const anomalyResponse = await api.getSensorAnomalies(selectedSensor)
-        
-        if (maintenanceResponse.success && maintenanceResponse.data) {
-          setSensorMaintenance([maintenanceResponse.data as SensorMaintenance])
+      setLoading(true)
+      const resp = await api.getSensors()
+      if (resp.success && resp.data) {
+        const sensorsList: any[] = ((resp.data as any).data || resp.data) as any[]
+        setSensors(sensorsList)
+        if (sensorsList.length > 0) {
+          setSelectedSensor(sensorsList[0]._id || sensorsList[0].id)
         }
-        if (anomalyResponse.success && anomalyResponse.data) {
-          setSensorAnomalies([anomalyResponse.data as SensorAnomaly])
-        }
-      } else {
-        // Mock data for demo
-        setSensorMaintenance(mockSensorMaintenance)
-        setSensorAnomalies(mockSensorAnomalies)
       }
-
     } catch (error) {
-      console.error("Error fetching advanced ML data:", error)
-      // Use mock data
-      setEfficiencyScore(mockEfficiencyScore)
-      setModelPerformance(mockModels)
-      setOptimization(mockOptimizations)
-      setSensorMaintenance(mockSensorMaintenance)
-      setSensorAnomalies(mockSensorAnomalies)
+      console.error("Failed to fetch sensors:", error)
+      toast.error("Failed to load sensors")
     } finally {
       setLoading(false)
     }
   }
 
-  const runOptimization = async (type: string) => {
+  const fetchSensorHealth = async () => {
+    if (!selectedSensor) return
+    
     try {
-      let response
-      switch (type) {
-        case "irrigation":
-          response = await api.getIrrigationOptimization()
-          break
-        case "fertilizer":
-          response = await api.getFertilizerOptimization()
-          break
-        case "harvest":
-          response = await api.getHarvestOptimization()
-          break
-        default:
-          return
+      setLoading(true)
+      const resp = await api.get(`/api/advanced-ml/sensors/${selectedSensor}/maintenance`)
+      if (resp.success && resp.data) {
+        setSensorHealth([resp.data])
       }
-
-      if (response.success) {
-        // Update optimization results
-        fetchAdvancedMLData()
+      
+      const anomaliesResp = await api.get(`/api/advanced-ml/sensors/${selectedSensor}/anomalies`)
+      if (anomaliesResp.success && anomaliesResp.data) {
+        // Update sensor health with anomalies data
+        setSensorHealth(prev => prev.map(health => ({
+          ...health,
+          anomalies: anomaliesResp.data.anomalies?.length || 0
+        })))
       }
     } catch (error) {
-      console.error("Error running optimization:", error)
+      console.error("Failed to fetch sensor health:", error)
+      toast.error("Failed to load sensor health data")
+    } finally {
+      setLoading(false)
     }
   }
 
-  const generateOptimizationReport = async () => {
+  const fetchOptimizationResults = async () => {
     try {
-      const response = await api.getOptimizationReport()
-      if (response.success) {
-        // Trigger download or display report
-        const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `optimization-report-${new Date().toISOString().split('T')[0]}.json`
-        a.click()
+      setLoading(true)
+      
+      // Fetch irrigation optimization
+      const irrigationResp = await api.get(`/api/advanced-ml/optimize/irrigation`)
+      if (irrigationResp.success && irrigationResp.data) {
+        setOptimizationResults(prev => [...prev.filter(r => r.type !== 'irrigation'), irrigationResp.data])
+      }
+      
+      // Fetch fertilizer optimization
+      const fertilizerResp = await api.get(`/api/advanced-ml/optimize/fertilizer`)
+      if (fertilizerResp.success && fertilizerResp.data) {
+        setOptimizationResults(prev => [...prev.filter(r => r.type !== 'fertilizer'), fertilizerResp.data])
+      }
+      
+      // Fetch harvest optimization
+      const harvestResp = await api.get(`/api/advanced-ml/optimize/harvest`)
+      if (harvestResp.success && harvestResp.data) {
+        setOptimizationResults(prev => [...prev.filter(r => r.type !== 'harvest'), harvestResp.data])
       }
     } catch (error) {
-      console.error("Error generating report:", error)
+      console.error("Failed to fetch optimization results:", error)
+      toast.error("Failed to load optimization data")
+    } finally {
+      setLoading(false)
     }
   }
 
-  // Mock data
-  const mockEfficiencyScore: EfficiencyScore = {
-    overall: 87,
-    irrigation: 92,
-    fertilizer: 85,
-    harvest: 84,
-    trends: [
-      { date: "2025-01-10", score: 85 },
-      { date: "2025-01-11", score: 86 },
-      { date: "2025-01-12", score: 87 },
-      { date: "2025-01-13", score: 88 },
-      { date: "2025-01-14", score: 87 },
-    ]
+  const fetchEfficiencyScore = async () => {
+    try {
+      setLoading(true)
+      const resp = await api.get(`/api/advanced-ml/insights/efficiency-score`)
+      if (resp.success && resp.data) {
+        setEfficiencyScore(resp.data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch efficiency score:", error)
+      toast.error("Failed to load efficiency data")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const mockModels: MLModelPerformance[] = [
-    {
-      modelName: "Crop Yield Predictor",
-      accuracy: 94.2,
-      precision: 92.8,
-      recall: 95.1,
-      f1Score: 93.9,
-      lastUpdated: "2025-01-15T10:30:00Z",
-      dataPoints: 15420,
-      status: "active"
-    },
-    {
-      modelName: "Irrigation Optimizer",
-      accuracy: 89.7,
-      precision: 91.2,
-      recall: 88.3,
-      f1Score: 89.7,
-      lastUpdated: "2025-01-14T14:20:00Z",
-      dataPoints: 8930,
-      status: "active"
-    },
-    {
-      modelName: "Pest Detection",
-      accuracy: 96.5,
-      precision: 97.1,
-      recall: 95.8,
-      f1Score: 96.4,
-      lastUpdated: "2025-01-13T09:15:00Z",
-      dataPoints: 12340,
-      status: "training"
+  const fetchPredictiveInsights = async () => {
+    try {
+      setLoading(true)
+      const resp = await api.get(`/api/advanced-ml/insights/predictive`)
+      if (resp.success && resp.data) {
+        setPredictiveInsights(resp.data.insights || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch predictive insights:", error)
+      toast.error("Failed to load predictive insights")
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
 
-  const mockOptimizations: OptimizationResult[] = [
-    {
-      type: "irrigation",
-      recommendations: [
-        {
-          field: "Field A - North",
-          action: "Reduce irrigation frequency",
-          timing: "Next 5 days",
-          expectedBenefit: "Save 30% water",
-          confidence: 92
-        },
-        {
-          field: "Field B - South",
-          action: "Increase irrigation duration",
-          timing: "Today evening",
-          expectedBenefit: "Improve crop health",
-          confidence: 88
-        }
-      ],
-      potentialSavings: { water: 30, fertilizer: 0, time: 15, cost: 1200 }
-    },
-    {
-      type: "fertilizer",
-      recommendations: [
-        {
-          field: "Field C - East",
-          action: "Apply nitrogen fertilizer",
-          timing: "Tomorrow morning",
-          expectedBenefit: "Increase yield by 15%",
-          confidence: 85
-        }
-      ],
-      potentialSavings: { water: 0, fertilizer: 20, time: 10, cost: 800 }
+  const fetchModelPerformance = async () => {
+    try {
+      setLoading(true)
+      const resp = await api.get(`/api/advanced-ml/models/performance`)
+      if (resp.success && resp.data) {
+        setModelPerformance(resp.data.models || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch model performance:", error)
+      toast.error("Failed to load model performance data")
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
 
-  const mockSensorMaintenance: SensorMaintenance[] = [
-    {
-      sensorId: "sensor_001",
-      sensorName: "Soil Moisture A1",
-      maintenanceSchedule: {
-        nextMaintenance: "2025-01-20",
-        maintenanceType: "Calibration",
-        urgency: "medium"
-      },
-      healthScore: 85,
-      recommendations: ["Clean sensor housing", "Check battery level", "Calibrate readings"]
+  const handleSensorChange = (sensorId: string) => {
+    setSelectedSensor(sensorId)
+    if (sensorId) {
+      fetchSensorHealth()
     }
-  ]
+  }
 
-  const mockSensorAnomalies: SensorAnomaly[] = [
-    {
-      sensorId: "sensor_002",
-      sensorName: "Temperature B2",
-      anomalies: [
-        {
-          timestamp: "2025-01-16T14:30:00Z",
-          type: "spike",
-          severity: "medium",
-          description: "Unexpected temperature spike detected",
-          confidence: 78
-        }
-      ]
-    }
-  ]
+  const refreshAllData = async () => {
+    await Promise.all([
+      fetchSensorHealth(),
+      fetchOptimizationResults(),
+      fetchEfficiencyScore(),
+      fetchPredictiveInsights(),
+      fetchModelPerformance()
+    ])
+    toast.success("All data refreshed")
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active": return "bg-green-500"
-      case "training": return "bg-blue-500"
-      case "deprecated": return "bg-gray-500"
-      default: return "bg-gray-500"
+      case "healthy": return "text-success"
+      case "warning": return "text-warning"
+      case "critical": return "text-destructive"
+      default: return "text-muted-foreground"
     }
   }
 
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case "high": return "bg-red-500"
-      case "medium": return "bg-yellow-500"
-      case "low": return "bg-green-500"
-      default: return "bg-gray-500"
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "healthy": return <Badge variant="default">Healthy</Badge>
+      case "warning": return <Badge variant="secondary">Warning</Badge>
+      case "critical": return <Badge variant="destructive">Critical</Badge>
+      default: return <Badge variant="outline">{status}</Badge>
     }
   }
 
-  if (loading || !user) {
-    return (
-      <DashboardLayout user={user as any}>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <Brain className="h-8 w-8 animate-pulse mx-auto mb-4" />
-            <p>Loading advanced ML analytics...</p>
-          </div>
-        </div>
-      </DashboardLayout>
-    )
+  const getImpactColor = (impact: string) => {
+    switch (impact) {
+      case "high": return "text-destructive"
+      case "medium": return "text-warning"
+      case "low": return "text-success"
+      default: return "text-muted-foreground"
+    }
   }
 
   return (
     <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0"
-        >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Advanced ML Services</h1>
-            <p className="text-muted-foreground">
-              AI-powered optimization and predictive analytics for smart farming
-            </p>
+            <h1 className="text-2xl font-heading font-bold text-foreground">Advanced ML Services</h1>
+            <p className="text-muted-foreground">Machine learning-powered precision agriculture and optimization</p>
           </div>
-          
-          <div className="flex space-x-2">
-            <Button onClick={generateOptimizationReport} variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Export Report
+          <div className="flex gap-2">
+            <Button variant="outline" size="lg" onClick={refreshAllData} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh All
             </Button>
-            <Button onClick={fetchAdvancedMLData}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
+            <Link href="/ai">
+              <Button variant="outline" size="lg" className="bg-transparent">
+                <Brain className="w-4 h-4 mr-2" />
+                AI Insights
+              </Button>
+            </Link>
+            <Link href="/image-recognition">
+              <Button variant="outline" size="lg" className="bg-transparent">
+                <Activity className="w-4 h-4 mr-2" />
+                Image Analysis
+              </Button>
+            </Link>
           </div>
-        </motion.div>
+        </div>
 
-        {/* Efficiency Overview */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Overall Efficiency</p>
-                    <p className="text-3xl font-bold">{efficiencyScore?.overall}%</p>
-                  </div>
-                  <Target className="h-8 w-8 text-blue-500" />
-                </div>
-                <Progress value={efficiencyScore?.overall} className="mt-2" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Irrigation Efficiency</p>
-                    <p className="text-3xl font-bold">{efficiencyScore?.irrigation}%</p>
-                  </div>
-                  <Zap className="h-8 w-8 text-blue-500" />
-                </div>
-                <Progress value={efficiencyScore?.irrigation} className="mt-2" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Fertilizer Efficiency</p>
-                    <p className="text-3xl font-bold">{efficiencyScore?.fertilizer}%</p>
-                  </div>
-                  <Activity className="h-8 w-8 text-green-500" />
-                </div>
-                <Progress value={efficiencyScore?.fertilizer} className="mt-2" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Harvest Efficiency</p>
-                    <p className="text-3xl font-bold">{efficiencyScore?.harvest}%</p>
-                  </div>
-                  <TrendingUp className="h-8 w-8 text-orange-500" />
-                </div>
-                <Progress value={efficiencyScore?.harvest} className="mt-2" />
-              </CardContent>
-            </Card>
-          </div>
-        </motion.div>
-
-        {/* Tabs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Tabs defaultValue="optimization" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="optimization">Optimization</TabsTrigger>
-              <TabsTrigger value="sensors">Sensor Analytics</TabsTrigger>
-              <TabsTrigger value="models">ML Models</TabsTrigger>
-              <TabsTrigger value="insights">Predictive Insights</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="optimization" className="space-y-4">
-              <div className="flex items-center space-x-4 mb-4">
-                <Select value={optimizationType} onValueChange={setOptimizationType}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="irrigation">Irrigation</SelectItem>
-                    <SelectItem value="fertilizer">Fertilizer</SelectItem>
-                    <SelectItem value="harvest">Harvest</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button onClick={() => runOptimization(optimizationType)}>
-                  <Brain className="h-4 w-4 mr-2" />
-                  Run Optimization
+        {/* Sensor Selection */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4">
+              <Label htmlFor="sensor-select">Select Sensor:</Label>
+              <Select value={selectedSensor} onValueChange={handleSensorChange}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Choose a sensor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sensors.map((sensor) => (
+                    <SelectItem key={sensor._id || sensor.id} value={sensor._id || sensor.id}>
+                      {sensor.metadata?.model || sensor.sensorId || 'Sensor'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedSensor && (
+                <Button onClick={fetchSensorHealth} disabled={loading}>
+                  Analyze Sensor
                 </Button>
-              </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {optimization.map((opt, index) => (
-                  <Card key={index}>
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        <Target className="h-5 w-5" />
-                        <span>{opt.type.charAt(0).toUpperCase() + opt.type.slice(1)} Optimization</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="text-center p-2 bg-blue-50 rounded">
-                          <p className="font-bold text-blue-600">{opt.potentialSavings.water}%</p>
-                          <p className="text-xs">Water Savings</p>
-                        </div>
-                        <div className="text-center p-2 bg-green-50 rounded">
-                          <p className="font-bold text-green-600">₦{opt.potentialSavings.cost}</p>
-                          <p className="text-xs">Cost Savings</p>
-                        </div>
-                      </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="sensor-health">Sensor Health</TabsTrigger>
+            <TabsTrigger value="optimization">Optimization</TabsTrigger>
+            <TabsTrigger value="efficiency">Efficiency</TabsTrigger>
+            <TabsTrigger value="models">ML Models</TabsTrigger>
+          </TabsList>
 
-                      <div className="space-y-3">
-                        <p className="font-semibold text-sm">Recommendations:</p>
-                        {opt.recommendations.map((rec, idx) => (
-                          <div key={idx} className="border-l-4 border-blue-500 pl-3 py-2">
-                            <div className="flex items-center justify-between">
-                              <p className="font-medium text-sm">{rec.field}</p>
-                              <Badge variant="outline">{rec.confidence}% confidence</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{rec.action}</p>
-                            <p className="text-xs text-blue-600">{rec.timing} • {rec.expectedBenefit}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="sensors" className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Sensor Maintenance Schedule</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {sensorMaintenance.map((sensor) => (
-                        <div key={sensor.sensorId} className="border rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="font-semibold">{sensor.sensorName}</p>
-                            <Badge className={getUrgencyColor(sensor.maintenanceSchedule.urgency)}>
-                              {sensor.maintenanceSchedule.urgency}
-                            </Badge>
-                          </div>
-                          <div className="space-y-2 text-sm">
-                            <p><strong>Next Maintenance:</strong> {sensor.maintenanceSchedule.nextMaintenance}</p>
-                            <p><strong>Type:</strong> {sensor.maintenanceSchedule.maintenanceType}</p>
-                            <p><strong>Health Score:</strong> {sensor.healthScore}%</p>
-                            <Progress value={sensor.healthScore} className="mt-2" />
-                          </div>
-                          <div className="mt-3">
-                            <p className="font-semibold text-xs">Recommendations:</p>
-                            <ul className="list-disc list-inside text-xs space-y-1 mt-1">
-                              {sensor.recommendations.map((rec, idx) => (
-                                <li key={idx} className="text-muted-foreground">{rec}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      ))}
+          <TabsContent value="overview" className="space-y-6">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Active Sensors</p>
+                      <p className="text-2xl font-bold text-foreground">{sensors.length}</p>
                     </div>
-                  </CardContent>
-                </Card>
+                    <Wifi className="w-8 h-8 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Anomaly Detection</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {sensorAnomalies.map((sensor) => (
-                        <div key={sensor.sensorId} className="border rounded-lg p-4">
-                          <p className="font-semibold mb-2">{sensor.sensorName}</p>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">ML Models</p>
+                      <p className="text-2xl font-bold text-foreground">{modelPerformance.length}</p>
+                    </div>
+                    <Brain className="w-8 h-8 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Optimizations</p>
+                      <p className="text-2xl font-bold text-foreground">{optimizationResults.length}</p>
+                    </div>
+                    <Target className="w-8 h-8 text-success" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Predictive Insights</p>
+                      <p className="text-2xl font-bold text-foreground">{predictiveInsights.length}</p>
+                    </div>
+                    <TrendingUp className="w-8 h-8 text-info" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex flex-col items-center justify-center"
+                    onClick={fetchOptimizationResults}
+                    disabled={loading}
+                  >
+                    <Zap className="w-8 h-8 mb-2" />
+                    <span>Run Optimization</span>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex flex-col items-center justify-center"
+                    onClick={fetchEfficiencyScore}
+                    disabled={loading}
+                  >
+                    <Gauge className="w-8 h-8 mb-2" />
+                    <span>Calculate Efficiency</span>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex flex-col items-center justify-center"
+                    onClick={fetchPredictiveInsights}
+                    disabled={loading}
+                  >
+                    <TrendingUp className="w-8 h-8 mb-2" />
+                    <span>Generate Insights</span>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="sensor-health" className="space-y-6">
+            <div className="space-y-4">
+              {sensorHealth.length > 0 ? (
+                sensorHealth.map((health, index) => (
+                  <motion.div
+                    key={health.sensorId}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                  >
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{health.sensorName}</CardTitle>
+                          {getStatusBadge(health.status)}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="space-y-2">
-                            {sensor.anomalies.map((anomaly, idx) => (
-                              <div key={idx} className="border-l-4 border-orange-500 pl-3 py-2">
-                                <div className="flex items-center justify-between">
-                                  <p className="font-medium text-sm">{anomaly.type.toUpperCase()}</p>
-                                  <Badge className={getUrgencyColor(anomaly.severity)}>
-                                    {anomaly.severity}
-                                  </Badge>
-                                </div>
-                                <p className="text-sm text-muted-foreground">{anomaly.description}</p>
-                                <p className="text-xs">
-                                  {new Date(anomaly.timestamp).toLocaleString()} • {anomaly.confidence}% confidence
-                                </p>
-                              </div>
-                            ))}
+                            <div className="flex justify-between text-sm">
+                              <span>Health Score</span>
+                              <span className={getStatusColor(health.status)}>{health.healthScore}%</span>
+                            </div>
+                            <Progress value={health.healthScore} className="h-2" />
+                          </div>
+                          
+                          <div className="text-center">
+                            <p className="text-sm font-medium">Anomalies Detected</p>
+                            <p className="text-2xl font-bold text-warning">{health.anomalies}</p>
+                          </div>
+                          
+                          <div className="text-center">
+                            <p className="text-sm font-medium">Next Maintenance</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(health.nextMaintenance).toLocaleDateString()}
+                            </p>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                        
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" size="sm">
+                            <Settings className="w-4 h-4 mr-2" />
+                            Schedule Maintenance
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <BarChart3 className="w-4 h-4 mr-2" />
+                            View Details
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <Wifi className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">Select a sensor to view health analysis</p>
                   </CardContent>
                 </Card>
-              </div>
-            </TabsContent>
+              )}
+            </div>
+          </TabsContent>
 
-            <TabsContent value="models" className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {modelPerformance.map((model) => (
-                  <Card key={model.modelName}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{model.modelName}</CardTitle>
-                        <Badge className={getStatusColor(model.status)}>
-                          {model.status}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <p className="text-muted-foreground">Accuracy</p>
-                          <p className="font-bold">{model.accuracy}%</p>
+          <TabsContent value="optimization" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {optimizationResults.length > 0 ? (
+                optimizationResults.map((result, index) => (
+                  <motion.div
+                    key={result.type}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                  >
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg capitalize">{result.type} Optimization</CardTitle>
+                          <Badge variant="outline">{result.implementationTime}</Badge>
                         </div>
-                        <div>
-                          <p className="text-muted-foreground">Precision</p>
-                          <p className="font-bold">{model.precision}%</p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Current Efficiency</span>
+                            <span className="text-muted-foreground">{result.currentEfficiency}%</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Optimized Efficiency</span>
+                            <span className="text-success font-medium">{result.optimizedEfficiency}%</span>
+                          </div>
+                          <Progress 
+                            value={result.optimizedEfficiency} 
+                            className="h-2" 
+                          />
                         </div>
-                        <div>
-                          <p className="text-muted-foreground">Recall</p>
-                          <p className="font-bold">{model.recall}%</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">F1 Score</p>
-                          <p className="font-bold">{model.f1Score}%</p>
-                        </div>
-                      </div>
-                      
-                      <div className="text-sm space-y-1">
-                        <p><strong>Data Points:</strong> {model.dataPoints.toLocaleString()}</p>
-                        <p><strong>Last Updated:</strong> {new Date(model.lastUpdated).toLocaleDateString()}</p>
-                      </div>
 
-                      <div className="space-y-2">
-                        <Progress value={model.accuracy} className="h-2" />
-                        <p className="text-xs text-center text-muted-foreground">Overall Performance</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Estimated Savings</p>
+                          <p className="text-lg font-bold text-success">₦{result.estimatedSavings.toLocaleString()}</p>
+                        </div>
 
-            <TabsContent value="insights" className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Recommendations</p>
+                          <ul className="text-sm text-muted-foreground space-y-1">
+                            {result.recommendations.map((rec, idx) => (
+                              <li key={idx} className="flex items-start">
+                                <CheckCircle className="w-3 h-3 mr-2 mt-0.5 text-success flex-shrink-0" />
+                                <span>{rec}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <Button variant="outline" size="sm" className="w-full">
+                          Implement Changes
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))
+              ) : (
+                <Card className="col-span-3">
+                  <CardContent className="p-8 text-center">
+                    <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No optimization results available</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Click "Run Optimization" to generate recommendations
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="efficiency" className="space-y-6">
+            {efficiencyScore ? (
+              <div className="space-y-6">
+                {/* Overall Efficiency Score */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Predictive Analytics Summary</CardTitle>
+                    <CardTitle>Overall Farming Efficiency Score</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 border rounded">
-                        <div>
-                          <p className="font-semibold">Yield Forecast</p>
-                          <p className="text-sm text-muted-foreground">Next harvest predictions</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-green-600">+12%</p>
-                          <p className="text-xs">vs last season</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between p-3 border rounded">
-                        <div>
-                          <p className="font-semibold">Risk Assessment</p>
-                          <p className="text-sm text-muted-foreground">Weather & pest risks</p>
-                        </div>
-                        <div className="text-right">
-                          <Badge className="bg-yellow-500">Medium</Badge>
-                          <p className="text-xs">Risk Level</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between p-3 border rounded">
-                        <div>
-                          <p className="font-semibold">Market Timing</p>
-                          <p className="text-sm text-muted-foreground">Optimal selling window</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold">3-5 days</p>
-                          <p className="text-xs">from now</p>
-                        </div>
-                      </div>
+                  <CardContent>
+                    <div className="text-center space-y-4">
+                      <div className="text-6xl font-bold text-primary">{efficiencyScore.overall}%</div>
+                      <Progress value={efficiencyScore.overall} className="h-3" />
+                      <p className="text-muted-foreground">
+                        Your farm is performing {efficiencyScore.overall >= 80 ? 'excellently' : 
+                         efficiencyScore.overall >= 60 ? 'well' : 'below average'}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Resource Optimization</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-3">
-                      <div className="border rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="font-semibold">Water Usage</p>
-                          <Badge className="bg-blue-500">Optimized</Badge>
+                {/* Detailed Efficiency Breakdown */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {Object.entries(efficiencyScore).filter(([key]) => key !== 'overall').map(([key, value]) => (
+                    <Card key={key}>
+                      <CardHeader>
+                        <CardTitle className="text-lg capitalize">{key.replace(/([A-Z])/g, ' $1')}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-center space-y-2">
+                          <div className="text-3xl font-bold text-foreground">{value}%</div>
+                          <Progress value={value} className="h-2" />
+                          <p className="text-xs text-muted-foreground">
+                            {value >= 80 ? 'Excellent' : value >= 60 ? 'Good' : 'Needs Improvement'}
+                          </p>
                         </div>
-                        <Progress value={85} className="mb-2" />
-                        <p className="text-sm text-muted-foreground">Current efficiency: 85%</p>
-                      </div>
-
-                      <div className="border rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="font-semibold">Fertilizer Application</p>
-                          <Badge className="bg-green-500">Optimal</Badge>
-                        </div>
-                        <Progress value={92} className="mb-2" />
-                        <p className="text-sm text-muted-foreground">Current efficiency: 92%</p>
-                      </div>
-
-                      <div className="border rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="font-semibold">Labor Allocation</p>
-                          <Badge className="bg-yellow-500">Needs Attention</Badge>
-                        </div>
-                        <Progress value={68} className="mb-2" />
-                        <p className="text-sm text-muted-foreground">Current efficiency: 68%</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
-            </TabsContent>
-          </Tabs>
-        </motion.div>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Gauge className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No efficiency data available</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Click "Calculate Efficiency" to generate your farm's efficiency score
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="models" className="space-y-6">
+            <div className="space-y-4">
+              {modelPerformance.length > 0 ? (
+                modelPerformance.map((model, index) => (
+                  <motion.div
+                    key={model.modelName}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                  >
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{model.modelName}</CardTitle>
+                          <Badge variant={model.status === 'active' ? 'default' : 
+                                       model.status === 'training' ? 'secondary' : 'outline'}>
+                            {model.status}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div className="text-center">
+                            <p className="text-sm font-medium">Accuracy</p>
+                            <p className="text-2xl font-bold text-success">{model.accuracy}%</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-medium">Precision</p>
+                            <p className="text-2xl font-bold text-primary">{model.precision}%</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-medium">Recall</p>
+                            <p className="text-2xl font-bold text-info">{model.recall}%</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-medium">F1 Score</p>
+                            <p className="text-2xl font-bold text-warning">{model.f1Score}%</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-4 pt-4 border-t">
+                          <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <span>Last Updated</span>
+                            <span>{new Date(model.lastUpdated).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <Brain className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No ML model performance data available</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   )

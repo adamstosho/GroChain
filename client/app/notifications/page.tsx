@@ -1,5 +1,5 @@
-import { NotificationsPage } from "@/components/notifications/notifications-page"
+import { NotificationDashboard } from "@/components/notifications/notification-dashboard"
 
-export default function Notifications() {
-  return <NotificationsPage />
+export default function NotificationsPage() {
+  return <NotificationDashboard />
 }

@@ -126,18 +126,20 @@ export const login = async (req: Request, res: Response) => {
 
     // JWT payload
     const payload = { id: user._id, role: user.role } as any;
-    const accessExpiresIn = (process.env.JWT_EXPIRES_IN ?? '1h') as unknown as number | string;
-    const refreshExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ?? '7d') as unknown as number | string;
+    const accessExpiresIn = (process.env.JWT_EXPIRES_IN ?? '24h') as unknown as number | string;
+    const refreshExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ?? '30d') as unknown as number | string;
     const accessToken = sign(payload, process.env.JWT_SECRET as string, { expiresIn: accessExpiresIn as any });
     const refreshToken = sign(payload, process.env.JWT_REFRESH_SECRET as string, { expiresIn: refreshExpiresIn as any });
-    // Set auth cookie for frontend middleware
+    
+    // Set non-httpOnly cookie for frontend middleware compatibility
     try {
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
       res.cookie('auth_token', accessToken, {
-        httpOnly: true,
+        httpOnly: false, // Allow JavaScript access
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',
         path: '/',
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: maxAge,
       })
     } catch {}
 
@@ -177,19 +179,23 @@ export const refresh = async (req: Request, res: Response) => {
     if (!user || user.status !== 'active') {
       return res.status(401).json({ status: 'error', message: 'User not found or inactive.' });
     }
-    const accessExpiresIn = (process.env.JWT_EXPIRES_IN ?? '1h') as unknown as number | string;
-    const refreshExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ?? '7d') as unknown as number | string;
+    const accessExpiresIn = (process.env.JWT_EXPIRES_IN ?? '24h') as unknown as number | string;
+    const refreshExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN ?? '30d') as unknown as number | string;
     const newAccessToken = sign({ id: user._id, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: accessExpiresIn as any });
     const newRefreshToken = sign({ id: user._id, role: user.role }, process.env.JWT_REFRESH_SECRET as string, { expiresIn: refreshExpiresIn as any });
+    
+    // Set non-httpOnly cookie for frontend middleware compatibility
     try {
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
       res.cookie('auth_token', newAccessToken, {
-        httpOnly: true,
+        httpOnly: false, // Allow JavaScript access
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',
         path: '/',
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: maxAge,
       })
     } catch {}
+    
     return res.status(200).json({ status: 'success', accessToken: newAccessToken, refreshToken: newRefreshToken });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });

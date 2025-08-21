@@ -34,6 +34,8 @@ export const getCurrentWeather = async (req: Request, res: Response) => {
       country: country as string
     };
 
+    console.log('Weather controller: Fetching weather for location:', location);
+
     // In test environment, simulate downstream failure when explicitly requested for test coverage
     if (process.env.NODE_ENV === 'test' && req.query.__forceFail === 'true') {
       throw new Error('Simulated weather service failure');
@@ -49,9 +51,40 @@ export const getCurrentWeather = async (req: Request, res: Response) => {
 
     const weatherData = await weatherService.getCurrentWeather(location);
 
+    console.log('Weather controller: Weather data retrieved successfully');
+
+    // Return data in the format expected by the frontend
     res.status(200).json({
       status: 'success',
-      data: weatherData
+      data: {
+        current: {
+          temp: weatherData.current.temperature,
+          condition: weatherData.current.weatherCondition,
+          humidity: weatherData.current.humidity,
+          windSpeed: weatherData.current.windSpeed,
+          pressure: weatherData.current.pressure,
+          visibility: weatherData.current.visibility,
+          uvIndex: weatherData.current.uvIndex,
+          feelsLike: weatherData.current.feelsLike,
+          dewPoint: weatherData.current.dewPoint,
+          cloudCover: weatherData.current.cloudCover
+        },
+        forecast: weatherData.forecast.map((day: any) => ({
+          date: day.date,
+          highTemp: day.highTemp,
+          lowTemp: day.lowTemp,
+          humidity: day.humidity,
+          windSpeed: day.windSpeed,
+          precipitation: day.precipitation,
+          weatherCondition: day.weatherCondition,
+          weatherIcon: day.weatherIcon,
+          uvIndex: day.uvIndex
+        })),
+        location: weatherData.location,
+        agricultural: weatherData.agricultural,
+        alerts: weatherData.alerts,
+        metadata: weatherData.metadata
+      }
     });
   } catch (error) {
     console.error('Error in getCurrentWeather:', error);
@@ -97,23 +130,35 @@ export const getWeatherForecast = async (req: Request, res: Response) => {
 
     const forecastDays = days ? parseInt(days as string) : 7;
 
+    console.log('Weather controller: Fetching forecast for location:', location, 'days:', forecastDays);
+
     // In test environment, allow simulating failure to satisfy tests that expect 500
     if (process.env.NODE_ENV === 'test' && req.query.__forceFail === 'true') {
       throw new Error('Simulated forecast service failure');
     }
 
-    if (
-      process.env.NODE_ENV === 'test' &&
-      (!process.env.OPENWEATHER_API_KEY || process.env.OPENWEATHER_API_KEY.includes('test_openweather'))
-    ) {
-      throw new Error('External weather API unavailable in test');
-    }
+    const forecastData = await weatherService.getWeatherForecast(location, forecastDays);
 
-    const forecast = await weatherService.getWeatherForecast(location, forecastDays);
+    console.log('Weather controller: Forecast data retrieved successfully');
 
+    // Return data in the format expected by the frontend
     res.status(200).json({
       status: 'success',
-      data: forecast
+      data: {
+        forecast: forecastData.forecast.map((day: any) => ({
+          date: day.date,
+          highTemp: day.highTemp,
+          lowTemp: day.lowTemp,
+          humidity: day.humidity,
+          windSpeed: day.windSpeed,
+          precipitation: day.precipitation,
+          weatherCondition: day.weatherCondition,
+          weatherIcon: day.weatherIcon,
+          uvIndex: day.uvIndex
+        })),
+        location: forecastData.location,
+        metadata: forecastData.metadata
+      }
     });
   } catch (error) {
     console.error('Error in getWeatherForecast:', error);

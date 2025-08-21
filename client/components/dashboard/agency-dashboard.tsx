@@ -518,25 +518,25 @@ export function AgencyDashboard({ user }: AgencyDashboardProps) {
             <Button>
               <UserPlus className="w-4 h-4 mr-2" />
               Add Farmers
-            </Link>
+            </Button>
           </Link>
           <Link href="/partners/bulk">
             <Button variant="outline">
               <Upload className="w-4 h-4 mr-2" />
               Bulk Upload
-            </Link>
+            </Button>
           </Link>
           <Link href="/commissions">
             <Button variant="outline">
               <DollarSign className="w-4 h-4 mr-2" />
               View Commissions
-            </Link>
+            </Button>
           </Link>
           <Link href="/analytics">
             <Button variant="outline">
               <BarChart3 className="w-4 h-4 mr-2" />
               View Analytics
-            </Link>
+            </Button>
           </Link>
         </div>
 

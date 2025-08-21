@@ -1,5 +1,5 @@
 import { PartnersPage } from "@/components/partners/partners-page"
 
-export default function Partners() {
+export default function PartnersManagementPage() {
   return <PartnersPage />
 }

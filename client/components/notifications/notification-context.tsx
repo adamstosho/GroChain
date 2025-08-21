@@ -128,34 +128,26 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     setupPushNotifications()
   }, [])
 
-  // Listen for real-time notifications (Socket.IO would go here)
+  // Listen for real-time notifications from backend
   useEffect(() => {
-    // Mock real-time notifications for demo
-    const interval = setInterval(() => {
-      if (Math.random() > 0.95) {
-        // 5% chance every 10 seconds
-        const mockNotifications = [
-          {
-            type: "order" as const,
-            title: "Order Update",
-            message: "Your order status has been updated",
-          },
-          {
-            type: "payment" as const,
-            title: "Payment Received",
-            message: "A new payment has been processed",
-          },
-          {
-            type: "weather" as const,
-            title: "Weather Alert",
-            message: "Weather conditions may affect your crops",
-          },
-        ]
-
-        const randomNotification = mockNotifications[Math.floor(Math.random() * mockNotifications.length)]
-        addNotification(randomNotification)
+    const fetchNotifications = async () => {
+      try {
+        // Fetch user's notifications from backend
+        const response = await api.getNotificationPreferences()
+        if (response.success && response.data) {
+          // Process notifications from backend
+          console.log("Fetched notifications from backend:", response.data)
+        }
+      } catch (error) {
+        console.log("Failed to fetch notifications:", error)
       }
-    }, 10000)
+    }
+
+    // Fetch notifications on mount
+    fetchNotifications()
+
+    // Set up polling for new notifications (every 30 seconds)
+    const interval = setInterval(fetchNotifications, 30000)
 
     return () => clearInterval(interval)
   }, [])

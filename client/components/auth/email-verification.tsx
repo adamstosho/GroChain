@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/Alert"
-import { Mail, CheckCircle2, AlertCircle, Loader2, RefreshCw, Leaf, ArrowLeft } from "lucide-react"
+import { Mail, CheckCircle2, AlertCircle, Loader2, RefreshCw, Leaf, ArrowLeft, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { api } from "@/lib/api"
@@ -27,11 +27,19 @@ function EmailVerificationContent({ email: propEmail, isResend = false }: EmailV
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState("")
   const [countdown, setCountdown] = useState(0)
+  const [isAutoVerifying, setIsAutoVerifying] = useState(false)
 
   const router = useRouter()
   const searchParams = useSearchParams()
 
   useEffect(() => {
+    // Check if there's a token in the URL for auto-verification
+    const token = searchParams.get('token')
+    if (token && !isResend) {
+      setIsAutoVerifying(true)
+      handleAutoVerification(token)
+    }
+
     // Get email from URL params if not provided as prop
     const emailParam = searchParams.get('email')
     if (emailParam && !propEmail) {
@@ -54,6 +62,27 @@ function EmailVerificationContent({ email: propEmail, isResend = false }: EmailV
       return () => clearInterval(timer)
     }
   }, [searchParams, propEmail, isResend])
+
+  const handleAutoVerification = async (token: string) => {
+    try {
+      const response = await api.verifyEmail({ token })
+      
+      if (response.success) {
+        setIsSuccess(true)
+        // Redirect to login after 3 seconds
+        setTimeout(() => {
+          router.push("/login?verified=true")
+        }, 3000)
+      } else {
+        setError(response.error || "Verification failed. Please try again.")
+      }
+    } catch (error) {
+      console.error("Auto-verification error:", error)
+      setError("Network error. Please check your connection and try again.")
+    } finally {
+      setIsAutoVerifying(false)
+    }
+  }
 
   const handleVerification = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -121,6 +150,28 @@ function EmailVerificationContent({ email: propEmail, isResend = false }: EmailV
     }
   }
 
+  if (isAutoVerifying) {
+    return (
+      <AuthLayout 
+        title="Verifying Your Email"
+        subtitle="Please wait while we verify your email address..."
+        showFeatures={false}
+      >
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+              <Loader2 className="w-8 h-8 text-primary-foreground animate-spin" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Verifying...</h2>
+            <p className="text-muted-foreground">
+              We're processing your email verification. This may take a few moments.
+            </p>
+          </CardContent>
+        </Card>
+      </AuthLayout>
+    )
+  }
+
   if (isSuccess) {
     return (
       <AuthLayout 
@@ -157,8 +208,8 @@ function EmailVerificationContent({ email: propEmail, isResend = false }: EmailV
     <AuthLayout 
       title={isResend ? "Resend Verification Email" : "Verify Your Email"}
       subtitle={isResend 
-        ? "Enter your email to receive a new verification code"
-        : "We've sent a verification code to your email address"
+        ? "Enter your email to receive a new verification link"
+        : "We've sent a verification link to your email address"
       }
       showFeatures={!isResend}
     >
@@ -183,8 +234,8 @@ function EmailVerificationContent({ email: propEmail, isResend = false }: EmailV
           </CardTitle>
           <p className="text-muted-foreground">
             {isResend 
-              ? "Enter your email address below to receive a new verification code"
-              : "Please check your email and enter the verification code below"
+              ? "Enter your email address below to receive a new verification link"
+              : "Please check your email and click the verification link we sent you"
             }
           </p>
         </CardHeader>
@@ -225,41 +276,60 @@ function EmailVerificationContent({ email: propEmail, isResend = false }: EmailV
                 ) : (
                   <>
                     <Mail className="w-4 h-4 mr-2" />
-                    Resend Verification Code
+                    Resend Verification Link
                   </>
                 )}
               </Button>
             </form>
           ) : (
-            <form onSubmit={handleVerification} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="verificationCode">Verification Code</Label>
-                <Input
-                  id="verificationCode"
-                  type="text"
-                  placeholder="Enter 6-digit code"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                  maxLength={6}
-                  className="text-center text-lg tracking-widest"
-                  disabled={isLoading}
-                />
-                <p className="text-xs text-muted-foreground text-center">
-                  Enter the 6-digit code sent to {email}
+            <div className="space-y-4">
+              {/* Manual Token Entry (for users who copy-paste the token) */}
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <h3 className="font-medium mb-2">Manual Verification</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  If you prefer to enter the verification token manually, you can copy it from the email and paste it below:
                 </p>
+                <form onSubmit={handleVerification} className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="verificationCode">Verification Token</Label>
+                    <Input
+                      id="verificationCode"
+                      type="text"
+                      placeholder="Paste verification token from email"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value)}
+                      className="font-mono text-sm"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading || !verificationCode.trim()}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      "Verify Email"
+                    )}
+                  </Button>
+                </form>
               </div>
 
-              <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  "Verify Email"
-                )}
-              </Button>
-            </form>
+              {/* Instructions */}
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <ExternalLink className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-blue-800 text-sm">How to Verify</p>
+                    <p className="text-blue-700 text-xs mt-1">
+                      1. Check your email for a verification link<br/>
+                      2. Click the "Verify Email" button in the email<br/>
+                      3. Or copy the verification token and paste it above
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           <div className="mt-6 space-y-4">
@@ -287,7 +357,7 @@ function EmailVerificationContent({ email: propEmail, isResend = false }: EmailV
                   ) : (
                     <>
                       <RefreshCw className="w-4 h-4 mr-2" />
-                      Resend Verification Code
+                      Resend Verification Link
                     </>
                   )}
                 </Button>

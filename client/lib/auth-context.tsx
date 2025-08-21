@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { api } from "./api"
@@ -13,6 +13,7 @@ interface AuthContextType {
   register: (userData: any) => Promise<boolean>
   logout: () => void
   isAuthenticated: boolean
+  forceReauth: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -51,10 +52,99 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const refreshTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const isInitializingRef = useRef(false)
+
+  // Set up automatic token refresh
+  const setupTokenRefresh = (token: string) => {
+    // Clear any existing timer
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current)
+    }
+
+    try {
+      // Parse JWT to get expiration time
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      const expiresAt = payload.exp * 1000 // Convert to milliseconds
+      const now = Date.now()
+      const timeUntilExpiry = expiresAt - now
+      
+      // Refresh token 5 minutes before it expires
+      const refreshTime = Math.max(timeUntilExpiry - (5 * 60 * 1000), 60000) // At least 1 minute
+      
+      console.log('🔐 Auth Context - Setting up token refresh in', Math.round(refreshTime / 60000), 'minutes')
+      
+      refreshTimerRef.current = setTimeout(async () => {
+        console.log('🔐 Auth Context - Automatically refreshing token...')
+        await refreshTokenSilently()
+      }, refreshTime)
+    } catch (error) {
+      console.error('🔐 Auth Context - Error parsing token for refresh timing:', error)
+      // Fallback: refresh every 23 hours
+      refreshTimerRef.current = setTimeout(async () => {
+        await refreshTokenSilently()
+      }, 23 * 60 * 60 * 1000)
+    }
+  }
+
+  // Silent token refresh
+  const refreshTokenSilently = async () => {
+    try {
+      const refreshToken = localStorage.getItem("refresh_token")
+      if (!refreshToken) {
+        console.log('🔐 Auth Context - No refresh token available')
+        return false
+      }
+
+      console.log('🔐 Auth Context - Attempting silent token refresh...')
+      const response = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+        credentials: 'include'
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.status === 'success' && data.accessToken) {
+          console.log('🔐 Auth Context - Silent token refresh successful')
+          
+          const newToken = data.accessToken
+          const newRefreshToken = data.refreshToken
+          
+          localStorage.setItem("auth_token", newToken)
+          if (newRefreshToken) {
+            localStorage.setItem("refresh_token", newRefreshToken)
+          }
+          
+          api.setToken(newToken)
+          await setCookie('auth_token', newToken)
+          
+          // Set up next refresh
+          setupTokenRefresh(newToken)
+          
+          return true
+        }
+      }
+      
+      console.log('🔐 Auth Context - Silent token refresh failed')
+      return false
+    } catch (error) {
+      console.error('🔐 Auth Context - Error during silent token refresh:', error)
+      return false
+    }
+  }
 
   // Initialize auth state on mount
   useEffect(() => {
     const initAuth = async () => {
+      if (isInitializingRef.current) {
+        console.log('🔐 Auth Context - Already initializing, skipping...')
+        return
+      }
+      
+      isInitializingRef.current = true
+      
       try {
         console.log('🔐 Auth Context - Initializing auth...')
         
@@ -68,17 +158,136 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         
         if (token && savedUser) {
-          console.log('🔐 Auth Context - Found existing auth data, restoring session')
+          console.log('🔐 Auth Context - Found existing auth data, setting token...')
           
-          const userData = JSON.parse(savedUser)
+          // Set the token in the API client
           api.setToken(token)
           
           // Ensure cookie is set
-          // Cookie will also be set by backend; keep client copy
           await setCookie('auth_token', token)
           
-          console.log('🔐 Auth Context - Setting user from saved data:', userData)
-          setUser(userData)
+          // Set up automatic refresh
+          setupTokenRefresh(token)
+          
+          // Try to get fresh user data
+          try {
+            const meResp = await fetch('/api/auth/me', { 
+              cache: 'no-store', 
+              credentials: 'include',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            })
+            
+            if (meResp.ok) {
+              const meData = await meResp.json()
+              if (meData.status === 'success' && meData.data?.user) {
+                const u = meData.data.user
+                const normalizedUser = {
+                  id: u._id || u.id,
+                  email: u.email,
+                  name: u.name,
+                  role: u.role || 'farmer',
+                  phone: u.phone || "",
+                  emailVerified: u.emailVerified || false,
+                  createdAt: u.createdAt || new Date().toISOString(),
+                  updatedAt: u.updatedAt || new Date().toISOString(),
+                }
+                setUser(normalizedUser)
+                localStorage.setItem("user_data", JSON.stringify(normalizedUser))
+                console.log('🔐 Auth Context - User session restored successfully')
+                return
+              }
+            } else if (meResp.status === 401 || meResp.status === 403) {
+              console.log('🔐 Auth Context - Token is invalid, attempting refresh...')
+              
+              // Try to refresh the token
+              const refreshToken = localStorage.getItem("refresh_token")
+              if (refreshToken) {
+                try {
+                  const refreshResp = await fetch('/api/auth/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken }),
+                    credentials: 'include'
+                  })
+                  
+                  if (refreshResp.ok) {
+                    const refreshData = await refreshResp.json()
+                    if (refreshData.status === 'success' && refreshData.accessToken) {
+                      console.log('🔐 Auth Context - Token refreshed successfully')
+                      
+                      const newToken = refreshData.accessToken
+                      const newRefreshToken = refreshData.refreshToken
+                      
+                      localStorage.setItem("auth_token", newToken)
+                      if (newRefreshToken) {
+                        localStorage.setItem("refresh_token", newRefreshToken)
+                      }
+                      
+                      api.setToken(newToken)
+                      await setCookie('auth_token', newToken)
+                      
+                      // Set up automatic refresh
+                      setupTokenRefresh(newToken)
+                      
+                      // Get fresh user data
+                      const meResp2 = await fetch('/api/auth/me', { 
+                        cache: 'no-store', 
+                        credentials: 'include',
+                        headers: {
+                          'Authorization': `Bearer ${newToken}`,
+                          'Content-Type': 'application/json'
+                        }
+                      })
+                      
+                      if (meResp2.ok) {
+                        const meData2 = await meResp2.json()
+                        if (meData2.status === 'success' && meData2.data?.user) {
+                          const u = meData2.data.user
+                          const normalizedUser = {
+                            id: u._id || u.id,
+                            email: u.email,
+                            name: u.name,
+                            role: u.role || 'farmer',
+                            phone: u.phone || "",
+                            emailVerified: u.emailVerified || false,
+                            createdAt: u.createdAt || new Date().toISOString(),
+                            updatedAt: u.updatedAt || new Date().toISOString(),
+                          }
+                          setUser(normalizedUser)
+                          localStorage.setItem("user_data", JSON.stringify(normalizedUser))
+                          console.log('🔐 Auth Context - User session restored after refresh')
+                          return
+                        }
+                      }
+                    }
+                  }
+                } catch (refreshError) {
+                  console.error('🔐 Auth Context - Token refresh failed:', refreshError)
+                }
+              }
+              
+              // If we get here, refresh failed or no refresh token
+              console.log('🔐 Auth Context - Clearing invalid auth data')
+              localStorage.removeItem("auth_token")
+              localStorage.removeItem("refresh_token")
+              localStorage.removeItem("user_data")
+              removeCookie("auth_token")
+              api.clearToken()
+            }
+          } catch (meError) {
+            console.error('🔐 Auth Context - Error getting user data:', meError)
+            // Fall back to saved user data if API call fails
+            try {
+              const userData = JSON.parse(savedUser)
+              setUser(userData)
+              console.log('🔐 Auth Context - Using saved user data as fallback')
+            } catch (parseError) {
+              console.error('🔐 Auth Context - Error parsing saved user data:', parseError)
+            }
+          }
         } else {
           console.log('🔐 Auth Context - No saved auth data found, trying /api/auth/me')
           try {
@@ -98,6 +307,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               }
               setUser(normalizedUser)
               localStorage.setItem("user_data", JSON.stringify(normalizedUser))
+              
+              // Set token if we got user data
+              if (me.accessToken) {
+                api.setToken(me.accessToken)
+                localStorage.setItem("auth_token", me.accessToken)
+                await setCookie('auth_token', me.accessToken)
+                setupTokenRefresh(me.accessToken)
+              }
             }
           } catch {}
         }
@@ -105,15 +322,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("🔐 Auth Context - Error initializing auth:", error)
         // Clear invalid data
         localStorage.removeItem("auth_token")
+        localStorage.removeItem("refresh_token")
         localStorage.removeItem("user_data")
         removeCookie("auth_token")
+        api.clearToken()
       } finally {
         console.log('🔐 Auth Context - Init complete, setting loading to false')
         setLoading(false)
+        isInitializingRef.current = false
       }
     }
 
     initAuth()
+
+    // Listen for token expiration events from API client
+    const handleTokenExpired = () => {
+      console.log('🔐 Auth Context - Received token expired event')
+      forceReauth()
+    }
+
+    window.addEventListener('auth:token-expired', handleTokenExpired)
+
+    return () => {
+      window.removeEventListener('auth:token-expired', handleTokenExpired)
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current)
+      }
+    }
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -156,6 +391,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Set cookie immediately
         await setCookie('auth_token', token)
         
+        // Set up automatic token refresh
+        setupTokenRefresh(token)
+        
         console.log('🔐 Auth Context - About to set user state')
         
         // Update state immediately
@@ -189,6 +427,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.setItem("auth_token", token)
           api.setToken(token)
           setCookie('auth_token', token)
+          setupTokenRefresh(token)
         }
         if ((responseData as any).refreshToken) {
           localStorage.setItem("refresh_token", (responseData as any).refreshToken)
@@ -221,16 +460,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
-    setUser(null)
+    console.log('🔐 Auth Context - Logging out user')
+    
+    // Clear refresh timer
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current)
+      refreshTimerRef.current = null
+    }
+    
+    // Clear all auth data
     localStorage.removeItem("auth_token")
+    localStorage.removeItem("refresh_token")
     localStorage.removeItem("user_data")
+    removeCookie("auth_token")
     api.clearToken()
     
-    // Clear auth cookie
-    removeCookie("auth_token")
+    // Clear user state
+    setUser(null)
+    
+    // Redirect to login
+    router.push("/login")
     
     toast.success("Logged out successfully")
+  }
+
+  const forceReauth = () => {
+    console.log('🔐 Auth Context - Forcing re-authentication')
+    
+    // Clear refresh timer
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current)
+      refreshTimerRef.current = null
+    }
+    
+    // Clear all auth data
+    localStorage.removeItem("auth_token")
+    localStorage.removeItem("refresh_token")
+    localStorage.removeItem("user_data")
+    removeCookie("auth_token")
+    api.clearToken()
+    
+    // Clear user state
+    setUser(null)
+    
+    // Redirect to login
     router.push("/login")
+    
+    toast.error("Session expired. Please log in again.")
   }
 
   return (
@@ -242,6 +518,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         isAuthenticated: !!user,
+        forceReauth,
       }}
     >
       {children}

@@ -15,10 +15,24 @@ const nextConfig = {
   },
   experimental: {
     webpackBuildWorker: true,
+    optimizeCss: true,
   },
   
   async headers() {
     return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Permissions-Policy',
+            value: 'geolocation=(self), microphone=(), camera=()',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+        ],
+      },
       {
         source: '/sw.js',
         headers: [

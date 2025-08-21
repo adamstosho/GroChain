@@ -33,51 +33,7 @@ interface NotificationPreferences {
   smsNotifications: boolean
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "order",
-    title: "Order Delivered",
-    message: "Your order of Fresh Tomatoes from Adunni Farms has been delivered successfully.",
-    read: false,
-    createdAt: "2025-01-15T10:30:00Z",
-    actionUrl: "/orders/ord_001",
-  },
-  {
-    id: "2",
-    type: "payment",
-    title: "Payment Confirmed",
-    message: "Your payment of ₦25,000 has been processed successfully.",
-    read: false,
-    createdAt: "2025-01-15T09:15:00Z",
-    actionUrl: "/payments/pay_001",
-  },
-  {
-    id: "3",
-    type: "weather",
-    title: "Weather Alert",
-    message: "Heavy rainfall expected in Lagos State. Protect your crops and harvests.",
-    read: true,
-    createdAt: "2025-01-14T18:45:00Z",
-  },
-  {
-    id: "4",
-    type: "system",
-    title: "Profile Updated",
-    message: "Your profile information has been updated successfully.",
-    read: true,
-    createdAt: "2025-01-14T14:20:00Z",
-  },
-  {
-    id: "5",
-    type: "partner",
-    title: "New Farmer Onboarded",
-    message: "Ibrahim Musa has been successfully onboarded to your network.",
-    read: true,
-    createdAt: "2025-01-13T16:30:00Z",
-    actionUrl: "/partners",
-  },
-]
+// No mock data - all notifications come from real APIs
 
 const defaultPreferences: NotificationPreferences = {
   orderUpdates: true,
@@ -90,24 +46,35 @@ const defaultPreferences: NotificationPreferences = {
   smsNotifications: false,
 }
 
-// Mock user for layout
-const mockUser = {
-  id: "1",
-  name: "John Doe",
-  email: "john@example.com",
-  role: "farmer",
-  avatar: "/placeholder.svg",
-}
+// No mock user - use real user from auth context
 
 export function NotificationsPage() {
   const { user } = useAuth()
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const [preferences, setPreferences] = useState<NotificationPreferences>(defaultPreferences)
   const [activeTab, setActiveTab] = useState("notifications")
   const [prefLoading, setPrefLoading] = useState(false)
   const canSend = user?.role === 'admin' || user?.role === 'partner'
   const [sendForm, setSendForm] = useState({ audience: 'all', role: 'farmer', userId: '', type: 'system', title: '', message: '' })
   const [bulkForm, setBulkForm] = useState({ userIds: '', type: 'system', title: '', message: '' })
+
+  // Fetch notifications from backend
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        // This would fetch user's notifications from backend
+        // For now, we'll start with empty state
+        console.log("Fetching notifications from backend...")
+        // TODO: Implement api.getNotifications() when backend endpoint is ready
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error)
+      }
+    }
+
+    if (user) {
+      fetchNotifications()
+    }
+  }, [user])
 
   useEffect(() => {
     const loadPrefs = async () => {

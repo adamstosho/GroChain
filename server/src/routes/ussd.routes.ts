@@ -40,6 +40,13 @@ router.post('/test', authenticate, authorize(['admin']), ussdController.testUSSD
 router.get('/stats', authenticate, authorize(['admin']), ussdController.getUSSDStats);
 
 /**
+ * @route   GET /api/ussd/sessions
+ * @desc    Get active USSD sessions
+ * @access  Private (Admin only)
+ */
+router.get('/sessions', authenticate, authorize(['admin']), ussdController.getUSSDSessions);
+
+/**
  * @route   POST /api/ussd/register
  * @desc    Register USSD service with telecom provider
  * @access  Private (Admin only)

@@ -28,6 +28,7 @@ import weatherRoutes from './routes/weather.routes';
 import websocketRoutes from './routes/websocket.routes';
 import bvnVerificationRoutes from './routes/bvnVerification.routes';
 import ussdRoutes from './routes/ussd.routes';
+import qrCodeRoutes from './routes/qrCode.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger-lite';
 import { errorHandler } from './middlewares/error.middleware';
@@ -181,6 +182,7 @@ app.use('/api/weather', weatherRoutes);
 app.use('/api/websocket', websocketRoutes);
 app.use('/api/verification', bvnVerificationRoutes);
 app.use('/api/ussd', ussdRoutes);
+app.use('/api/qr-codes', qrCodeRoutes);
 
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

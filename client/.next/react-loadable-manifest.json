@@ -1,8 +1,14 @@
 {
+  "components\\harvests\\harvest-list.tsx -> qrcode": {
+    "id": 35819,
+    "files": [
+      "static/chunks/5819-70d58a0e7e0a424f.js"
+    ]
+  },
   "components\\qr\\qr-code-generator.tsx -> qrcode": {
     "id": 35819,
     "files": [
-      "static/chunks/5819.7068f96019937260.js"
+      "static/chunks/5819-70d58a0e7e0a424f.js"
     ]
   },
   "components\\qr\\qr-scanner.tsx -> jsqr": {

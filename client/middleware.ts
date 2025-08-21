@@ -46,15 +46,31 @@ export function middleware(request: NextRequest) {
 
   console.log('🔍 Middleware - Protected route:', isProtectedRoute, 'Auth route:', isAuthRoute)
 
-  // Redirect unauthenticated users to login for protected routes
-  if (isProtectedRoute && !token) {
-    console.log('🔍 Middleware - Redirecting to login (no token for protected route)')
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(loginUrl)
+  // For protected routes, check if token exists
+  if (isProtectedRoute) {
+    if (!token) {
+      console.log('🔍 Middleware - Redirecting to login (no token for protected route)')
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+    
+    // Token exists, allow access but refresh the cookie
+    console.log('🔍 Middleware - Token present for protected route, refreshing cookie')
+    const response = NextResponse.next()
+    
+    // Refresh the cookie expiration to 24 hours
+    response.cookies.set('auth_token', token, {
+      path: '/',
+      maxAge: 86400, // 24 hours
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
+    })
+    
+    return response
   }
 
-  // Redirect authenticated users away from auth pages (and avoid loops)
+  // For auth routes, redirect authenticated users away
   if (isAuthRoute && token) {
     console.log('🔍 Middleware - Authenticated user on auth page, redirecting')
     // Check if there's a redirect parameter
@@ -80,17 +96,6 @@ export function middleware(request: NextRequest) {
     'Permissions-Policy',
     'camera=(), microphone=(), geolocation=()'
   )
-
-  // If user is authenticated and accessing a protected route, ensure the cookie persists
-  if (token && isProtectedRoute) {
-    // Refresh the cookie expiration
-    response.cookies.set('auth_token', token, {
-      path: '/',
-      maxAge: 86400, // 24 hours
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production'
-    })
-  }
 
   return response
 }

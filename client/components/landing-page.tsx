@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Leaf, QrCode, Shield, Users, TrendingUp, Smartphone, Star, ArrowRight, CheckCircle } from "lucide-react"
+import { Leaf, QrCode, Shield, Users, TrendingUp, Smartphone, Star, ArrowRight, CheckCircle, CreditCard } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -45,6 +45,12 @@ const features = [
     title: "Market Analytics",
     description: "Real-time insights into market trends, product demand, and supply chain optimization",
     benefits: ["Real-time market data", "Price tracking", "Supply chain insights"],
+  },
+  {
+    icon: CreditCard,
+    title: "Fintech Services",
+    description: "Access to credit scores, loans, and financial services tailored for farmers",
+    benefits: ["Credit scoring", "Agricultural loans", "Financial health tracking"],
   },
 ]
 
@@ -98,6 +104,9 @@ export function LandingPage() {
               <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">
                 About
               </a>
+              <Link href="/fintech" className="text-muted-foreground hover:text-foreground transition-colors">
+                Fintech
+              </Link>
               <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">
                 Contact
               </a>

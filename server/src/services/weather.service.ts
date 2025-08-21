@@ -30,28 +30,59 @@ export interface AgriculturalInsights {
 
 export class WeatherService {
   private config: WeatherAPIConfig;
+  private _initialized = false;
 
   constructor() {
+    this.config = {
+      openWeatherApiKey: '',
+      openWeatherBaseUrl: 'https://api.openweathermap.org/data/2.5',
+      agromonitoringApiKey: '',
+      agromonitoringBaseUrl: 'http://api.agromonitoring.com/agro/1.0'
+    };
+  }
+
+  private initialize() {
+    if (this._initialized) return;
+    
     this.config = {
       openWeatherApiKey: process.env.OPENWEATHER_API_KEY || '',
       openWeatherBaseUrl: 'https://api.openweathermap.org/data/2.5',
       agromonitoringApiKey: process.env.AGROMONITORING_API_KEY || '',
       agromonitoringBaseUrl: 'http://api.agromonitoring.com/agro/1.0'
     };
+    
+    // Debug: Log configuration
+    console.log('🌤️ Weather Service Configuration:');
+    console.log('OpenWeather API Key:', this.config.openWeatherApiKey ? '✅ Configured' : '❌ Not configured');
+    console.log('OpenWeather Base URL:', this.config.openWeatherBaseUrl);
+    console.log('AgroMonitoring API Key:', this.config.agromonitoringApiKey ? '✅ Configured' : '❌ Not configured');
+    console.log('Environment OPENWEATHER_API_KEY:', process.env.OPENWEATHER_API_KEY ? '✅ Set' : '❌ Not set');
+    
+    this._initialized = true;
   }
 
   /**
    * Check if weather APIs are properly configured
    */
   private isWeatherAPIConfigured(): boolean {
-    return this.config.openWeatherApiKey.length > 0 && 
-           this.config.openWeatherApiKey !== 'test_openweather_api_key_for_testing';
+    this.initialize(); // Ensure config is loaded
+    const isConfigured = this.config.openWeatherApiKey.length > 0 && 
+           this.config.openWeatherApiKey !== 'test_openweather_api_key_for_testing' &&
+           this.config.openWeatherApiKey !== 'your_openweather_api_key_here';
+    
+    console.log('🔍 Weather API Configuration Check:');
+    console.log('API Key Length:', this.config.openWeatherApiKey.length);
+    console.log('API Key Value:', this.config.openWeatherApiKey);
+    console.log('Is Configured:', isConfigured);
+    
+    return isConfigured;
   }
 
   /**
    * Get current weather data for a location
    */
   async getCurrentWeather(location: LocationCoordinates): Promise<IWeatherData> {
+    this.initialize(); // Ensure config is loaded
     try {
       // Check if we have recent data in database
       const existingData = await WeatherData.findOne({
@@ -66,8 +97,11 @@ export class WeatherService {
 
       // If APIs are not configured, return mock data for testing
       if (!this.isWeatherAPIConfigured()) {
+        console.log('Weather API not configured, returning mock data');
         return this.generateMockWeatherData(location);
       }
+
+      console.log('Fetching weather data from OpenWeather API for:', location);
 
       // Fetch fresh data from OpenWeather API
       const weatherResponse = await axios.get(
@@ -95,13 +129,15 @@ export class WeatherService {
         }
       );
 
+      console.log('OpenWeather API responses received');
+
       // Generate agricultural insights
       const agriculturalInsights = await this.generateAgriculturalInsights(
         weatherResponse.data,
         location
       );
 
-      // Create weather data object
+      // Create weather data object with correct structure
       const weatherData: Partial<IWeatherData> = {
         location,
         current: {
@@ -112,7 +148,7 @@ export class WeatherService {
           pressure: weatherResponse.data.main.pressure,
           visibility: weatherResponse.data.visibility / 1000, // Convert to km
           uvIndex: 0, // Will be calculated separately
-          weatherCondition: weatherResponse.data.weather[0].main,
+          weatherCondition: weatherResponse.data.weather[0].description,
           weatherIcon: weatherResponse.data.weather[0].icon,
           feelsLike: weatherResponse.data.main.feels_like,
           dewPoint: weatherResponse.data.main.temp - ((100 - weatherResponse.data.main.humidity) / 5),
@@ -136,10 +172,12 @@ export class WeatherService {
         { upsert: true, new: true }
       );
 
+      console.log('Weather data saved to database');
       return savedData.toObject();
     } catch (error) {
       console.error('Error fetching weather data:', error);
-      throw new Error('Failed to fetch weather data');
+      console.log('Falling back to mock data');
+      return this.generateMockWeatherData(location);
     }
   }
 
@@ -214,6 +252,7 @@ export class WeatherService {
    * Generate agricultural insights based on weather data
    */
   private async generateAgriculturalInsights(weatherData: any, location: LocationCoordinates): Promise<AgriculturalInsights> {
+    this.initialize(); // Ensure config is loaded
     const temp = weatherData.main.temp;
     const humidity = weatherData.main.humidity;
     const windSpeed = weatherData.wind.speed;
@@ -258,6 +297,7 @@ export class WeatherService {
    * Generate planting recommendations based on weather conditions
    */
   private generatePlantingRecommendation(temp: number, humidity: number, location: LocationCoordinates): string {
+    this.initialize(); // Ensure config is loaded
     if (temp < 10) {
       return 'Temperature too low for most crops. Consider cold-hardy vegetables or wait for warmer weather.';
     } else if (temp < 15) {
@@ -275,6 +315,7 @@ export class WeatherService {
    * Generate irrigation advice based on weather conditions
    */
   private generateIrrigationAdvice(temp: number, humidity: number, droughtIndex: number): string {
+    this.initialize(); // Ensure config is loaded
     if (droughtIndex > 70) {
       return 'High drought risk. Increase irrigation frequency and consider drought-resistant crops.';
     } else if (droughtIndex > 40) {
@@ -292,6 +333,7 @@ export class WeatherService {
    * Generate weather alerts based on conditions
    */
   private async generateWeatherAlerts(weatherData: any, location: LocationCoordinates): Promise<any[]> {
+    this.initialize(); // Ensure config is loaded
     const alerts: any[] = [];
     const temp = weatherData.main.temp;
     const humidity = weatherData.main.humidity;
@@ -355,6 +397,7 @@ export class WeatherService {
    * Process forecast data from API response
    */
   private processForecastData(forecastList: any[]): any[] {
+    this.initialize(); // Ensure config is loaded
     const dailyForecasts = new Map<string, any>();
 
     forecastList.forEach(item => {
@@ -389,6 +432,7 @@ export class WeatherService {
    * Convert wind direction degrees to cardinal directions
    */
   private getWindDirection(degrees: number): string {
+    this.initialize(); // Ensure config is loaded
     const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
     const index = Math.round(degrees / 22.5) % 16;
     return directions[index];
@@ -398,6 +442,7 @@ export class WeatherService {
    * Get weather statistics for a region
    */
   async getWeatherStatistics(region: string): Promise<any> {
+    this.initialize(); // Ensure config is loaded
     try {
       const stats = await WeatherData.aggregate([
         { $match: { 'location.state': region } },
@@ -434,148 +479,135 @@ export class WeatherService {
    * Generate mock weather data for testing
    */
   private generateMockWeatherData(location: LocationCoordinates): IWeatherData {
+    this.initialize(); // Ensure config is loaded
     console.log('Generating mock weather data for location:', location);
+    
+    // Generate realistic Nigerian weather data
+    const baseTemp = 25 + Math.random() * 8; // 25-33°C (typical Nigerian range)
+    const baseHumidity = 60 + Math.random() * 30; // 60-90% (typical Nigerian humidity)
+    
     return {
       location: location,
       current: {
-        temperature: 20 + Math.random() * 10, // 10-30°C
-        humidity: 50 + Math.random() * 50, // 50-100%
-        windSpeed: 5 + Math.random() * 10, // 5-15 m/s
-        windDirection: this.getWindDirection(Math.random() * 360), // Random direction
-        pressure: 1013 + Math.random() * 20, // 1013-1033 hPa
-        visibility: 10000 + Math.random() * 5000, // 10-15 km
-        uvIndex: 5, // Mock value
-        weatherCondition: ['Sunny', 'Cloudy', 'Rainy', 'Snowy'][Math.floor(Math.random() * 4)],
-        weatherIcon: ['01d', '02d', '03d', '04d', '09d', '10d', '11d', '13d', '50d'][Math.floor(Math.random() * 9)],
-        feelsLike: 20 + Math.random() * 5, // 15-25°C
-        dewPoint: 10 + Math.random() * 10, // 10-20°C
-        cloudCover: 50 + Math.random() * 50 // 50-100%
+        temperature: baseTemp,
+        humidity: baseHumidity,
+        windSpeed: 3 + Math.random() * 7, // 3-10 m/s
+        windDirection: this.getWindDirection(Math.random() * 360),
+        pressure: 1010 + Math.random() * 15, // 1010-1025 hPa
+        visibility: 8000 + Math.random() * 7000, // 8-15 km
+        uvIndex: 6 + Math.floor(Math.random() * 5), // 6-10 (high UV in Nigeria)
+        weatherCondition: this.getNigerianWeatherCondition(),
+        weatherIcon: this.getWeatherIcon(),
+        feelsLike: baseTemp + (Math.random() * 4 - 2), // ±2°C from actual temp
+        dewPoint: baseTemp - 5 + Math.random() * 10, // 5-15°C below temp
+        cloudCover: 20 + Math.random() * 60 // 20-80%
       },
-      forecast: [
-        {
-          date: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          highTemp: 25,
-          lowTemp: 15,
-          humidity: 60,
-          windSpeed: 8,
-          precipitation: 20,
-          weatherCondition: 'Sunny',
-          weatherIcon: '01d',
-          uvIndex: 5
-        },
-        {
-          date: new Date(Date.now() + 48 * 60 * 60 * 1000),
-          highTemp: 28,
-          lowTemp: 18,
-          humidity: 70,
-          windSpeed: 10,
-          precipitation: 30,
-          weatherCondition: 'Cloudy',
-          weatherIcon: '02d',
-          uvIndex: 3
-        },
-        {
-          date: new Date(Date.now() + 72 * 60 * 60 * 1000),
-          highTemp: 26,
-          lowTemp: 16,
-          humidity: 65,
-          windSpeed: 9,
-          precipitation: 10,
-          weatherCondition: 'Rainy',
-          weatherIcon: '10d',
-          uvIndex: 2
-        },
-        {
-          date: new Date(Date.now() + 96 * 60 * 60 * 1000),
-          highTemp: 24,
-          lowTemp: 14,
-          humidity: 75,
-          windSpeed: 11,
-          precipitation: 40,
-          weatherCondition: 'Snowy',
-          weatherIcon: '13d',
-          uvIndex: 1
-        },
-        {
-          date: new Date(Date.now() + 120 * 60 * 60 * 1000),
-          highTemp: 27,
-          lowTemp: 17,
-          humidity: 60,
-          windSpeed: 8,
-          precipitation: 20,
-          weatherCondition: 'Sunny',
-          weatherIcon: '01d',
-          uvIndex: 5
-        },
-        {
-          date: new Date(Date.now() + 144 * 60 * 60 * 1000),
-          highTemp: 29,
-          lowTemp: 19,
-          humidity: 70,
-          windSpeed: 10,
-          precipitation: 30,
-          weatherCondition: 'Cloudy',
-          weatherIcon: '02d',
-          uvIndex: 3
-        },
-        {
-          date: new Date(Date.now() + 168 * 60 * 60 * 1000),
-          highTemp: 27,
-          lowTemp: 17,
-          humidity: 65,
-          windSpeed: 9,
-          precipitation: 10,
-          weatherCondition: 'Rainy',
-          weatherIcon: '10d',
-          uvIndex: 2
-        }
-      ],
-      alerts: [
-        {
-          type: 'weather',
-          severity: 'high',
-          title: 'Frost Warning',
-          description: 'Temperatures below 5°C detected. Protect sensitive crops from frost damage.',
-          startTime: new Date(Date.now() - 120 * 60 * 1000),
-          endTime: new Date(Date.now() + 120 * 60 * 1000),
-          affectedCrops: ['Tomatoes', 'Peppers', 'Beans', 'Corn']
-        },
-        {
-          type: 'weather',
-          severity: 'medium',
-          title: 'High Wind Warning',
-          description: 'Strong winds detected. Secure structures and protect young plants.',
-          startTime: new Date(Date.now() - 60 * 60 * 1000),
-          endTime: new Date(Date.now() + 60 * 60 * 1000),
-          affectedCrops: ['Young seedlings', 'Tall crops']
-        },
-        {
-          type: 'agricultural',
-          severity: 'medium',
-          title: 'High Humidity Alert',
-          description: 'High humidity conditions. Monitor for fungal diseases and reduce irrigation.',
-          startTime: new Date(Date.now() - 180 * 60 * 1000),
-          endTime: new Date(Date.now() + 180 * 60 * 1000),
-          affectedCrops: ['Tomatoes', 'Cucumbers', 'Squash']
-        }
-      ],
+      forecast: this.generateNigerianForecast(),
+      alerts: [],
       agricultural: {
-        soilMoisture: 70,
-        soilTemperature: 22,
-        growingDegreeDays: 12,
-        frostRisk: 'low',
-        droughtIndex: 50,
-        pestRisk: 'low',
-        plantingRecommendation: 'Optimal conditions for most crops. Plant tomatoes, peppers, beans, and corn.',
-        irrigationAdvice: 'Normal conditions. Follow standard irrigation schedule.'
+        soilMoisture: 40 + Math.random() * 40, // 40-80%
+        soilTemperature: baseTemp - 2 + Math.random() * 4, // 2-4°C below air temp
+        growingDegreeDays: 15 + Math.random() * 10, // 15-25 GDD
+        frostRisk: 'low' as const, // No frost risk in Nigeria
+        droughtIndex: 20 + Math.random() * 40, // 20-60 (moderate to low drought)
+        pestRisk: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)] as 'low' | 'medium' | 'high',
+        plantingRecommendation: this.getPlantingRecommendation(),
+        irrigationAdvice: this.getIrrigationAdvice()
       },
       metadata: {
-        source: 'Mock Data',
+        source: 'mock_data',
         lastUpdated: new Date(),
-        dataQuality: 'high',
+        dataQuality: 'medium' as const,
         nextUpdate: new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
       }
     };
+  }
+
+  /**
+   * Generate realistic Nigerian weather forecast
+   */
+  private generateNigerianForecast(): Array<{
+    date: Date;
+    highTemp: number;
+    lowTemp: number;
+    humidity: number;
+    windSpeed: number;
+    precipitation: number;
+    weatherCondition: string;
+    weatherIcon: string;
+    uvIndex: number;
+  }> {
+    this.initialize(); // Ensure config is loaded
+    const forecast = [];
+    const baseTemp = 25;
+    
+    for (let i = 1; i <= 7; i++) {
+      const dayTemp = baseTemp + (Math.random() * 6 - 3); // ±3°C variation
+      const nightTemp = dayTemp - 8 + Math.random() * 4; // 4-12°C cooler at night
+      
+      forecast.push({
+        date: new Date(Date.now() + i * 24 * 60 * 60 * 1000),
+        highTemp: dayTemp,
+        lowTemp: nightTemp,
+        humidity: 65 + Math.random() * 25, // 65-90%
+        windSpeed: 2 + Math.random() * 8, // 2-10 m/s
+        precipitation: Math.random() > 0.7 ? 10 + Math.random() * 40 : 0, // 30% chance of rain
+        weatherCondition: this.getNigerianWeatherCondition(),
+        weatherIcon: this.getWeatherIcon(),
+        uvIndex: 5 + Math.floor(Math.random() * 6) // 5-10
+      });
+    }
+    
+    return forecast;
+  }
+
+  /**
+   * Get realistic Nigerian weather conditions
+   */
+  private getNigerianWeatherCondition(): string {
+    this.initialize(); // Ensure config is loaded
+    const conditions = [
+      'Sunny', 'Partly Cloudy', 'Cloudy', 'Light Rain', 'Moderate Rain',
+      'Thunderstorm', 'Hazy', 'Misty', 'Clear'
+    ];
+    return conditions[Math.floor(Math.random() * conditions.length)];
+  }
+
+  /**
+   * Get appropriate weather icon
+   */
+  private getWeatherIcon(): string {
+    this.initialize(); // Ensure config is loaded
+    const icons = ['01d', '02d', '03d', '04d', '09d', '10d', '11d', '50d'];
+    return icons[Math.floor(Math.random() * icons.length)];
+  }
+
+  /**
+   * Get planting recommendation based on season
+   */
+  private getPlantingRecommendation(): string {
+    this.initialize(); // Ensure config is loaded
+    const month = new Date().getMonth();
+    if (month >= 2 && month <= 5) {
+      return 'Planting season for early crops like maize and vegetables';
+    } else if (month >= 8 && month <= 10) {
+      return 'Planting season for late crops like yam and cassava';
+    } else {
+      return 'Maintenance and harvesting season';
+    }
+  }
+
+  /**
+   * Get irrigation advice
+   */
+  private getIrrigationAdvice(): string {
+    this.initialize(); // Ensure config is loaded
+    const month = new Date().getMonth();
+    if (month >= 5 && month <= 9) {
+      return 'Rainy season - reduce irrigation, focus on drainage';
+    } else {
+      return 'Dry season - increase irrigation frequency';
+    }
   }
 }
 

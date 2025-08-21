@@ -25,6 +25,7 @@ import {
   Search,
   Filter
 } from "lucide-react"
+import { api } from "@/lib/api"
 
 interface Language {
   code: string
@@ -70,60 +71,57 @@ export function LanguageDashboard() {
       setLoading(true)
       setError("")
       
-      // Mock data for now - replace with actual API call
-      const mockLanguages: Language[] = [
+      // Get supported languages from backend
+      const response = await api.getSupportedLanguages()
+      if (response.success && response.data) {
+        const languagesData = response.data.languages || []
+        
+        // Transform backend data to match frontend interface
+        const transformedLanguages: Language[] = languagesData.map((lang: any) => ({
+          code: lang.code,
+          name: lang.name,
+          nativeName: lang.nativeName,
+          isActive: true, // All languages are active by default
+          isDefault: lang.isDefault,
+          completionPercentage: 100, // Assume complete for now
+          lastUpdated: new Date().toISOString()
+        }))
+        
+        setLanguages(transformedLanguages)
+        if (transformedLanguages.length > 0) {
+          setSelectedLanguage(transformedLanguages[0].code)
+        }
+      } else {
+        // Fallback to basic language structure
+        setLanguages([
+          {
+            code: "en",
+            name: "English", 
+            nativeName: "English",
+            isActive: true,
+            isDefault: true,
+            completionPercentage: 100,
+            lastUpdated: new Date().toISOString()
+          }
+        ])
+        setSelectedLanguage("en")
+      }
+    } catch (error) {
+      console.error("Language fetch error:", error)
+      setError("Failed to load language data")
+      // Set fallback data on error
+      setLanguages([
         {
           code: "en",
-          name: "English",
+          name: "English", 
           nativeName: "English",
           isActive: true,
           isDefault: true,
           completionPercentage: 100,
-          lastUpdated: "2025-01-15T10:00:00Z"
-        },
-        {
-          code: "ha",
-          name: "Hausa",
-          nativeName: "Hausa",
-          isActive: true,
-          isDefault: false,
-          completionPercentage: 85,
-          lastUpdated: "2025-01-14T15:30:00Z"
-        },
-        {
-          code: "yo",
-          name: "Yoruba",
-          nativeName: "Yorùbá",
-          isActive: true,
-          isDefault: false,
-          completionPercentage: 72,
-          lastUpdated: "2025-01-13T09:15:00Z"
-        },
-        {
-          code: "ig",
-          name: "Igbo",
-          nativeName: "Igbo",
-          isActive: true,
-          isDefault: false,
-          completionPercentage: 68,
-          lastUpdated: "2025-01-12T14:20:00Z"
-        },
-        {
-          code: "fr",
-          name: "French",
-          nativeName: "Français",
-          isActive: false,
-          isDefault: false,
-          completionPercentage: 45,
-          lastUpdated: "2025-01-10T11:45:00Z"
+          lastUpdated: new Date().toISOString()
         }
-      ]
-      
-      setLanguages(mockLanguages)
-      setSelectedLanguage(mockLanguages[0].code)
-    } catch (error) {
-      console.error("Language fetch error:", error)
-      setError("Failed to load language data")
+      ])
+      setSelectedLanguage("en")
     } finally {
       setLoading(false)
     }
@@ -131,74 +129,29 @@ export function LanguageDashboard() {
 
   const fetchTranslations = async (languageCode: string) => {
     try {
-      // Mock data for now - replace with actual API call
-      const mockTranslations: Translation[] = [
-        {
-          key: "welcome_message",
-          english: "Welcome to GroChain",
-          translation: languageCode === "ha" ? "Barka da zuwa GroChain" : 
-                     languageCode === "yo" ? "Kaabo si GroChain" :
-                     languageCode === "ig" ? "Nnọọ na GroChain" : "Welcome to GroChain",
+      // Get translations from backend
+      const response = await api.getTranslations(languageCode)
+      if (response.success && response.data) {
+        const translationsData = response.data.translations || {}
+        
+        // Transform backend data to match frontend interface
+        const transformedTranslations: Translation[] = Object.entries(translationsData).map(([key, value]) => ({
+          key,
+          english: key, // Use key as fallback for English
+          translation: value as string,
           language: languageCode,
-          status: 'translated',
-          lastUpdated: "2025-01-15T10:00:00Z"
-        },
-        {
-          key: "dashboard_title",
-          english: "Dashboard",
-          translation: languageCode === "ha" ? "Dashboard" : 
-                     languageCode === "yo" ? "Dashboard" :
-                     languageCode === "ig" ? "Dashboard" : "Dashboard",
-          language: languageCode,
-          status: 'translated',
-          lastUpdated: "2025-01-15T10:00:00Z"
-        },
-        {
-          key: "harvest_management",
-          english: "Harvest Management",
-          translation: languageCode === "ha" ? "Gudanar da Girbi" : 
-                     languageCode === "yo" ? "Iṣakoso Irọwọ" :
-                     languageCode === "ig" ? "Njikwa Owuwe" : "Harvest Management",
-          language: languageCode,
-          status: 'translated',
-          lastUpdated: "2025-01-14T15:30:00Z"
-        },
-        {
-          key: "marketplace",
-          english: "Marketplace",
-          translation: languageCode === "ha" ? "Kasuwa" : 
-                     languageCode === "yo" ? "Oja" :
-                     languageCode === "ig" ? "Ahịa" : "Marketplace",
-          language: languageCode,
-          status: 'translated',
-          lastUpdated: "2025-01-14T15:30:00Z"
-        },
-        {
-          key: "payment_processing",
-          english: "Payment Processing",
-          translation: languageCode === "ha" ? "Sarrafa Biya" : 
-                     languageCode === "yo" ? "Iṣeṣe Iṣanwo" :
-                     languageCode === "ig" ? "Nhazi Ịkwụ Ụgwọ" : "Payment Processing",
-          language: languageCode,
-          status: 'pending',
-          lastUpdated: "2025-01-13T09:15:00Z"
-        },
-        {
-          key: "weather_forecast",
-          english: "Weather Forecast",
-          translation: languageCode === "ha" ? "Hasken Yanayi" : 
-                     languageCode === "yo" ? "Iṣeṣe Oju-ọjọ" :
-                     languageCode === "ig" ? "Amụma Ihu Igwe" : "Weather Forecast",
-          language: languageCode,
-          status: 'needs_review',
-          lastUpdated: "2025-01-12T14:20:00Z"
-        }
-      ]
-      
-      setTranslations(mockTranslations)
+          status: 'translated' as const,
+          lastUpdated: new Date().toISOString()
+        }))
+        
+        setTranslations(transformedTranslations)
+      } else {
+        setTranslations([])
+      }
     } catch (error) {
       console.error("Translations fetch error:", error)
       setError("Failed to load translations")
+      setTranslations([])
     }
   }
 

@@ -44,60 +44,21 @@ interface CommissionSummary {
   lastMonth: number
 }
 
-const mockCommissions: Commission[] = [
-  {
-    id: "1",
-    type: "earned",
-    amount: 2500,
-    description: "Commission from Adunni Farms sales",
-    date: "2025-01-15T10:30:00Z",
-    status: "completed",
-    partnerId: "partner_1",
-    partnerName: "Adunni Adebayo",
-  },
-  {
-    id: "2",
-    type: "withdrawn",
-    amount: -15000,
-    description: "Withdrawal to bank account",
-    date: "2025-01-14T14:20:00Z",
-    status: "completed",
-  },
-  {
-    id: "3",
-    type: "earned",
-    amount: 3200,
-    description: "Commission from Grace Farms sales",
-    date: "2025-01-13T16:45:00Z",
-    status: "completed",
-    partnerId: "partner_3",
-    partnerName: "Grace Okafor",
-  },
-  {
-    id: "4",
-    type: "earned",
-    amount: 1800,
-    description: "Commission from Ibrahim Agro sales",
-    date: "2025-01-12T09:15:00Z",
-    status: "pending",
-    partnerId: "partner_2",
-    partnerName: "Ibrahim Musa",
-  },
-]
+// No mock data - all commissions come from real APIs
 
-const mockSummary: CommissionSummary = {
-  totalEarned: 45000,
-  totalWithdrawn: 30000,
-  availableBalance: 15000,
-  pendingAmount: 1800,
-  thisMonth: 8500,
-  lastMonth: 12000,
-}
+// No mock summary - all data comes from real APIs
 
 export function CommissionsPage() {
   const { user } = useAuth()
-  const [commissions, setCommissions] = useState<Commission[]>(mockCommissions)
-  const [summary, setSummary] = useState<CommissionSummary>(mockSummary)
+  const [commissions, setCommissions] = useState<Commission[]>([])
+  const [summary, setSummary] = useState<CommissionSummary>({
+    totalEarned: 0,
+    totalWithdrawn: 0,
+    availableBalance: 0,
+    pendingAmount: 0,
+    thisMonth: 0,
+    lastMonth: 0,
+  })
   const [activeTab, setActiveTab] = useState("overview")
   const [withdrawAmount, setWithdrawAmount] = useState("")
   const [isWithdrawing, setIsWithdrawing] = useState(false)

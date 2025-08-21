@@ -1,5 +1,5 @@
-import { PaymentHistory } from "@/components/payments/payment-history"
+import { PaymentDashboard } from "@/components/payments/payment-dashboard"
 
 export default function PaymentsPage() {
-  return <PaymentHistory />
+  return <PaymentDashboard />
 }

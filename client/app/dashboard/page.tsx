@@ -1,5 +1,10 @@
 import { Dashboard } from "@/components/dashboard/dashboard"
+import { AuthGuard } from "@/components/auth/auth-guard"
 
 export default function DashboardPage() {
-  return <Dashboard />
+  return (
+    <AuthGuard>
+      <Dashboard />
+    </AuthGuard>
+  )
 }

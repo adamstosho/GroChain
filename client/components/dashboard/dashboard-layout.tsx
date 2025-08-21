@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar"
 import {
@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { LanguageSelector } from "@/components/language/language-selector"
 import {
   Leaf,
   Menu,
@@ -27,6 +28,13 @@ import {
   Sun,
   Moon,
   BarChart3,
+  CreditCard,
+  Wifi,
+  Globe,
+  Shield,
+  Bell,
+  Brain,
+  Phone
 } from "lucide-react"
 import Link from "next/link"
 import { useTheme } from "next-themes"
@@ -52,26 +60,92 @@ interface DashboardLayoutProps {
 }
 
 const navigationItems = {
-  farmer: [
-    { name: "Dashboard", href: "/dashboard", icon: Home },
-    { name: "My Products", href: "/harvests", icon: Package },
-    { name: "QR Codes", href: "/qr-codes", icon: QrCode },
-    { name: "Marketplace", href: "/marketplace", icon: ShoppingCart },
-    { name: "Analytics", href: "/analytics", icon: BarChart3 },
-  ],
+          farmer: [
+          { name: "Dashboard", href: "/dashboard", icon: Home },
+          { name: "My Products", href: "/harvests", icon: Package },
+          { name: "QR Codes", href: "/qr-codes", icon: QrCode },
+          { name: "Marketplace", href: "/marketplace", icon: ShoppingCart },
+          { name: "Fintech", href: "/fintech", icon: CreditCard },
+          { name: "Analytics", href: "/analytics", icon: BarChart3 },
+          {
+            name: "IoT",
+            href: "/iot",
+            icon: Wifi,
+            subItems: [
+              { name: "Overview", href: "/iot" },
+              { name: "Live Monitoring", href: "/iot/monitoring" },
+              { name: "Alerts", href: "/iot/alerts" },
+              { name: "Sensors", href: "/iot/sensors" },
+            ],
+          },
+          {
+            name: "AI & ML",
+            href: "/ai",
+            icon: Brain,
+            subItems: [
+              { name: "AI Insights", href: "/ai" },
+              { name: "Advanced ML", href: "/advanced-ml" },
+              { name: "Image Recognition", href: "/image-recognition" },
+            ],
+          },
+        ],
   buyer: [
     { name: "Dashboard", href: "/dashboard", icon: Home },
     { name: "Marketplace", href: "/marketplace", icon: ShoppingCart },
     { name: "My Orders", href: "/orders", icon: Package },
     { name: "Verify Product", href: "/verify", icon: QrCode },
+    { name: "Fintech", href: "/fintech", icon: CreditCard },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
+    {
+      name: "IoT",
+      href: "/iot",
+      icon: Wifi,
+      subItems: [
+        { name: "Overview", href: "/iot" },
+        { name: "Live Monitoring", href: "/iot/monitoring" },
+        { name: "Alerts", href: "/iot/alerts" },
+        { name: "Sensors", href: "/iot/sensors" },
+      ],
+    },
+    {
+      name: "AI & ML",
+      href: "/ai",
+      icon: Brain,
+      subItems: [
+        { name: "AI Insights", href: "/ai" },
+        { name: "Advanced ML", href: "/advanced-ml" },
+        { name: "Image Recognition", href: "/image-recognition" },
+      ],
+    },
   ],
   agency: [
     { name: "Dashboard", href: "/dashboard", icon: Home },
     { name: "My Farmers", href: "/partners", icon: Users },
     { name: "Commissions", href: "/commissions", icon: Package },
+    { name: "Fintech", href: "/fintech", icon: CreditCard },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
     { name: "Marketplace", href: "/marketplace", icon: ShoppingCart },
+    {
+      name: "IoT",
+      href: "/iot",
+      icon: Wifi,
+      subItems: [
+        { name: "Overview", href: "/iot" },
+        { name: "Live Monitoring", href: "/iot/monitoring" },
+        { name: "Alerts", href: "/iot/alerts" },
+        { name: "Sensors", href: "/iot/sensors" },
+      ],
+    },
+    {
+      name: "AI & ML",
+      href: "/ai",
+      icon: Brain,
+      subItems: [
+        { name: "AI Insights", href: "/ai" },
+        { name: "Advanced ML", href: "/advanced-ml" },
+        { name: "Image Recognition", href: "/image-recognition" },
+      ],
+    },
   ],
 }
 
@@ -81,24 +155,35 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
   const pathname = usePathname()
   const { logout } = useAuth()
 
+  // Ensure proper body scrolling behavior
+  useEffect(() => {
+    // Don't restrict body scrolling - let the main content area handle it
+    // This allows proper scrolling while keeping sidebar fixed
+    
+    return () => {
+      // Cleanup not needed
+    }
+  }, [])
+
   const navigation = user?.role ? (navigationItems[user.role as keyof typeof navigationItems] || navigationItems.farmer) : navigationItems.farmer
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background relative">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Always fixed */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:relative lg:z-auto ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border shadow-lg transform transition-transform duration-200 ease-in-out ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
+        style={{ height: '100vh' }}
       >
-        <div className="flex h-full flex-col">
+        <div className="flex h-full flex-col overflow-hidden">
           {/* Logo */}
-          <div className="flex h-16 items-center justify-between px-4 sm:px-6 border-b border-border">
+          <div className="flex h-16 items-center justify-between px-4 sm:px-6 border-b border-border flex-shrink-0">
             <Link href="/" className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <Leaf className="w-5 h-5 text-primary-foreground" />
@@ -134,7 +219,71 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
           </nav>
 
           {/* Settings */}
-          <div className="px-3 sm:px-4 py-4 border-t border-border">
+          <div className="px-3 sm:px-4 py-4 border-t border-border flex-shrink-0 space-y-2">
+            <Link
+              href="/language"
+              className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <Globe className="w-5 h-5 flex-shrink-0" />
+              <span>Language</span>
+            </Link>
+                      <Link
+            href="/verification"
+            className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <Shield className="w-5 h-5 flex-shrink-0" />
+            <span>BVN Verification</span>
+          </Link>
+          <Link
+            href="/notifications"
+            className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <Bell className="w-5 h-5 flex-shrink-0" />
+            <span>Notifications</span>
+          </Link>
+          <Link
+            href="/users"
+            className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <Users className="w-5 h-5 flex-shrink-0" />
+            <span>User Management</span>
+          </Link>
+          <Link
+            href="/reports"
+            className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <BarChart3 className="w-5 h-5 flex-shrink-0" />
+            <span>Reports & Analytics</span>
+          </Link>
+          <Link
+            href="/inventory"
+            className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <Package className="w-5 h-5 flex-shrink-0" />
+            <span>Inventory Management</span>
+          </Link>
+          <Link
+            href="/quality"
+            className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <Shield className="w-5 h-5 flex-shrink-0" />
+            <span>Quality Control</span>
+          </Link>
+          <Link
+            href="/ussd"
+            className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <Phone className="w-5 h-5 flex-shrink-0" />
+            <span>USSD Services</span>
+          </Link>
             <Link
               href="/settings"
               className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -148,9 +297,9 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen lg:ml-64">
         {/* Top navigation */}
-        <header className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
+        <header className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border flex-shrink-0">
           <div className="flex h-16 items-center justify-between px-4 sm:px-6">
             <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="w-5 h-5" />
@@ -160,6 +309,8 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
               <OfflineStatus />
 
               <NotificationBell />
+
+              <LanguageSelector variant="compact" showLabel={false} className="hidden sm:flex" />
 
               <Button
                 variant="ghost"
@@ -221,7 +372,7 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 sm:p-6">
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
           <div className="mx-auto w-full max-w-7xl">
             {children}
           </div>

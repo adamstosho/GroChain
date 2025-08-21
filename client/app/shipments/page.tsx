@@ -1,12 +1,5 @@
-import { ErrorBoundary } from "@/components/error-boundary"
-import { ShipmentsDashboard } from "@/components/shipments/shipments-dashboard"
+import { ShipmentDashboard } from "@/components/shipments/shipment-dashboard"
 
 export default function ShipmentsPage() {
-  return (
-    <ErrorBoundary>
-      <ShipmentsDashboard />
-    </ErrorBoundary>
-  )
+  return <ShipmentDashboard />
 }
-
-export const dynamic = 'force-dynamic'

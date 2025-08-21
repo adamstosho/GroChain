@@ -17,14 +17,33 @@ const harvestSchema = Joi.object({
 
 export const createHarvest = async (req: AuthRequest, res: Response) => {
   try {
+    console.log('🌾 Creating harvest for user:', req.user?.id);
+    console.log('🌾 Request body:', req.body);
+    
     const { error, value } = harvestSchema.validate(req.body);
     if (error) {
+      console.log('🌾 Validation error:', error.details[0].message);
       return res.status(400).json({ status: 'error', message: error.details[0].message });
     }
+    
+    // Ensure the farmer field is set to the authenticated user's ID
+    const harvestData = {
+      ...value,
+      farmer: req.user?.id // Always use authenticated user's ID
+    };
+    
+    console.log('🌾 Processed harvest data:', harvestData);
+    
     const batchId = uuidv4();
     const qrData = await generateQRCode(batchId);
-    const harvest = new Harvest({ ...value, batchId, qrData });
+    
+    console.log('🌾 Generated batchId:', batchId);
+    console.log('🌾 Generated qrData:', qrData);
+    
+    const harvest = new Harvest({ ...harvestData, batchId, qrData });
     await harvest.save();
+    
+    console.log('🌾 Harvest saved successfully with ID:', harvest._id);
 
     // Send real-time notification to partner network
     try {
@@ -48,11 +67,12 @@ export const createHarvest = async (req: AuthRequest, res: Response) => {
 
     return res.status(201).json({ status: 'success', harvest, qrData });
   } catch (err) {
+    console.error('🌾 Error creating harvest:', err);
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
 };
 
-export const getHarvests = async (req: Request, res: Response) => {
+export const getHarvests = async (req: AuthRequest, res: Response) => {
   try {
     const {
       farmer,
@@ -67,11 +87,23 @@ export const getHarvests = async (req: Request, res: Response) => {
       limit = 10
     } = req.query;
 
-    // Build filter object
+    // Build filter object - ALWAYS filter by authenticated user for security
     const filter: any = {};
 
-    // Farmer filter
-    if (farmer) {
+    // IMPORTANT: Always filter by the authenticated user's ID for security
+    // This ensures users can only see their own harvests
+    if (req.user?.id) {
+      filter.farmer = req.user.id;
+    } else {
+      return res.status(401).json({ 
+        status: 'error', 
+        message: 'User not authenticated' 
+      });
+    }
+
+    // Additional filters (optional)
+    if (farmer && req.user?.role === 'admin') {
+      // Only admins can filter by other farmers
       filter.farmer = farmer;
     }
 
@@ -101,12 +133,17 @@ export const getHarvests = async (req: Request, res: Response) => {
     // Calculate pagination
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
 
+    console.log('🔍 Harvest filter:', filter);
+    console.log('🔍 Authenticated user ID:', req.user?.id);
+
     // Execute query with pagination
     const harvests = await Harvest.find(filter)
       .populate('farmer', 'name email phone')
       .sort(sort)
       .skip(skip)
       .limit(parseInt(limit as string));
+
+    console.log('🔍 Found harvests:', harvests.length);
 
     // Get total count for pagination
     const total = await Harvest.countDocuments(filter);
@@ -122,6 +159,7 @@ export const getHarvests = async (req: Request, res: Response) => {
       }
     });
   } catch (err) {
+    console.error('Error fetching harvests:', err);
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
 };

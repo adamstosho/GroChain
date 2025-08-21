@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import Joi from 'joi';
 
 export const envSchema = Joi.object({
@@ -15,8 +17,8 @@ export const envSchema = Joi.object({
   // JWT
   JWT_SECRET: Joi.string().min(32).required(),
   JWT_REFRESH_SECRET: Joi.string().min(32).required(),
-  JWT_EXPIRES_IN: Joi.string().default('1h'),
-  JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
+  JWT_EXPIRES_IN: Joi.string().default('24h'),
+  JWT_REFRESH_EXPIRES_IN: Joi.string().default('30d'),
 
   // Paystack
   PAYSTACK_SECRET_KEY: Joi.string().optional(),

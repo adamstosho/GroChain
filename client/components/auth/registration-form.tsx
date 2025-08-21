@@ -246,20 +246,10 @@ function RegistrationFormContent({ role }: RegistrationFormProps) {
       })
 
       if (response.success) {
-        // Check if email verification is required
-        if (response.requiresVerification) {
-          setIsSuccess(true)
-          // Redirect to verification page after a short delay
-          setTimeout(() => {
-            router.push(`/verify-email?email=${encodeURIComponent(formData.email.trim().toLowerCase())}`)
-          }, 2000)
-        } else {
-          // If no verification required (shouldn't happen with new flow)
-          setIsSuccess(true)
-          setTimeout(() => {
-            router.push("/dashboard")
-          }, 2000)
-        }
+        // Email verification is always required for new accounts
+        setIsSuccess(true)
+        // Show success message and instruct user to check email
+        // User will click the verification link in their email
       } else {
         setErrors({ submit: response.error || "Registration failed. Please try again." })
       }
@@ -282,12 +272,7 @@ function RegistrationFormContent({ role }: RegistrationFormProps) {
           phone: formData.phone,
           role: role
         }}
-        onContinue={() => {
-          // Use setTimeout to avoid calling router.push during render
-          setTimeout(() => {
-            router.push("/dashboard")
-          }, 0)
-        }}
+        onContinue={() => router.push("/login")}
       />
     )
   }

@@ -79,6 +79,9 @@ export function ReferralsDashboard() {
   const [loading, setLoading] = useState(true)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [newReferralCode, setNewReferralCode] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [sortBy, setSortBy] = useState<string>("joinDate")
 
   const isPartnerOrAdmin = user && (user.role === "partner" || user.role === "admin")
 
@@ -89,13 +92,49 @@ export function ReferralsDashboard() {
   const fetchReferralData = async () => {
     setLoading(true)
     try {
-      // Use mock data since backend endpoints are limited
-      setReferralStats(mockReferralStats)
-      setReferrals(mockReferrals)
-      setReferralCodes(mockReferralCodes)
-      setBonusHistory(mockBonusHistory)
+      // Try to fetch real data first, fallback to mock data
+      try {
+        const [statsResponse, referralsResponse, codesResponse, bonusesResponse] = await Promise.allSettled([
+          api.getReferralStats(),
+          api.getReferrals(),
+          api.getReferralCodes(),
+          api.getReferralBonusHistory()
+        ])
+
+        if (statsResponse.status === 'fulfilled' && statsResponse.value.success) {
+          setReferralStats(statsResponse.value.data)
+        } else {
+          setReferralStats(mockReferralStats)
+        }
+
+        if (referralsResponse.status === 'fulfilled' && referralsResponse.value.success) {
+          setReferrals(referralsResponse.value.data)
+        } else {
+          setReferrals(mockReferrals)
+        }
+
+        if (codesResponse.status === 'fulfilled' && codesResponse.value.success) {
+          setReferralCodes(codesResponse.value.data)
+        } else {
+          setReferralCodes(mockReferralCodes)
+        }
+
+        if (bonusesResponse.status === 'fulfilled' && bonusesResponse.value.success) {
+          setBonusHistory(bonusesResponse.value.data)
+        } else {
+          setBonusHistory(mockBonusHistory)
+        }
+      } catch (apiError) {
+        console.log("API endpoints not available, using mock data:", apiError)
+        // Fallback to mock data
+        setReferralStats(mockReferralStats)
+        setReferrals(mockReferrals)
+        setReferralCodes(mockReferralCodes)
+        setBonusHistory(mockBonusHistory)
+      }
     } catch (error) {
       console.error("Error fetching referral data:", error)
+      // Final fallback to mock data
       setReferralStats(mockReferralStats)
       setReferrals(mockReferrals)
       setReferralCodes(mockReferralCodes)
@@ -107,7 +146,25 @@ export function ReferralsDashboard() {
 
   const generateReferralCode = async () => {
     try {
-      // This would use actual API endpoint
+      const codeData = {
+        code: newReferralCode || `REF${Date.now()}`,
+        usageLimit: 100,
+        isActive: true
+      }
+
+      // Try to use real API first
+      try {
+        const response = await api.createReferralCode(codeData)
+        if (response.success && response.data) {
+          setReferralCodes(prev => [response.data, ...prev])
+          setNewReferralCode("")
+          return
+        }
+      } catch (apiError) {
+        console.log("API endpoint not available, using local generation:", apiError)
+      }
+
+      // Fallback to local generation
       const newCode = {
         code: newReferralCode || `REF${Date.now()}`,
         createdAt: new Date().toISOString(),

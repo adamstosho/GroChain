@@ -4,6 +4,7 @@ import { dmSans, nunito } from "./fonts"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
 import { WebSocketProvider } from "@/lib/websocket-context"
+import { LanguageProvider } from "@/lib/language-context"
 import { SocketProvider } from "@/components/realtime/socket-provider"
 import InstallPrompt from "@/components/pwa/install-prompt"
 import OfflineIndicator from "@/components/pwa/offline-indicator"
@@ -81,21 +82,23 @@ export default function RootLayout({
       <body>
         <ThemeProvider attribute="data-theme" defaultTheme="light" enableSystem disableTransitionOnChange={false}>
           <ErrorBoundary>
-            <AuthProvider>
-              <WebSocketProvider>
-                <NotificationProvider>
-                  <SocketProvider>
-                    <PWAProvider>
-                      {children}
-                      <InstallPrompt />
-                      <OfflineIndicator />
-                      <Toaster richColors position="top-right" />
-                    </PWAProvider>
-                  </SocketProvider>
-                </NotificationProvider>
-              </WebSocketProvider>
-            </AuthProvider>
-          </ErrorBoundary>
+            <LanguageProvider>
+              <AuthProvider>
+                <WebSocketProvider>
+                  <NotificationProvider>
+                    <SocketProvider>
+                      <PWAProvider>
+                        {children}
+                        <InstallPrompt />
+                        <OfflineIndicator />
+                        <Toaster richColors position="top-right" />
+                      </PWAProvider>
+                    </SocketProvider>
+                  </NotificationProvider>
+                </WebSocketProvider>
+              </AuthProvider>
+            </LanguageProvider>
+            </ErrorBoundary>
         </ThemeProvider>
       </body>
     </html>

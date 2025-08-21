@@ -2,93 +2,171 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/Progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
-import { Camera, Upload, Scan, Leaf, Bug, AlertTriangle, CheckCircle, ArrowLeft } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Camera, Upload, Scan, Leaf, Bug, AlertTriangle, CheckCircle, ArrowLeft, RefreshCw, Filter, Download, Trash2, Eye } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { useAuth } from "@/lib/auth-context"
+import { api } from "@/lib/api"
+import { toast } from "sonner"
 import Link from "next/link"
 
 interface AnalysisResult {
-  id: string
-  type: "disease" | "pest" | "nutrient" | "health"
+  _id: string
+  type: "disease" | "pest" | "quality" | "growth" | "nutrient"
   confidence: number
   title: string
   description: string
   severity: "low" | "medium" | "high"
   recommendations: string[]
   createdAt: string
+  cropType: string
+  analysisType: string
+  status: "pending" | "completed" | "failed"
+  imageUrl?: string
+  fieldId?: string
+  location?: {
+    latitude: number
+    longitude: number
+  }
+  weather?: {
+    temperature?: number
+    humidity?: number
+    rainfall?: number
+  }
 }
 
-const mockResults: AnalysisResult[] = [
-  {
-    id: "1",
-    type: "disease",
-    confidence: 87,
-    title: "Early Blight Detected",
-    description: "Signs of early blight fungal infection detected on tomato leaves. Immediate action recommended.",
-    severity: "high",
-    recommendations: [
-      "Remove affected leaves immediately",
-      "Apply copper-based fungicide",
-      "Improve air circulation",
-      "Avoid overhead watering",
-    ],
-    createdAt: "2025-01-16T10:30:00Z",
-  },
-  {
-    id: "2",
-    type: "pest",
-    confidence: 92,
-    title: "Aphid Infestation",
-    description: "Aphid colonies detected on plant stems. Early intervention can prevent spread.",
-    severity: "medium",
-    recommendations: [
-      "Spray with insecticidal soap",
-      "Introduce beneficial insects",
-      "Remove heavily infested areas",
-      "Monitor weekly",
-    ],
-    createdAt: "2025-01-16T09:15:00Z",
-  },
-  {
-    id: "3",
-    type: "nutrient",
-    confidence: 78,
-    title: "Nitrogen Deficiency",
-    description: "Yellowing leaves indicate possible nitrogen deficiency. Consider fertilizer application.",
-    severity: "low",
-    recommendations: [
-      "Apply nitrogen-rich fertilizer",
-      "Test soil pH levels",
-      "Ensure proper drainage",
-      "Monitor plant response",
-    ],
-    createdAt: "2025-01-15T16:45:00Z",
-  },
+interface CropType {
+  name: string
+  value: string
+  description: string
+}
+
+const cropTypes: CropType[] = [
+  { name: "Tomatoes", value: "tomatoes", description: "Tomato plants and fruits" },
+  { name: "Yam", value: "yam", description: "Yam tubers and vines" },
+  { name: "Cassava", value: "cassava", description: "Cassava roots and leaves" },
+  { name: "Maize", value: "maize", description: "Corn plants and ears" },
+  { name: "Rice", value: "rice", description: "Rice plants and grains" },
+  { name: "Beans", value: "beans", description: "Bean plants and pods" },
+  { name: "Pepper", value: "pepper", description: "Pepper plants and fruits" },
+  { name: "Other", value: "other", description: "Other crop types" }
 ]
 
-// Mock user for layout
-const mockUser = {
-  id: "1",
-  name: "John Farmer",
-  email: "john@farm.com",
-  role: "farmer",
-  avatar: "/placeholder.svg",
-}
-
 export function ImageRecognition() {
+  const { user } = useAuth()
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>(mockResults)
+  const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([])
   const [activeTab, setActiveTab] = useState("analyze")
+  const [loading, setLoading] = useState(false)
+  const [selectedCropType, setSelectedCropType] = useState("tomatoes")
+  const [analysisType, setAnalysisType] = useState("disease")
+  const [fieldId, setFieldId] = useState("")
+  const [filterCropType, setFilterCropType] = useState("all")
+  const [filterRisk, setFilterRisk] = useState("all")
+  const [filterStatus, setFilterStatus] = useState("all")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch analysis history on component mount
+  useEffect(() => {
+    fetchAnalysisHistory()
+  }, [])
+
+  const fetchAnalysisHistory = async () => {
+    try {
+      setLoading(true)
+      const resp = await api.get("/api/image-recognition/analyses")
+      if (resp.success && resp.data) {
+        setAnalysisResults(resp.data.analyses || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch analysis history:", error)
+      toast.error("Failed to load analysis history")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchAnalysesByCropType = async (cropType: string) => {
+    try {
+      setLoading(true)
+      const resp = await api.get(`/api/image-recognition/analyses/crop/${cropType}`)
+      if (resp.success && resp.data) {
+        setAnalysisResults(resp.data.analyses || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch analyses by crop type:", error)
+      toast.error("Failed to load crop-specific analyses")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchHighRiskAnalyses = async () => {
+    try {
+      setLoading(true)
+      const resp = await api.get("/api/image-recognition/analyses/risk/high")
+      if (resp.success && resp.data) {
+        setAnalysisResults(resp.data.analyses || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch high-risk analyses:", error)
+      toast.error("Failed to load high-risk analyses")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateAnalysisStatus = async (analysisId: string, status: string) => {
+    try {
+      const resp = await api.put(`/api/image-recognition/analyses/${analysisId}/status`, { status })
+      if (resp.success) {
+        toast.success("Analysis status updated successfully")
+        fetchAnalysisHistory() // Refresh the list
+      }
+    } catch (error) {
+      console.error("Failed to update analysis status:", error)
+      toast.error("Failed to update analysis status")
+    }
+  }
+
+  const addRecommendation = async (analysisId: string, recommendation: string) => {
+    try {
+      const resp = await api.post(`/api/image-recognition/analyses/${analysisId}/recommendations`, { recommendation })
+      if (resp.success) {
+        toast.success("Recommendation added successfully")
+        fetchAnalysisHistory() // Refresh the list
+      }
+    } catch (error) {
+      console.error("Failed to add recommendation:", error)
+      toast.error("Failed to add recommendation")
+    }
+  }
+
+  const deleteAnalysis = async (analysisId: string) => {
+    try {
+      const resp = await api.delete(`/api/image-recognition/analyses/${analysisId}`)
+      if (resp.success) {
+        toast.success("Analysis deleted successfully")
+        fetchAnalysisHistory() // Refresh the list
+      }
+    } catch (error) {
+      console.error("Failed to delete analysis:", error)
+      toast.error("Failed to delete analysis")
+    }
+  }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -103,38 +181,48 @@ export function ImageRecognition() {
   }
 
   const handleAnalyze = async () => {
-    if (!selectedImage) return
+    if (!selectedImage || !selectedCropType || !analysisType) {
+      toast.error("Please select an image, crop type, and analysis type")
+      return
+    }
 
     setIsAnalyzing(true)
 
     try {
       const formData = new FormData()
       formData.append("image", selectedImage)
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 3000))
-
-      // Mock analysis result
-      const newResult: AnalysisResult = {
-        id: Date.now().toString(),
-        type: "health",
-        confidence: 94,
-        title: "Healthy Plant Detected",
-        description: "Plant appears healthy with good leaf color and structure. Continue current care routine.",
-        severity: "low",
-        recommendations: [
-          "Maintain current watering schedule",
-          "Continue regular fertilization",
-          "Monitor for any changes",
-          "Ensure adequate sunlight",
-        ],
-        createdAt: new Date().toISOString(),
+      formData.append("cropType", selectedCropType)
+      formData.append("analysisType", analysisType)
+      
+      if (fieldId) {
+        formData.append("fieldId", fieldId)
       }
 
-      setAnalysisResults((prev) => [newResult, ...prev])
-      setActiveTab("results")
+      // Add location if available (you can get this from user's profile or GPS)
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          formData.append("latitude", position.coords.latitude.toString())
+          formData.append("longitude", position.coords.longitude.toString())
+        })
+      }
+
+      const resp = await api.post("/api/image-recognition/analyze", formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      if (resp.success && resp.data) {
+        toast.success("Image analysis completed successfully")
+        setActiveTab("results")
+        fetchAnalysisHistory() // Refresh the list
+        resetAnalysis()
+      } else {
+        toast.error("Image analysis failed")
+      }
     } catch (error) {
       console.error("Analysis error:", error)
+      toast.error("Failed to analyze image")
     } finally {
       setIsAnalyzing(false)
     }
@@ -176,7 +264,7 @@ export function ImageRecognition() {
   }
 
   return (
-    <DashboardLayout user={mockUser}>
+    <DashboardLayout user={user as any}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center space-x-4">
@@ -193,7 +281,7 @@ export function ImageRecognition() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="analyze">Analyze Image</TabsTrigger>
             <TabsTrigger value="results">
               Analysis History
@@ -203,6 +291,7 @@ export function ImageRecognition() {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="insights">AI Insights</TabsTrigger>
           </TabsList>
 
           <TabsContent value="analyze" className="space-y-6">
@@ -271,6 +360,52 @@ export function ImageRecognition() {
                           className="w-full h-64 object-cover rounded-lg border"
                         />
                       </div>
+                      {/* Analysis Configuration */}
+                      <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+                        <h4 className="font-medium">Analysis Configuration</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <Label htmlFor="crop-type">Crop Type</Label>
+                            <Select value={selectedCropType} onValueChange={setSelectedCropType}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {cropTypes.map((crop) => (
+                                  <SelectItem key={crop.value} value={crop.value}>
+                                    {crop.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor="analysis-type">Analysis Type</Label>
+                            <Select value={analysisType} onValueChange={setAnalysisType}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="disease">Disease Detection</SelectItem>
+                                <SelectItem value="pest">Pest Detection</SelectItem>
+                                <SelectItem value="quality">Quality Assessment</SelectItem>
+                                <SelectItem value="growth">Growth Analysis</SelectItem>
+                                <SelectItem value="nutrient">Nutrient Analysis</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor="field-id">Field ID (Optional)</Label>
+                            <Input
+                              id="field-id"
+                              placeholder="e.g., Field A, Plot 1"
+                              value={fieldId}
+                              onChange={(e) => setFieldId(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
                       <div className="flex justify-between">
                         <Button variant="outline" onClick={resetAnalysis}>
                           Choose Different Image
@@ -370,7 +505,88 @@ export function ImageRecognition() {
           </TabsContent>
 
           <TabsContent value="results" className="space-y-6">
-            {analysisResults.length === 0 ? (
+            {/* Filters and Actions */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Analysis History</CardTitle>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={fetchAnalysisHistory}>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Refresh
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={fetchHighRiskAnalyses}>
+                      <AlertTriangle className="w-4 h-4 mr-2" />
+                      High Risk
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="filter-crop">Filter by Crop</Label>
+                    <Select value={filterCropType} onValueChange={(value) => {
+                      setFilterCropType(value)
+                      if (value === "all") {
+                        fetchAnalysisHistory()
+                      } else {
+                        fetchAnalysesByCropType(value)
+                      }
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Crops</SelectItem>
+                        {cropTypes.map((crop) => (
+                          <SelectItem key={crop.value} value={crop.value}>
+                            {crop.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="filter-risk">Filter by Risk</Label>
+                    <Select value={filterRisk} onValueChange={setFilterRisk}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Risk Levels</SelectItem>
+                        <SelectItem value="high">High Risk</SelectItem>
+                        <SelectItem value="medium">Medium Risk</SelectItem>
+                        <SelectItem value="low">Low Risk</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="filter-status">Filter by Status</Label>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {loading ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-muted-foreground">Loading analysis results...</p>
+                </CardContent>
+              </Card>
+            ) : analysisResults.length === 0 ? (
               <Card>
                 <CardContent className="text-center py-12">
                   <Scan className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -386,7 +602,7 @@ export function ImageRecognition() {
               <div className="space-y-4">
                 {analysisResults.map((result, index) => (
                   <motion.div
-                    key={result.id}
+                    key={result._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: index * 0.1 }}
@@ -400,8 +616,38 @@ export function ImageRecognition() {
                               <div className="flex items-center space-x-2 mb-2">
                                 <h4 className="font-medium text-foreground">{result.title}</h4>
                                 {getSeverityBadge(result.severity)}
+                                <Badge variant="outline" className="ml-2">
+                                  {result.cropType}
+                                </Badge>
+                                <Badge variant={result.status === 'completed' ? 'default' : 
+                                               result.status === 'pending' ? 'secondary' : 'destructive'}>
+                                  {result.status}
+                                </Badge>
                               </div>
                               <p className="text-sm text-muted-foreground mb-3">{result.description}</p>
+                              
+                              {/* Additional Info */}
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">Analysis Type:</span>
+                                  <span className="ml-2 font-medium capitalize">{result.analysisType}</span>
+                                </div>
+                                {result.fieldId && (
+                                  <div>
+                                    <span className="text-muted-foreground">Field:</span>
+                                    <span className="ml-2 font-medium">{result.fieldId}</span>
+                                  </div>
+                                )}
+                                {result.location && (
+                                  <div>
+                                    <span className="text-muted-foreground">Location:</span>
+                                    <span className="ml-2 font-medium">
+                                      {result.location.latitude.toFixed(4)}, {result.location.longitude.toFixed(4)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              
                               <div className="flex items-center space-x-4 mb-4">
                                 <div className="flex items-center space-x-2">
                                   <span className="text-xs text-muted-foreground">Confidence:</span>
@@ -414,6 +660,7 @@ export function ImageRecognition() {
                                   {new Date(result.createdAt).toLocaleDateString()}
                                 </span>
                               </div>
+                              
                               <div>
                                 <h5 className="font-medium text-sm mb-2">Recommendations:</h5>
                                 <ul className="text-sm text-muted-foreground space-y-1">
@@ -427,9 +674,29 @@ export function ImageRecognition() {
                               </div>
                             </div>
                           </div>
-                          <Button variant="ghost" size="sm">
-                            View Details
-                          </Button>
+                          <div className="flex flex-col gap-2">
+                            <Button variant="ghost" size="sm">
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Details
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => updateAnalysisStatus(result._id, 'completed')}
+                              disabled={result.status === 'completed'}
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Mark Complete
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => deleteAnalysis(result._id)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -437,6 +704,174 @@ export function ImageRecognition() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="insights" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Leaf className="w-5 h-5 mr-2 text-success" />
+                    Crop Health Overview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-success">
+                        {analysisResults.filter(r => r.severity === 'low').length}
+                      </div>
+                      <p className="text-sm text-muted-foreground">Healthy Plants</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-warning">
+                        {analysisResults.filter(r => r.severity === 'medium').length}
+                      </div>
+                      <p className="text-sm text-muted-foreground">Medium Risk</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-destructive">
+                        {analysisResults.filter(r => r.severity === 'high').length}
+                      </div>
+                      <p className="text-sm text-muted-foreground">High Risk</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Bug className="w-5 h-5 mr-2 text-warning" />
+                    Issue Distribution
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {['disease', 'pest', 'nutrient', 'quality', 'growth'].map((type) => {
+                      const count = analysisResults.filter(r => r.type === type).length
+                      return (
+                        <div key={type} className="flex items-center justify-between">
+                          <span className="text-sm capitalize">{type}</span>
+                          <Badge variant="outline">{count}</Badge>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <AlertTriangle className="w-5 h-5 mr-2 text-destructive" />
+                    Risk Assessment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-destructive">
+                        {analysisResults.filter(r => r.severity === 'high').length}
+                      </div>
+                      <p className="text-sm text-muted-foreground">High Priority Issues</p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={fetchHighRiskAnalyses}
+                    >
+                      <AlertTriangle className="w-4 h-4 mr-2" />
+                      View High Risk
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Scan className="w-5 h-5 mr-2 text-primary" />
+                    Analysis Performance
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-primary">
+                        {analysisResults.length}
+                      </div>
+                      <p className="text-sm text-muted-foreground">Total Analyses</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-success">
+                        {analysisResults.filter(r => r.status === 'completed').length}
+                      </div>
+                      <p className="text-sm text-muted-foreground">Completed</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-warning">
+                        {analysisResults.filter(r => r.status === 'pending').length}
+                      </div>
+                      <p className="text-sm text-muted-foreground">Pending</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Camera className="w-5 h-5 mr-2 text-info" />
+                    Recent Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {analysisResults.slice(0, 3).map((result) => (
+                      <div key={result._id} className="flex items-center justify-between text-sm">
+                        <span className="truncate">{result.title}</span>
+                        <span className="text-muted-foreground">
+                          {new Date(result.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="w-5 h-5 mr-2 text-success" />
+                    Quick Actions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => setActiveTab("analyze")}
+                    >
+                      <Camera className="w-4 h-4 mr-2" />
+                      New Analysis
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={fetchAnalysisHistory}
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Refresh Data
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

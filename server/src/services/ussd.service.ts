@@ -581,6 +581,53 @@ Thank you for using GroChain USSD Service!`;
   }
 
   /**
+   * Get active USSD sessions
+   */
+  async getActiveSessions(): Promise<any[]> {
+    try {
+      const sessions = await USSDSession.find({ isActive: true })
+        .sort({ lastActivity: -1 })
+        .limit(50)
+        .lean();
+
+      return sessions.map(session => ({
+        sessionId: session.sessionId,
+        phoneNumber: session.phoneNumber,
+        status: session.isActive ? 'active' : 'completed',
+        startTime: session.createdAt,
+        lastActivity: session.lastActivity,
+        currentMenu: session.currentMenu,
+        network: this.detectNetwork(session.phoneNumber),
+        step: session.step
+      }));
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting active USSD sessions');
+      return [];
+    }
+  }
+
+  /**
+   * Detect network from phone number
+   */
+  private detectNetwork(phoneNumber: string): string {
+    const cleanNumber = phoneNumber.replace(/^\+234|^0/, '');
+    const prefix = cleanNumber.substring(0, 2);
+    
+    const networks: Record<string, string> = {
+      '80': 'MTN',
+      '81': 'MTN',
+      '90': 'Glo',
+      '91': 'Glo',
+      '70': 'Airtel',
+      '71': 'Airtel',
+      '89': '9mobile',
+      '99': '9mobile'
+    };
+    
+    return networks[prefix] || 'Unknown';
+  }
+
+  /**
    * Get USSD service code for registration
    */
   getServiceCode(): string {

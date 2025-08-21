@@ -1,28 +1,50 @@
 import { NextRequest, NextResponse } from "next/server"
 
-// Proxy to backend protected endpoint using Bearer from cookie-based storage if present
+// Proxy to backend protected endpoint using Bearer token from Authorization header
 export async function GET(request: NextRequest) {
   try {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"
-    // We store only access token in localStorage on client, but for SSR we may not have it.
-    // This endpoint is primarily for client-side calls in the app; it simply forwards cookies.
+    
+    // Get the Authorization header from the request
+    const authHeader = request.headers.get('authorization')
+    
+    if (!authHeader) {
+      return NextResponse.json({ 
+        status: 'error', 
+        message: 'No authorization header provided' 
+      }, { status: 401 })
+    }
+    
+    // Forward the request to the backend with the Authorization header
     const resp = await fetch(`${base}/api/auth/protected`, {
       headers: {
-        // If you later store httpOnly access token server-side, attach it here as Authorization
-        Accept: 'application/json',
+        'Authorization': authHeader,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       },
-      credentials: 'include',
       cache: 'no-store'
     })
+    
     const data = await resp.json().catch(() => ({}))
+    
     if (!resp.ok || data.status !== 'success') {
-      return NextResponse.json({ status: 'error', message: data.message || `HTTP ${resp.status}` }, { status: 401 })
+      return NextResponse.json({ 
+        status: 'error', 
+        message: data.message || `HTTP ${resp.status}` 
+      }, { status: resp.status })
     }
+    
     return NextResponse.json({ status: 'success', data })
   } catch (e) {
-    return NextResponse.json({ status: 'error', message: 'Failed to fetch user' }, { status: 500 })
+    console.error('Frontend /api/auth/me error:', e)
+    return NextResponse.json({ 
+      status: 'error', 
+      message: 'Failed to fetch user' 
+    }, { status: 500 })
   }
 }
+
+
 
 
 

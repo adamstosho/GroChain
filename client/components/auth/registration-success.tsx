@@ -16,7 +16,7 @@ interface UserData {
 
 interface RegistrationSuccessProps {
   userData: UserData
-  onContinue: () => void
+  onContinue?: () => void
 }
 
 export function RegistrationSuccess({ userData, onContinue }: RegistrationSuccessProps) {
@@ -56,10 +56,6 @@ export function RegistrationSuccess({ userData, onContinue }: RegistrationSucces
               </div>
 
               <div className="space-y-3">
-                <Button onClick={onContinue} className="w-full">
-                  Continue to Email Verification
-                </Button>
-                
                 <div className="text-sm text-muted-foreground">
                   <p>Didn't receive the email?</p>
                   <Button 
@@ -70,6 +66,12 @@ export function RegistrationSuccess({ userData, onContinue }: RegistrationSucces
                     Resend verification email
                   </Button>
                 </div>
+                
+                {onContinue && (
+                  <Button onClick={onContinue} variant="outline" className="w-full">
+                    Go to Login
+                  </Button>
+                )}
               </div>
 
               <div className="mt-6 pt-6 border-t border-border">

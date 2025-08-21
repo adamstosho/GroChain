@@ -1,10 +1,10 @@
 import { ErrorBoundary } from "@/components/error-boundary"
-import { AnalyticsDashboard } from "@/components/analytics/analytics-dashboard"
+import { AnalyticsDashboardNew } from "@/components/analytics/analytics-dashboard-new"
 
 export default function AnalyticsPage() {
   return (
     <ErrorBoundary>
-      <AnalyticsDashboard />
+      <AnalyticsDashboardNew />
     </ErrorBoundary>
   )
 }

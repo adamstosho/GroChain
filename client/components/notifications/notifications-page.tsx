@@ -79,6 +79,12 @@ export function NotificationsPage() {
   useEffect(() => {
     const loadPrefs = async () => {
       try {
+        // Check if user is authenticated before making API calls
+        if (!user?.id) {
+          console.log("User not authenticated, skipping notification preferences fetch")
+          return
+        }
+
         setPrefLoading(true)
         const resp = await api.getNotificationPreferences()
         if (resp.success && resp.data) {
@@ -96,12 +102,14 @@ export function NotificationsPage() {
           }
           setPreferences(mapped)
         }
+      } catch (error) {
+        console.log("Failed to load notification preferences:", error)
       } finally {
         setPrefLoading(false)
       }
     }
     loadPrefs()
-  }, [])
+  }, [user])
 
   const unreadCount = notifications.filter((n) => !n.read).length
 

@@ -625,4 +625,3 @@ export function IoTMonitoringPage() {
     </DashboardLayout>
   )
 }
-

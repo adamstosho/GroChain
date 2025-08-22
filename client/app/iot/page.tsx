@@ -1,5 +1,10 @@
 import { IoTDashboard } from "@/components/iot/iot-dashboard"
+import { AdminOrPartner } from "@/components/auth/role-guard"
 
 export default function IoTPage() {
-  return <IoTDashboard />
+  return (
+    <AdminOrPartner>
+      <IoTDashboard />
+    </AdminOrPartner>
+  )
 }

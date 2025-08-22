@@ -1,21 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Progress } from "@/components/ui/Progress"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Brain, TrendingUp, Lightbulb, AlertCircle, Camera, BarChart3, Leaf, Droplets, Sun, Bug, RefreshCw, Zap, Target, Clock, CheckCircle } from "lucide-react"
+import { Brain, TrendingUp, Lightbulb, AlertCircle, Camera, BarChart3, Leaf, Droplets, Sun, Bug } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { useAuth } from "@/lib/auth-context"
-import { api } from "@/lib/api"
-import { toast } from "sonner"
 import Link from "next/link"
 
 interface AIInsight {
@@ -115,289 +108,9 @@ const mockUser = {
 }
 
 export function AIDashboard() {
-  const { user } = useAuth()
-  const [insights, setInsights] = useState<AIInsight[]>([])
-  const [cropAnalysis, setCropAnalysis] = useState<CropAnalysis[]>([])
+  const [insights] = useState<AIInsight[]>(mockInsights)
+  const [cropAnalysis] = useState<CropAnalysis[]>(mockCropAnalysis)
   const [activeTab, setActiveTab] = useState("insights")
-  const [loading, setLoading] = useState(false)
-  const [location, setLocation] = useState("")
-  const [season, setSeason] = useState("rainy")
-  const [cropName, setCropName] = useState("")
-  const [marketInsights, setMarketInsights] = useState<any>(null)
-  const [yieldPrediction, setYieldPrediction] = useState<any>(null)
-  const [farmingInsights, setFarmingInsights] = useState<any>(null)
-  const [farmingRecommendations, setFarmingRecommendations] = useState<any>(null)
-  const [seasonalCalendar, setSeasonalCalendar] = useState<any>(null)
-  const [weatherPrediction, setWeatherPrediction] = useState<any>(null)
-  const [marketTrends, setMarketTrends] = useState<any>(null)
-  const [riskAssessment, setRiskAssessment] = useState<any>(null)
-  const [predictiveInsights, setPredictiveInsights] = useState<any>(null)
-
-  // Fetch AI insights on component mount
-  useEffect(() => {
-    fetchAIInsights()
-    fetchFarmingInsights()
-    fetchFarmingRecommendations()
-  }, [])
-
-  const fetchAIInsights = async () => {
-    try {
-      setLoading(true)
-      
-      // Fetch farming insights from existing endpoint
-      const insightsResp = await api.get("/api/ai/farming-insights")
-      if (insightsResp.success && insightsResp.data) {
-        // Transform backend data to frontend format
-        const transformedInsights: AIInsight[] = insightsResp.data.insights?.map((insight: any, index: number) => ({
-          id: (index + 1).toString(),
-          type: insight.type || "analysis",
-          title: insight.title || "AI Insight",
-          description: insight.description || insight.message || "No description available",
-          confidence: insight.confidence || Math.floor(Math.random() * 30) + 70,
-          priority: insight.priority || "medium",
-          category: insight.category || "crop_health",
-          createdAt: insight.createdAt || new Date().toISOString()
-        })) || []
-        
-        setInsights(transformedInsights)
-      } else {
-        // Use mock data if API fails
-        setInsights(mockInsights)
-      }
-    } catch (error) {
-      console.error("Failed to fetch AI insights:", error)
-      toast.error("Failed to load AI insights")
-      // Fallback to mock data
-      setInsights(mockInsights)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchFarmingInsights = async () => {
-    try {
-      const resp = await api.get("/api/ai/farming-insights")
-      if (resp.success && resp.data) {
-        setFarmingInsights(resp.data)
-      } else {
-        // Use mock data if API fails
-        setFarmingInsights({
-          insights: mockInsights,
-          recommendations: ["Use organic fertilizers", "Implement crop rotation", "Monitor soil moisture"]
-        })
-      }
-    } catch (error) {
-      console.error("Failed to fetch farming insights:", error)
-      // Fallback to mock data
-      setFarmingInsights({
-        insights: mockInsights,
-        recommendations: ["Use organic fertilizers", "Implement crop rotation", "Monitor soil moisture"]
-      })
-    }
-  }
-
-  const fetchFarmingRecommendations = async () => {
-    try {
-      const resp = await api.get("/api/ai/farming-recommendations")
-      if (resp.success && resp.data) {
-        setFarmingRecommendations(resp.data)
-      } else {
-        // Use mock data if API fails
-        setFarmingRecommendations({
-          recommendations: mockInsights,
-          priority: "high"
-        })
-      }
-    } catch (error) {
-      console.error("Failed to fetch farming recommendations:", error)
-      // Fallback to mock data
-      setFarmingRecommendations({
-        recommendations: mockInsights,
-        priority: "high"
-      })
-    }
-  }
-
-  const getCropRecommendations = async () => {
-    if (!location || !season) {
-      toast.error("Please provide location and season")
-      return
-    }
-
-    try {
-      setLoading(true)
-      const resp = await api.post("/api/ai/crop-recommendations", { location, season })
-      if (resp.success && resp.data) {
-        // Transform recommendations to crop analysis format
-        const transformedCrops: CropAnalysis[] = resp.data.recommendations?.map((rec: any, index: number) => ({
-          cropType: rec.crop,
-          healthScore: rec.confidence || 85,
-          growthStage: "Planning",
-          estimatedHarvest: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 120 days from now
-          recommendations: rec.reasons || ["Follow recommended practices", "Monitor growth", "Prepare for harvest"]
-        })) || []
-        
-        setCropAnalysis(transformedCrops)
-        toast.success("Crop recommendations generated successfully")
-      }
-    } catch (error) {
-      console.error("Failed to get crop recommendations:", error)
-      toast.error("Failed to get crop recommendations")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getYieldPrediction = async () => {
-    if (!cropName || !location || !season) {
-      toast.error("Please provide crop name, location and season")
-      return
-    }
-
-    try {
-      setLoading(true)
-      const resp = await api.post("/api/ai/yield-prediction", { cropName, location, season })
-      if (resp.success && resp.data) {
-        setYieldPrediction(resp.data)
-        toast.success("Yield prediction generated successfully")
-      }
-    } catch (error) {
-      console.error("Failed to get yield prediction:", error)
-      toast.error("Failed to get yield prediction")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getMarketInsights = async () => {
-    if (!cropName) {
-      toast.error("Please provide crop name")
-      return
-    }
-
-    try {
-      setLoading(true)
-      const resp = await api.get(`/api/ai/market-insights?cropName=${encodeURIComponent(cropName)}`)
-      if (resp.success && resp.data) {
-        setMarketInsights(resp.data)
-        toast.success("Market insights generated successfully")
-      }
-    } catch (error) {
-      console.error("Failed to get market insights:", error)
-      toast.error("Failed to get market insights")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getSeasonalCalendar = async () => {
-    try {
-      setLoading(true)
-      const resp = await api.get("/api/ai/seasonal-calendar?location=Nigeria")
-      if (resp.success && resp.data) {
-        setSeasonalCalendar(resp.data)
-        toast.success("Seasonal calendar generated successfully")
-      }
-    } catch (error) {
-      console.error("Failed to get seasonal calendar:", error)
-      toast.error("Failed to get seasonal calendar")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getWeatherPrediction = async () => {
-    if (!location) {
-      toast.error("Please provide location")
-      return
-    }
-
-    try {
-      setLoading(true)
-      const resp = await api.get(`/api/ai/weather-prediction?location=${encodeURIComponent(location)}&month=${new Date().getMonth() + 1}`)
-      if (resp.success && resp.data) {
-        setWeatherPrediction(resp.data)
-        toast.success("Weather prediction generated successfully")
-      }
-    } catch (error) {
-      console.error("Failed to get weather prediction:", error)
-      toast.error("Failed to get weather prediction")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getMarketTrends = async () => {
-    if (!cropName) {
-      toast.error("Yield prediction generated successfully")
-      return
-    }
-
-    try {
-      setLoading(true)
-      const resp = await api.get(`/api/ai/market-trends?cropName=${encodeURIComponent(cropName)}`)
-      if (resp.success && resp.data) {
-        setMarketTrends(resp.data)
-        toast.success("Market trends generated successfully")
-      }
-    } catch (error) {
-      console.error("Failed to get market trends:", error)
-      toast.error("Failed to get market trends")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getRiskAssessment = async () => {
-    if (!location) {
-      toast.error("Please provide location")
-      return
-    }
-
-    try {
-      setLoading(true)
-      const resp = await api.post("/api/ai/risk-assessment", { location })
-      if (resp.success && resp.data) {
-        setRiskAssessment(resp.data)
-        toast.success("Risk assessment generated successfully")
-      }
-    } catch (error) {
-      console.error("Failed to get risk assessment:", error)
-      toast.error("Failed to get risk assessment")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getPredictiveInsights = async () => {
-    if (!location) {
-      toast.error("Please provide location")
-      return
-    }
-
-    try {
-      setLoading(true)
-      const resp = await api.post("/api/ai/predictive-insights", { location })
-      if (resp.success && resp.data) {
-        setPredictiveInsights(resp.data)
-        toast.success("Predictive insights generated successfully")
-      }
-    } catch (error) {
-      console.error("Failed to get predictive insights:", error)
-      toast.error("Failed to get predictive insights")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const refreshAllData = async () => {
-    await Promise.all([
-      fetchAIInsights(),
-      fetchFarmingInsights(),
-      fetchFarmingRecommendations()
-    ])
-    toast.success("All data refreshed")
-  }
 
   const getInsightIcon = (type: AIInsight["type"]) => {
     switch (type) {
@@ -449,7 +162,7 @@ export function AIDashboard() {
   }
 
   return (
-    <DashboardLayout user={user as any}>
+    <DashboardLayout user={mockUser}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -458,28 +171,16 @@ export function AIDashboard() {
             <p className="text-muted-foreground">AI-powered recommendations and analysis for your farm</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="lg" onClick={refreshAllData} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh All
-            </Button>
             <Link href="/image-recognition">
               <Button variant="outline" size="lg" className="bg-transparent">
                 <Camera className="w-4 h-4 mr-2" />
                 Image Analysis
               </Button>
             </Link>
-            <Link href="/advanced-ml">
-              <Button variant="outline" size="lg" className="bg-transparent">
-                <Zap className="w-4 h-4 mr-2" />
-                Advanced ML
-              </Button>
-            </Link>
-            <Link href="/ai-recommendations">
-              <Button variant="outline" size="lg" className="bg-transparent">
-                <Target className="w-4 h-4 mr-2" />
-                AI Recommendations
-              </Button>
-            </Link>
+            <Button size="lg">
+              <Brain className="w-4 h-4 mr-2" />
+              Generate Report
+            </Button>
           </div>
         </div>
 
@@ -648,255 +349,17 @@ export function AIDashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="predictions" className="space-y-6">
-            {/* Input Forms */}
+          <TabsContent value="predictions">
             <Card>
               <CardHeader>
-                <CardTitle>AI Service Inputs</CardTitle>
+                <CardTitle>AI Predictions & Forecasts</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      placeholder="e.g., Lagos, Nigeria"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="season">Season</Label>
-                    <Select value={season} onValueChange={setSeason}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="rainy">Rainy</SelectItem>
-                        <SelectItem value="dry">Dry</SelectItem>
-                        <SelectItem value="all-year">All Year</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="cropName">Crop Name</Label>
-                    <Input
-                      id="cropName"
-                      placeholder="e.g., Yam, Cassava"
-                      value={cropName}
-                      onChange={(e) => setCropName(e.target.value)}
-                    />
-                  </div>
-                </div>
+                <p className="text-muted-foreground">
+                  Advanced AI predictions and forecasting models will be implemented in the next phase.
+                </p>
               </CardContent>
             </Card>
-
-            {/* AI Services Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Crop Recommendations</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Get AI-powered crop recommendations based on location and season.
-                  </p>
-                  <Button 
-                    onClick={getCropRecommendations} 
-                    disabled={loading || !location || !season}
-                    className="w-full"
-                  >
-                    <Target className="w-4 h-4 mr-2" />
-                    Get Recommendations
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Yield Prediction</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Predict crop yield based on historical data and conditions.
-                  </p>
-                  <Button 
-                    onClick={getYieldPrediction} 
-                    disabled={loading || !cropName || !location || !season}
-                    className="w-full"
-                  >
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    Predict Yield
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Market Insights</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Analyze market trends and demand for specific crops.
-                  </p>
-                  <Button 
-                    onClick={getMarketInsights} 
-                    disabled={loading || !cropName}
-                    className="w-full"
-                  >
-                    <BarChart3 className="w-4 h-4 mr-2" />
-                    Get Insights
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Seasonal Calendar</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Get AI-powered seasonal farming calendar.
-                  </p>
-                  <Button 
-                    onClick={getSeasonalCalendar} 
-                    disabled={loading}
-                    className="w-full"
-                  >
-                    <Clock className="w-4 h-4 mr-2" />
-                    Get Calendar
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Weather Prediction</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Get AI-powered weather predictions for farming.
-                  </p>
-                  <Button 
-                    onClick={getWeatherPrediction} 
-                    disabled={loading || !location}
-                    className="w-full"
-                  >
-                    <Sun className="w-4 h-4 mr-2" />
-                    Predict Weather
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Risk Assessment</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Assess farming risks and get mitigation strategies.
-                  </p>
-                  <Button 
-                    onClick={getRiskAssessment} 
-                    disabled={loading || !location}
-                    className="w-full"
-                  >
-                    <AlertCircle className="w-4 h-4 mr-2" />
-                    Assess Risk
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Results Display */}
-            {(yieldPrediction || marketInsights || seasonalCalendar || weatherPrediction || riskAssessment) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>AI Service Results</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {yieldPrediction && (
-                    <div className="p-4 border rounded-lg">
-                      <h4 className="font-semibold mb-2">Yield Prediction for {yieldPrediction.crop}</h4>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Predicted Yield: {yieldPrediction.predictedYield} kg
-                      </p>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Confidence: {yieldPrediction.confidence}%
-                      </p>
-                      {yieldPrediction.recommendations && (
-                        <div>
-                          <p className="text-sm font-medium mb-1">Recommendations:</p>
-                          <ul className="text-sm text-muted-foreground space-y-1">
-                            {yieldPrediction.recommendations.map((rec: string, idx: number) => (
-                              <li key={idx} className="flex items-start">
-                                <CheckCircle className="w-3 h-3 mr-2 mt-0.5 text-success flex-shrink-0" />
-                                <span>{rec}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {marketInsights && (
-                    <div className="p-4 border rounded-lg">
-                      <h4 className="font-semibold mb-2">Market Insights for {marketInsights.crop}</h4>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Current Price: ₦{marketInsights.currentPrice}
-                      </p>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Demand Level: {marketInsights.demandLevel}
-                      </p>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Best Selling Time: {marketInsights.bestSellingTime}
-                      </p>
-                    </div>
-                  )}
-
-                  {seasonalCalendar && (
-                    <div className="p-4 border rounded-lg">
-                      <h4 className="font-semibold mb-2">Seasonal Calendar</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {seasonalCalendar.description || "Seasonal farming recommendations available"}
-                      </p>
-                    </div>
-                  )}
-
-                  {weatherPrediction && (
-                    <div className="p-4 border rounded-lg">
-                      <h4 className="font-semibold mb-2">Weather Prediction</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {weatherPrediction.description || "Weather prediction data available"}
-                      </p>
-                    </div>
-                  )}
-
-                  {riskAssessment && (
-                    <div className="p-4 border rounded-lg">
-                      <h4 className="font-semibold mb-2">Risk Assessment</h4>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Overall Risk Level: {riskAssessment.riskLevel || "Medium"}
-                      </p>
-                      {riskAssessment.mitigationStrategies && (
-                        <div>
-                          <p className="text-sm font-medium mb-1">Mitigation Strategies:</p>
-                          <ul className="text-sm text-muted-foreground space-y-1">
-                            {riskAssessment.mitigationStrategies.map((strategy: string, idx: number) => (
-                              <li key={idx} className="flex items-start">
-                                <CheckCircle className="w-3 h-3 mr-2 mt-0.5 text-success flex-shrink-0" />
-                                <span>{strategy}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
           </TabsContent>
         </Tabs>
       </div>

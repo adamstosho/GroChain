@@ -41,7 +41,14 @@ describe('Commission endpoints', () => {
       referralCode: 'REFP',
       commissionBalance: 10000,
     });
-    partnerUser = await User.create({ name: 'PartnerUser', email: 'p@u.com', phone: '+2348010000000', password: 'pass123', role: UserRole.PARTNER });
+    partnerUser = await User.create({ 
+      name: 'PartnerUser', 
+      email: 'p@u.com', 
+      phone: '+2348010000000', 
+      password: 'pass123', 
+      role: UserRole.PARTNER,
+      emailVerified: true // Mark email as verified for testing
+    });
 
     const login = await request(app).post('/api/auth/login').send({ email: 'p@u.com', password: 'pass123' }).expect(200);
     token = login.body.accessToken;

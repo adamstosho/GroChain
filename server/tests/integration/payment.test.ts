@@ -62,12 +62,27 @@ describe('Payments integration', () => {
       email: 'buyer1@example.com',
       phone: '+2348011111111',
       password: 'password123',
-      role: UserRole.BUYER
+      role: UserRole.BUYER,
+      emailVerified: true
     });
 
     // Create two farmers with different partners
-    farmer1 = await User.create({ name: 'Farmer1', email: 'f1@example.com', phone: '+2348010000001', password: 'pass', role: UserRole.FARMER });
-    farmer2 = await User.create({ name: 'Farmer2', email: 'f2@example.com', phone: '+2348010000002', password: 'pass', role: UserRole.FARMER });
+    farmer1 = await User.create({ 
+      name: 'Farmer1', 
+      email: 'f1@example.com', 
+      phone: '+2348010000001', 
+      password: 'pass', 
+      role: UserRole.FARMER,
+      emailVerified: true
+    });
+    farmer2 = await User.create({ 
+      name: 'Farmer2', 
+      email: 'f2@example.com', 
+      phone: '+2348010000002', 
+      password: 'pass', 
+      role: UserRole.FARMER,
+      emailVerified: true
+    });
 
     partner1 = await Partner.create({ name: 'Partner 1', type: 'cooperative', contactEmail: 'p1@a.com', contactPhone: '+2348000000001', referralCode: 'REF-P1' });
     partner2 = await Partner.create({ name: 'Partner 2', type: 'cooperative', contactEmail: 'p2@a.com', contactPhone: '+2348000000002', referralCode: 'REF-P2' });

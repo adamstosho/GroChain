@@ -151,56 +151,29 @@ export function AnalyticsDashboardNew() {
   const [compareLoading, setCompareLoading] = useState(false)
   const [exportFormat, setExportFormat] = useState<'json'|'csv'|'excel'>('json')
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const [autoRefresh, setAutoRefresh] = useState(false)
-  const [refreshInterval, setRefreshInterval] = useState(30000) // 30 seconds
-  const [exportLoading, setExportLoading] = useState(false)
-  const [advancedFilters, setAdvancedFilters] = useState({
-    cropType: "",
-    paymentMethod: "",
-    qualityGrade: "",
-    partnerType: "",
-    minAmount: "",
-    maxAmount: ""
-  })
 
   useEffect(() => {
     if (user) {
       fetchAnalyticsData()
     }
-  }, [user, filters, advancedFilters])
-
-  // Auto-refresh functionality
-  useEffect(() => {
-    let interval: NodeJS.Timeout
-    if (autoRefresh) {
-      interval = setInterval(() => {
-        fetchAnalyticsData()
-      }, refreshInterval)
-    }
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [autoRefresh, refreshInterval])
+  }, [user, filters])
 
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true)
       setError("")
 
-      // Combine filters
-      const allFilters = { ...filters, ...advancedFilters }
-
       // Fetch comprehensive analytics data from backend APIs
       const [dashboardRes, farmersRes, transactionsRes, harvestsRes, marketplaceRes, fintechRes, impactRes, partnersRes, weatherRes] = await Promise.all([
-        api.get("/api/analytics/dashboard", { params: allFilters }),
-        api.get("/api/analytics/farmers", { params: allFilters }),
-        api.get("/api/analytics/transactions", { params: allFilters }),
-        api.get("/api/analytics/harvests", { params: allFilters }),
-        api.get("/api/analytics/marketplace", { params: allFilters }),
-        api.get("/api/analytics/fintech", { params: allFilters }),
-        api.get("/api/analytics/impact", { params: allFilters }),
-        api.get("/api/analytics/partners", { params: allFilters }),
-        api.get("/api/analytics/weather", { params: allFilters })
+        api.get("/api/analytics/dashboard", { params: filters }),
+        api.get("/api/analytics/farmers", { params: filters }),
+        api.get("/api/analytics/transactions", { params: filters }),
+        api.get("/api/analytics/harvests", { params: filters }),
+        api.get("/api/analytics/marketplace", { params: filters }),
+        api.get("/api/analytics/fintech", { params: filters }),
+        api.get("/api/analytics/impact", { params: filters }),
+        api.get("/api/analytics/partners", { params: filters }),
+        api.get("/api/analytics/weather", { params: filters })
       ])
 
       // Combine all analytics data
@@ -288,111 +261,31 @@ export function AnalyticsDashboardNew() {
     }
   }
 
-  // Export functionality
   const exportData = async () => {
     try {
-      setExportLoading(true)
+      const response = await api.get("/api/analytics/export", { 
+        params: { ...filters, format: exportFormat }
+      })
       
-      if (exportFormat === 'json') {
-        const dataStr = JSON.stringify(analyticsData, null, 2)
-        const dataBlob = new Blob([dataStr], { type: 'application/json' })
-        const url = URL.createObjectURL(dataBlob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `grochain-analytics-${new Date().toISOString().split('T')[0]}.json`
-        link.click()
-        URL.revokeObjectURL(url)
-      } else if (exportFormat === 'csv') {
-        const csvData = convertToCSV(analyticsData)
-        const dataBlob = new Blob([csvData], { type: 'text/csv' })
-        const url = URL.createObjectURL(dataBlob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `grochain-analytics-${new Date().toISOString().split('T')[0]}.csv`
-        link.click()
-        URL.revokeObjectURL(url)
-      } else if (exportFormat === 'excel') {
-        // For Excel export, we'll use a simple CSV format that Excel can open
-        const csvData = convertToCSV(analyticsData)
-        const dataBlob = new Blob([csvData], { type: 'text/csv' })
-        const url = URL.createObjectURL(dataBlob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `grochain-analytics-${new Date().toISOString().split('T')[0]}.xlsx`
-        link.click()
-        URL.revokeObjectURL(url)
+      if (response.success) {
+        // Handle file download
+        const blob = new Blob([JSON.stringify(response.data)], { type: 'application/json' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `grochain-analytics-${new Date().toISOString().split('T')[0]}.${exportFormat}`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        toast.success("Data exported successfully!")
+      } else {
+        throw new Error(response.error || "Failed to export data")
       }
-      
-      toast.success(`Analytics data exported as ${exportFormat.toUpperCase()}`)
     } catch (error) {
       console.error("Export error:", error)
       toast.error("Failed to export data")
-    } finally {
-      setExportLoading(false)
     }
-  }
-
-  // Convert data to CSV format
-  const convertToCSV = (data: AnalyticsData | null): string => {
-    if (!data) return ""
-    
-    const rows = []
-    
-    // Overview data
-    rows.push(['Category', 'Metric', 'Value'])
-    rows.push(['Overview', 'Total Farmers', data.overview.totalFarmers || 0])
-    rows.push(['Overview', 'Total Transactions', data.overview.totalTransactions || 0])
-    rows.push(['Overview', 'Total Revenue', data.overview.totalRevenue || 0])
-    rows.push(['Overview', 'Active Partners', data.overview.activePartners || 0])
-    rows.push(['Overview', 'Growth Rate', `${data.overview.growthRate || 0}%`])
-    
-    // Farmers data
-    rows.push(['Farmers', 'Total', data.farmers.total || 0])
-    rows.push(['Farmers', 'Active', data.farmers.active || 0])
-    rows.push(['Farmers', 'New', data.farmers.new || 0])
-    rows.push(['Farmers', 'Verified', data.farmers.verified || 0])
-    
-    // Transactions data
-    rows.push(['Transactions', 'Total', data.transactions.total || 0])
-    rows.push(['Transactions', 'Volume', data.transactions.volume || 0])
-    rows.push(['Transactions', 'Average Value', data.transactions.averageValue || 0])
-    
-    // Harvests data
-    rows.push(['Harvests', 'Total', data.harvests.total || 0])
-    rows.push(['Harvests', 'Total Volume', data.harvests.totalVolume || 0])
-    rows.push(['Harvests', 'Average Yield', data.harvests.averageYield || 0])
-    rows.push(['Harvests', 'Post-Harvest Loss', `${data.harvests.postHarvestLoss || 0}%`])
-    
-    return rows.map(row => row.join(',')).join('\n')
-  }
-
-  // Real-time data refresh
-  const toggleAutoRefresh = () => {
-    setAutoRefresh(!autoRefresh)
-    if (!autoRefresh) {
-      toast.success("Auto-refresh enabled")
-    } else {
-      toast.info("Auto-refresh disabled")
-    }
-  }
-
-  // Clear all filters
-  const clearFilters = () => {
-    setFilters({
-      period: "monthly",
-      region: "",
-      startDate: "",
-      endDate: ""
-    })
-    setAdvancedFilters({
-      cropType: "",
-      paymentMethod: "",
-      qualityGrade: "",
-      partnerType: "",
-      minAmount: "",
-      maxAmount: ""
-    })
-    toast.success("All filters cleared")
   }
 
   const handleFilterChange = (key: string, value: string) => {
@@ -430,65 +323,6 @@ export function AnalyticsDashboardNew() {
           </div>
           
           <div className="flex items-center gap-3">
-            {/* Real-time Controls */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant={autoRefresh ? "default" : "outline"}
-                size="sm"
-                onClick={toggleAutoRefresh}
-                className="flex items-center gap-2"
-              >
-                {autoRefresh ? (
-                  <>
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                    Auto
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4" />
-                    Manual
-                  </>
-                )}
-              </Button>
-              
-              {autoRefresh && (
-                <Select value={refreshInterval.toString()} onValueChange={(value) => setRefreshInterval(parseInt(value))}>
-                  <SelectTrigger className="w-24">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="15000">15s</SelectItem>
-                    <SelectItem value="30000">30s</SelectItem>
-                    <SelectItem value="60000">1m</SelectItem>
-                    <SelectItem value="300000">5m</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            {/* Export Controls */}
-            <div className="flex items-center gap-2">
-              <Select value={exportFormat} onValueChange={(value: 'json'|'csv'|'excel') => setExportFormat(value)}>
-                <SelectTrigger className="w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="json">JSON</SelectItem>
-                  <SelectItem value="csv">CSV</SelectItem>
-                  <SelectItem value="excel">Excel</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Button variant="outline" onClick={exportData} disabled={exportLoading}>
-                {exportLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Download className="w-4 h-4 mr-2" />
-                )}
-                Export
-              </Button>
-            </div>
-
             <Button variant="outline" onClick={fetchAnalyticsData} disabled={loading}>
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -517,149 +351,48 @@ export function AnalyticsDashboardNew() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {/* Basic Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="period">Time Period</Label>
-                  <Select value={filters.period} onValueChange={(value) => handleFilterChange("period", value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="quarterly">Quarterly</SelectItem>
-                      <SelectItem value="yearly">Yearly</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">Start Date</Label>
-                  <Input
-                    type="date"
-                    value={filters.startDate}
-                    onChange={(e) => handleFilterChange("startDate", e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">End Date</Label>
-                  <Input
-                    type="date"
-                    value={filters.endDate}
-                    onChange={(e) => handleFilterChange("endDate", e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="region">Region</Label>
-                  <Input
-                    placeholder="All regions"
-                    value={filters.region}
-                    onChange={(e) => handleFilterChange("region", e.target.value)}
-                  />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="period">Time Period</Label>
+                <Select value={filters.period} onValueChange={(value) => handleFilterChange("period", value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Advanced Filters */}
-              <div className="border-t pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium">Advanced Filters</h4>
-                  <Button variant="ghost" size="sm" onClick={clearFilters}>
-                    Clear All
-                  </Button>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cropType">Crop Type</Label>
-                    <Select value={advancedFilters.cropType} onValueChange={(value) => setAdvancedFilters({...advancedFilters, cropType: value})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All crops" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">All crops</SelectItem>
-                        <SelectItem value="tomatoes">Tomatoes</SelectItem>
-                        <SelectItem value="yam">Yam</SelectItem>
-                        <SelectItem value="cassava">Cassava</SelectItem>
-                        <SelectItem value="maize">Maize</SelectItem>
-                        <SelectItem value="rice">Rice</SelectItem>
-                        <SelectItem value="beans">Beans</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  type="date"
+                  value={filters.startDate}
+                  onChange={(e) => handleFilterChange("startDate", e.target.value)}
+                />
+              </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="paymentMethod">Payment Method</Label>
-                    <Select value={advancedFilters.paymentMethod} onValueChange={(value) => setAdvancedFilters({...advancedFilters, paymentMethod: value})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All methods" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">All methods</SelectItem>
-                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                        <SelectItem value="mobile_money">Mobile Money</SelectItem>
-                        <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="card">Card</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate">End Date</Label>
+                <Input
+                  type="date"
+                  value={filters.endDate}
+                  onChange={(e) => handleFilterChange("endDate", e.target.value)}
+                />
+              </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="qualityGrade">Quality Grade</Label>
-                    <Select value={advancedFilters.qualityGrade} onValueChange={(value) => setAdvancedFilters({...advancedFilters, qualityGrade: value})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All grades" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">All grades</SelectItem>
-                        <SelectItem value="premium">Premium</SelectItem>
-                        <SelectItem value="grade_a">Grade A</SelectItem>
-                        <SelectItem value="grade_b">Grade B</SelectItem>
-                        <SelectItem value="grade_c">Grade C</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="partnerType">Partner Type</Label>
-                    <Select value={advancedFilters.partnerType} onValueChange={(value) => setAdvancedFilters({...advancedFilters, partnerType: value})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All types" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">All types</SelectItem>
-                        <SelectItem value="cooperative">Cooperative</SelectItem>
-                        <SelectItem value="aggregator">Aggregator</SelectItem>
-                        <SelectItem value="processor">Processor</SelectItem>
-                        <SelectItem value="retailer">Retailer</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="minAmount">Min Amount (₦)</Label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={advancedFilters.minAmount}
-                      onChange={(e) => setAdvancedFilters({...advancedFilters, minAmount: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="maxAmount">Max Amount (₦)</Label>
-                    <Input
-                      type="number"
-                      placeholder="No limit"
-                      value={advancedFilters.maxAmount}
-                      onChange={(e) => setAdvancedFilters({...advancedFilters, maxAmount: e.target.value})}
-                    />
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="region">Region</Label>
+                <Input
+                  placeholder="All regions"
+                  value={filters.region}
+                  onChange={(e) => handleFilterChange("region", e.target.value)}
+                />
               </div>
             </div>
           </CardContent>
@@ -694,12 +427,8 @@ export function AnalyticsDashboardNew() {
             Compare Periods
           </Button>
           
-          <Button variant="outline" onClick={exportData} disabled={exportLoading}>
-            {exportLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            ) : (
-              <Download className="w-4 h-4 mr-2" />
-            )}
+          <Button variant="outline" onClick={exportData}>
+            <Download className="w-4 h-4 mr-2" />
             Export Data
           </Button>
         </div>

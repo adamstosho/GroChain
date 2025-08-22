@@ -16,4 +16,3 @@ export default function RegionalAnalyticsPageRoute() {
 }
 
 export const dynamic = 'force-dynamic'
-

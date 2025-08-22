@@ -95,7 +95,6 @@ export function WeatherDashboard() {
   const [historicalData, setHistoricalData] = useState<any[]>([])
   const [regionalAlertsData, setRegionalAlertsData] = useState<WeatherAlert[]>([])
   const [statisticsData, setStatisticsData] = useState<any | null>(null)
-  const [climateSummary, setClimateSummary] = useState<any | null>(null)
 
   const nigerianStates = [
     "FCT", "Lagos", "Kano", "Kaduna", "Rivers", "Ogun", "Oyo", "Delta", 
@@ -108,21 +107,29 @@ export function WeatherDashboard() {
 
   useEffect(() => {
     fetchRegionalAndStats()
-    fetchClimateSummary()
   }, [selectedRegion])
 
   const fetchWeatherData = async () => {
     setLoading(true)
     try {
       // Fetch current weather
-      const currentResponse = await api.get(`/api/weather/current?lat=${location.lat}&lng=${location.lng}&city=Abuja&state=FCT&country=Nigeria`)
+      const currentResponse = await api.getCurrentWeather({
+        lat: location.lat,
+        lng: location.lng,
+        country: "Nigeria"
+      })
 
       if (currentResponse.success && currentResponse.data) {
         setCurrentWeather(currentResponse.data as any)
       }
 
       // Fetch forecast
-      const forecastResponse = await api.get(`/api/weather/forecast?lat=${location.lat}&lng=${location.lng}&city=Abuja&state=FCT&country=Nigeria&days=7`)
+      const forecastResponse = await api.getWeatherForecast({
+        lat: location.lat,
+        lng: location.lng,
+        country: "Nigeria",
+        days: 7
+      })
 
       if (forecastResponse.success && forecastResponse.data) {
         const payload: any = forecastResponse.data
@@ -130,7 +137,11 @@ export function WeatherDashboard() {
       }
 
       // Fetch agricultural insights
-      const insightsResponse = await api.get(`/api/weather/agricultural-insights?lat=${location.lat}&lng=${location.lng}&city=Abuja&state=FCT&country=Nigeria`)
+      const insightsResponse = await api.getAgriculturalInsights({
+        lat: location.lat,
+        lng: location.lng,
+        country: "Nigeria"
+      })
 
       if (insightsResponse.success && insightsResponse.data) {
         const payload: any = insightsResponse.data
@@ -138,7 +149,11 @@ export function WeatherDashboard() {
       }
 
       // Fetch weather alerts
-      const alertsResponse = await api.get(`/api/weather/alerts?lat=${location.lat}&lng=${location.lng}&city=Abuja&state=FCT&country=Nigeria`)
+      const alertsResponse = await api.getWeatherAlerts({
+        lat: location.lat,
+        lng: location.lng,
+        country: "Nigeria"
+      })
 
       if (alertsResponse.success && alertsResponse.data) {
         const payload: any = alertsResponse.data
@@ -160,8 +175,8 @@ export function WeatherDashboard() {
   const fetchRegionalAndStats = async () => {
     try {
       const [regResp, statsResp] = await Promise.all([
-        api.get(`/api/weather/regional-alerts?region=${selectedRegion}`),
-        api.get(`/api/weather/statistics/${selectedRegion}`)
+        api.getRegionalWeatherAlerts(selectedRegion),
+        api.getWeatherStatistics(selectedRegion)
       ])
       if (regResp.success && regResp.data) {
         const payload: any = regResp.data
@@ -171,18 +186,7 @@ export function WeatherDashboard() {
         setStatisticsData((statsResp.data as any).data || statsResp.data)
       }
     } catch (e) {
-      console.error("Failed to fetch regional data:", e)
-    }
-  }
-
-  const fetchClimateSummary = async () => {
-    try {
-      const resp = await api.get(`/api/weather/climate-summary?lat=${location.lat}&lng=${location.lng}&city=Abuja&state=FCT&country=Nigeria`)
-      if (resp.success && resp.data) {
-        setClimateSummary(resp.data)
-      }
-    } catch (e) {
-      console.error("Failed to fetch climate summary:", e)
+      // noop
     }
   }
 
@@ -224,27 +228,28 @@ export function WeatherDashboard() {
     const lng = parseFloat(coordsInput.lng)
     if (Number.isNaN(lat) || Number.isNaN(lng)) return
     try {
-      const resp = await api.get(`/api/weather/coordinates/${lat}/${lng}`)
+      const resp = await api.getWeatherByCoordinates(lat, lng)
       if (resp.success && resp.data) {
         setCoordsWeather((resp.data as any).data || (resp.data as any))
       }
-    } catch (error) {
-      console.error("Failed to fetch coordinates weather:", error)
-    }
+    } catch {}
   }
 
   const handleFetchHistorical = async () => {
     if (!historicalParams.startDate || !historicalParams.endDate) return
     try {
-      const resp = await api.get(`/api/weather/historical?lat=${location.lat}&lng=${location.lng}&city=Abuja&state=FCT&country=Nigeria&startDate=${historicalParams.startDate}&endDate=${historicalParams.endDate}`)
+      const resp = await api.getHistoricalWeather({
+        lat: location.lat,
+        lng: location.lng,
+        startDate: historicalParams.startDate,
+        endDate: historicalParams.endDate,
+      })
       if (resp.success && resp.data) {
         const payload: any = resp.data
         const rows = payload.days || payload.records || payload.data || []
         setHistoricalData(Array.isArray(rows) ? rows : [])
       }
-    } catch (error) {
-      console.error("Failed to fetch historical data:", error)
-    }
+    } catch {}
   }
 
   const exportHistoricalCSV = () => {
@@ -390,7 +395,7 @@ export function WeatherDashboard() {
           transition={{ delay: 0.2 }}
         >
           <Tabs defaultValue="forecast" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-8">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="forecast">7-Day Forecast</TabsTrigger>
               <TabsTrigger value="insights">Agricultural Insights</TabsTrigger>
               <TabsTrigger value="alerts">Weather Alerts</TabsTrigger>
@@ -398,7 +403,6 @@ export function WeatherDashboard() {
               <TabsTrigger value="regional">Regional Alerts</TabsTrigger>
               <TabsTrigger value="coordinates">By Coordinates</TabsTrigger>
               <TabsTrigger value="historical">Historical</TabsTrigger>
-              <TabsTrigger value="climate">Climate Summary</TabsTrigger>
             </TabsList>
 
             <TabsContent value="forecast" className="space-y-4">
@@ -639,177 +643,6 @@ export function WeatherDashboard() {
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            <TabsContent value="climate" className="space-y-4">
-              {climateSummary ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Temperature Trends</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span>Average High</span>
-                          <span className="font-semibold">{climateSummary.temperature?.averageHigh || '32°C'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Average Low</span>
-                          <span className="font-semibold">{climateSummary.temperature?.averageLow || '22°C'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Temperature Range</span>
-                          <span className="font-semibold">{climateSummary.temperature?.range || '10°C'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Growing Season</span>
-                          <Badge className="bg-green-500">{climateSummary.seasons?.growing || 'March - November'}</Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Rainfall Patterns</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span>Wet Season</span>
-                        <Badge className="bg-blue-500">April - October</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Dry Season</span>
-                        <Badge className="bg-yellow-500">November - March</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Annual Rainfall</span>
-                        <span className="font-semibold">1,200mm</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Peak Month</span>
-                        <span className="font-semibold">July</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Agricultural Calendar</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span>Planting Season</span>
-                        <Badge className="bg-green-500">March - April</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Growing Period</span>
-                        <Badge className="bg-blue-500">90-120 days</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Harvest Time</span>
-                        <Badge className="bg-orange-500">July - August</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Second Crop</span>
-                        <Badge className="bg-purple-500">September</Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Climate Zones</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span>Primary Zone</span>
-                        <Badge className="bg-green-500">Tropical Savanna</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Humidity Level</span>
-                        <Badge className="bg-blue-500">High</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Wind Patterns</span>
-                        <Badge className="bg-gray-500">Seasonal</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>UV Exposure</span>
-                        <Badge className="bg-yellow-500">Very High</Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Soil Conditions</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span>Soil Type</span>
-                        <Badge className="bg-brown-500">Loamy</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>pH Level</span>
-                        <Badge className="bg-green-500">6.0 - 7.0</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Drainage</span>
-                        <Badge className="bg-blue-500">Good</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Fertility</span>
-                        <Badge className="bg-green-500">High</Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Risk Factors</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span>Drought Risk</span>
-                        <Badge className="bg-yellow-500">Medium</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Flood Risk</span>
-                        <Badge className="bg-orange-500">High</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Heat Stress</span>
-                        <Badge className="bg-red-500">High</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Pest Pressure</span>
-                        <Badge className="bg-yellow-500">Medium</Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              ) : (
-                <Card>
-                  <CardContent className="flex items-center justify-center py-8">
-                    <div className="text-center">
-                      <RefreshCw className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">Loading climate summary...</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </TabsContent>
           </Tabs>
         </motion.div>

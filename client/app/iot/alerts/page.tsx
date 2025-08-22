@@ -16,4 +16,3 @@ export default function IoTAlertsPageRoute() {
 }
 
 export const dynamic = 'force-dynamic'
-

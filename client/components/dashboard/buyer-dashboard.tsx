@@ -36,7 +36,7 @@ import {
   AlertTriangle,
   Shield
 } from "lucide-react"
-import { DashboardLayout } from "./dashboard-layout"
+// import { DashboardLayout } from "./dashboard-layout"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
 import Link from "next/link"
@@ -377,17 +377,14 @@ export function BuyerDashboard({ user }: BuyerDashboardProps) {
 
   if (loading && !stats) {
     return (
-      <DashboardLayout user={user}>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
     )
   }
 
   return (
-    <DashboardLayout user={user}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -956,6 +953,6 @@ export function BuyerDashboard({ user }: BuyerDashboardProps) {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </div>
   )
 }

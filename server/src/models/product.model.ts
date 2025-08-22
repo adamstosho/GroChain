@@ -48,20 +48,17 @@ const ProductSchema = new Schema<IProduct>({
   cropName: {
     type: String,
     required: false,
-    trim: true,
-    index: true
+    trim: true
   },
   name: {
     type: String,
     required: false,
-    trim: true,
-    index: true
+    trim: true
   },
   category: {
     type: String,
     required: true,
-    enum: ['grains', 'tubers', 'vegetables', 'fruits', 'legumes', 'cash_crops', 'spices', 'herbs'],
-    index: true
+    enum: ['grains', 'tubers', 'vegetables', 'fruits', 'legumes', 'cash_crops', 'spices', 'herbs']
   },
   variety: {
     type: String,

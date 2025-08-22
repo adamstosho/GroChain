@@ -159,7 +159,7 @@ export function AnalyticsDashboard() {
 
   useEffect(() => {
     if (user) {
-      fetchAnalyticsData()
+    fetchAnalyticsData()
     }
   }, [user, filters])
 
@@ -393,7 +393,7 @@ export function AnalyticsDashboard() {
                   </SelectContent>
                 </Select>
               </div>
-
+              
               <div className="space-y-2">
                 <Label htmlFor="startDate">Start Date</Label>
                 <Input
@@ -402,7 +402,7 @@ export function AnalyticsDashboard() {
                   onChange={(e) => handleFilterChange("startDate", e.target.value)}
                 />
               </div>
-
+              
               <div className="space-y-2">
                 <Label htmlFor="endDate">End Date</Label>
                 <Input
@@ -466,22 +466,22 @@ export function AnalyticsDashboard() {
             <Download className="w-4 h-4 mr-2" />
             Export Data
           </Button>
-        </div>
+            </div>
 
         {/* Export Format Selection */}
         <div className="flex items-center gap-3">
           <Label htmlFor="exportFormat">Export Format:</Label>
           <Select value={exportFormat} onValueChange={(value: 'json'|'csv'|'excel') => setExportFormat(value)}>
             <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="json">JSON</SelectItem>
-              <SelectItem value="csv">CSV</SelectItem>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="json">JSON</SelectItem>
+                    <SelectItem value="csv">CSV</SelectItem>
               <SelectItem value="excel">Excel</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+                  </SelectContent>
+                </Select>
+              </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-6 h-auto p-1">

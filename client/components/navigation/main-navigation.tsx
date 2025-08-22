@@ -146,14 +146,14 @@ export function MainNavigation({ className }: MainNavigationProps) {
       href: '/ai',
       description: 'Artificial intelligence and machine learning',
       icon: <Brain className="h-4 w-4" />,
-      roles: ['admin', 'manager', 'partner', 'farmer']
+      roles: ['admin', 'manager', 'partner']
     },
     {
       title: 'IoT & Sensors',
       href: '/iot',
       description: 'Internet of Things and sensor data',
       icon: <Wifi className="h-4 w-4" />,
-      roles: ['admin', 'manager', 'partner', 'farmer']
+      roles: ['admin', 'manager', 'partner']
     },
     {
       title: 'Shipments',

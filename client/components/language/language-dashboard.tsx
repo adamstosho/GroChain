@@ -26,7 +26,6 @@ import {
   Filter
 } from "lucide-react"
 import { api } from "@/lib/api"
-import { TranslationSystem } from "./translation-system"
 
 interface Language {
   code: string
@@ -75,54 +74,18 @@ export function LanguageDashboard() {
       // Get supported languages from backend
       const response = await api.getSupportedLanguages()
       if (response.success && response.data) {
-        const languagesData = response.data.languages || []
-        
-        // Transform backend data to match frontend interface
-        const transformedLanguages: Language[] = languagesData.map((lang: any) => ({
-          code: lang.code,
-          name: lang.name,
-          nativeName: lang.nativeName,
-          isActive: true, // All languages are active by default
-          isDefault: lang.isDefault,
-          completionPercentage: 100, // Assume complete for now
-          lastUpdated: new Date().toISOString()
-        }))
-        
-        setLanguages(transformedLanguages)
-        if (transformedLanguages.length > 0) {
-          setSelectedLanguage(transformedLanguages[0].code)
+        const languagesData = response.data as any
+        setLanguages(languagesData)
+        if (languagesData && languagesData.length > 0) {
+          setSelectedLanguage(languagesData[0].code)
         }
       } else {
-        // Fallback to basic language structure
-        setLanguages([
-          {
-            code: "en",
-            name: "English", 
-            nativeName: "English",
-            isActive: true,
-            isDefault: true,
-            completionPercentage: 100,
-            lastUpdated: new Date().toISOString()
-          }
-        ])
+        setLanguages([])
         setSelectedLanguage("en")
       }
     } catch (error) {
       console.error("Language fetch error:", error)
       setError("Failed to load language data")
-      // Set fallback data on error
-      setLanguages([
-        {
-          code: "en",
-          name: "English", 
-          nativeName: "English",
-          isActive: true,
-          isDefault: true,
-          completionPercentage: 100,
-          lastUpdated: new Date().toISOString()
-        }
-      ])
-      setSelectedLanguage("en")
     } finally {
       setLoading(false)
     }
@@ -130,30 +93,14 @@ export function LanguageDashboard() {
 
   const fetchTranslations = async (languageCode: string) => {
     try {
-      // TODO: Replace with actual API call when backend endpoint is implemented
-      // const response = await api.getTranslations(languageCode)
-      
-      // For now, use mock data
-      const mockTranslations: Translation[] = [
-        {
-          key: "welcome",
-          english: "Welcome",
-          translation: languageCode === "fr" ? "Bienvenue" : "Welcome",
-          language: languageCode,
-          status: 'translated' as const,
-          lastUpdated: new Date().toISOString()
-        },
-        {
-          key: "dashboard",
-          english: "Dashboard",
-          translation: languageCode === "fr" ? "Tableau de bord" : "Dashboard",
-          language: languageCode,
-          status: 'translated' as const,
-          lastUpdated: new Date().toISOString()
-        }
-      ]
-      
-      setTranslations(mockTranslations)
+      // Get translations from backend
+      const response = await api.getTranslations(languageCode)
+      if (response.success && response.data) {
+        const translationsData = response.data as any
+        setTranslations(translationsData)
+      } else {
+        setTranslations([])
+      }
     } catch (error) {
       console.error("Translations fetch error:", error)
       setError("Failed to load translations")
@@ -284,10 +231,9 @@ export function LanguageDashboard() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="translations">Translations</TabsTrigger>
-          <TabsTrigger value="translate">Translate</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -556,10 +502,6 @@ export function LanguageDashboard() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="translate" className="space-y-4">
-          <TranslationSystem />
-        </TabsContent>
-
         <TabsContent value="settings" className="space-y-6">
           <Card>
             <CardHeader>
@@ -615,7 +557,7 @@ export function LanguageDashboard() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="quality-threshold">Auto-Review Threshold (%)</Label>
+                      <Label htmlFor="review-threshold">Auto-Review Threshold (%)</Label>
                       <Input
                         id="review-threshold"
                         type="number"

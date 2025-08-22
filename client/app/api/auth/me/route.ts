@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+
 // Proxy to backend protected endpoint using Bearer token from Authorization header
 export async function GET(request: NextRequest) {
   try {

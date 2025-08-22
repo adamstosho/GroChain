@@ -736,4 +736,3 @@ export function ExportReportsPage() {
     </DashboardLayout>
   )
 }
-

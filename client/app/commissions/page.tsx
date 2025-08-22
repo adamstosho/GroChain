@@ -1,5 +1,5 @@
 import { CommissionsPage } from "@/components/commissions/commissions-page"
 
-export default function CommissionsManagementPage() {
+export default function Commissions() {
   return <CommissionsPage />
 }

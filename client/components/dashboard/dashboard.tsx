@@ -7,6 +7,7 @@ import { BuyerDashboard } from "./buyer-dashboard"
 import { PartnerDashboard } from "./partner-dashboard"
 import { AdminDashboard } from "./admin-dashboard"
 import { AgencyDashboard } from "./agency-dashboard"
+import { DashboardOverview } from "./dashboard-overview"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Loader2, Lock } from "lucide-react"
@@ -94,7 +95,11 @@ export function Dashboard() {
 
   return (
     <UnifiedDashboardLayout>
-      {renderRoleSpecificDashboard()}
+      <div className="space-y-6">
+        {/* DashboardOverview component commented out to prevent duplication */}
+        {/* <DashboardOverview /> */}
+        {renderRoleSpecificDashboard()}
+      </div>
     </UnifiedDashboardLayout>
   )
 }

@@ -37,6 +37,10 @@ const mockUser = {
   email: "john@example.com",
   role: "farmer",
   avatar: "/placeholder.svg",
+  phone: "+2348012345678",
+  emailVerified: true,
+  createdAt: "2024-03-15T00:00:00Z",
+  updatedAt: "2024-03-15T00:00:00Z"
 }
 
 export function ProfilePage() {

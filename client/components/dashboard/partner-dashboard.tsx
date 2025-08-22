@@ -28,9 +28,13 @@ import {
   MapPin,
   Phone,
   Mail,
-  Star
+  Star,
+  Wifi,
+  Activity,
+  Shield,
+  Brain
 } from "lucide-react"
-import { DashboardLayout } from "./dashboard-layout"
+// import { DashboardLayout } from "./dashboard-layout"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
 import Link from "next/link"
@@ -127,9 +131,9 @@ export function PartnerDashboard({ user }: PartnerDashboardProps) {
       let dashboardStats: PartnerStats
 
       if (metricsResponse.success && analyticsResponse.success && commissionsResponse.success) {
-        const metrics = metricsResponse.data
-        const analytics = analyticsResponse.data
-        const commissions = commissionsResponse.data
+        const metrics = metricsResponse.data as any
+        const analytics = analyticsResponse.data as any
+        const commissions = commissionsResponse.data as any
 
         dashboardStats = {
           totalFarmers: metrics.totalFarmers || 0,
@@ -216,7 +220,7 @@ export function PartnerDashboard({ user }: PartnerDashboardProps) {
     try {
       const response = await api.getCommissionsHistory()
       if (response.success && response.data) {
-        setCommissions(response.data.commissions || [])
+        setCommissions((response.data as any).commissions || [])
       } else {
         // Mock data fallback
         setCommissions(generateMockCommissions())
@@ -352,48 +356,41 @@ export function PartnerDashboard({ user }: PartnerDashboardProps) {
 
   if (loading && !stats) {
     return (
-      <DashboardLayout user={user}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading dashboard data...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading dashboard data...</p>
         </div>
-      </DashboardLayout>
+      </div>
     )
   }
 
   if (error && !stats) {
     return (
-      <DashboardLayout user={user}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">Failed to load dashboard</h3>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={fetchDashboardData}>Try Again</Button>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">Failed to load dashboard</h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={fetchDashboardData}>Try Again</Button>
         </div>
-      </DashboardLayout>
+      </div>
     )
   }
 
   if (!stats) {
     return (
-      <DashboardLayout user={user}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No dashboard data available</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">No dashboard data available</p>
         </div>
-      </DashboardLayout>
+      </div>
     )
   }
 
   return (
-    <DashboardLayout user={user}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -831,11 +828,77 @@ export function PartnerDashboard({ user }: PartnerDashboardProps) {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wifi className="w-5 h-5 text-cyan-600" />
+                    IoT & Sensors
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Monitor IoT sensors and environmental conditions for your farmer network.
+                  </p>
+                  <div className="flex gap-2">
+                    <Link href="/iot">
+                      <Button>
+                        <Wifi className="w-4 h-4 mr-2" />
+                        Manage Sensors
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Brain className="w-5 h-5 text-purple-600" />
+                    AI & ML Tools
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Access AI-powered crop analysis and predictive analytics for your farmers.
+                  </p>
+                  <div className="flex gap-2">
+                    <Link href="/ai">
+                      <Button>
+                        <Brain className="w-4 h-4 mr-2" />
+                        AI Dashboard
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-red-600" />
+                    Quality Control
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Monitor quality standards and compliance for products from your farmer network.
+                  </p>
+                  <div className="flex gap-2">
+                    <Link href="/quality">
+                      <Button>
+                        <Shield className="w-4 h-4 mr-2" />
+                        Quality Dashboard
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </div>
   )
 }
 

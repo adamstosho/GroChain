@@ -79,9 +79,6 @@ export function ReferralsDashboard() {
   const [loading, setLoading] = useState(true)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [newReferralCode, setNewReferralCode] = useState("")
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [sortBy, setSortBy] = useState<string>("joinDate")
 
   const isPartnerOrAdmin = user && (user.role === "partner" || user.role === "admin")
 
@@ -92,49 +89,13 @@ export function ReferralsDashboard() {
   const fetchReferralData = async () => {
     setLoading(true)
     try {
-      // Try to fetch real data first, fallback to mock data
-      try {
-        const [statsResponse, referralsResponse, codesResponse, bonusesResponse] = await Promise.allSettled([
-          api.getReferralStats(),
-          api.getReferrals(),
-          api.getReferralCodes(),
-          api.getReferralBonusHistory()
-        ])
-
-        if (statsResponse.status === 'fulfilled' && statsResponse.value.success) {
-          setReferralStats(statsResponse.value.data)
-        } else {
-          setReferralStats(mockReferralStats)
-        }
-
-        if (referralsResponse.status === 'fulfilled' && referralsResponse.value.success) {
-          setReferrals(referralsResponse.value.data)
-        } else {
-          setReferrals(mockReferrals)
-        }
-
-        if (codesResponse.status === 'fulfilled' && codesResponse.value.success) {
-          setReferralCodes(codesResponse.value.data)
-        } else {
-          setReferralCodes(mockReferralCodes)
-        }
-
-        if (bonusesResponse.status === 'fulfilled' && bonusesResponse.value.success) {
-          setBonusHistory(bonusesResponse.value.data)
-        } else {
-          setBonusHistory(mockBonusHistory)
-        }
-      } catch (apiError) {
-        console.log("API endpoints not available, using mock data:", apiError)
-        // Fallback to mock data
-        setReferralStats(mockReferralStats)
-        setReferrals(mockReferrals)
-        setReferralCodes(mockReferralCodes)
-        setBonusHistory(mockBonusHistory)
-      }
+      // Use mock data since backend endpoints are limited
+      setReferralStats(mockReferralStats)
+      setReferrals(mockReferrals)
+      setReferralCodes(mockReferralCodes)
+      setBonusHistory(mockBonusHistory)
     } catch (error) {
       console.error("Error fetching referral data:", error)
-      // Final fallback to mock data
       setReferralStats(mockReferralStats)
       setReferrals(mockReferrals)
       setReferralCodes(mockReferralCodes)
@@ -146,25 +107,7 @@ export function ReferralsDashboard() {
 
   const generateReferralCode = async () => {
     try {
-      const codeData = {
-        code: newReferralCode || `REF${Date.now()}`,
-        usageLimit: 100,
-        isActive: true
-      }
-
-      // Try to use real API first
-      try {
-        const response = await api.createReferralCode(codeData)
-        if (response.success && response.data) {
-          setReferralCodes(prev => [response.data, ...prev])
-          setNewReferralCode("")
-          return
-        }
-      } catch (apiError) {
-        console.log("API endpoint not available, using local generation:", apiError)
-      }
-
-      // Fallback to local generation
+      // This would use actual API endpoint
       const newCode = {
         code: newReferralCode || `REF${Date.now()}`,
         createdAt: new Date().toISOString(),
@@ -459,87 +402,8 @@ export function ReferralsDashboard() {
             </TabsList>
 
             <TabsContent value="referrals" className="space-y-4">
-              {/* Search and Filter Controls */}
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1">
-                      <Input
-                        placeholder="Search by farmer name or phone..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-3 py-2 border rounded-md text-sm"
-                      >
-                        <option value="all">All Status</option>
-                        <option value="pending">Pending</option>
-                        <option value="active">Active</option>
-                        <option value="completed">Completed</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="px-3 py-2 border rounded-md text-sm"
-                      >
-                        <option value="joinDate">Join Date</option>
-                        <option value="farmerName">Farmer Name</option>
-                        <option value="totalVolume">Total Volume</option>
-                        <option value="commission">Commission</option>
-                      </select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Filtered Results Summary */}
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>
-                  Showing {referrals.filter(referral => {
-                    const matchesSearch = referral.farmerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                        referral.farmerPhone.includes(searchTerm)
-                    const matchesStatus = statusFilter === "all" || referral.status === statusFilter
-                    return matchesSearch && matchesStatus
-                  }).length} of {referrals.length} referrals
-                </span>
-                <span>
-                  Total Volume: ₦{referrals.filter(referral => {
-                    const matchesSearch = referral.farmerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                        referral.farmerPhone.includes(searchTerm)
-                    const matchesStatus = statusFilter === "all" || referral.status === statusFilter
-                    return matchesSearch && matchesStatus
-                  }).reduce((total, r) => total + r.totalVolume, 0).toLocaleString()}
-                </span>
-              </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {referrals
-                  .filter(referral => {
-                    const matchesSearch = referral.farmerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                        referral.farmerPhone.includes(searchTerm)
-                    const matchesStatus = statusFilter === "all" || referral.status === statusFilter
-                    return matchesSearch && matchesStatus
-                  })
-                  .sort((a, b) => {
-                    switch (sortBy) {
-                      case "farmerName":
-                        return a.farmerName.localeCompare(b.farmerName)
-                      case "totalVolume":
-                        return b.totalVolume - a.totalVolume
-                      case "commission":
-                        return b.commission - a.commission
-                      case "joinDate":
-                      default:
-                        return new Date(b.joinDate).getTime() - new Date(a.joinDate).getTime()
-                    }
-                  })
-                  .map((referral) => (
+                {referrals.map((referral) => (
                   <Card key={referral.id}>
                     <CardHeader>
                       <div className="flex items-center justify-between">

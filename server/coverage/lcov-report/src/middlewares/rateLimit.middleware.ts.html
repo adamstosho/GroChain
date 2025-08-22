@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">37.03% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>10/27</span>
+                <span class='fraction'>0/27</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">34.48% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>10/29</span>
+                <span class='fraction'>0/29</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">37.03% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>10/27</span>
+                <span class='fraction'>0/27</span>
             </div>
         
             
@@ -180,17 +180,17 @@
 <a name='L115'></a><a href='#L115'>115</a>
 <a name='L116'></a><a href='#L116'>116</a>
 <a name='L117'></a><a href='#L117'>117</a>
-<a name='L118'></a><a href='#L118'>118</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">10x</span>
+<a name='L118'></a><a href='#L118'>118</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">10x</span>
-<span class="cline-any cline-yes">10x</span>
-<span class="cline-any cline-yes">10x</span>
-<span class="cline-any cline-yes">10x</span>
-<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -216,7 +216,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -250,7 +250,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -262,7 +262,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -297,17 +297,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import rateLimit from 'express-rate-limit';
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import rateLimit from 'express-rate-limit';</span>
 &nbsp;
 // Log rate limiting configuration on startup
-console.log(`📊 Rate Limiting Configuration:`);
-console.log(`   - Environment: ${process.env.NODE_ENV || <span class="branch-1 cbranch-no" title="branch not covered" >'development'}</span>`);
-console.log(`   - Auth endpoints: ${process.env.NODE_ENV === 'development' ? <span class="branch-0 cbranch-no" title="branch not covered" >'50' </span>: '5'} requests per 15 minutes`);
-console.log(`   - General API: ${process.env.NODE_ENV === 'development' ? <span class="branch-0 cbranch-no" title="branch not covered" >'1000' </span>: '100'} requests per 15 minutes`);
-console.log(`   - File uploads: ${process.env.NODE_ENV === 'development' ? <span class="branch-0 cbranch-no" title="branch not covered" >'100' </span>: '10'} uploads per hour`);
+<span class="cstat-no" title="statement not covered" >console.log(`📊 Rate Limiting Configuration:`);</span>
+<span class="cstat-no" title="statement not covered" >console.log(`   - Environment: ${process.env.NODE_ENV || 'development'}`);</span>
+<span class="cstat-no" title="statement not covered" >console.log(`   - Auth endpoints: ${process.env.NODE_ENV === 'development' ? '50' : '5'} requests per 15 minutes`);</span>
+<span class="cstat-no" title="statement not covered" >console.log(`   - General API: ${process.env.NODE_ENV === 'development' ? '1000' : '100'} requests per 15 minutes`);</span>
+<span class="cstat-no" title="statement not covered" >console.log(`   - File uploads: ${process.env.NODE_ENV === 'development' ? '100' : '10'} uploads per hour`);</span>
 &nbsp;
 // General API rate limiter
-export const apiLimiter = rateLimit({
+export const <span class="cstat-no" title="statement not covered" >apiLimiter = rateLimit({</span>
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // limit each IP to 100 requests per windowMs
   message: {
@@ -333,9 +333,9 @@ export const apiLimiter = rateLimit({
 });
 &nbsp;
 // Stricter rate limiter for authentication endpoints
-export const authLimiter = rateLimit({
+export const <span class="cstat-no" title="statement not covered" >authLimiter = rateLimit({</span>
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? <span class="branch-0 cbranch-no" title="branch not covered" >50 </span>: 5, // More lenient in development
+  max: process.env.NODE_ENV === 'development' ? 50 : 5, // More lenient in development
   message: {
     status: 'error',
     message: 'Too many authentication attempts, please try again later.',
@@ -367,9 +367,9 @@ export const authLimiter = rateLimit({
 });
 &nbsp;
 // Rate limiter for file uploads
-export const uploadLimiter = rateLimit({
+export const <span class="cstat-no" title="statement not covered" >uploadLimiter = rateLimit({</span>
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: process.env.NODE_ENV === 'development' ? <span class="branch-0 cbranch-no" title="branch not covered" >100 </span>: 10, // More lenient in development
+  max: process.env.NODE_ENV === 'development' ? 100 : 10, // More lenient in development
   message: {
     status: 'error',
     message: 'Too many file uploads, please try again later.',
@@ -379,7 +379,7 @@ export const uploadLimiter = rateLimit({
 });
 &nbsp;
 // Development-friendly rate limiter
-export const devLimiter = rateLimit({
+export const <span class="cstat-no" title="statement not covered" >devLimiter = rateLimit({</span>
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // Very high limit for development
   message: {
@@ -421,7 +421,7 @@ export const devLimiter = rateLimit({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-18T09:19:13.450Z
+                at 2025-08-22T11:41:20.108Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

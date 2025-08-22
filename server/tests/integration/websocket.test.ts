@@ -19,7 +19,8 @@ beforeAll(async () => {
     email: 'test@example.com',
     phone: '+2348012345678',
     password: 'password123',
-    role: UserRole.FARMER
+    role: UserRole.FARMER,
+    emailVerified: true
   });
   userId = (user._id as any).toString();
 

@@ -1,18 +1,21 @@
 import request from 'supertest';
 import mongoose from 'mongoose';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 import app from '../../src/index';
 import { WeatherData } from '../../src/models/weather.model';
 
 describe('Weather API Integration Tests', () => {
+  let mongoServer: MongoMemoryServer;
+
   beforeAll(async () => {
-    try {
-      // Try to connect to test database, but don't fail if it's not available
-      const testMongoURI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/grochain_test';
-      await mongoose.connect(testMongoURI);
-    } catch (error) {
-      console.log('⚠️  Test database not available, running tests without database connection');
-      // Continue without database connection for basic API validation tests
-    }
+    mongoServer = await MongoMemoryServer.create();
+    const mongoURI = mongoServer.getUri();
+    await mongoose.connect(mongoURI);
+  });
+
+  afterAll(async () => {
+    await mongoose.disconnect();
+    await mongoServer.stop();
   });
 
   afterAll(async () => {
@@ -26,14 +29,7 @@ describe('Weather API Integration Tests', () => {
   });
 
   beforeEach(async () => {
-    try {
-      // Clear weather data before each test if database is available
-      if (mongoose.connection.readyState === 1) {
-        await WeatherData.deleteMany({});
-      }
-    } catch (error) {
-      // Ignore database errors
-    }
+    await mongoose.connection.db?.dropDatabase();
   });
 
   describe('GET /api/weather/current', () => {

@@ -7,268 +7,171 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
 import { 
-  Phone, 
-  MessageSquare, 
-  Activity, 
+  Smartphone, 
   Users, 
-  BarChart3, 
-  Settings, 
-  Play, 
-  Pause, 
-  RefreshCw,
-  Plus,
-  Smartphone,
-  Signal,
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertTriangle
+  TrendingUp, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle,
+  Play,
+  Settings,
+  BarChart3,
+  Globe,
+  Wifi,
+  WifiOff
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
-import { toast } from "sonner"
+import { useAuth } from "@/lib/auth-context"
 
 interface USSDServiceInfo {
   serviceCode: string
-  provider: string
-  status: 'active' | 'inactive' | 'pending'
   description: string
-  registeredAt: string
-  lastUsed: string
-  totalSessions: number
-  successRate: number
+  features: string[]
+  instructions: string
+  supportedNetworks: string[]
+  languages: string[]
 }
 
 interface USSDStats {
   totalSessions: number
-  activeSessions: number
-  completedSessions: number
-  errorSessions: number
-  averageSessionDuration: number
-  popularCommands: Array<{
-    command: string
-    count: number
-    description: string
-  }>
-  hourlyStats: Array<{
-    hour: number
-    sessions: number
+  activeUsers: number
+  successRate: number
+  averageResponseTime: number
+  topFeatures: Array<{
+    feature: string
+    usageCount: number
   }>
 }
 
 interface USSDSession {
-  id: string
-  phoneNumber: string
   sessionId: string
-  currentMenu: string
-  status: 'active' | 'completed' | 'expired' | 'error'
+  phoneNumber: string
+  status: "active" | "completed" | "failed"
   startTime: string
   lastActivity: string
-  steps: Array<{
-    input: string
-    response: string
-    timestamp: string
-  }>
+  currentMenu: string
+  network: string
 }
 
 export function USSDDashboard() {
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState("overview")
-  const [loading, setLoading] = useState(false)
-  
-  // USSD data states
   const [serviceInfo, setServiceInfo] = useState<USSDServiceInfo | null>(null)
   const [stats, setStats] = useState<USSDStats | null>(null)
-  const [sessions, setSessions] = useState<USSDSession[]>([])
-  
-  // Test form states
+  const [activeSessions, setActiveSessions] = useState<USSDSession[]>([])
+  const [loading, setLoading] = useState(true)
   const [testPhoneNumber, setTestPhoneNumber] = useState("")
-  const [testText, setTestText] = useState("")
+  const [testScenario, setTestScenario] = useState("menu_navigation")
+  const [testInput, setTestInput] = useState("")
   const [testResult, setTestResult] = useState<any>(null)
-  const [testing, setTesting] = useState(false)
+
+  const isAdmin = user?.role === "admin"
 
   useEffect(() => {
     fetchUSSDData()
   }, [])
 
   const fetchUSSDData = async () => {
+    setLoading(true)
     try {
-      setLoading(true)
-      
-      // Fetch USSD service info, stats, and sessions
-      const [infoResp, statsResp, sessionsResp] = await Promise.all([
-        api.getUSSDInfo(),
-        api.getUSSDStats(),
-        api.getUSSDSessions()
-      ])
-
+      // Fetch USSD service info
+      const infoResp = await api.getUSSDInfo()
       if (infoResp.success && infoResp.data) {
-        setServiceInfo(infoResp.data)
+        const payload: any = infoResp.data
+        setServiceInfo(payload.data || payload)
+      } else {
+        setServiceInfo(null)
       }
 
-      if (statsResp.success && statsResp.data) {
-        setStats(statsResp.data)
+      // Fetch stats (admin only)
+      if (isAdmin) {
+        const statsResp = await api.getUSSDStats()
+        if (statsResp.success && statsResp.data) {
+          const payload: any = statsResp.data
+          setStats(payload.data || payload)
+        } else {
+          setStats(null)
+        }
       }
 
-      if (sessionsResp.success && sessionsResp.data) {
-        setSessions(sessionsResp.data.sessions || [])
+      // Fetch active sessions (admin only)
+      if (isAdmin) {
+        const sessionsResp = await api.getUSSDSessions()
+        if (sessionsResp.success && sessionsResp.data) {
+          setActiveSessions(sessionsResp.data)
+        } else {
+          setActiveSessions([])
+        }
       }
+
     } catch (error) {
-      console.error("USSD fetch error:", error)
-      // Use mock data as fallback
-      setServiceInfo(generateMockServiceInfo())
-      setStats(generateMockStats())
-      setSessions(generateMockSessions())
+      console.error("Error fetching USSD data:", error)
+      setServiceInfo(null)
+      if (isAdmin) setStats(null)
+      setActiveSessions([])
     } finally {
       setLoading(false)
     }
   }
 
-  const generateMockServiceInfo = (): USSDServiceInfo => {
-    return {
-      serviceCode: "*347*678#",
-      provider: "MTN Nigeria",
-      status: 'active',
-      description: "GroChain USSD Service for agricultural marketplace and services",
-      registeredAt: "2025-01-01T00:00:00Z",
-      lastUsed: "2025-01-16T10:30:00Z",
-      totalSessions: 15847,
-      successRate: 94.2
-    }
-  }
-
-  const generateMockStats = (): USSDStats => {
-    return {
-      totalSessions: 15847,
-      activeSessions: 23,
-      completedSessions: 14956,
-      errorSessions: 868,
-      averageSessionDuration: 45.5,
-      popularCommands: [
-        { command: "1", count: 8945, description: "Check Market Prices" },
-        { command: "2", count: 4235, description: "View Products" },
-        { command: "3", count: 2140, description: "Account Balance" },
-        { command: "4", count: 1850, description: "Weather Information" },
-        { command: "5", count: 1120, description: "Support & Help" }
-      ],
-      hourlyStats: Array.from({ length: 24 }, (_, i) => ({
-        hour: i,
-        sessions: Math.floor(Math.random() * 100) + 20
-      }))
-    }
-  }
-
-  const generateMockSessions = (): USSDSession[] => {
-    const statuses: USSDSession['status'][] = ['active', 'completed', 'expired', 'error']
-    const phoneNumbers = ['+234801234567', '+234802345678', '+234803456789', '+234804567890']
-    
-    return Array.from({ length: 10 }, (_, index) => ({
-      id: `session_${index + 1}`,
-      phoneNumber: phoneNumbers[Math.floor(Math.random() * phoneNumbers.length)],
-      sessionId: `sess_${Math.random().toString(36).substr(2, 9)}`,
-      currentMenu: `menu_${Math.floor(Math.random() * 5) + 1}`,
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      startTime: new Date(Date.now() - Math.random() * 60 * 60 * 1000).toISOString(),
-      lastActivity: new Date(Date.now() - Math.random() * 30 * 60 * 1000).toISOString(),
-      steps: [
-        {
-          input: "*347*678#",
-          response: "Welcome to GroChain! 1. Market Prices 2. My Products 3. Account",
-          timestamp: new Date(Date.now() - Math.random() * 60 * 60 * 1000).toISOString()
-        },
-        {
-          input: "1",
-          response: "Market Prices: 1. Tomatoes 2. Yam 3. Cassava 4. Rice",
-          timestamp: new Date(Date.now() - Math.random() * 30 * 60 * 1000).toISOString()
-        }
-      ]
-    }))
-  }
-
   const handleTestUSSD = async () => {
-    if (!testPhoneNumber || !testText) {
-      toast.error("Please enter both phone number and text")
-      return
+    if (!testPhoneNumber.trim()) return
+
+    // Map scenario to a representative USSD text flow
+    const scenarioTextMap: Record<string, string> = {
+      menu_navigation: '1',                   // Go to Harvest menu
+      market_prices: '2*1',                   // Marketplace → Browse Products
+      weather_info: '4*2',                    // Support & Training → FAQ (placeholder)
+      loan_status: '3*1*12345678901',         // Fintech → Check Credit → sample BVN
     }
+
+    const text = (testInput && testInput.trim()) || scenarioTextMap[testScenario] || ''
 
     try {
-      setTesting(true)
-      const response = await api.testUSSD({
-        phoneNumber: testPhoneNumber,
-        text: testText
+      const resp = await api.testUSSD({ phoneNumber: testPhoneNumber, text })
+      if (resp.success && resp.data) {
+        const payload: any = resp.data
+        setTestResult(payload.data || payload)
+      } else {
+        setTestResult({ success: false, error: resp.error || 'Test failed' })
+      }
+    } catch (error) {
+      console.error("Error testing USSD:", error)
+      setTestResult({
+        success: false,
+        error: "Test failed"
+      })
+    }
+  }
+
+  const registerUSSDService = async (provider: string) => {
+    try {
+      const response = await api.registerUSSD({
+        provider,
+        serviceCode: serviceInfo?.serviceCode,
+        callbackUrl: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ussd`,
       })
 
       if (response.success) {
-        setTestResult(response.data)
-        toast.success("USSD test completed successfully")
-      } else {
-        toast.error("USSD test failed")
+        alert(`USSD service registered successfully with ${provider}`)
       }
     } catch (error) {
-      console.error("USSD test error:", error)
-      toast.error("USSD test failed")
-      // Mock test result for demonstration
-      setTestResult({
-        success: true,
-        response: "Welcome to GroChain USSD Service! 1. Market Prices 2. My Products 3. Account Balance",
-        sessionId: `test_${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: new Date().toISOString()
-      })
-    } finally {
-      setTesting(false)
+      console.error("Error registering USSD service:", error)
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return <Badge variant="default" className="bg-green-500">Active</Badge>
-      case "completed":
-        return <Badge variant="default" className="bg-blue-500">Completed</Badge>
-      case "pending":
-        return <Badge variant="secondary">Pending</Badge>
-      case "expired":
-        return <Badge variant="outline" className="text-orange-600">Expired</Badge>
-      case "error":
-        return <Badge variant="destructive">Error</Badge>
-      case "inactive":
-        return <Badge variant="destructive">Inactive</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
-  }
+  // No mock data - all data comes from real APIs
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "active":
-        return <CheckCircle className="w-4 h-4 text-green-500" />
-      case "completed":
-        return <CheckCircle className="w-4 h-4 text-blue-500" />
-      case "pending":
-        return <Clock className="w-4 h-4 text-yellow-500" />
-      case "expired":
-        return <Clock className="w-4 h-4 text-orange-500" />
-      case "error":
-        return <XCircle className="w-4 h-4 text-red-500" />
-      case "inactive":
-        return <XCircle className="w-4 h-4 text-gray-500" />
-      default:
-        return <AlertTriangle className="w-4 h-4 text-gray-500" />
-    }
-  }
-
-  if (!user) {
+  if (loading || !user) {
     return (
       <DashboardLayout user={user as any}>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <Phone className="h-8 w-8 animate-pulse mx-auto mb-4" />
-            <p>Loading USSD dashboard...</p>
+            <Smartphone className="h-8 w-8 animate-pulse mx-auto mb-4" />
+            <p>Loading USSD services...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -287,91 +190,75 @@ export function USSDDashboard() {
           <div>
             <h1 className="text-3xl font-bold">USSD Services</h1>
             <p className="text-muted-foreground">
-              Manage USSD service integration and monitor usage statistics
+              Offline-accessible agricultural services via mobile phones
             </p>
           </div>
-
+          
           <div className="flex space-x-2">
-            <Button onClick={fetchUSSDData} disabled={loading} variant="outline">
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button>
-              <Settings className="h-4 w-4 mr-2" />
-              Configure
-            </Button>
+            <Badge className="bg-green-500">
+              <Wifi className="h-3 w-3 mr-1" />
+              Service Active
+            </Badge>
           </div>
         </motion.div>
 
-        {/* Service Info and Stats Cards */}
-        {(serviceInfo || stats) && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-          >
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Service Status</CardTitle>
-                <Phone className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{serviceInfo?.serviceCode || "*347*678#"}</div>
-                <div className="flex items-center mt-2">
-                  {getStatusIcon(serviceInfo?.status || "active")}
-                  <span className="ml-2 text-sm text-muted-foreground">
-                    {serviceInfo?.provider || "MTN Nigeria"}
-                  </span>
+        {/* Service Overview */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Smartphone className="h-5 w-5" />
+                <span>Service Information</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="text-center p-4 border rounded-lg">
+                  <p className="text-3xl font-bold text-green-600">{serviceInfo?.serviceCode}</p>
+                  <p className="text-sm text-muted-foreground">Service Code</p>
+                  <p className="text-xs mt-2">{serviceInfo?.instructions}</p>
                 </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalSessions?.toLocaleString() || "15,847"}</div>
-                <p className="text-xs text-muted-foreground">
-                  {stats?.activeSessions || 23} active sessions
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {serviceInfo?.successRate || stats?.completedSessions ? 
-                    `${(serviceInfo?.successRate || ((stats?.completedSessions || 0) / (stats?.totalSessions || 1) * 100)).toFixed(1)}%`
-                    : "94.2%"
-                  }
+                
+                <div className="space-y-2">
+                  <p className="font-semibold">Supported Networks</p>
+                  <div className="flex flex-wrap gap-1">
+                    {serviceInfo?.supportedNetworks.map((network) => (
+                      <Badge key={network} variant="outline">{network}</Badge>
+                    ))}
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {stats?.errorSessions || 868} failed sessions
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Avg. Duration</CardTitle>
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats?.averageSessionDuration?.toFixed(1) || "45.5"}s</div>
-                <p className="text-xs text-muted-foreground">
-                  Per session average
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+                
+                <div className="space-y-2">
+                  <p className="font-semibold">Languages</p>
+                  <div className="flex flex-wrap gap-1">
+                    {serviceInfo?.languages.map((lang) => (
+                      <Badge key={lang} variant="outline">{lang}</Badge>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <p className="font-semibold">Available Features</p>
+                  <ul className="text-sm space-y-1">
+                    {serviceInfo?.features.slice(0, 3).map((feature) => (
+                      <li key={feature} className="flex items-center">
+                        <CheckCircle className="h-3 w-3 text-green-500 mr-1" />
+                        {feature}
+                      </li>
+                    ))}
+                    {serviceInfo && serviceInfo.features.length > 3 && (
+                      <li className="text-muted-foreground">+{serviceInfo.features.length - 3} more</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Tabs */}
         <motion.div
@@ -379,272 +266,299 @@ export function USSDDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <Tabs defaultValue={isAdmin ? "analytics" : "usage"} className="space-y-4">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="sessions">Sessions</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
-              <TabsTrigger value="testing">Testing</TabsTrigger>
+              <TabsTrigger value="usage">Usage Guide</TabsTrigger>
+              <TabsTrigger value="analytics" disabled={!isAdmin}>Analytics</TabsTrigger>
+              <TabsTrigger value="testing" disabled={!isAdmin}>Testing</TabsTrigger>
+              <TabsTrigger value="management" disabled={!isAdmin}>Management</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="space-y-6">
+            <TabsContent value="usage" className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Service Information */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Service Information</CardTitle>
+                    <CardTitle>How to Use USSD Services</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {serviceInfo ? (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Service Code:</span>
-                          <span className="font-medium">{serviceInfo.serviceCode}</span>
+                    <div className="space-y-3">
+                      <div className="flex items-start space-x-3">
+                        <div className="bg-green-100 text-green-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">1</div>
+                        <div>
+                          <p className="font-semibold">Dial the Service Code</p>
+                          <p className="text-sm text-muted-foreground">Dial {serviceInfo?.serviceCode} from any mobile phone</p>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Provider:</span>
-                          <span className="font-medium">{serviceInfo.provider}</span>
+                      </div>
+                      
+                      <div className="flex items-start space-x-3">
+                        <div className="bg-green-100 text-green-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</div>
+                        <div>
+                          <p className="font-semibold">Select Language</p>
+                          <p className="text-sm text-muted-foreground">Choose your preferred language (English, Hausa, Yoruba, Igbo)</p>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Status:</span>
-                          {getStatusBadge(serviceInfo.status)}
+                      </div>
+                      
+                      <div className="flex items-start space-x-3">
+                        <div className="bg-green-100 text-green-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">3</div>
+                        <div>
+                          <p className="font-semibold">Navigate Menu</p>
+                          <p className="text-sm text-muted-foreground">Use number keys to select options from the menu</p>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Registered:</span>
-                          <span className="font-medium">
-                            {new Date(serviceInfo.registeredAt).toLocaleDateString()}
-                          </span>
+                      </div>
+                      
+                      <div className="flex items-start space-x-3">
+                        <div className="bg-green-100 text-green-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">4</div>
+                        <div>
+                          <p className="font-semibold">Access Information</p>
+                          <p className="text-sm text-muted-foreground">Get real-time data on prices, weather, loans, and more</p>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Last Used:</span>
-                          <span className="font-medium">
-                            {new Date(serviceInfo.lastUsed).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="pt-4 border-t">
-                          <p className="text-sm text-muted-foreground">
-                            {serviceInfo.description}
-                          </p>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-muted-foreground">Service information not available</p>
-                    )}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 
-                {/* Popular Commands */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Popular Commands</CardTitle>
+                    <CardTitle>Available Services</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {stats?.popularCommands?.map((command, index) => (
-                        <div key={command.command} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div>
-                            <p className="font-medium">Option {command.command}</p>
-                            <p className="text-sm text-muted-foreground">{command.description}</p>
+                      {serviceInfo?.features.map((feature, index) => (
+                        <div key={feature} className="flex items-center space-x-3 p-2 border rounded">
+                          <div className="bg-blue-100 text-blue-800 rounded w-8 h-8 flex items-center justify-center text-sm font-bold">
+                            {index + 1}
                           </div>
-                          <div className="text-right">
-                            <p className="font-bold">{command.count.toLocaleString()}</p>
-                            <p className="text-sm text-muted-foreground">uses</p>
+                          <div>
+                            <p className="font-semibold">{feature}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {getFeatureDescription(feature)}
+                            </p>
                           </div>
                         </div>
-                      )) || (
-                        <p className="text-muted-foreground">No command statistics available</p>
-                      )}
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
               </div>
             </TabsContent>
 
-            <TabsContent value="sessions" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Active & Recent Sessions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {sessions.map((session) => (
-                      <div key={session.id} className="border rounded-lg p-4 transition-colors hover:bg-muted/50">
-                        <div className="flex items-center justify-between mb-3">
+            {isAdmin && (
+              <TabsContent value="analytics" className="space-y-4">
+                {stats && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Card>
+                      <CardContent className="p-6">
+                        <div className="flex items-center space-x-2">
+                          <Users className="h-8 w-8 text-blue-500" />
                           <div>
-                            <p className="font-medium">{session.phoneNumber}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Session: {session.sessionId}
-                            </p>
+                            <p className="text-2xl font-bold">{stats.totalSessions.toLocaleString()}</p>
+                            <p className="text-sm text-muted-foreground">Total Sessions</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-6">
+                        <div className="flex items-center space-x-2">
+                          <TrendingUp className="h-8 w-8 text-green-500" />
+                          <div>
+                            <p className="text-2xl font-bold">{stats.activeUsers.toLocaleString()}</p>
+                            <p className="text-sm text-muted-foreground">Active Users</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-6">
+                        <div className="flex items-center space-x-2">
+                          <CheckCircle className="h-8 w-8 text-green-500" />
+                          <div>
+                            <p className="text-2xl font-bold">{stats.successRate}%</p>
+                            <p className="text-sm text-muted-foreground">Success Rate</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-6">
+                        <div className="flex items-center space-x-2">
+                          <Clock className="h-8 w-8 text-orange-500" />
+                          <div>
+                            <p className="text-2xl font-bold">{stats.averageResponseTime}ms</p>
+                            <p className="text-sm text-muted-foreground">Avg Response</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Popular Features</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {stats?.topFeatures.map((feature, index) => (
+                        <div key={feature.feature} className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="bg-gray-100 rounded w-8 h-8 flex items-center justify-center text-sm font-bold">
+                              {index + 1}
+                            </div>
+                            <span className="font-medium">{feature.feature}</span>
                           </div>
                           <div className="text-right">
-                            {getStatusBadge(session.status)}
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {new Date(session.lastActivity).toLocaleTimeString()}
-                            </p>
+                            <p className="font-bold">{feature.usageCount.toLocaleString()}</p>
+                            <p className="text-sm text-muted-foreground">uses</p>
                           </div>
                         </div>
-
-                        <div className="text-sm text-muted-foreground mb-2">
-                          Current Menu: {session.currentMenu}
-                        </div>
-
-                        {session.steps.length > 0 && (
-                          <div className="space-y-2 bg-muted/30 rounded p-3">
-                            <p className="text-sm font-medium">Recent Steps:</p>
-                            {session.steps.slice(-2).map((step, index) => (
-                              <div key={index} className="text-sm">
-                                <div className="flex items-center space-x-2">
-                                  <Smartphone className="w-3 h-3" />
-                                  <span className="font-medium">User:</span>
-                                  <span>{step.input}</span>
-                                </div>
-                                <div className="flex items-center space-x-2 mt-1 text-muted-foreground">
-                                  <Signal className="w-3 h-3" />
-                                  <span className="font-medium">System:</span>
-                                  <span>{step.response}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="analytics" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Usage Analytics</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="font-semibold mb-3">Session Statistics</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Total Sessions:</span>
-                          <span className="font-medium">{stats?.totalSessions?.toLocaleString() || "15,847"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Completed:</span>
-                          <span className="font-medium text-green-600">{stats?.completedSessions?.toLocaleString() || "14,956"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Errors:</span>
-                          <span className="font-medium text-red-600">{stats?.errorSessions?.toLocaleString() || "868"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Currently Active:</span>
-                          <span className="font-medium text-blue-600">{stats?.activeSessions || "23"}</span>
-                        </div>
-                      </div>
+                      ))}
                     </div>
-                    <div>
-                      <h4 className="font-semibold mb-3">Performance Metrics</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Success Rate:</span>
-                          <span className="font-medium text-green-600">
-                            {serviceInfo?.successRate?.toFixed(1) || "94.2"}%
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Avg. Duration:</span>
-                          <span className="font-medium">{stats?.averageSessionDuration?.toFixed(1) || "45.5"}s</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Provider:</span>
-                          <span className="font-medium">{serviceInfo?.provider || "MTN Nigeria"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Service Code:</span>
-                          <span className="font-medium">{serviceInfo?.serviceCode || "*347*678#"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
 
-            <TabsContent value="testing" className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Test Form */}
+            {isAdmin && (
+              <TabsContent value="testing" className="space-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle>USSD Service Testing</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div>
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <Input
-                        id="phone"
-                        placeholder="+234801234567"
-                        value={testPhoneNumber}
-                        onChange={(e) => setTestPhoneNumber(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="text">USSD Text</Label>
-                      <Input
-                        id="text"
-                        placeholder="*347*678# or menu option"
-                        value={testText}
-                        onChange={(e) => setTestText(e.target.value)}
-                      />
-                    </div>
-                    <Button onClick={handleTestUSSD} disabled={testing} className="w-full">
-                      {testing ? (
-                        <div className="flex items-center">
-                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                          Testing...
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-medium">Phone Number</label>
+                          <Input
+                            placeholder="+234801234567"
+                            value={testPhoneNumber}
+                            onChange={(e) => setTestPhoneNumber(e.target.value)}
+                          />
                         </div>
-                      ) : (
-                        <div className="flex items-center">
-                          <Play className="w-4 h-4 mr-2" />
-                          Test USSD Service
+                        
+                        <div>
+                          <label className="text-sm font-medium">Test Scenario</label>
+                          <Select value={testScenario} onValueChange={setTestScenario}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="menu_navigation">Menu Navigation</SelectItem>
+                              <SelectItem value="market_prices">Market Prices</SelectItem>
+                              <SelectItem value="weather_info">Weather Information</SelectItem>
+                              <SelectItem value="loan_status">Loan Status</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                      )}
-                    </Button>
+                        
+                        <div>
+                          <label className="text-sm font-medium">Custom Input (Optional)</label>
+                          <Input
+                            placeholder="1*2*3"
+                            value={testInput}
+                            onChange={(e) => setTestInput(e.target.value)}
+                          />
+                        </div>
+                        
+                        <Button onClick={handleTestUSSD} className="w-full">
+                          <Play className="h-4 w-4 mr-2" />
+                          Run Test
+                        </Button>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium">Test Results</label>
+                        <div className="mt-2 p-4 bg-gray-50 rounded-lg min-h-32">
+                          {testResult ? (
+                            <pre className="text-sm">{JSON.stringify(testResult, null, 2)}</pre>
+                          ) : (
+                            <p className="text-muted-foreground text-sm">Run a test to see results...</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            {isAdmin && (
+              <TabsContent value="management" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Network Provider Registration</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {serviceInfo?.supportedNetworks.map((network) => (
+                        <Card key={network} className="text-center">
+                          <CardContent className="p-4">
+                            <div className="space-y-3">
+                              <div className="w-12 h-12 bg-gray-100 rounded-full mx-auto flex items-center justify-center">
+                                <Smartphone className="h-6 w-6" />
+                              </div>
+                              <p className="font-semibold">{network}</p>
+                              <Badge className="bg-green-500">Registered</Badge>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => registerUSSDService(network.toLowerCase())}
+                                className="w-full"
+                              >
+                                <Settings className="h-4 w-4 mr-2" />
+                                Configure
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
 
-                {/* Test Results */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Test Results</CardTitle>
+                    <CardTitle>Service Configuration</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    {testResult ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center space-x-2">
-                          <CheckCircle className="w-5 h-5 text-green-500" />
-                          <span className="font-medium">Test Successful</span>
-                        </div>
-                        <div className="p-4 bg-muted rounded-lg">
-                          <p className="font-medium mb-2">Response:</p>
-                          <p className="text-sm">{testResult.response}</p>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          <p>Session ID: {testResult.sessionId}</p>
-                          <p>Timestamp: {new Date(testResult.timestamp).toLocaleString()}</p>
-                        </div>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Service Code</label>
+                        <Input value={serviceInfo?.serviceCode || ""} readOnly />
                       </div>
-                    ) : (
-                      <p className="text-muted-foreground">
-                        No test results yet. Use the test form to simulate a USSD session.
-                      </p>
-                    )}
+                      
+                      <div>
+                        <label className="text-sm font-medium">Callback URL</label>
+                        <Input value={`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ussd`} readOnly />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium">Service Description</label>
+                      <Textarea value={serviceInfo?.description || ""} readOnly />
+                    </div>
                   </CardContent>
                 </Card>
-              </div>
-            </TabsContent>
+              </TabsContent>
+            )}
           </Tabs>
         </motion.div>
       </div>
     </DashboardLayout>
   )
+}
+
+function getFeatureDescription(feature: string): string {
+  const descriptions: Record<string, string> = {
+    "Market Prices": "Get current commodity prices and market rates",
+    "Weather Information": "Access weather forecasts and agricultural alerts",
+    "Loan Status": "Check your loan application and repayment status",
+    "Account Balance": "View your account balance and transaction history",
+    "Crop Advice": "Receive personalized farming recommendations"
+  }
+  return descriptions[feature] || "Agricultural service information"
 }

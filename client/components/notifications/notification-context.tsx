@@ -132,6 +132,13 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
+        // Check if user is authenticated before making API calls
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token')
+        if (!token) {
+          console.log("User not authenticated, skipping notification fetch")
+          return
+        }
+
         // Fetch user's notifications from backend
         const response = await api.getNotificationPreferences()
         if (response.success && response.data) {
@@ -143,10 +150,10 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       }
     }
 
-    // Fetch notifications on mount
+    // Fetch notifications on mount only if authenticated
     fetchNotifications()
 
-    // Set up polling for new notifications (every 30 seconds)
+    // Set up polling for new notifications (every 30 seconds) only if authenticated
     const interval = setInterval(fetchNotifications, 30000)
 
     return () => clearInterval(interval)

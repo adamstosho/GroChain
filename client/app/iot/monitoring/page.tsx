@@ -16,4 +16,3 @@ export default function IoTMonitoringPageRoute() {
 }
 
 export const dynamic = 'force-dynamic'
-

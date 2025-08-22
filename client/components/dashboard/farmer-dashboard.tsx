@@ -25,7 +25,7 @@ import {
   ArrowRight,
   CreditCard
 } from "lucide-react"
-import { DashboardLayout } from "./dashboard-layout"
+// import { DashboardLayout } from "./dashboard-layout"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
 import Link from "next/link"
@@ -423,52 +423,45 @@ export function FarmerDashboard({ user }: FarmerDashboardProps) {
 
   if (loading && !stats) {
     return (
-      <DashboardLayout user={user}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading dashboard data...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading dashboard data...</p>
         </div>
-      </DashboardLayout>
+      </div>
     )
   }
 
   if (error && !stats) {
     return (
-      <DashboardLayout user={user}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">Failed to load dashboard</h3>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={fetchDashboardData}>Try Again</Button>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">Failed to load dashboard</h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={fetchDashboardData}>Try Again</Button>
         </div>
-      </DashboardLayout>
+      </div>
     )
   }
 
   if (!stats) {
     return (
-      <DashboardLayout user={user}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground mb-4">No dashboard data available</p>
-            <Button onClick={fetchDashboardData} variant="outline">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh Data
-            </Button>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground mb-4">No dashboard data available</p>
+          <Button onClick={fetchDashboardData} variant="outline">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh Data
+          </Button>
         </div>
-      </DashboardLayout>
+      </div>
     )
   }
 
   return (
-    <DashboardLayout user={user}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -990,6 +983,5 @@ export function FarmerDashboard({ user }: FarmerDashboardProps) {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
   )
 }

@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { 
   Users, 
@@ -31,7 +31,7 @@ import {
   Truck,
   Clock
 } from "lucide-react"
-import { DashboardLayout } from "./dashboard-layout"
+// import { DashboardLayout } from "./dashboard-layout"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
 import Link from "next/link"
@@ -422,48 +422,41 @@ export function AgencyDashboard({ user }: AgencyDashboardProps) {
 
   if (loading && !stats) {
     return (
-      <DashboardLayout user={user}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading dashboard data...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading dashboard data...</p>
         </div>
-      </DashboardLayout>
+      </div>
     )
   }
 
   if (error && !stats) {
     return (
-      <DashboardLayout user={user}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">Failed to load dashboard</h3>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={fetchDashboardData}>Try Again</Button>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">Failed to load dashboard</h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={fetchDashboardData}>Try Again</Button>
         </div>
-      </DashboardLayout>
+      </div>
     )
   }
 
   if (!stats) {
     return (
-      <DashboardLayout user={user}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No dashboard data available</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">No dashboard data available</p>
         </div>
-      </DashboardLayout>
+      </div>
     )
   }
 
   return (
-    <DashboardLayout user={user}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -940,7 +933,7 @@ export function AgencyDashboard({ user }: AgencyDashboardProps) {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
+    </div>
   )
 }
 

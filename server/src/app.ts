@@ -18,22 +18,13 @@ import notificationRoutes from './routes/notification.routes';
 import commissionRoutes from './routes/commission.routes';
 import verifyRoutes from './routes/verify.routes';
 import pwaRoutes from './routes/pwa.routes';
-import syncRoutes from './routes/sync.routes';
+
 import languageRoutes from './routes/language.routes';
-import aiRoutes from './routes/ai.routes';
-import iotRoutes from './routes/iot.routes';
-import imageRecognitionRoutes from './routes/imageRecognition.routes';
-import advancedMLRoutes from './routes/advancedML.routes';
+
 import weatherRoutes from './routes/weather.routes';
 import websocketRoutes from './routes/websocket.routes';
 import bvnVerificationRoutes from './routes/bvnVerification.routes';
-import ussdRoutes from './routes/ussd.routes';
 import qrCodeRoutes from './routes/qrCode.routes';
-import inventoryRoutes from './routes/inventory.routes';
-import qualityRoutes from './routes/quality.routes';
-import userRoutes from './routes/user.routes';
-import orderRoutes from './routes/order.routes';
-import complianceRoutes from './routes/compliance.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger-lite';
 import { errorHandler } from './middlewares/error.middleware';
@@ -177,22 +168,13 @@ app.use('/api/commissions', commissionRoutes);
 app.use('/api/commission', commissionRoutes);
 app.use('/api/verify', verifyRoutes);
 app.use('/api/pwa', pwaRoutes);
-app.use('/api/sync', syncRoutes);
+
 app.use('/api/language', languageRoutes);
-app.use('/api/ai', aiRoutes);
-app.use('/api/iot', iotRoutes);
-app.use('/api/image-recognition', imageRecognitionRoutes);
-app.use('/api/advanced-ml', advancedMLRoutes);
+
 app.use('/api/weather', weatherRoutes);
 app.use('/api/websocket', websocketRoutes);
 app.use('/api/verification', bvnVerificationRoutes);
-app.use('/api/ussd', ussdRoutes);
 app.use('/api/qr-codes', qrCodeRoutes);
-app.use('/api/inventory', inventoryRoutes);
-app.use('/api/quality', qualityRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/compliance', complianceRoutes);
 
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

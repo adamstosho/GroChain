@@ -16,4 +16,3 @@ export default function PredictiveAnalyticsPageRoute() {
 }
 
 export const dynamic = 'force-dynamic'
-

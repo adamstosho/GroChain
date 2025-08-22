@@ -71,8 +71,7 @@ const loanApplicationSchema = new Schema<ILoanApplication>({
   farmerId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   amount: {
     type: Number,
@@ -132,8 +131,7 @@ const insurancePolicySchema = new Schema<IInsurancePolicy>({
   farmerId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   type: {
     type: String,
@@ -185,8 +183,7 @@ const financialHealthSchema = new Schema<IFinancialHealth>({
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true,
-    unique: true,
-    index: true
+    unique: true
   },
   netWorth: {
     type: Number,
@@ -233,8 +230,7 @@ const financialGoalSchema = new Schema<IFinancialGoal>({
   farmerId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   name: {
     type: String,

@@ -106,6 +106,40 @@ interface ShipmentFilters {
   driver: string
   dateRange: string
   route: string
+  minDistance: string
+  maxDistance: string
+  minCost: string
+  maxCost: string
+}
+
+interface RouteOptimization {
+  id: string
+  shipments: string[]
+  totalDistance: number
+  totalCost: number
+  estimatedTime: number
+  waypoints: Array<{
+    name: string
+    coordinates: { lat: number; lng: number }
+    estimatedTime: string
+    status: 'pending' | 'completed'
+  }>
+  driver: {
+    name: string
+    phone: string
+    vehicle: string
+    plateNumber: string
+  }
+  status: 'planned' | 'active' | 'completed'
+}
+
+interface DeliveryZone {
+  id: string
+  name: string
+  coordinates: Array<{ lat: number; lng: number }>
+  estimatedDeliveryTime: number
+  deliveryFee: number
+  isActive: boolean
 }
 
 export function ShipmentDashboard() {
@@ -120,7 +154,11 @@ export function ShipmentDashboard() {
     status: "all",
     driver: "all",
     dateRange: "all",
-    route: "all"
+    route: "all",
+    minDistance: "",
+    maxDistance: "",
+    minCost: "",
+    maxCost: ""
   })
   const [shipmentStats, setShipmentStats] = useState<ShipmentStats>({
     totalShipments: 0,
@@ -132,16 +170,51 @@ export function ShipmentDashboard() {
     averageDeliveryTime: 0,
     onTimeDeliveryRate: 0
   })
+  const [showAddShipment, setShowAddShipment] = useState(false)
+  const [showRouteOptimization, setShowRouteOptimization] = useState(false)
+  const [showDeliveryZones, setShowDeliveryZones] = useState(false)
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
+  const [realTimeTracking, setRealTimeTracking] = useState(false)
+  const [optimizedRoutes, setOptimizedRoutes] = useState<RouteOptimization[]>([])
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([])
+  const [newShipmentData, setNewShipmentData] = useState({
+    harvestBatchId: "",
+    sourceAddress: "",
+    destinationAddress: "",
+    estimatedDelivery: "",
+    driverId: "",
+    specialInstructions: ""
+  })
+  const [routeOptimizationData, setRouteOptimizationData] = useState({
+    selectedShipments: [] as string[],
+    driverId: "",
+    optimizationType: "distance" as "distance" | "time" | "cost"
+  })
 
   useEffect(() => {
     if (user) {
       fetchShipmentData()
+      fetchRouteData()
+      fetchDeliveryZones()
     }
   }, [user])
 
   useEffect(() => {
     filterShipments()
   }, [shipments, filters])
+
+  // Real-time tracking effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (realTimeTracking) {
+      interval = setInterval(() => {
+        updateShipmentLocations()
+      }, 10000) // Update every 10 seconds
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [realTimeTracking])
 
   const fetchShipmentData = async () => {
     try {
@@ -162,6 +235,34 @@ export function ShipmentDashboard() {
       calculateShipmentStats(mockShipmentsData)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchRouteData = async () => {
+    try {
+      // TODO: Replace with actual API call when backend endpoint is implemented
+      // const response = await api.get("/api/shipments/routes")
+      
+      // For now, generate mock routes
+      setOptimizedRoutes(generateMockRoutes())
+    } catch (error) {
+      console.error("Route fetch error:", error)
+      // Generate mock routes
+      setOptimizedRoutes(generateMockRoutes())
+    }
+  }
+
+  const fetchDeliveryZones = async () => {
+    try {
+      // TODO: Replace with actual API call when backend endpoint is implemented
+      // const response = await api.get("/api/shipments/delivery-zones")
+      
+      // For now, generate mock delivery zones
+      setDeliveryZones(generateMockDeliveryZones())
+    } catch (error) {
+      console.error("Delivery zones fetch error:", error)
+      // Generate mock delivery zones
+      setDeliveryZones(generateMockDeliveryZones())
     }
   }
 
@@ -234,6 +335,63 @@ export function ShipmentDashboard() {
         }
       }
     })
+  }
+
+  const generateMockRoutes = (): RouteOptimization[] => {
+    return [
+      {
+        id: "route_001",
+        shipments: ["ship_001", "ship_002", "ship_003"],
+        totalDistance: 45.2,
+        totalCost: 12500,
+        estimatedTime: 180,
+        waypoints: [
+          { name: "Farm A", coordinates: { lat: 7.1, lng: 3.2 }, estimatedTime: "09:00", status: "completed" },
+          { name: "Farm B", coordinates: { lat: 7.3, lng: 3.4 }, estimatedTime: "10:30", status: "pending" },
+          { name: "Market", coordinates: { lat: 6.6, lng: 3.4 }, estimatedTime: "12:00", status: "pending" }
+        ],
+        driver: { name: "Emeka Okafor", phone: "+2348012345678", vehicle: "Toyota Hiace", plateNumber: "ABC123XY" },
+        status: "active"
+      }
+    ]
+  }
+
+  const generateMockDeliveryZones = (): DeliveryZone[] => {
+    return [
+      {
+        id: "zone_001",
+        name: "Lagos Central",
+        coordinates: [
+          { lat: 6.5, lng: 3.3 },
+          { lat: 6.6, lng: 3.3 },
+          { lat: 6.6, lng: 3.4 },
+          { lat: 6.5, lng: 3.4 }
+        ],
+        estimatedDeliveryTime: 120,
+        deliveryFee: 500,
+        isActive: true
+      }
+    ]
+  }
+
+  const updateShipmentLocations = () => {
+    // Simulate real-time location updates
+    setShipments(prev => prev.map(shipment => {
+      if (shipment.status === 'in_transit' || shipment.status === 'out_for_delivery') {
+        // Update coordinates slightly to simulate movement
+        const newLat = shipment.source.coordinates.lat + (Math.random() - 0.5) * 0.01
+        const newLng = shipment.source.coordinates.lng + (Math.random() - 0.5) * 0.01
+        
+        return {
+          ...shipment,
+          source: {
+            ...shipment.source,
+            coordinates: { lat: newLat, lng: newLng }
+          }
+        }
+      }
+      return shipment
+    }))
   }
 
   const calculateShipmentStats = (shipmentList: Shipment[]) => {
@@ -363,6 +521,77 @@ export function ShipmentDashboard() {
     toast.info("Create shipment functionality coming soon")
   }
 
+  const addShipment = async () => {
+    try {
+      const response = await api.post("/api/shipments", newShipmentData)
+      if (response.success) {
+        toast.success("Shipment created successfully!")
+        setShowAddShipment(false)
+        setNewShipmentData({
+          harvestBatchId: "",
+          sourceAddress: "",
+          destinationAddress: "",
+          estimatedDelivery: "",
+          driverId: "",
+          specialInstructions: ""
+        })
+        fetchShipmentData()
+      }
+    } catch (error) {
+      toast.error("Failed to create shipment")
+    }
+  }
+
+  const optimizeRoute = async () => {
+    try {
+      const response = await api.post("/api/shipments/optimize-route", routeOptimizationData)
+      if (response.success) {
+        toast.success("Route optimized successfully!")
+        setShowRouteOptimization(false)
+        setRouteOptimizationData({
+          selectedShipments: [],
+          driverId: "",
+          optimizationType: "distance"
+        })
+        fetchRouteData()
+      }
+    } catch (error) {
+      toast.error("Failed to optimize route")
+    }
+  }
+
+  const updateShipmentStatus = async (shipmentId: string, status: Shipment['status']) => {
+    try {
+      const response = await api.patch(`/api/shipments/${shipmentId}/status`, { status })
+      if (response.success) {
+        toast.success(`Shipment status updated to ${status}`)
+        fetchShipmentData()
+      }
+    } catch (error) {
+      toast.error("Failed to update shipment status")
+    }
+  }
+
+  const calculateOptimalRoute = (shipments: Shipment[], optimizationType: "distance" | "time" | "cost") => {
+    // Simple route optimization algorithm
+    // In production, this would use Google Maps API or similar service
+    let sortedShipments = [...shipments]
+    
+    if (optimizationType === "distance") {
+      sortedShipments.sort((a, b) => a.distance - b.distance)
+    } else if (optimizationType === "time") {
+      sortedShipments.sort((a, b) => {
+        const aTime = new Date(a.estimatedDelivery).getTime()
+        const bTime = new Date(b.estimatedDelivery).getTime()
+        return aTime - bTime
+      })
+    } else if (optimizationType === "cost") {
+      sortedShipments.sort((a, b) => a.cost - b.cost)
+    }
+    
+    return sortedShipments
+  }
+
   if (!user) {
     return (
       <DashboardLayout user={user as any}>
@@ -380,29 +609,59 @@ export function ShipmentDashboard() {
     <DashboardLayout user={user}>
       <div className="space-y-6">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0"
-        >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Shipment & Logistics</h1>
+            <h1 className="text-3xl font-bold">Shipment & Logistics Management</h1>
             <p className="text-muted-foreground">
-              Manage shipments, track deliveries, and optimize logistics operations
+              Track shipments, optimize routes, and manage delivery operations in real-time
             </p>
+            {shipmentStats && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {shipmentStats.inTransit} in transit • {shipmentStats.delivered} delivered • {shipmentStats.onTimeDeliveryRate}% on-time delivery
+              </p>
+            )}
           </div>
+          
+          <div className="flex items-center gap-3">
+            {/* Real-time Tracking Controls */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant={realTimeTracking ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRealTimeTracking(!realTimeTracking)}
+                className="flex items-center gap-2"
+              >
+                {realTimeTracking ? (
+                  <>
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                    Live
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-4 h-4" />
+                    Manual
+                  </>
+                )}
+              </Button>
+            </div>
 
-          <div className="flex space-x-2">
-            <Button onClick={handleRefresh} disabled={loading} variant="outline">
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+            {/* Action Buttons */}
+            <Button variant="outline" onClick={() => setShowRouteOptimization(true)}>
+              <Route className="w-4 h-4 mr-2" />
+              Optimize Routes
             </Button>
-            <Button onClick={handleCreateShipment}>
-              <Plus className="h-4 w-4 mr-2" />
+            
+            <Button variant="outline" onClick={() => setShowDeliveryZones(true)}>
+              <Map className="w-4 h-4 mr-2" />
+              Delivery Zones
+            </Button>
+            
+            <Button onClick={() => setShowAddShipment(true)}>
+              <Plus className="w-4 h-4 mr-2" />
               New Shipment
             </Button>
           </div>
-        </motion.div>
+        </div>
 
         {/* Shipment Statistics */}
         <motion.div
@@ -727,6 +986,198 @@ export function ShipmentDashboard() {
             </TabsContent>
           </Tabs>
         </motion.div>
+
+        {/* Add Shipment Modal */}
+        {showAddShipment && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-background p-6 rounded-lg w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-lg font-semibold mb-4">Create New Shipment</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="harvestBatch">Harvest Batch ID</Label>
+                  <Input
+                    id="harvestBatch"
+                    value={newShipmentData.harvestBatchId}
+                    onChange={(e) => setNewShipmentData({ ...newShipmentData, harvestBatchId: e.target.value })}
+                    placeholder="Enter harvest batch ID"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="sourceAddress">Source Address</Label>
+                  <Input
+                    id="sourceAddress"
+                    value={newShipmentData.sourceAddress}
+                    onChange={(e) => setNewShipmentData({ ...newShipmentData, sourceAddress: e.target.value })}
+                    placeholder="Farm or pickup location"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="destinationAddress">Destination Address</Label>
+                  <Input
+                    id="destinationAddress"
+                    value={newShipmentData.destinationAddress}
+                    onChange={(e) => setNewShipmentData({ ...newShipmentData, destinationAddress: e.target.value })}
+                    placeholder="Market or delivery location"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="estimatedDelivery">Estimated Delivery Date</Label>
+                  <Input
+                    id="estimatedDelivery"
+                    type="datetime-local"
+                    value={newShipmentData.estimatedDelivery}
+                    onChange={(e) => setNewShipmentData({ ...newShipmentData, estimatedDelivery: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="driverId">Driver</Label>
+                  <Select value={newShipmentData.driverId} onValueChange={(value) => setNewShipmentData({ ...newShipmentData, driverId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select driver" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="driver_001">Emeka Okafor</SelectItem>
+                      <SelectItem value="driver_002">Fatima Hassan</SelectItem>
+                      <SelectItem value="driver_003">Tunde Adebayo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="specialInstructions">Special Instructions</Label>
+                  <Textarea
+                    id="specialInstructions"
+                    value={newShipmentData.specialInstructions}
+                    onChange={(e) => setNewShipmentData({ ...newShipmentData, specialInstructions: e.target.value })}
+                    placeholder="Any special handling requirements"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button onClick={addShipment} className="flex-1">
+                    Create Shipment
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowAddShipment(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Route Optimization Modal */}
+        {showRouteOptimization && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-background p-6 rounded-lg w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-lg font-semibold mb-4">Route Optimization</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="optimizationType">Optimization Type</Label>
+                  <Select value={routeOptimizationData.optimizationType} onValueChange={(value: "distance" | "time" | "cost") => setRouteOptimizationData({ ...routeOptimizationData, optimizationType: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="distance">Minimize Distance</SelectItem>
+                      <SelectItem value="time">Minimize Time</SelectItem>
+                      <SelectItem value="cost">Minimize Cost</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="selectedShipments">Select Shipments</Label>
+                  <Select value={routeOptimizationData.selectedShipments[0] || ""} onValueChange={(value) => setRouteOptimizationData({ ...routeOptimizationData, selectedShipments: [value] })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select shipments to optimize" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {shipments.filter(s => s.status === 'pending').map((shipment) => (
+                        <SelectItem key={shipment.id} value={shipment.id}>
+                          {shipment.trackingNumber} - {shipment.harvestBatch.product}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="driverId">Assign Driver</Label>
+                  <Select value={routeOptimizationData.driverId} onValueChange={(value) => setRouteOptimizationData({ ...routeOptimizationData, driverId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select driver" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="driver_001">Emeka Okafor</SelectItem>
+                      <SelectItem value="driver_002">Fatima Hassan</SelectItem>
+                      <SelectItem value="driver_003">Tunde Adebayo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button onClick={optimizeRoute} className="flex-1">
+                    Optimize Route
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowRouteOptimization(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delivery Zones Modal */}
+        {showDeliveryZones && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-background p-6 rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-lg font-semibold mb-4">Delivery Zones Management</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {deliveryZones.map((zone) => (
+                    <Card key={zone.id}>
+                      <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                          {zone.name}
+                          <Badge variant={zone.isActive ? "default" : "secondary"}>
+                            {zone.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2 text-sm">
+                          <p><span className="font-medium">Delivery Time:</span> {zone.estimatedDeliveryTime} minutes</p>
+                          <p><span className="font-medium">Delivery Fee:</span> ₦{zone.deliveryFee}</p>
+                          <p><span className="font-medium">Coordinates:</span> {zone.coordinates.length} points</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                
+                <div className="text-center py-4">
+                  <Button variant="outline">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add New Zone
+                  </Button>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button variant="outline" onClick={() => setShowDeliveryZones(false)}>
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   )

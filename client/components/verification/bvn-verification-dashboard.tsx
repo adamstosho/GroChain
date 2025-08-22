@@ -36,6 +36,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
+import { ComplianceDashboard } from "./compliance-dashboard"
 
 interface BVNVerification {
   id: string
@@ -128,7 +129,8 @@ export function BVNVerificationDashboard() {
       setError("")
 
       // Since backend has limited verification endpoints, we'll use mock data for now
-      // In production: const response = await api.getVerificationStatus(user.id)
+      // TODO: Replace with actual API call when backend endpoint is implemented
+      // const response = await api.get(`/api/verification/status/${user?.id}`)
       
       const mockVerifications = generateMockVerifications()
       setVerifications(mockVerifications)
@@ -731,22 +733,7 @@ export function BVNVerificationDashboard() {
             </TabsContent>
 
             <TabsContent value="compliance" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Compliance Dashboard</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground mb-4">
-                      Comprehensive compliance reporting and regulatory monitoring
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Coming soon: Regulatory reports, audit trails, and compliance analytics
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <ComplianceDashboard />
             </TabsContent>
           </Tabs>
         </motion.div>

@@ -26,13 +26,17 @@ import {
   Building2,
   PiggyBank,
   Target,
-  BarChart3
+  BarChart3,
+  Zap
 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
 import Link from "next/link"
 import { toast } from "sonner"
+import { LoanManagement } from "./loan-management"
+import { InsurancePortal } from "./insurance-portal"
+import { AdvancedFinancialTools } from "./advanced-financial-tools"
 
 interface CreditScore {
   score: number
@@ -137,7 +141,7 @@ export function FintechDashboard() {
           <div>
             <h1 className="text-3xl font-bold">Fintech Services</h1>
             <p className="text-muted-foreground">
-              Access credit scores and financial services for your farming business
+              Access credit scores, loans, insurance, and financial services for your farming business
             </p>
           </div>
           
@@ -161,32 +165,8 @@ export function FintechDashboard() {
           </Alert>
         )}
 
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-3">
-          <Link href="/fintech/credit-score">
-            <Button>
-              <CreditCard className="w-4 h-4 mr-2" />
-              View Credit Score
-            </Button>
-          </Link>
-          <Link href="/fintech/apply-loan">
-            <Button variant="outline">
-              <Plus className="w-4 h-4 mr-2" />
-              Apply for Loan Referral
-            </Button>
-          </Link>
-          <Button variant="outline" onClick={() => setActiveTab("insurance")}>
-            <Shield className="w-4 h-4 mr-2" />
-            Insurance Services
-          </Button>
-          <Button variant="outline" onClick={() => setActiveTab("overview")}>
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Financial Health
-          </Button>
-        </div>
-
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-5 h-auto p-1">
             <TabsTrigger value="overview" className="text-xs sm:text-sm">
               Overview
             </TabsTrigger>
@@ -194,10 +174,13 @@ export function FintechDashboard() {
               Credit Score
             </TabsTrigger>
             <TabsTrigger value="loans" className="text-xs sm:text-sm">
-              Loan Referrals
+              Loans
             </TabsTrigger>
             <TabsTrigger value="insurance" className="text-xs sm:text-sm">
               Insurance
+            </TabsTrigger>
+            <TabsTrigger value="financial-tools" className="text-xs sm:text-sm">
+              Financial Tools
             </TabsTrigger>
           </TabsList>
 
@@ -267,7 +250,7 @@ export function FintechDashboard() {
               </motion.div>
             )}
 
-            {/* Loan Referrals Summary */}
+            {/* Quick Actions */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -276,67 +259,47 @@ export function FintechDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-primary" />
-                    Loan Referrals Summary
+                    <Zap className="w-5 h-5 text-primary" />
+                    Quick Actions
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-600">{loanReferrals.length}</p>
-                      <p className="text-sm text-muted-foreground">Total Referrals</p>
-                    </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <p className="text-2xl font-bold text-green-600">
-                        {loanReferrals.filter(l => l.status === 'approved').length}
-                      </p>
-                      <p className="text-sm text-muted-foreground">Approved</p>
-                    </div>
-                    <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                      <p className="text-2xl font-bold text-yellow-600">
-                        {loanReferrals.filter(l => l.status === 'pending').length}
-                      </p>
-                      <p className="text-sm text-muted-foreground">Pending</p>
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <p className="text-2xl font-bold text-purple-600">
-                        ₦{loanReferrals.reduce((total, referral) => total + (referral.amount || 0), 0).toLocaleString()}
-                      </p>
-                      <p className="text-sm text-muted-foreground">Total Requested</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Coming Soon Features */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="w-5 h-5 text-primary" />
-                    Coming Soon
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                      <h4 className="font-medium mb-2">Financial Health Dashboard</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Track your net worth, savings rate, and debt-to-income ratio
-                      </p>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex-col gap-2"
+                      onClick={() => setActiveTab("loans")}
+                    >
+                      <Plus className="w-6 h-6" />
+                      <span>Apply for Loan</span>
+                    </Button>
                     
-                    <div className="p-4 bg-green-50 rounded-lg">
-                      <h4 className="font-medium mb-2">Direct Loan Applications</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Apply directly for loans through our partner financial institutions
-                      </p>
-                    </div>
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex-col gap-2"
+                      onClick={() => setActiveTab("insurance")}
+                    >
+                      <Shield className="w-6 h-6" />
+                      <span>Get Insurance</span>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex-col gap-2"
+                      onClick={() => setActiveTab("financial-tools")}
+                    >
+                      <Calculator className="w-6 h-6" />
+                      <span>Financial Tools</span>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex-col gap-2"
+                      onClick={() => setActiveTab("credit")}
+                    >
+                      <CreditCard className="w-6 h-6" />
+                      <span>Credit Score</span>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -397,184 +360,15 @@ export function FintechDashboard() {
           </TabsContent>
 
           <TabsContent value="loans" className="space-y-6">
-            <div className="space-y-6">
-              {/* Loan Referrals */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>Loan Referrals</span>
-                    <Link href="/fintech/apply-loan">
-                      <Button size="sm">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Apply for Referral
-                      </Button>
-                    </Link>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loanReferrals.length === 0 ? (
-                    <div className="text-center py-8">
-                      <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                      <p className="text-muted-foreground mb-2">No loan referrals yet</p>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Apply for your first loan referral to get started with financial services
-                      </p>
-                      <Link href="/fintech/apply-loan">
-                        <Button>
-                          <Plus className="w-4 h-4 mr-2" />
-                          Apply for Loan Referral
-                        </Button>
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {loanReferrals.map((referral) => (
-                        <div
-                          key={referral.id}
-                          className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="p-2 bg-primary/10 rounded-lg">
-                              <DollarSign className="w-5 h-5 text-primary" />
-                            </div>
-                            <div>
-                              <p className="font-medium">Loan Referral</p>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <span>₦{referral.amount.toLocaleString()}</span>
-                                <span>{new Date(referral.createdAt).toLocaleDateString()}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <Badge className={getStatusBadge(referral.status)}>
-                              {referral.status}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <LoanManagement />
           </TabsContent>
 
           <TabsContent value="insurance" className="space-y-6">
-            <div className="space-y-6">
-              {/* Insurance Overview */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-primary" />
-                    Crop Insurance
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <Shield className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-blue-600">₦0</p>
-                      <p className="text-sm text-muted-foreground">Active Coverage</p>
-                    </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-green-600">0</p>
-                      <p className="text-sm text-muted-foreground">Policies</p>
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <Target className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-purple-600">₦0</p>
-                      <p className="text-sm text-muted-foreground">Claims</p>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 p-4 bg-muted/30 rounded-lg">
-                    <h4 className="font-medium mb-2">Insurance Benefits</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <span>Protection against crop failure</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <span>Weather damage coverage</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <span>Disease outbreak protection</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <span>Market price volatility</span>
-                      </div>
-                    </div>
-                  </div>
+            <InsurancePortal />
+          </TabsContent>
 
-                  <div className="mt-6 text-center">
-                    <Button variant="outline" className="w-full max-w-md">
-                      <Shield className="w-4 h-4 mr-2" />
-                      Get Insurance Quote
-                    </Button>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Insurance services coming soon
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Financial Health Dashboard */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-primary" />
-                    Financial Health Dashboard
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                      <h4 className="font-medium mb-2">Net Worth Tracking</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Monitor your assets, liabilities, and overall financial position
-                      </p>
-                      <div className="mt-3 text-2xl font-bold text-blue-600">
-                        ₦0
-                      </div>
-                      <p className="text-xs text-muted-foreground">Current Net Worth</p>
-                    </div>
-                    
-                    <div className="p-4 bg-green-50 rounded-lg">
-                      <h4 className="font-medium mb-2">Savings Rate</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Track your monthly savings and investment contributions
-                      </p>
-                      <div className="mt-3 text-2xl font-bold text-green-600">
-                        0%
-                      </div>
-                      <p className="text-xs text-muted-foreground">Monthly Savings Rate</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 p-4 bg-muted/30 rounded-lg">
-                    <h4 className="font-medium mb-2">Financial Goals</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Emergency Fund</span>
-                        <Badge variant="outline">Not Set</Badge>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Equipment Investment</span>
-                        <Badge variant="outline">Not Set</Badge>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Land Acquisition</span>
-                        <Badge variant="outline">Not Set</Badge>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          <TabsContent value="financial-tools" className="space-y-6">
+            <AdvancedFinancialTools />
           </TabsContent>
         </Tabs>
       </div>

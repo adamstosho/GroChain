@@ -87,4 +87,80 @@ router.post('/predictive-insights',
   AIController.getPredictiveInsights
 );
 
+// NEW ENDPOINTS - AI Advanced Features
+router.get(
+  '/recommendations',
+  authenticateJWT,
+  authorizeRoles('farmer', 'partner', 'admin'),
+  (req, res) => {
+    // TODO: Implement AI recommendations controller
+    res.json({
+      success: true,
+      data: {
+        recommendations: [
+          {
+            id: "rec_001",
+            type: "crop_selection",
+            title: "Optimal Crop Selection",
+            description: "Based on your soil type and climate, consider planting cassava and yam this season",
+            confidence: 92,
+            priority: "high",
+            impact: "high",
+            category: "crop_planning"
+          }
+        ]
+      }
+    });
+  }
+);
+
+router.get(
+  '/weather-recommendations',
+  authenticateJWT,
+  authorizeRoles('farmer', 'partner', 'admin'),
+  (req, res) => {
+    // TODO: Implement weather recommendations controller
+    res.json({
+      success: true,
+      data: {
+        forecasts: [
+          {
+            id: "weather_001",
+            location: "Lagos",
+            forecast: "Moderate rainfall expected",
+            recommendation: "Prepare for planting season",
+            risk: "low"
+          }
+        ]
+      }
+    });
+  }
+);
+
+router.post(
+  '/personalized-recommendations',
+  authenticateJWT,
+  authorizeRoles('farmer', 'partner', 'admin'),
+  (req, res) => {
+    // TODO: Implement personalized recommendations controller
+    res.json({
+      success: true,
+      data: {
+        recommendations: [
+          {
+            id: "personal_001",
+            type: "crop_selection",
+            title: "Personalized Crop Plan",
+            description: `Based on your ${req.body.farmSize} hectare farm in ${req.body.location} with ${req.body.soilType} soil and ${req.body.climate} climate`,
+            confidence: 88,
+            priority: "high",
+            impact: "high",
+            category: "personalized"
+          }
+        ]
+      }
+    });
+  }
+);
+
 export default router;

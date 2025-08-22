@@ -34,7 +34,8 @@ import {
   Shield,
   Bell,
   Brain,
-  Phone
+  Phone,
+  Database
 } from "lucide-react"
 import Link from "next/link"
 import { useTheme } from "next-themes"
@@ -276,22 +277,38 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
             <Shield className="w-5 h-5 flex-shrink-0" />
             <span>Quality Control</span>
           </Link>
-          <Link
-            href="/ussd"
-            className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <Phone className="w-5 h-5 flex-shrink-0" />
-            <span>USSD Services</span>
-          </Link>
-            <Link
-              href="/settings"
-              className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <Settings className="w-5 h-5 flex-shrink-0" />
-              <span>Settings</span>
-            </Link>
+                                <Link
+                        href="/ussd"
+                        className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        <Phone className="w-5 h-5 flex-shrink-0" />
+                        <span>USSD Services</span>
+                      </Link>
+                      <Link
+                        href="/websocket"
+                        className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        <Wifi className="w-5 h-5 flex-shrink-0" />
+                        <span>Real-time Services</span>
+                      </Link>
+                      <Link
+                        href="/sync"
+                        className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        <Database className="w-5 h-5 flex-shrink-0" />
+                        <span>Sync & Offline</span>
+                      </Link>
+                      <Link
+                        href="/settings"
+                        className="flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        <Settings className="w-5 h-5 flex-shrink-0" />
+                        <span>Settings</span>
+                      </Link>
           </div>
         </div>
       </div>

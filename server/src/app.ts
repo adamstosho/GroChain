@@ -29,6 +29,11 @@ import websocketRoutes from './routes/websocket.routes';
 import bvnVerificationRoutes from './routes/bvnVerification.routes';
 import ussdRoutes from './routes/ussd.routes';
 import qrCodeRoutes from './routes/qrCode.routes';
+import inventoryRoutes from './routes/inventory.routes';
+import qualityRoutes from './routes/quality.routes';
+import userRoutes from './routes/user.routes';
+import orderRoutes from './routes/order.routes';
+import complianceRoutes from './routes/compliance.routes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger-lite';
 import { errorHandler } from './middlewares/error.middleware';
@@ -183,6 +188,11 @@ app.use('/api/websocket', websocketRoutes);
 app.use('/api/verification', bvnVerificationRoutes);
 app.use('/api/ussd', ussdRoutes);
 app.use('/api/qr-codes', qrCodeRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/quality', qualityRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/compliance', complianceRoutes);
 
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

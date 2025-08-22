@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST='{"components\\\\harvests\\\\harvest-list.tsx -> qrcode":{"id":35819,"files":["static/chunks/5819-70d58a0e7e0a424f.js"]},"components\\\\qr\\\\qr-code-generator.tsx -> qrcode":{"id":35819,"files":["static/chunks/5819-70d58a0e7e0a424f.js"]},"components\\\\qr\\\\qr-scanner.tsx -> jsqr":{"id":69801,"files":["static/chunks/d0f5a89a.fdbc06535b88ff01.js"]}}';
+self.__REACT_LOADABLE_MANIFEST="{}"

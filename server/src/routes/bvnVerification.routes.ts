@@ -49,5 +49,31 @@ router.post(
   bvnVerificationController.resendVerification
 );
 
+// NEW ENDPOINT - General Verification Status
+router.get(
+  '/status',
+  authenticate,
+  (req, res) => {
+    // TODO: Implement general verification status controller
+    res.json({
+      success: true,
+      data: {
+        verifications: [
+          {
+            id: "ver_001",
+            bvn: "12345678901",
+            firstName: "John",
+            lastName: "Doe",
+            verificationStatus: "verified",
+            verificationMethod: "online",
+            submittedAt: "2025-01-15T10:30:00Z",
+            verifiedAt: "2025-01-15T11:00:00Z"
+          }
+        ]
+      }
+    });
+  }
+);
+
 export default router;
 

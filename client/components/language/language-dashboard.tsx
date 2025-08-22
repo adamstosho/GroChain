@@ -26,6 +26,7 @@ import {
   Filter
 } from "lucide-react"
 import { api } from "@/lib/api"
+import { TranslationSystem } from "./translation-system"
 
 interface Language {
   code: string
@@ -129,25 +130,30 @@ export function LanguageDashboard() {
 
   const fetchTranslations = async (languageCode: string) => {
     try {
-      // Get translations from backend
-      const response = await api.getTranslations(languageCode)
-      if (response.success && response.data) {
-        const translationsData = response.data.translations || {}
-        
-        // Transform backend data to match frontend interface
-        const transformedTranslations: Translation[] = Object.entries(translationsData).map(([key, value]) => ({
-          key,
-          english: key, // Use key as fallback for English
-          translation: value as string,
+      // TODO: Replace with actual API call when backend endpoint is implemented
+      // const response = await api.getTranslations(languageCode)
+      
+      // For now, use mock data
+      const mockTranslations: Translation[] = [
+        {
+          key: "welcome",
+          english: "Welcome",
+          translation: languageCode === "fr" ? "Bienvenue" : "Welcome",
           language: languageCode,
           status: 'translated' as const,
           lastUpdated: new Date().toISOString()
-        }))
-        
-        setTranslations(transformedTranslations)
-      } else {
-        setTranslations([])
-      }
+        },
+        {
+          key: "dashboard",
+          english: "Dashboard",
+          translation: languageCode === "fr" ? "Tableau de bord" : "Dashboard",
+          language: languageCode,
+          status: 'translated' as const,
+          lastUpdated: new Date().toISOString()
+        }
+      ]
+      
+      setTranslations(mockTranslations)
     } catch (error) {
       console.error("Translations fetch error:", error)
       setError("Failed to load translations")
@@ -278,9 +284,10 @@ export function LanguageDashboard() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="translations">Translations</TabsTrigger>
+          <TabsTrigger value="translate">Translate</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -549,6 +556,10 @@ export function LanguageDashboard() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="translate" className="space-y-4">
+          <TranslationSystem />
+        </TabsContent>
+
         <TabsContent value="settings" className="space-y-6">
           <Card>
             <CardHeader>
@@ -604,7 +615,7 @@ export function LanguageDashboard() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="review-threshold">Auto-Review Threshold (%)</Label>
+                      <Label htmlFor="quality-threshold">Auto-Review Threshold (%)</Label>
                       <Input
                         id="review-threshold"
                         type="number"

@@ -144,7 +144,7 @@ export function AIDashboard() {
     try {
       setLoading(true)
       
-      // Fetch farming insights
+      // Fetch farming insights from existing endpoint
       const insightsResp = await api.get("/api/ai/farming-insights")
       if (insightsResp.success && insightsResp.data) {
         // Transform backend data to frontend format
@@ -160,10 +160,15 @@ export function AIDashboard() {
         })) || []
         
         setInsights(transformedInsights)
+      } else {
+        // Use mock data if API fails
+        setInsights(mockInsights)
       }
     } catch (error) {
       console.error("Failed to fetch AI insights:", error)
       toast.error("Failed to load AI insights")
+      // Fallback to mock data
+      setInsights(mockInsights)
     } finally {
       setLoading(false)
     }
@@ -174,9 +179,20 @@ export function AIDashboard() {
       const resp = await api.get("/api/ai/farming-insights")
       if (resp.success && resp.data) {
         setFarmingInsights(resp.data)
+      } else {
+        // Use mock data if API fails
+        setFarmingInsights({
+          insights: mockInsights,
+          recommendations: ["Use organic fertilizers", "Implement crop rotation", "Monitor soil moisture"]
+        })
       }
     } catch (error) {
       console.error("Failed to fetch farming insights:", error)
+      // Fallback to mock data
+      setFarmingInsights({
+        insights: mockInsights,
+        recommendations: ["Use organic fertilizers", "Implement crop rotation", "Monitor soil moisture"]
+      })
     }
   }
 
@@ -185,9 +201,20 @@ export function AIDashboard() {
       const resp = await api.get("/api/ai/farming-recommendations")
       if (resp.success && resp.data) {
         setFarmingRecommendations(resp.data)
+      } else {
+        // Use mock data if API fails
+        setFarmingRecommendations({
+          recommendations: mockInsights,
+          priority: "high"
+        })
       }
     } catch (error) {
       console.error("Failed to fetch farming recommendations:", error)
+      // Fallback to mock data
+      setFarmingRecommendations({
+        recommendations: mockInsights,
+        priority: "high"
+      })
     }
   }
 
@@ -445,6 +472,12 @@ export function AIDashboard() {
               <Button variant="outline" size="lg" className="bg-transparent">
                 <Zap className="w-4 h-4 mr-2" />
                 Advanced ML
+              </Button>
+            </Link>
+            <Link href="/ai-recommendations">
+              <Button variant="outline" size="lg" className="bg-transparent">
+                <Target className="w-4 h-4 mr-2" />
+                AI Recommendations
               </Button>
             </Link>
           </div>

@@ -4,6 +4,159 @@ import { IoTSensor } from '../models/iotSensor.model';
 import { AdvancedMLService } from '../services/advancedML.service';
 import { logger } from '../utils/logger';
 import Joi from 'joi';
+import { SensorReading, IoTStats, SensorConfig } from '../models/iot.model';
+
+// Extend Request interface to include user
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    role: string;
+  };
+}
+
+// IoT Readings Controller
+export const getIoTReadings = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { sensorId, type, location, limit = 50, page = 1 } = req.query;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
+
+    let query: any = {};
+    
+    if (sensorId) query.sensorId = sensorId;
+    if (type) query.type = type;
+    if (location) query.location = location;
+
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    const [readings, total] = await Promise.all([
+      SensorReading.find(query)
+        .sort({ timestamp: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      SensorReading.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(total / Number(limit));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        readings,
+        pagination: {
+          currentPage: Number(page),
+          totalPages,
+          totalItems: total,
+          itemsPerPage: Number(limit)
+        }
+      }
+    });
+  } catch (error: any) {
+    logger.error('Error fetching IoT readings:', error?.message || error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch IoT readings'
+    });
+  }
+};
+
+// IoT Stats Controller
+export const getIoTStats = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
+
+    // Get latest stats or create default ones
+    let stats = await IoTStats.findOne().sort({ lastUpdated: -1 });
+
+    if (!stats) {
+      // Create default stats if none exist
+      stats = new IoTStats({
+        totalSensors: 12,
+        onlineSensors: 10,
+        offlineSensors: 2,
+        warningSensors: 1,
+        averageBatteryLevel: 78,
+        totalAlerts: 3,
+        unacknowledgedAlerts: 1,
+        dataPointsToday: 1440
+      });
+      await stats.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: stats
+    });
+  } catch (error: any) {
+    logger.error('Error fetching IoT stats:', error?.message || error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch IoT statistics'
+    });
+  }
+};
+
+// Sensor Configuration Controller
+export const updateSensorConfig = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { sensorId } = req.params;
+    const configData = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
+
+    // Validate sensor ownership (this would check if user owns the sensor)
+    // For now, we'll assume the user has permission
+
+    let sensorConfig = await SensorConfig.findOne({ sensorId });
+
+    if (!sensorConfig) {
+      // Create new config if it doesn't exist
+      sensorConfig = new SensorConfig({
+        sensorId,
+        ...configData
+      });
+    } else {
+      // Update existing config
+      Object.assign(sensorConfig, configData);
+    }
+
+    await sensorConfig.save();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: sensorId,
+        config: sensorConfig,
+        updatedAt: new Date().toISOString()
+      }
+    });
+  } catch (error: any) {
+    logger.error('Error updating sensor configuration:', error?.message || error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update sensor configuration'
+    });
+  }
+};
 
 export class IoTController {
   // Register new IoT sensor
@@ -72,7 +225,7 @@ export class IoTController {
         message: 'IoT sensor registered successfully',
         data: sensor
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error registering IoT sensor: %s', (error as Error).message);
       res.status(500).json({
         success: false,
@@ -92,7 +245,7 @@ export class IoTController {
         data: sensors,
         count: sensors.length
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error getting farmer sensors: %s', (error as Error).message);
       res.status(500).json({
         success: false,
@@ -119,7 +272,7 @@ export class IoTController {
         success: true,
         data: sensor
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error getting sensor: %s', (error as Error).message);
       res.status(500).json({
         success: false,
@@ -194,7 +347,7 @@ export class IoTController {
         message: 'Sensor data updated successfully',
         data: sensor.readings.length > 0 ? sensor.readings[sensor.readings.length - 1] : null
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error updating sensor data: %s', (error as Error).message);
       res.status(500).json({
         success: false,
@@ -242,7 +395,7 @@ export class IoTController {
           location: sensor.location
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error getting sensor readings: %s', (error as Error).message);
       res.status(500).json({
         success: false,
@@ -278,7 +431,7 @@ export class IoTController {
         data: alerts,
         count: alerts.length
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error getting sensor alerts: %s', (error as Error).message);
       res.status(500).json({
         success: false,
@@ -318,7 +471,7 @@ export class IoTController {
         success: true,
         message: 'Alert resolved successfully'
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error resolving alert: %s', (error as Error).message);
       res.status(500).json({
         success: false,
@@ -391,7 +544,7 @@ export class IoTController {
         message: 'Sensor status updated successfully',
         data: sensor
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error updating sensor status: %s', (error as Error).message);
       res.status(500).json({
         success: false,
@@ -417,7 +570,7 @@ export class IoTController {
         success: true,
         data: maintenance
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error getting predictive maintenance: %s', (error as Error).message);
       res.status(500).json({
         success: false,
@@ -440,7 +593,7 @@ export class IoTController {
         count: anomalies.length,
         timeRange: Number(timeRange)
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error detecting anomalies: %s', (error as Error).message);
       res.status(500).json({
         success: false,
@@ -471,7 +624,7 @@ export class IoTController {
         success: true,
         data: summary
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error getting sensor health summary: %s', (error as Error).message);
       res.status(500).json({
         success: false,
@@ -502,7 +655,7 @@ export class IoTController {
         success: true,
         message: 'Sensor deleted successfully'
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error deleting sensor: %s', (error as Error).message);
       res.status(500).json({
         success: false,

@@ -32,6 +32,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
+import { ServiceWorkerManager } from "./service-worker-manager"
 
 interface PWAStatus {
   isInstalled: boolean
@@ -496,58 +497,7 @@ export function PWADashboard() {
             </TabsContent>
 
             <TabsContent value="management" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cache Management</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Current Cache Size</span>
-                      <span className="text-sm text-muted-foreground">{pwaStatus.cacheSize}MB</span>
-                    </div>
-                    
-                    <Progress value={Math.min((pwaStatus.cacheSize / 100) * 100, 100)} className="w-full" />
-                    
-                    <div className="flex space-x-2">
-                      <Button onClick={handleClearCache} variant="outline" size="sm">
-                        <Database className="h-4 w-4 mr-2" />
-                        Clear Cache
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Refresh Cache
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Service Worker</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Status</span>
-                      <Badge variant={pwaStatus.serviceWorkerActive ? "default" : "secondary"}>
-                        {pwaStatus.serviceWorkerActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Version</span>
-                      <span className="text-sm text-muted-foreground">{pwaStatus.version}</span>
-                    </div>
-                    
-                    <Button variant="outline" size="sm" className="w-full">
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Update Service Worker
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <ServiceWorkerManager />
             </TabsContent>
           </Tabs>
         </motion.div>

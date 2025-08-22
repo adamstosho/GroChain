@@ -60,3 +60,4 @@ After updating the settings:
 - Refresh tokens last for 30 days, providing long-term authentication
 - All protected routes now use the AuthGuard component for consistent protection
 
+

@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
+import { UnifiedDashboardLayout } from "./unified-dashboard-layout"
 import { FarmerDashboard } from "./farmer-dashboard"
 import { BuyerDashboard } from "./buyer-dashboard"
 import { PartnerDashboard } from "./partner-dashboard"
@@ -74,18 +75,26 @@ export function Dashboard() {
 
   console.log('🔍 Dashboard: Rendering dashboard for role:', user.role)
   
-  switch (user.role) {
-    case "farmer":
-      return <FarmerDashboard user={user} />
-    case "buyer":
-      return <BuyerDashboard user={user} />
-    case "partner":
-      return <PartnerDashboard user={user} />
-    case "aggregator":
-      return <AgencyDashboard user={user} />
-    case "admin":
-      return <AdminDashboard user={user} />
-    default:
-      return <FarmerDashboard user={user} />
+  const renderRoleSpecificDashboard = () => {
+    switch (user.role) {
+      case "farmer":
+        return <FarmerDashboard user={user} />
+      case "buyer":
+        return <BuyerDashboard user={user} />
+      case "partner":
+        return <PartnerDashboard user={user} />
+      case "aggregator":
+        return <AgencyDashboard user={user} />
+      case "admin":
+        return <AdminDashboard user={user} />
+      default:
+        return <FarmerDashboard user={user} />
+    }
   }
+
+  return (
+    <UnifiedDashboardLayout>
+      {renderRoleSpecificDashboard()}
+    </UnifiedDashboardLayout>
+  )
 }

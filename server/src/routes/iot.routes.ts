@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { IoTController } from '../controllers/iot.controller';
+import { getIoTReadings, getIoTStats, updateSensorConfig } from '../controllers/iot.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
 import { authorizeRoles } from '../middlewares/rbac.middleware';
 import { detectLanguage, addLanguageInfo } from '../middlewares/language.middleware';
@@ -27,6 +28,28 @@ router.get('/sensors/:sensorId/anomalies', authenticateJWT, authorizeRoles('farm
 
 // Sensor Health & Analytics
 router.get('/sensors/health/summary', authenticateJWT, authorizeRoles('farmer', 'partner', 'admin'), IoTController.getSensorHealthSummary);
+
+// IoT Advanced Features
+router.get(
+  '/readings',
+  authenticateJWT,
+  authorizeRoles('farmer', 'partner', 'admin'),
+  getIoTReadings
+);
+
+router.get(
+  '/stats',
+  authenticateJWT,
+  authorizeRoles('farmer', 'partner', 'admin'),
+  getIoTStats
+);
+
+router.put(
+  '/sensors/:sensorId/config',
+  authenticateJWT,
+  authorizeRoles('farmer', 'partner', 'admin'),
+  updateSensorConfig
+);
 
 export default router;
 

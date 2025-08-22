@@ -113,3 +113,4 @@ window.grochainAuth = {
 console.log('🔐 Auth test functions available at window.grochainAuth')
 console.log('🔐 Usage: grochainAuth.checkAuthState()')
 
+

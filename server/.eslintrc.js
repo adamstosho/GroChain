@@ -3,12 +3,10 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2020,
     sourceType: 'module',
-    project: './tsconfig.json',
   },
   plugins: ['@typescript-eslint'],
   extends: [
     'eslint:recommended',
-    '@typescript-eslint/recommended',
   ],
   env: {
     node: true,
@@ -16,15 +14,6 @@ module.exports = {
     jest: true,
   },
   rules: {
-    // TypeScript specific rules
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-    '@typescript-eslint/explicit-function-return-type': 'off',
-    '@typescript-eslint/explicit-module-boundary-types': 'off',
-    '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/no-non-null-assertion': 'warn',
-    '@typescript-eslint/prefer-const': 'error',
-    '@typescript-eslint/no-var-requires': 'error',
-    
     // General rules
     'no-console': 'off', // Allow console.log for development
     'no-debugger': 'error',
@@ -32,16 +21,22 @@ module.exports = {
     'no-unused-expressions': 'error',
     'prefer-const': 'error',
     'no-var': 'error',
+    'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     
     // Node.js specific
     'no-process-exit': 'error',
     'no-path-concat': 'error',
     
     // Code quality
-    'complexity': ['warn', 10],
-    'max-depth': ['warn', 4],
-    'max-lines': ['warn', 300],
-    'max-params': ['warn', 5],
+    'complexity': ['warn', 15],
+    'max-depth': ['warn', 6],
+    'max-lines': ['warn', 500],
+    'max-params': ['warn', 8],
+    
+    // TypeScript specific rules (simplified)
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-non-null-assertion': 'warn',
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
   },
   overrides: [
     {

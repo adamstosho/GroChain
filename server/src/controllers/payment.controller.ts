@@ -178,7 +178,10 @@ export const verifyPaymentWebhook = async (req: Request, res: Response) => {
               notifiedFarmers.add(farmerId);
               try {
                 await sendNotification(farmerId, 'sms', `Your listing received a paid order (Order ${orderId}).`);
-              } catch {}
+              } catch (error) {
+                // Log error but continue processing
+                console.error('Error sending notification to farmer:', error);
+              }
             }
           } catch (_) {
             // continue on per-item failure
@@ -199,7 +202,10 @@ export const verifyPaymentWebhook = async (req: Request, res: Response) => {
         // Notify buyer about successful payment
         try {
           await sendNotification((order.buyer as any).toString(), 'sms', `Your payment for order ${orderId} was successful.`);
-        } catch {}
+        } catch (error) {
+          // Log error but continue processing
+          console.error('Error sending notification to buyer:', error);
+        }
       }
     }
     return res.status(200).json({ status: 'success' });

@@ -7,12 +7,17 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
-import { Users, UserPlus, Search, Filter, Eye, MapPin, Calendar, TrendingUp, Upload } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Users, UserPlus, Search, Filter, Eye, MapPin, Calendar, TrendingUp, Upload, Download, FileText, CheckCircle, XCircle, Loader2, AlertCircle, Plus, Trash2, Edit, Send, Phone, Mail, Globe, Building2 } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
 import Link from "next/link"
+import { toast } from "sonner"
 
 interface Partner {
   id: string
@@ -98,6 +103,21 @@ export function PartnersPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [activeTab, setActiveTab] = useState("partners")
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false)
+  const [showAddPartnerModal, setShowAddPartnerModal] = useState(false)
+  const [uploadingCSV, setUploadingCSV] = useState(false)
+  const [csvFile, setCsvFile] = useState<File | null>(null)
+  const [csvPreview, setCsvPreview] = useState<any[]>([])
+  const [newPartner, setNewPartner] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    location: '',
+    organization: '',
+    role: '',
+    notes: ''
+  })
+  const [addingPartner, setAddingPartner] = useState(false)
 
   useEffect(() => {
     let filtered = partners
@@ -131,6 +151,104 @@ export function PartnersPage() {
     }
   }
 
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file && file.type === 'text/csv') {
+      setCsvFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const text = e.target?.result as string
+        const rows = text.split('\n').map(row => row.split(','))
+        const headers = rows[0]
+        const data = rows.slice(1).map(row => {
+          const obj: any = {}
+          headers.forEach((header, index) => {
+            obj[header.trim()] = row[index]?.trim() || ''
+          })
+          return obj
+        })
+        setCsvPreview(data.slice(0, 5)) // Show first 5 rows
+      }
+      reader.readAsText(file)
+    } else {
+      toast.error("Please select a valid CSV file")
+    }
+  }
+
+  const uploadPartnersCSV = async () => {
+    if (!csvFile) return
+
+    try {
+      setUploadingCSV(true)
+      const formData = new FormData()
+      formData.append('csv', csvFile)
+
+      const response = await api.uploadPartnersCSV(formData)
+      
+      if (response.success) {
+        toast.success("Partners uploaded successfully!")
+        setShowBulkUploadModal(false)
+        setCsvFile(null)
+        setCsvPreview([])
+        // Refresh partners list
+        // fetchPartners()
+      } else {
+        toast.error(response.error || "Failed to upload partners")
+      }
+    } catch (error) {
+      console.error("CSV upload error:", error)
+      toast.error("Failed to upload partners")
+    } finally {
+      setUploadingCSV(false)
+    }
+  }
+
+  const addNewPartner = async () => {
+    try {
+      setAddingPartner(true)
+      
+      const response = await api.post("/api/partners", newPartner)
+      
+      if (response.success) {
+        toast.success("Partner added successfully!")
+        setShowAddPartnerModal(false)
+        setNewPartner({
+          name: '',
+          email: '',
+          phone: '',
+          location: '',
+          organization: '',
+          role: '',
+          notes: ''
+        })
+        // Refresh partners list
+        // fetchPartners()
+      } else {
+        toast.error(response.error || "Failed to add partner")
+      }
+    } catch (error) {
+      console.error("Add partner error:", error)
+      toast.error("Failed to add partner")
+    } finally {
+      setAddingPartner(false)
+    }
+  }
+
+  const sendInvitation = async (partnerId: string) => {
+    try {
+      const response = await api.post(`/api/partners/${partnerId}/invite`)
+      
+      if (response.success) {
+        toast.success("Invitation sent successfully!")
+      } else {
+        toast.error(response.error || "Failed to send invitation")
+      }
+    } catch (error) {
+      console.error("Send invitation error:", error)
+      toast.error("Failed to send invitation")
+    }
+  }
+
   return (
     <DashboardLayout user={user as any}>
       <div className="space-y-6">
@@ -157,8 +275,9 @@ export function PartnersPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="partners">Partners</TabsTrigger>
+            <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
@@ -346,6 +465,116 @@ export function PartnersPage() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="onboarding" className="space-y-6">
+            {/* Bulk Upload Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-primary" />
+                  Bulk Partner Onboarding
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-medium mb-2">CSV Upload</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Upload a CSV file with partner information to onboard multiple partners at once.
+                    </p>
+                    <Button onClick={() => setShowBulkUploadModal(true)}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload CSV
+                    </Button>
+                    <div className="mt-2">
+                      <a 
+                        href="/farmers-template.csv" 
+                        download 
+                        className="text-sm text-primary hover:underline flex items-center gap-1"
+                      >
+                        <Download className="w-3 h-3" />
+                        Download CSV Template
+                      </a>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium mb-2">Single Partner</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Add individual partners manually with detailed information.
+                    </p>
+                    <Button onClick={() => setShowAddPartnerModal(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Partner
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Onboarding Progress */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Onboarding Progress</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Total Partners</span>
+                    <span className="font-medium">{mockStats.totalPartners}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Pending Verification</span>
+                    <span className="font-medium text-yellow-600">{mockStats.pendingPartners}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Active Partners</span>
+                    <span className="font-medium text-green-600">{mockStats.activePartners}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-primary h-2 rounded-full" 
+                      style={{ width: `${(mockStats.activePartners / mockStats.totalPartners) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Onboardings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Onboardings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {partners.slice(0, 3).map((partner) => (
+                    <div key={partner.id} className="flex items-center justify-between p-3 bg-muted/30 rounded">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                          <Users className="w-4 h-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{partner.name}</p>
+                          <p className="text-sm text-muted-foreground">{partner.location}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {getStatusBadge(partner.status)}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => sendInvitation(partner.id)}
+                        >
+                          <Send className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="analytics">
             <Card>
               <CardHeader>
@@ -360,6 +589,200 @@ export function PartnersPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+        {/* Bulk Upload Modal */}
+        <Dialog open={showBulkUploadModal} onOpenChange={setShowBulkUploadModal}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Bulk Partner Upload</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6">
+              {/* File Upload */}
+              <div>
+                <Label htmlFor="csv-upload">Select CSV File</Label>
+                <Input
+                  id="csv-upload"
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVUpload}
+                  className="mt-2"
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  File should contain columns: name, email, phone, location, organization, role
+                </p>
+              </div>
+
+              {/* CSV Preview */}
+              {csvPreview.length > 0 && (
+                <div>
+                  <Label>CSV Preview (First 5 rows)</Label>
+                  <div className="mt-2 border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted">
+                        <tr>
+                          {Object.keys(csvPreview[0] || {}).map((header) => (
+                            <th key={header} className="px-3 py-2 text-left font-medium">
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csvPreview.map((row, index) => (
+                          <tr key={index} className="border-t">
+                            {Object.values(row).map((value, cellIndex) => (
+                              <td key={cellIndex} className="px-3 py-2">
+                                {value}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Upload Actions */}
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setShowBulkUploadModal(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={uploadPartnersCSV}
+                  disabled={!csvFile || uploadingCSV}
+                >
+                  {uploadingCSV ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload Partners
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Partner Modal */}
+        <Dialog open={showAddPartnerModal} onOpenChange={setShowAddPartnerModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add New Partner</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="Enter full name"
+                    value={newPartner.name}
+                    onChange={(e) => setNewPartner({ ...newPartner, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter email address"
+                    value={newPartner.email}
+                    onChange={(e) => setNewPartner({ ...newPartner, email: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    placeholder="Enter phone number"
+                    value={newPartner.phone}
+                    onChange={(e) => setNewPartner({ ...newPartner, phone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    placeholder="Enter location"
+                    value={newPartner.location}
+                    onChange={(e) => setNewPartner({ ...newPartner, location: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="organization">Organization</Label>
+                  <Input
+                    id="organization"
+                    placeholder="Enter organization name"
+                    value={newPartner.organization}
+                    onChange={(e) => setNewPartner({ ...newPartner, organization: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="role">Role</Label>
+                  <Select value={newPartner.role} onValueChange={(value) => setNewPartner({ ...newPartner, role: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="extension_agent">Extension Agent</SelectItem>
+                      <SelectItem value="cooperative_leader">Cooperative Leader</SelectItem>
+                      <SelectItem value="ngo_representative">NGO Representative</SelectItem>
+                      <SelectItem value="market_association">Market Association</SelectItem>
+                      <SelectItem value="aggregator">Aggregator</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Additional notes about the partner"
+                  value={newPartner.notes}
+                  onChange={(e) => setNewPartner({ ...newPartner, notes: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setShowAddPartnerModal(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={addNewPartner}
+                  disabled={addingPartner || !newPartner.name || !newPartner.email || !newPartner.phone}
+                >
+                  {addingPartner ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Add Partner
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
     </DashboardLayout>
   )
 }

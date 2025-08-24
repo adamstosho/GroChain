@@ -1,6 +1,4 @@
 import { Metadata } from "next"
-import { ErrorBoundary } from "@/components/error-boundary"
-import { PredictiveAnalyticsPage } from "@/components/analytics/predictive-analytics-page"
 
 export const metadata: Metadata = {
   title: "Predictive Analytics | GroChain",
@@ -9,9 +7,10 @@ export const metadata: Metadata = {
 
 export default function PredictiveAnalyticsPageRoute() {
   return (
-    <ErrorBoundary>
-      <PredictiveAnalyticsPage />
-    </ErrorBoundary>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold">Predictive Analytics</h1>
+      <p>AI-powered forecasting and insights coming soon...</p>
+    </div>
   )
 }
 

@@ -118,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           
           api.setToken(newToken)
+          api.refreshTokenFromStorage()
           await setCookie('auth_token', newToken)
           
           // Set up next refresh
@@ -165,6 +166,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           // Ensure cookie is set
           await setCookie('auth_token', token)
+          
+          // Refresh token in API client from storage
+          api.refreshTokenFromStorage()
           
           // Set up automatic refresh
           setupTokenRefresh(token)
@@ -227,6 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                       }
                       
                       api.setToken(newToken)
+                      api.refreshTokenFromStorage()
                       await setCookie('auth_token', newToken)
                       
                       // Set up automatic refresh
@@ -311,6 +316,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               // Set token if we got user data
               if (me.accessToken) {
                 api.setToken(me.accessToken)
+                api.refreshTokenFromStorage()
                 localStorage.setItem("auth_token", me.accessToken)
                 await setCookie('auth_token', me.accessToken)
                 setupTokenRefresh(me.accessToken)
@@ -388,6 +394,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("user_data", JSON.stringify(normalizedUser))
         api.setToken(token)
         
+        // Refresh token in API client from storage
+        api.refreshTokenFromStorage()
+        
         // Set cookie immediately
         await setCookie('auth_token', token)
         
@@ -426,6 +435,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (token) {
           localStorage.setItem("auth_token", token)
           api.setToken(token)
+          api.refreshTokenFromStorage()
           setCookie('auth_token', token)
           setupTokenRefresh(token)
         }

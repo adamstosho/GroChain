@@ -15,6 +15,6 @@ router.post(
   validateRequest(Joi.object({ orderId: Joi.string().required(), email: Joi.string().email().required() })),
   initializeOrderPayment
 );
-router.post('/verify', (req, _res, next) => { try { console.log('payment.verify route hit body=', req.body); } catch {} finally { next(); } }, verifyPaymentWebhook);
+router.post('/verify', (req, _res, next) => { try { console.log('payment.verify route hit body=', req.body); } catch (error) { console.error('Error in payment verify route:', error); } finally { next(); } }, verifyPaymentWebhook);
 
 export default router;

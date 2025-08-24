@@ -107,11 +107,25 @@ export function MainNavigation({ className }: MainNavigationProps) {
       roles: ['admin', 'manager', 'partner', 'farmer']
     },
     {
+      title: 'Harvest Approval',
+      href: '/harvest-approval',
+      description: 'Review and approve farmer harvests',
+      icon: <CheckCircle className="h-4 w-4" />,
+      roles: ['admin', 'manager', 'partner']
+    },
+    {
       title: 'Marketplace',
       href: '/marketplace',
       description: 'Buy and sell agricultural products',
       icon: <BarChart3 className="h-4 w-4" />,
       roles: ['admin', 'manager', 'partner', 'farmer', 'buyer']
+    },
+    {
+      title: 'Create Listing',
+      href: '/create-listing',
+      description: 'Create marketplace listings from approved harvests',
+      icon: <Plus className="h-4 w-4" />,
+      roles: ['farmer']
     },
     {
       title: 'Orders',
@@ -251,7 +265,37 @@ export function MainNavigation({ className }: MainNavigationProps) {
       href: '/settings',
       description: 'System settings and preferences',
       icon: <Settings className="h-4 w-4" />,
-      roles: ['admin', 'manager', 'partner', 'farmer', 'buyer', 'aggregator']
+      roles: ['admin', 'manager', 'partner', 'farmer', 'buyer', 'aggregator'],
+      children: [
+        {
+          title: 'General Settings',
+          href: '/settings',
+          description: 'Basic app settings and preferences',
+          icon: <Settings className="h-4 w-4" />,
+          roles: ['admin', 'manager', 'partner', 'farmer', 'buyer', 'aggregator']
+        },
+        {
+          title: 'Security',
+          href: '/settings/security',
+          description: 'Security and authentication settings',
+          icon: <Shield className="h-4 w-4" />,
+          roles: ['admin', 'manager', 'partner', 'farmer', 'buyer', 'aggregator']
+        },
+        {
+          title: 'Partner Settings',
+          href: '/settings/partner',
+          description: 'Partner organization settings',
+          icon: <Handshake className="h-4 w-4" />,
+          roles: ['partner']
+        },
+        {
+          title: 'Farmer Settings',
+          href: '/settings/farmer',
+          description: 'Farmer-specific settings',
+          icon: <Leaf className="h-4 w-4" />,
+          roles: ['farmer']
+        }
+      ]
     }
   ]
 
@@ -438,7 +482,29 @@ export function MainNavigation({ className }: MainNavigationProps) {
                 <DropdownMenuItem asChild>
                   <Link href="/settings">
                     <Settings className="mr-2 h-4 w-4" />
-                    Settings
+                    General Settings
+                  </Link>
+                </DropdownMenuItem>
+                {user?.role === 'partner' && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings/partner">
+                      <Handshake className="mr-2 h-4 w-4" />
+                      Partner Settings
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {user?.role === 'farmer' && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings/farmer">
+                      <Leaf className="mr-2 h-4 w-4" />
+                      Farmer Settings
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem asChild>
+                  <Link href="/settings/security">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Security
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

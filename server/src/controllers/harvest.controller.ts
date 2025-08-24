@@ -13,6 +13,11 @@ const harvestSchema = Joi.object({
   quantity: Joi.number().required(),
   date: Joi.date().required(),
   geoLocation: Joi.object({ lat: Joi.number().required(), lng: Joi.number().required() }).required(),
+  unit: Joi.string().default('kg'),
+  location: Joi.string().optional(),
+  description: Joi.string().optional(),
+  quality: Joi.string().valid('excellent', 'good', 'fair', 'poor').default('good'),
+  images: Joi.array().items(Joi.string()).optional(),
 });
 
 export const createHarvest = async (req: AuthRequest, res: Response) => {

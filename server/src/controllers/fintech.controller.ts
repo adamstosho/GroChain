@@ -22,7 +22,7 @@ export const getLoanApplications = async (req: AuthenticatedRequest, res: Respon
     const userId = req.user?.id;
 
     // Build query based on user role and permissions
-    let query: any = {};
+    const query: any = {};
     
     if (req.user?.role === 'farmer') {
       query.farmerId = userId;
@@ -118,7 +118,7 @@ export const getLoanStats = async (req: AuthenticatedRequest, res: Response) => 
   try {
     const userId = req.user?.id;
     
-    let query: any = {};
+    const query: any = {};
     if (req.user?.role === 'farmer') {
       query.farmerId = userId;
     }
@@ -222,7 +222,7 @@ export const getInsurancePolicies = async (req: AuthenticatedRequest, res: Respo
       });
     }
 
-    let query: any = {};
+    const query: any = {};
     
     if (req.user?.role === 'farmer') {
       query.farmerId = userId;
@@ -279,7 +279,7 @@ export const getInsuranceStats = async (req: AuthenticatedRequest, res: Response
       });
     }
 
-    let query: any = {};
+    const query: any = {};
     if (req.user?.role === 'farmer') {
       query.farmerId = userId;
     }

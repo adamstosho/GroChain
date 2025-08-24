@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Progress } from "@/components/ui/Progress"
+import { Progress } from "@/components/ui/progress"
 import { 
   DollarSign, 
   FileText, 
@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
+import { useAuth } from "@/lib/auth-context"
 
 interface LoanApplication {
   id: string
@@ -90,6 +91,8 @@ export function LoanManagement() {
     description: ""
   })
 
+  const { user } = useAuth();
+
   useEffect(() => {
     fetchLoanData();
   }, []);
@@ -99,9 +102,10 @@ export function LoanManagement() {
       setLoading(true);
       setError(null);
 
+      // Use the correct API methods that exist in the API client
       const [applicationsResponse, statsResponse] = await Promise.all([
-        api.get("/api/fintech/loan-applications"),
-        api.get("/api/fintech/loan-stats")
+        api.getLoanApplications(user?.id),
+        api.getLoanStats()
       ]);
 
       if (applicationsResponse.success) {
@@ -124,7 +128,15 @@ export function LoanManagement() {
       setLoading(true);
       setError(null);
 
-      const response = await api.post("/api/fintech/loan-applications", formData);
+      // Use the correct API method that exists in the API client
+      const response = await api.submitLoanApplication({
+        ...formData,
+        farmerId: user?.id || '',
+        amount: parseFloat(formData.amount),
+        purpose: formData.purpose,
+        term: formData.term,
+        description: formData.description
+      });
 
       if (response.success) {
         // Refresh the loan applications list

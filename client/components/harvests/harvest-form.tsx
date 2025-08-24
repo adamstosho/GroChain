@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/Alert"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
   Package, 
   MapPin, 
@@ -413,9 +413,12 @@ export function HarvestForm() {
         cropType: formData.cropType,
         quantity: formData.quantity,
         date: formData.harvestDate, // Backend expects 'date' not 'harvestDate'
-        geoLocation: formData.geoLocation
-        // Note: Backend only accepts: farmer, cropType, quantity, date, geoLocation
-        // Additional fields like unit, location, description, quality are not in the schema
+        geoLocation: formData.geoLocation,
+        unit: formData.unit,
+        location: formData.location,
+        description: formData.description,
+        quality: formData.quality,
+        images: formData.images.map(file => file.name) // Convert to image names for now
       }
 
       console.log("🔐 Sending harvest data:", harvestData)

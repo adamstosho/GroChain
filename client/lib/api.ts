@@ -12,14 +12,60 @@ class ApiClient {
     this.baseURL = baseURL
     // Get token from localStorage if available
     if (typeof window !== "undefined") {
-      const storedToken = localStorage.getItem("auth_token")
-      if (storedToken) {
-        this.token = storedToken
-        console.log('🔐 API - Token loaded from localStorage:', storedToken.substring(0, 20) + '...')
-      } else {
-        console.log('🔐 API - No token found in localStorage')
-      }
+      this.loadTokenFromStorage()
     }
+  }
+
+  private loadTokenFromStorage() {
+    const storedToken = localStorage.getItem("auth_token")
+    if (storedToken) {
+      this.token = storedToken
+      console.log('🔐 API - Token loaded from localStorage:', storedToken.substring(0, 20) + '...')
+    } else {
+      console.log('🔐 API - No token found in localStorage')
+    }
+  }
+
+  // Generic HTTP methods for flexibility
+  async get(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString())
+        }
+      })
+    }
+    
+    const url = `${endpoint}${queryParams.toString() ? `?${queryParams}` : ""}`
+    return this.request(url)
+  }
+
+  async post(endpoint: string, data?: any): Promise<ApiResponse<any>> {
+    return this.request(endpoint, {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  }
+
+  async put(endpoint: string, data?: any): Promise<ApiResponse<any>> {
+    return this.request(endpoint, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+  }
+
+  async patch(endpoint: string, data?: any): Promise<ApiResponse<any>> {
+    return this.request(endpoint, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  }
+
+  async delete(endpoint: string): Promise<ApiResponse<any>> {
+    return this.request(endpoint, {
+      method: "DELETE",
+    })
   }
 
   setToken(token: string) {
@@ -34,6 +80,10 @@ class ApiClient {
     if (typeof window !== "undefined") {
       localStorage.removeItem("auth_token")
     }
+  }
+
+  refreshTokenFromStorage() {
+    this.loadTokenFromStorage()
   }
 
   private setAuthCookie(token: string) {
@@ -113,6 +163,11 @@ class ApiClient {
   }
 
   private async request<T>(endpoint: string, options: (RequestInit & { _retry?: boolean }) = {}): Promise<ApiResponse<T>> {
+    // Always try to load the latest token from storage before making a request
+    if (typeof window !== "undefined" && !this.token) {
+      this.loadTokenFromStorage()
+    }
+    
     const url = `${this.baseURL}${endpoint}`
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -484,26 +539,7 @@ class ApiClient {
     })
   }
 
-  // Orders - Buyer order management
-  async getBuyerOrders(buyerId: string, params?: {
-    page?: number
-    limit?: number
-    status?: string
-    startDate?: string
-    endDate?: string
-  }) {
-    const queryParams = new URLSearchParams()
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
-          queryParams.append(key, value.toString())
-        }
-      })
-    }
 
-    const endpoint = `/api/marketplace/orders/buyer/${buyerId}${queryParams.toString() ? `?${queryParams}` : ""}`
-    return this.request(endpoint)
-  }
 
   async getOrderDetails(orderId: string) {
     return this.request(`/api/marketplace/orders/${orderId}`)
@@ -593,12 +629,19 @@ class ApiClient {
     return this.request("/api/analytics/impact")
   }
 
-  async getPartnersAnalytics() {
-    return this.request("/api/analytics/partners")
+  async getRegionalAnalytics(regionData: any) {
+    return this.request("/api/analytics/regional", {
+      method: "POST",
+      body: JSON.stringify(regionData),
+    })
   }
 
   async getWeatherAnalytics() {
     return this.request("/api/analytics/weather")
+  }
+
+  async getPartnersAnalytics() {
+    return this.request("/api/analytics/partners")
   }
 
   async getPredictiveAnalytics() {
@@ -620,13 +663,6 @@ class ApiClient {
     return this.request("/api/analytics/compare", {
       method: "POST",
       body: JSON.stringify(compareData),
-    })
-  }
-
-  async getRegionalAnalytics(regionData: any) {
-    return this.request("/api/analytics/regional", {
-      method: "POST",
-      body: JSON.stringify(regionData),
     })
   }
 
@@ -668,6 +704,23 @@ class ApiClient {
     })
   }
 
+  // Add missing fintech methods for loan management
+  async getLoanApplications(farmerId?: string) {
+    const endpoint = farmerId ? `/api/fintech/loan-applications?farmerId=${farmerId}` : '/api/fintech/loan-applications'
+    return this.request(endpoint)
+  }
+
+  async getLoanStats() {
+    return this.request("/api/fintech/loan-stats")
+  }
+
+  async submitLoanApplication(applicationData: any) {
+    return this.request("/api/fintech/loan-applications", {
+      method: "POST",
+      body: JSON.stringify(applicationData),
+    })
+  }
+
   // Partners
   async bulkOnboardPartners(partnersData: any) {
     return this.request("/api/partners/bulk-onboard", {
@@ -684,8 +737,9 @@ class ApiClient {
     })
   }
 
-  async getPartnerMetrics(partnerId: string) {
-    return this.request(`/api/partners/${partnerId}/metrics`)
+  async getPartnerMetrics(partnerId?: string) {
+    const endpoint = partnerId ? `/api/partners/${partnerId}/metrics` : '/api/partners/metrics'
+    return this.request(endpoint)
   }
 
   // Referrals
@@ -1186,6 +1240,566 @@ class ApiClient {
 
   async getPWAInstall() {
     return this.request("/api/pwa/install")
+  }
+
+  // Farmer Dashboard Services
+  async getFarmerDashboard(farmerId: string, filters?: {
+    startDate?: string
+    endDate?: string
+    period?: string
+    region?: string
+  }): Promise<ApiResponse<{
+    stats: {
+      totalHarvests: number
+      activeListings: number
+      totalEarnings: number
+      verificationRate: number
+      monthlyGrowth: number
+      averageHarvestValue: number
+    }
+    recentHarvests: Array<{
+      _id: string
+      cropType: string
+      quantity: number
+      unit: string
+      harvestDate: string
+      status: string
+      qrCode: string
+      location: string
+      geoLocation?: {
+        lat: number
+        lng: number
+      }
+    }>
+    marketplaceStats: {
+      totalListings: number
+      activeOrders: number
+      monthlyRevenue: number
+      topProducts: Array<{
+        _id: string
+        product: string
+        sales: number
+        revenue: number
+      }>
+    }
+    weatherData: {
+      current: {
+        temp: number
+        condition: string
+        humidity: number
+      }
+      forecast: Array<{
+        date: string
+        temp: number
+        condition: string
+      }>
+    }
+  }>> {
+    console.log('🌾 API: Fetching farmer dashboard for:', farmerId, 'with filters:', filters)
+    
+    const queryParams = new URLSearchParams()
+    if (filters?.startDate) queryParams.append('startDate', filters.startDate)
+    if (filters?.endDate) queryParams.append('endDate', filters.endDate)
+    if (filters?.period) queryParams.append('period', filters.period)
+    if (filters?.region) queryParams.append('region', filters.region)
+    
+    const endpoint = `/api/analytics/farmer/${farmerId}${queryParams.toString() ? `?${queryParams}` : ""}`
+    console.log('🌾 API: Making request to:', endpoint)
+    
+    const result = await this.request<{
+      stats: {
+        totalHarvests: number
+        activeListings: number
+        totalEarnings: number
+        verificationRate: number
+        monthlyGrowth: number
+        averageHarvestValue: number
+      }
+      recentHarvests: Array<{
+        _id: string
+        cropType: string
+        quantity: number
+        unit: string
+        harvestDate: string
+        status: string
+        qrCode: string
+        location: string
+        geoLocation?: {
+          lat: number
+          lng: number
+        }
+      }>
+      marketplaceStats: {
+        totalListings: number
+        activeOrders: number
+        monthlyRevenue: number
+        topProducts: Array<{
+          _id: string
+          product: string
+          sales: number
+          revenue: number
+        }>
+      }
+      weatherData: {
+        current: {
+          temp: number
+          condition: string
+          humidity: number
+        }
+        forecast: Array<{
+          date: string
+          temp: number
+          condition: string
+        }>
+      }
+    }>(endpoint)
+    console.log('🌾 API: Farmer dashboard response:', result)
+    
+    return result
+  }
+
+  async getFarmerStats(farmerId: string): Promise<ApiResponse<{
+    totalHarvests: number
+    activeListings: number
+    totalEarnings: number
+    verificationRate: number
+    monthlyGrowth: number
+    averageHarvestValue: number
+    harvestCategories: Array<{
+      category: string
+      count: number
+      totalValue: number
+    }>
+    recentActivity: Array<{
+      type: 'harvest' | 'listing' | 'verification' | 'sale'
+      description: string
+      date: string
+      amount?: number
+    }>
+  }>> {
+    return this.request(`/api/analytics/farmer/${farmerId}/stats`)
+  }
+
+  async getFarmerHarvests(farmerId: string, params?: {
+    page?: number
+    limit?: number
+    status?: string
+    cropType?: string
+    startDate?: string
+    endDate?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  }): Promise<ApiResponse<{
+    harvests: Array<{
+      _id: string
+      cropType: string
+      quantity: number
+      unit: string
+      harvestDate: string
+      status: string
+      qrCode: string
+      location: string
+      geoLocation?: {
+        lat: number
+        lng: number
+      }
+      estimatedValue: number
+      createdAt: string
+      updatedAt: string
+    }>
+    pagination: {
+      page: number
+      limit: number
+      total: number
+      totalPages: number
+    }
+  }>> {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    if (params?.status) queryParams.append('status', params.status)
+    if (params?.cropType) queryParams.append('cropType', params.cropType)
+    if (params?.startDate) queryParams.append('startDate', params.startDate)
+    if (params?.endDate) queryParams.append('endDate', params.endDate)
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder)
+    
+    const endpoint = `/api/harvests/farmer/${farmerId}${queryParams.toString() ? `?${queryParams}` : ""}`
+    return this.request(endpoint)
+  }
+
+  async getFarmerListings(farmerId: string, params?: {
+    page?: number
+    limit?: number
+    status?: string
+    product?: string
+    startDate?: string
+    endDate?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  }): Promise<ApiResponse<{
+    listings: Array<{
+      _id: string
+      product: string
+      price: number
+      quantity: number
+      unit: string
+      status: 'active' | 'pending' | 'sold' | 'expired'
+      images: string[]
+      description: string
+      location: string
+      createdAt: string
+      updatedAt: string
+    }>
+    pagination: {
+      page: number
+      limit: number
+      total: number
+      totalPages: number
+    }
+  }>> {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    if (params?.status) queryParams.append('status', params.status)
+    if (params?.product) queryParams.append('product', params.product)
+    if (params?.startDate) queryParams.append('startDate', params.startDate)
+    if (params?.endDate) queryParams.append('endDate', params.endDate)
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder)
+    
+    const endpoint = `/api/marketplace/farmer/${farmerId}${queryParams.toString() ? `?${queryParams}` : ""}`
+    return this.request(endpoint)
+  }
+
+  // Buyer Dashboard Services
+  async getBuyerDashboard(buyerId: string, filters?: {
+    startDate?: string
+    endDate?: string
+    status?: string
+  }): Promise<ApiResponse<{
+    stats: {
+      totalOrders: number
+      activeOrders: number
+      totalSpent: number
+      savedProducts: number
+      monthlyGrowth: number
+      averageOrderValue: number
+    }
+    recentOrders: Array<{
+      _id: string
+      items: Array<{
+        listing: {
+          _id: string
+          product: string
+          price: number
+          images: string[]
+        }
+        quantity: number
+        price: number
+      }>
+      total: number
+      status: 'pending' | 'paid' | 'delivered' | 'cancelled' | 'completed'
+      createdAt: string
+      updatedAt: string
+    }>
+    topProducts: Array<{
+      _id: string
+      product: string
+      totalSpent: number
+      orderCount: number
+      lastOrderDate: string
+    }>
+    spendingTrend: Array<{
+      date: string
+      amount: number
+      orderCount: number
+    }>
+  }>> {
+    const queryParams = new URLSearchParams()
+    if (filters?.startDate) queryParams.append('startDate', filters.startDate)
+    if (filters?.endDate) queryParams.append('endDate', filters.endDate)
+    if (filters?.status) queryParams.append('status', filters.status)
+    
+    const endpoint = `/api/analytics/buyer/${buyerId}${queryParams.toString() ? `?${queryParams}` : ""}`
+    return this.request(endpoint)
+  }
+
+  async getBuyerStats(buyerId: string): Promise<ApiResponse<{
+    totalOrders: number
+    activeOrders: number
+    totalSpent: number
+    savedProducts: number
+    monthlyGrowth: number
+    averageOrderValue: number
+    favoriteCategories: Array<{
+      category: string
+      count: number
+      totalSpent: number
+    }>
+    recentActivity: Array<{
+      type: 'order' | 'favorite' | 'verification' | 'payment'
+      description: string
+      date: string
+      amount?: number
+    }>
+  }>> {
+    return this.request(`/api/analytics/buyer/${buyerId}/stats`)
+  }
+
+  async getBuyerOrders(buyerId: string, params?: {
+    page?: number
+    limit?: number
+    status?: string
+    startDate?: string
+    endDate?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  }): Promise<ApiResponse<{
+    orders: Array<{
+      _id: string
+      items: Array<{
+        listing: {
+          _id: string
+          product: string
+          price: number
+          images: string[]
+          farmer: {
+            _id: string
+            name: string
+            location: string
+            rating: number
+          }
+        }
+        quantity: number
+        price: number
+      }>
+      total: number
+      status: 'pending' | 'paid' | 'delivered' | 'cancelled' | 'completed'
+      createdAt: string
+      updatedAt: string
+      paymentStatus: 'pending' | 'paid' | 'failed'
+      deliveryAddress?: string
+      estimatedDelivery?: string
+    }>
+    pagination: {
+      page: number
+      limit: number
+      total: number
+      totalPages: number
+    }
+  }>> {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    if (params?.status) queryParams.append('status', params.status)
+    if (params?.startDate) queryParams.append('startDate', params.startDate)
+    if (params?.endDate) queryParams.append('endDate', params.endDate)
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder)
+    
+    const endpoint = `/api/marketplace/orders/buyer/${buyerId}${queryParams.toString() ? `?${queryParams}` : ""}`
+    return this.request(endpoint)
+  }
+
+  async getBuyerFavorites(buyerId: string, params?: {
+    page?: number
+    limit?: number
+    category?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  }): Promise<ApiResponse<{
+    favorites: Array<{
+      _id: string
+      listing: {
+        _id: string
+        product: string
+        price: number
+        images: string[]
+        farmer: {
+          _id: string
+          name: string
+          location: string
+          rating: number
+        }
+        status: 'available' | 'out_of_stock' | 'harvested'
+        createdAt: string
+      }
+      addedAt: string
+    }>
+    pagination: {
+      page: number
+      limit: number
+      total: number
+      totalPages: number
+    }
+  }>> {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    if (params?.category) queryParams.append('category', params.category)
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy)
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder)
+    
+    const endpoint = `/api/marketplace/favorites/${buyerId}${queryParams.toString() ? `?${queryParams}` : ""}`
+    return this.request(endpoint)
+  }
+
+  // Partner Dashboard Services
+  async getPartnerDashboard(partnerId: string, filters?: {
+    startDate?: string
+    endDate?: string
+    period?: string
+    region?: string
+  }): Promise<ApiResponse<{
+    stats: {
+      totalFarmers: number
+      activeFarmers: number
+      totalCommission: number
+      monthlyCommission: number
+      farmersThisMonth: number
+      conversionRate: number
+      totalHarvests: number
+      totalShipments: number
+      pendingCommissions: number
+      performanceScore: number
+    }
+    recentFarmers: Array<{
+      _id: string
+      name: string
+      email: string
+      phone: string
+      location: string
+      status: 'active' | 'inactive' | 'pending'
+      joinedDate: string
+      totalHarvests: number
+      totalEarnings: number
+      lastActivity: string
+      partnerId: string
+    }>
+    commissionStats: {
+      totalEarned: number
+      pendingAmount: number
+      monthlyTrend: Array<{
+        month: string
+        amount: number
+      }>
+      topEarners: Array<{
+        _id: string
+        farmerName: string
+        amount: number
+        status: string
+      }>
+    }
+    networkGrowth: {
+      monthlyGrowth: number
+      regionalDistribution: Record<string, number>
+      farmerCategories: Array<{
+        category: string
+        count: number
+      }>
+    }
+  }>> {
+    const queryParams = new URLSearchParams()
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString())
+        }
+      })
+    }
+    const url = `/api/analytics/partner/${partnerId}${queryParams.toString() ? `?${queryParams}` : ""}`
+    return this.request(url)
+  }
+
+  // Agency Dashboard Services
+  async getAgencyDashboard(agencyId: string, filters?: {
+    startDate?: string
+    endDate?: string
+    period?: string
+    region?: string
+  }): Promise<ApiResponse<{
+    stats: {
+      totalFarmers: number
+      activeFarmers: number
+      totalCommission: number
+      monthlyCommission: number
+      farmersThisMonth: number
+      conversionRate: number
+      totalHarvests: number
+      totalShipments: number
+      pendingCommissions: number
+    }
+    recentFarmers: Array<{
+      _id: string
+      name: string
+      email: string
+      phone: string
+      location: string
+      status: 'active' | 'inactive' | 'pending'
+      joinedDate: string
+      totalHarvests: number
+      totalEarnings: number
+      lastActivity: string
+      partnerId: string
+    }>
+    commissionStats: Array<{
+      _id: string
+      farmerId: string
+      farmerName: string
+      amount: number
+      status: 'pending' | 'paid' | 'cancelled'
+      transactionId?: string
+      createdAt: string
+      paidAt?: string
+      description: string
+    }>
+    shipmentStats: Array<{
+      _id: string
+      farmerId: string
+      farmerName: string
+      destination: string
+      status: 'pending' | 'in-transit' | 'delivered' | 'cancelled'
+      createdAt: string
+      deliveredAt?: string
+      trackingNumber: string
+    }>
+    recentActivities: Array<{
+      id: string
+      title: string
+      description: string
+      time: string
+      status: 'success' | 'info' | 'warning' | 'error'
+    }>
+    monthlyGrowth: number
+  }>> {
+    const queryParams = new URLSearchParams()
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString())
+        }
+      })
+    }
+    const url = `/api/analytics/agency/${agencyId}${queryParams.toString() ? `?${queryParams}` : ""}`
+    return this.request(url)
+  }
+
+  async getAgencyStats(agencyId: string): Promise<ApiResponse<{
+    stats: {
+      totalFarmers: number
+      activeFarmers: number
+      totalCommission: number
+      monthlyCommission: number
+      farmersThisMonth: number
+      conversionRate: number
+      totalHarvests: number
+      totalShipments: number
+      pendingCommissions: number
+    }
+    monthlyGrowth: number
+  }>> {
+    return this.request(`/api/analytics/agency/${agencyId}/stats`)
   }
 
   // USSD Services

@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">8.79% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/182</span>
+                <span class='fraction'>16/182</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">7.73% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/168</span>
+                <span class='fraction'>13/168</span>
             </div>
         
             
@@ -553,29 +553,29 @@
 <a name='L488'></a><a href='#L488'>488</a>
 <a name='L489'></a><a href='#L489'>489</a>
 <a name='L490'></a><a href='#L490'>490</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -867,10 +867,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -907,7 +907,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1042,29 +1042,29 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Request, Response } from 'express';
-<span class="cstat-no" title="statement not covered" >import { User, UserRole } from '../models/user.model';</span>
-<span class="cstat-no" title="statement not covered" >import { Partner } from '../models/partner.model';</span>
-<span class="cstat-no" title="statement not covered" >import { Referral } from '../models/referral.model';</span>
-<span class="cstat-no" title="statement not covered" >import { sendBulkSMSInvitations, sendSMS } from '../services/notification.service';</span>
-<span class="cstat-no" title="statement not covered" >import Joi from 'joi';</span>
-<span class="cstat-no" title="statement not covered" >import csv from 'csv-parser';</span>
-<span class="cstat-no" title="statement not covered" >import { Readable } from 'stream';</span>
-<span class="cstat-no" title="statement not covered" >import mongoose from 'mongoose';</span>
+import { User, UserRole } from '../models/user.model';
+import { Partner } from '../models/partner.model';
+import { Referral } from '../models/referral.model';
+import { sendBulkSMSInvitations, sendSMS } from '../services/notification.service';
+import Joi from 'joi';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
+import mongoose from 'mongoose';
 &nbsp;
-const farmerSchema = <span class="cstat-no" title="statement not covered" >Joi.object({</span>
+const farmerSchema = Joi.object({
   name: Joi.string().required(),
   email: Joi.string().email().required(),
   phone: Joi.string().required(),
   password: Joi.string().min(6).required(),
 });
 &nbsp;
-const bulkOnboardSchema = <span class="cstat-no" title="statement not covered" >Joi.object({</span>
+const bulkOnboardSchema = Joi.object({
   partnerId: Joi.string().required(),
   farmers: Joi.array().items(farmerSchema).min(1).required(),
 });
 &nbsp;
 // CSV Upload for bulk farmer onboarding
-export const <span class="cstat-no" title="statement not covered" >uploadCSVAndOnboard = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >a</span>sync </span>(req: Request &amp; { file?: any }, res: Response) =&gt; {</span>
+export const uploadCSVAndOnboard = <span class="fstat-no" title="function not covered" >async </span>(req: Request &amp; { file?: any }, res: Response) =&gt; {
 <span class="cstat-no" title="statement not covered" >  try {</span>
 <span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!req.file) {</span>
 <span class="cstat-no" title="statement not covered" >      return res.status(400).json({ </span>
@@ -1356,7 +1356,7 @@ export const <span class="cstat-no" title="statement not covered" >uploadCSVAndO
   }
 };
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" >bulkOnboard = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >a</span>sync </span>(req: Request, res: Response) =&gt; {</span>
+export const bulkOnboard = <span class="fstat-no" title="function not covered" >async </span>(req: Request, res: Response) =&gt; {
   const { error, value } = <span class="cstat-no" title="statement not covered" >bulkOnboardSchema.validate(req.body);</span>
 <span class="cstat-no" title="statement not covered" >  <span class="missing-if-branch" title="if path not taken" >I</span>if (error) {</span>
 <span class="cstat-no" title="statement not covered" >    return res.status(400).json({ status: 'error', message: error.details[0].message });</span>
@@ -1396,7 +1396,7 @@ export const <span class="cstat-no" title="statement not covered" >bulkOnboard =
 <span class="cstat-no" title="statement not covered" >  return res.status(201).json({ status: 'success', onboarded, failed });</span>
 };
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" >getPartnerMetrics = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >a</span>sync </span>(req: Request, res: Response) =&gt; {</span>
+export const getPartnerMetrics = <span class="fstat-no" title="function not covered" >async </span>(req: Request, res: Response) =&gt; {
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const partner = <span class="cstat-no" title="statement not covered" >await Partner.findById(req.params.id).populate('onboardedFarmers');</span>
 <span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!partner) {</span>
@@ -1537,7 +1537,7 @@ export const <span class="cstat-no" title="statement not covered" >getPartnerMet
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-22T11:41:20.108Z
+                at 2025-08-22T11:51:44.559Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { authenticate } from '../middlewares/auth.middleware';
+
 import { generateQRCode } from '../utils/qr.util';
 import { Harvest } from '../models/harvest.model';
 import { logger } from '../utils/logger';
@@ -167,7 +167,7 @@ export class QRCodeController {
 
       const totalQRCodes = harvests.length;
       const verifiedCount = harvests.filter((h: any) => h.status === 'verified').length;
-      const totalScans = harvests.reduce((sum: number, h: any) => sum + (Math.floor(Math.random() * 50) + 1), 0);
+      const totalScans = harvests.reduce((sum: number, _h: any) => sum + (Math.floor(Math.random() * 50) + 1), 0);
       const avgScans = totalQRCodes > 0 ? Math.round(totalScans / totalQRCodes) : 0;
 
       res.status(200).json({

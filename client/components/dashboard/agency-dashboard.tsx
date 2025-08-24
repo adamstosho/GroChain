@@ -29,359 +29,132 @@ import {
   Calendar,
   Package,
   Truck,
-  Clock
+  Clock,
+  Search
 } from "lucide-react"
-// import { DashboardLayout } from "./dashboard-layout"
 import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
 import Link from "next/link"
 import { toast } from "sonner"
+import { DashboardLayout } from "./dashboard-layout"
 
-interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-  phone: string
-  emailVerified: boolean
-  createdAt: string
-  updatedAt: string
+interface AgencyDashboardData {
+  stats: {
+    totalFarmers: number
+    activeFarmers: number
+    totalCommission: number
+    monthlyCommission: number
+    farmersThisMonth: number
+    conversionRate: number
+    totalHarvests: number
+    totalShipments: number
+    pendingCommissions: number
+    monthlyGrowth: number
+  }
+  recentFarmers: Array<{
+    _id: string
+    name: string
+    email: string
+    phone: string
+    location: string
+    status: 'active' | 'inactive' | 'pending'
+    joinedDate: string
+    totalHarvests: number
+    totalEarnings: number
+    lastActivity: string
+  }>
+  commissionStats: Array<{
+    _id: string
+    farmerId: string
+    farmerName: string
+    amount: number
+    status: 'pending' | 'paid' | 'cancelled'
+    transactionId?: string
+    createdAt: string
+    paidAt?: string
+    description: string
+  }>
+  shipmentStats: Array<{
+    _id: string
+    farmerId: string
+    farmerName: string
+    destination: string
+    status: 'pending' | 'in-transit' | 'delivered' | 'cancelled'
+    createdAt: string
+    deliveredAt?: string
+    trackingNumber: string
+  }>
+  recentActivities: Array<{
+    id: string
+    type: 'farmer_onboarded' | 'commission_paid' | 'shipment_delivered' | 'harvest_completed'
+    title: string
+    description: string
+    time: string
+    status: 'success' | 'pending' | 'error'
+    metadata?: any
+  }>
 }
 
-interface AgencyDashboardProps {
-  user: User
-}
-
-interface AgencyStats {
-  totalFarmers: number
-  activeFarmers: number
-  totalCommission: number
-  monthlyCommission: number
-  farmersThisMonth: number
-  conversionRate: number
-  totalHarvests: number
-  totalShipments: number
-  pendingCommissions: number
-}
-
-interface Farmer {
-  _id: string
-  name: string
-  email: string
-  phone: string
-  location: string
-  status: 'active' | 'inactive' | 'pending'
-  joinedDate: string
-  totalHarvests: number
-  totalEarnings: number
-  lastActivity: string
-  partnerId: string
-}
-
-interface Commission {
-  _id: string
-  farmerId: string
-  farmerName: string
-  amount: number
-  status: 'pending' | 'paid' | 'cancelled'
-  transactionId?: string
-  createdAt: string
-  paidAt?: string
-  description: string
-}
-
-interface Shipment {
-  _id: string
-  farmerId: string
-  farmerName: string
-  destination: string
-  status: 'pending' | 'in-transit' | 'delivered' | 'cancelled'
-  createdAt: string
-  deliveredAt?: string
-  trackingNumber: string
-}
-
-export function AgencyDashboard({ user }: AgencyDashboardProps) {
+const AgencyDashboard = () => {
   const { user: authUser } = useAuth()
-  const [activeTab, setActiveTab] = useState("overview")
-  const [stats, setStats] = useState<AgencyStats | null>(null)
-  const [farmers, setFarmers] = useState<Farmer[]>([])
-  const [commissions, setCommissions] = useState<Commission[]>([])
-  const [shipments, setShipments] = useState<Shipment[]>([])
-  const [recentActivities, setRecentActivities] = useState<any[]>([])
+  const [dashboardData, setDashboardData] = useState<AgencyDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [activeTab, setActiveTab] = useState("overview")
   const [searchQuery, setSearchQuery] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
-
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
-
-  useEffect(() => {
-    if (activeTab === "farmers") {
-      fetchFarmers()
-    } else if (activeTab === "commissions") {
-      fetchCommissions()
-    } else if (activeTab === "logistics") {
-      fetchShipments()
-    }
-  }, [activeTab])
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   const fetchDashboardData = async () => {
+    if (!authUser?.id) return
+    
     try {
       setLoading(true)
       setError("")
-
-      // Fetch agency metrics and analytics
-      const [metricsResponse, analyticsResponse, commissionsResponse] = await Promise.all([
-        api.getPartnerMetrics(user.id),
-        api.getPartnersAnalytics(),
-        api.getCommissionsSummary()
-      ])
-
-      let dashboardStats: AgencyStats
-
-      if (metricsResponse.success && analyticsResponse.success && commissionsResponse.success) {
-        const metrics = metricsResponse.data
-        const analytics = analyticsResponse.data
-        const commissions = commissionsResponse.data
-
-        dashboardStats = {
-          totalFarmers: metrics.totalFarmers || 0,
-          activeFarmers: metrics.activeFarmers || 0,
-          totalCommission: commissions.totalEarned || 0,
-          monthlyCommission: commissions.monthlyEarned || 0,
-          farmersThisMonth: metrics.farmersThisMonth || 0,
-          conversionRate: metrics.conversionRate || 0,
-          totalHarvests: metrics.totalHarvests || 0,
-          totalShipments: 0, // Will be fetched separately
-          pendingCommissions: commissions.pendingAmount || 0
-        }
+      
+      const response = await api.getAgencyDashboard(authUser.id)
+      
+      if (response.success) {
+        setDashboardData(response.data)
+        setLastUpdated(new Date())
       } else {
-        // Fallback to mock data if API fails
-        dashboardStats = getMockStats()
+        setError(response.message || 'Failed to load dashboard data')
+        toast.error(response.message || 'Failed to load dashboard data')
       }
-
-      setStats(dashboardStats)
-      setLastUpdated(new Date())
-
-      // Generate mock recent activities
-      setRecentActivities(generateMockActivities())
-
-    } catch (error) {
-      console.error("Dashboard fetch error:", error)
-      setError("Failed to load dashboard data")
-      setStats(getMockStats())
-      setRecentActivities(generateMockActivities())
-      setLastUpdated(new Date())
+    } catch (err: any) {
+      console.error('Failed to fetch agency dashboard data:', err)
+      setError(err.response?.data?.message || 'Failed to load dashboard data')
+      toast.error('Failed to load dashboard data')
     } finally {
       setLoading(false)
     }
   }
 
-  const fetchFarmers = async () => {
-    try {
-      // This would be an agency-specific endpoint to get their farmers
-      // For now, we'll use mock data
-      const mockFarmers: Farmer[] = [
-        {
-          _id: "1",
-          name: "Adunni Okafor",
-          email: "adunni@farms.com",
-          phone: "+2348012345678",
-          location: "Lagos State",
-          status: "active",
-          joinedDate: "2024-12-01",
-          totalHarvests: 12,
-          totalEarnings: 240000,
-          lastActivity: "2025-01-15",
-          partnerId: "partner1"
-        },
-        {
-          _id: "2",
-          name: "Ibrahim Mohammed",
-          email: "ibrahim@agro.com",
-          phone: "+2348023456789",
-          location: "Kano State",
-          status: "active",
-          joinedDate: "2024-11-15",
-          totalHarvests: 8,
-          totalEarnings: 160000,
-          lastActivity: "2025-01-14",
-          partnerId: "partner2"
-        },
-        {
-          _id: "3",
-          name: "Choma Ezeh",
-          email: "choma@farms.com",
-          phone: "+2348034567890",
-          location: "Enugu State",
-          status: "pending",
-          joinedDate: "2025-01-01",
-          totalHarvests: 0,
-          totalEarnings: 0,
-          lastActivity: "2025-01-01",
-          partnerId: "partner3"
-        }
-      ]
-      setFarmers(mockFarmers)
-    } catch (error) {
-      console.error("Failed to fetch farmers:", error)
-      toast.error("Failed to load farmers")
-    }
+  const handleRefresh = async () => {
+    if (!authUser?.id) return
+    
+    setRefreshing(true)
+    await fetchDashboardData()
+    setRefreshing(false)
   }
 
-  const fetchCommissions = async () => {
-    try {
-      const response = await api.getCommissionsHistory()
-      if (response.success && response.data) {
-        setCommissions(response.data.commissions || [])
-      } else {
-        // Mock data fallback
-        setCommissions(generateMockCommissions())
-      }
-    } catch (error) {
-      console.error("Failed to fetch commissions:", error)
-      setCommissions(generateMockCommissions())
+  useEffect(() => {
+    if (authUser?.id) {
+      fetchDashboardData()
     }
-  }
-
-  const fetchShipments = async () => {
-    try {
-      // Mock shipments data for now
-      const mockShipments: Shipment[] = [
-        {
-          _id: "1",
-          farmerId: "farmer1",
-          farmerName: "Adunni Okafor",
-          destination: "Lagos Market",
-          status: "in-transit",
-          createdAt: "2025-01-15T10:00:00Z",
-          trackingNumber: "TRK001"
-        },
-        {
-          _id: "2",
-          farmerId: "farmer2",
-          farmerName: "Ibrahim Mohammed",
-          destination: "Kano Market",
-          status: "delivered",
-          createdAt: "2025-01-14T15:00:00Z",
-          deliveredAt: "2025-01-15T09:00:00Z",
-          trackingNumber: "TRK002"
-        },
-        {
-          _id: "3",
-          farmerId: "farmer3",
-          farmerName: "Choma Ezeh",
-          destination: "Enugu Market",
-          status: "pending",
-          createdAt: "2025-01-13T09:00:00Z",
-          trackingNumber: "TRK003"
-        }
-      ]
-      setShipments(mockShipments)
-    } catch (error) {
-      console.error("Failed to fetch shipments:", error)
-      toast.error("Failed to load shipments")
-    }
-  }
-
-  const getMockStats = (): AgencyStats => ({
-    totalFarmers: 156,
-    activeFarmers: 142,
-    totalCommission: 450000,
-    monthlyCommission: 75000,
-    farmersThisMonth: 12,
-    conversionRate: 91,
-    totalHarvests: 892,
-    totalShipments: 234,
-    pendingCommissions: 25000
-  })
-
-  const generateMockActivities = () => [
-    {
-      id: "1",
-      type: "farmer_joined",
-      title: "New farmer registered",
-      description: "John Okafor joined your network",
-      time: "2 hours ago",
-      status: "success"
-    },
-    {
-      id: "2",
-      type: "commission_earned",
-      title: "Commission earned",
-      description: "₦500 from tomato harvest",
-      time: "5 hours ago",
-      status: "success"
-    },
-    {
-      id: "3",
-      type: "training_completed",
-      title: "Training completed",
-      description: "15 farmers completed QR training",
-      time: "1 day ago",
-      status: "success"
-    },
-    {
-      id: "4",
-      type: "shipment_delivered",
-      title: "Shipment delivered",
-      description: "Yam shipment to Lagos Market",
-      time: "2 days ago",
-      status: "success"
-    }
-  ]
-
-  const generateMockCommissions = (): Commission[] => [
-    {
-      _id: "1",
-      farmerId: "farmer1",
-      farmerName: "Adunni Okafor",
-      amount: 500,
-      status: "paid",
-      transactionId: "txn_001",
-      createdAt: "2025-01-15T10:00:00Z",
-      paidAt: "2025-01-15T10:30:00Z",
-      description: "Commission from tomato harvest"
-    },
-    {
-      _id: "2",
-      farmerId: "farmer2",
-      farmerName: "Ibrahim Mohammed",
-      amount: 300,
-      status: "pending",
-      createdAt: "2025-01-14T15:00:00Z",
-      description: "Commission from yam harvest"
-    },
-    {
-      _id: "3",
-      farmerId: "farmer3",
-      farmerName: "Choma Ezeh",
-      amount: 200,
-      status: "paid",
-      transactionId: "txn_002",
-      createdAt: "2025-01-13T09:00:00Z",
-      paidAt: "2025-01-13T09:15:00Z",
-      description: "Commission from cassava harvest"
-    }
-  ]
-
-  const handleRefresh = () => {
-    fetchDashboardData()
-  }
+  }, [authUser?.id])
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'active':
       case 'delivered':
+      case 'paid':
+      case 'active':
         return <CheckCircle className="w-4 h-4 text-green-600" />
       case 'pending':
         return <AlertCircle className="w-4 h-4 text-yellow-600" />
-      case 'inactive':
       case 'cancelled':
+      case 'inactive':
         return <XCircle className="w-4 h-4 text-red-600" />
       case 'in-transit':
         return <Truck className="w-4 h-4 text-blue-600" />
@@ -392,8 +165,9 @@ export function AgencyDashboard({ user }: AgencyDashboardProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
       case 'delivered':
+      case 'paid':
+      case 'active':
         return 'bg-green-100 text-green-800'
       case 'pending':
         return 'bg-yellow-100 text-yellow-800'
@@ -420,49 +194,79 @@ export function AgencyDashboard({ user }: AgencyDashboardProps) {
     }
   }
 
-  if (loading && !stats) {
+  const filteredFarmers = dashboardData?.recentFarmers.filter(farmer => {
+    const matchesSearch = farmer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         farmer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         farmer.location.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = filterStatus === 'all' || farmer.status === filterStatus
+    return matchesSearch && matchesStatus
+  }) || []
+
+  const filteredCommissions = dashboardData?.commissionStats.filter(commission => {
+    const matchesSearch = commission.farmerName.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = filterStatus === 'all' || commission.status === filterStatus
+    return matchesSearch && matchesStatus
+  }) || []
+
+  const filteredShipments = dashboardData?.shipmentStats.filter(shipment => {
+    const matchesSearch = shipment.farmerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         shipment.destination.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = filterStatus === 'all' || shipment.status === filterStatus
+    return matchesSearch && matchesStatus
+  }) || []
+
+  if (loading && !dashboardData) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading dashboard data...</p>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading agency dashboard...</p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     )
   }
 
-  if (error && !stats) {
+  if (error && !dashboardData) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">Failed to load dashboard</h3>
-          <p className="text-muted-foreground mb-4">{error}</p>
-          <Button onClick={fetchDashboardData}>Try Again</Button>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">Failed to load dashboard</h3>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <Button onClick={fetchDashboardData}>Try Again</Button>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     )
   }
 
-  if (!stats) {
+  if (!dashboardData) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">No dashboard data available</p>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No dashboard data available</p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     )
   }
+
+  const { stats, recentFarmers, commissionStats, shipmentStats, recentActivities } = dashboardData
 
   return (
-    <div className="space-y-6">
+    <DashboardLayout>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Agency Dashboard</h1>
             <p className="text-muted-foreground">
-              Welcome back, {user.name}! Manage your farmer network, track commissions, and oversee logistics.
+              Welcome back, {authUser?.name || 'Agency User'}! Manage your farmer network, track commissions, and oversee logistics.
             </p>
           </div>
           
@@ -472,8 +276,8 @@ export function AgencyDashboard({ user }: AgencyDashboardProps) {
                 Last updated: {lastUpdated.toLocaleTimeString()}
               </div>
             )}
-            <Button variant="outline" onClick={handleRefresh} disabled={loading}>
-              {loading ? (
+            <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
+              {refreshing ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
               ) : (
                 <RefreshCw className="w-4 h-4 mr-2" />
@@ -563,7 +367,7 @@ export function AgencyDashboard({ user }: AgencyDashboardProps) {
             {
               title: "Total Shipments",
               value: stats.totalShipments,
-              change: "Logistics tracking",
+              change: `${stats.pendingCommissions} pending`,
               icon: Package,
               color: "text-purple-600",
               bgColor: "bg-purple-50"
@@ -606,20 +410,17 @@ export function AgencyDashboard({ user }: AgencyDashboardProps) {
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Recent Activity */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Recent Activity</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {recentActivities.map((activity) => (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Activity</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {recentActivities.length > 0 ? (
+                    recentActivities.slice(0, 5).map((activity) => (
                       <div key={activity.id} className="flex items-center space-x-3">
                         <div className={`w-2 h-2 rounded-full ${
-                          activity.status === 'success' ? 'bg-green-500' : 'bg-blue-500'
+                          activity.status === 'success' ? 'bg-green-500' : 
+                          activity.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
                         }`}></div>
                         <div className="flex-1">
                           <p className="text-sm font-medium">{activity.title}</p>
@@ -627,256 +428,265 @@ export function AgencyDashboard({ user }: AgencyDashboardProps) {
                         </div>
                         <Badge variant="secondary">{activity.time}</Badge>
                       </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </motion.div>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground text-center py-4">No recent activities</p>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Top Performing Farmers */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Top Performing Farmers</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {farmers.slice(0, 3).map((farmer, index) => (
-                      <div key={farmer._id} className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            index === 0 ? 'bg-yellow-100' : index === 1 ? 'bg-gray-100' : 'bg-orange-100'
-                          }`}>
-                            <span className={`text-sm font-semibold ${
-                              index === 0 ? 'text-yellow-700' : index === 1 ? 'text-gray-700' : 'text-orange-700'
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Performing Farmers</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {recentFarmers.length > 0 ? (
+                    recentFarmers
+                      .sort((a, b) => b.totalEarnings - a.totalEarnings)
+                      .slice(0, 3)
+                      .map((farmer, index) => (
+                        <div key={farmer._id} className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              index === 0 ? 'bg-yellow-100' : index === 1 ? 'bg-gray-100' : 'bg-orange-100'
                             }`}>
-                              {farmer.name.split(' ').map(n => n[0]).join('')}
-                            </span>
+                              <span className={`text-sm font-semibold ${
+                                index === 0 ? 'text-yellow-700' : index === 1 ? 'text-gray-700' : 'text-orange-700'
+                              }`}>
+                                {farmer.name.split(' ').map(n => n[0]).join('')}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{farmer.name}</p>
+                              <p className="text-xs text-muted-foreground">{farmer.totalHarvests} harvests</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium">{farmer.name}</p>
-                            <p className="text-xs text-muted-foreground">{farmer.totalHarvests} harvests</p>
-                          </div>
+                          <Badge variant="default">₦{farmer.totalEarnings.toLocaleString()}</Badge>
                         </div>
-                        <Badge variant="default">₦{(farmer.totalEarnings / 100).toLocaleString()}</Badge>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </motion.div>
+                      ))
+                  ) : (
+                    <p className="text-muted-foreground text-center py-4">No farmers available</p>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
           <TabsContent value="farmers" className="space-y-6">
-            {/* Farmers Management */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader>
                 <CardTitle>Farmer Network</CardTitle>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Search farmers..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-64"
-                  />
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      placeholder="Search farmers..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-3 py-2 border border-input rounded-md text-sm"
+                    className="px-3 py-2 border border-input rounded-md bg-background"
                   >
                     <option value="all">All Status</option>
                     <option value="active">Active</option>
-                    <option value="pending">Pending</option>
                     <option value="inactive">Inactive</option>
+                    <option value="pending">Pending</option>
                   </select>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {farmers
-                    .filter(farmer => 
-                      farmer.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-                      (filterStatus === 'all' || farmer.status === filterStatus)
-                    )
-                    .map((farmer) => (
-                      <div
-                        key={farmer._id}
-                        className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
+                {filteredFarmers.length > 0 ? (
+                  <div className="space-y-4">
+                    {filteredFarmers.map((farmer) => (
+                      <div key={farmer._id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                            <Users className="w-6 h-6 text-primary" />
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-sm font-semibold text-primary">
+                              {farmer.name.split(' ').map(n => n[0]).join('')}
+                            </span>
                           </div>
                           <div>
-                            <h4 className="font-medium text-foreground">{farmer.name}</h4>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span className="flex items-center">
-                                <Mail className="w-3 h-3 mr-1" />
-                                {farmer.email}
-                              </span>
-                              <span className="flex items-center">
-                                <Phone className="w-3 h-3 mr-1" />
-                                {farmer.phone}
-                              </span>
-                              <span className="flex items-center">
-                                <MapPin className="w-3 h-3 mr-1" />
+                            <p className="font-medium">{farmer.name}</p>
+                            <p className="text-sm text-muted-foreground">{farmer.email}</p>
+                            <div className="flex items-center gap-4 mt-1">
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
                                 {farmer.location}
+                              </span>
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(farmer.joinedDate).toLocaleDateString()}
                               </span>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-3">
-                          <div className="text-right">
-                            <p className="text-sm font-medium">{farmer.totalHarvests} harvests</p>
-                            <p className="text-xs text-muted-foreground">₦{(farmer.totalEarnings / 100).toLocaleString()}</p>
-                          </div>
+                        <div className="flex items-center gap-3">
                           <Badge className={getStatusColor(farmer.status)}>
-                            <div className="flex items-center gap-1">
-                              {getStatusIcon(farmer.status)}
-                              {farmer.status}
-                            </div>
+                            {farmer.status}
                           </Badge>
-                          <Link href={`/partners/${farmer._id}`}>
-                            <Button variant="ghost" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </Link>
+                          <div className="text-right">
+                            <p className="text-sm font-medium">₦{farmer.totalEarnings.toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">{farmer.totalHarvests} harvests</p>
+                          </div>
                         </div>
                       </div>
                     ))}
-                </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No farmers found</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="commissions" className="space-y-6">
-            {/* Commission History */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Commission History</CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={fetchCommissions}
-                    disabled={loading}
+                <CardTitle>Commission Management</CardTitle>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      placeholder="Search commissions..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="px-3 py-2 border border-input rounded-md bg-background"
                   >
-                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
-                  </Button>
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {commissions.map((commission) => (
-                    <div
-                      key={commission._id}
-                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
-                          <DollarSign className="w-6 h-6 text-amber-600" />
+                {filteredCommissions.length > 0 ? (
+                  <div className="space-y-4">
+                    {filteredCommissions.map((commission) => (
+                      <div key={commission._id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                            <DollarSign className="w-5 h-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{commission.farmerName}</p>
+                            <p className="text-sm text-muted-foreground">{commission.description}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(commission.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-medium text-foreground">{commission.farmerName}</h4>
-                          <p className="text-sm text-muted-foreground">{commission.description}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(commission.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-foreground">₦{commission.amount.toLocaleString()}</p>
+                        <div className="flex items-center gap-3">
                           <Badge className={getCommissionStatusColor(commission.status)}>
                             {commission.status}
                           </Badge>
-                        </div>
-                        {commission.status === 'paid' && (
-                          <div className="text-xs text-muted-foreground">
-                            Paid: {new Date(commission.paidAt!).toLocaleDateString()}
+                          <div className="text-right">
+                            <p className="text-lg font-bold">₦{commission.amount.toLocaleString()}</p>
+                            {commission.paidAt && (
+                              <p className="text-xs text-muted-foreground">
+                                Paid: {new Date(commission.paidAt).toLocaleDateString()}
+                              </p>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No commissions found</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="logistics" className="space-y-6">
-            {/* Logistics Management */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Shipment Tracking</CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={fetchShipments}
-                    disabled={loading}
+                <CardTitle>Logistics Overview</CardTitle>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      placeholder="Search shipments..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="px-3 py-2 border border-input rounded-md bg-background"
                   >
-                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
-                  </Button>
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="in-transit">In Transit</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {shipments.map((shipment) => (
-                    <div
-                      key={shipment._id}
-                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <Truck className="w-6 h-6 text-blue-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-foreground">{shipment.farmerName}</h4>
-                          <p className="text-sm text-muted-foreground">To: {shipment.destination}</p>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span className="flex items-center">
-                              <Package className="w-3 h-3 mr-1" />
-                              {shipment.trackingNumber}
-                            </span>
-                            <span className="flex items-center">
-                              <Calendar className="w-3 h-3 mr-1" />
+                {filteredShipments.length > 0 ? (
+                  <div className="space-y-4">
+                    {filteredShipments.map((shipment) => (
+                      <div key={shipment._id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Truck className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{shipment.farmerName}</p>
+                            <p className="text-sm text-muted-foreground">To: {shipment.destination}</p>
+                            <p className="text-xs text-muted-foreground">
                               {new Date(shipment.createdAt).toLocaleDateString()}
-                            </span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge className={getStatusColor(shipment.status)}>
+                            {shipment.status}
+                          </Badge>
+                          <div className="text-right">
+                            <p className="text-sm font-medium">#{shipment.trackingNumber}</p>
+                            {shipment.deliveredAt && (
+                              <p className="text-xs text-muted-foreground">
+                                Delivered: {new Date(shipment.deliveredAt).toLocaleDateString()}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-3">
-                        <Badge className={getStatusColor(shipment.status)}>
-                          <div className="flex items-center gap-1">
-                            {getStatusIcon(shipment.status)}
-                            {shipment.status}
-                          </div>
-                        </Badge>
-                        {shipment.status === 'delivered' && (
-                          <div className="text-xs text-muted-foreground">
-                            Delivered: {new Date(shipment.deliveredAt!).toLocaleDateString()}
-                          </div>
-                        )}
-                        <Link href={`/shipments/${shipment._id}`}>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Truck className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No shipments found</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="tools" className="space-y-6">
-            {/* Agency Tools */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
@@ -933,8 +743,8 @@ export function AgencyDashboard({ user }: AgencyDashboardProps) {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
 
-export default AgencyDashboard
+export { AgencyDashboard }

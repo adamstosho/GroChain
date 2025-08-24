@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { WeatherData, IWeatherData } from '../models/weather.model';
-import moment from 'moment';
+
 
 export interface WeatherAPIConfig {
   openWeatherApiKey: string;
@@ -255,7 +255,6 @@ export class WeatherService {
     this.initialize(); // Ensure config is loaded
     const temp = weatherData.main.temp;
     const humidity = weatherData.main.humidity;
-    const windSpeed = weatherData.wind.speed;
     const pressure = weatherData.main.pressure;
 
     // Calculate growing degree days (base temperature 10°C)
@@ -296,7 +295,7 @@ export class WeatherService {
   /**
    * Generate planting recommendations based on weather conditions
    */
-  private generatePlantingRecommendation(temp: number, humidity: number, location: LocationCoordinates): string {
+  private generatePlantingRecommendation(temp: number, _humidity: number, _location: LocationCoordinates): string {
     this.initialize(); // Ensure config is loaded
     if (temp < 10) {
       return 'Temperature too low for most crops. Consider cold-hardy vegetables or wait for warmer weather.';
@@ -332,7 +331,7 @@ export class WeatherService {
   /**
    * Generate weather alerts based on conditions
    */
-  private async generateWeatherAlerts(weatherData: any, location: LocationCoordinates): Promise<any[]> {
+  private async generateWeatherAlerts(weatherData: any, _location: LocationCoordinates): Promise<any[]> {
     this.initialize(); // Ensure config is loaded
     const alerts: any[] = [];
     const temp = weatherData.main.temp;

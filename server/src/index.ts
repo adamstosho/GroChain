@@ -18,17 +18,11 @@ import paymentRoutes from './routes/payment.routes';
 import notificationRoutes from './routes/notification.routes';
 import commissionRoutes from './routes/commission.routes';
 import verifyRoutes from './routes/verify.routes';
-import pwaRoutes from './routes/pwa.routes';
-import syncRoutes from './routes/sync.routes';
+
 import languageRoutes from './routes/language.routes';
-import aiRoutes from './routes/ai.routes';
-import iotRoutes from './routes/iot.routes';
-import imageRecognitionRoutes from './routes/imageRecognition.routes';
-import advancedMLRoutes from './routes/advancedML.routes';
 import weatherRoutes from './routes/weather.routes';
 import websocketRoutes from './routes/websocket.routes';
 import bvnVerificationRoutes from './routes/bvnVerification.routes';
-import ussdRoutes from './routes/ussd.routes';
 import swaggerUi from 'swagger-ui-express';
 // Use lightweight Swagger temporarily while full spec is reconciled
 import swaggerSpec from './swagger-lite';
@@ -244,26 +238,13 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/commissions', commissionRoutes);
 // Verify routes (public QR verification)
 app.use('/api/verify', verifyRoutes);
-// PWA routes
-app.use('/api/pwa', pwaRoutes);
-// Sync routes
-app.use('/api/sync', syncRoutes);
+
 // Language routes
 app.use('/api/languages', languageRoutes);
-// AI routes
-app.use('/api/ai', aiRoutes);
-// IoT routes
-app.use('/api/iot', iotRoutes);
-// Image Recognition routes
-app.use('/api/image-recognition', imageRecognitionRoutes);
-// Advanced ML routes
-app.use('/api/advanced-ml', advancedMLRoutes);
 // Weather routes
 app.use('/api/weather', weatherRoutes);
 // BVN Verification routes
 app.use('/api/verification', bvnVerificationRoutes);
-// USSD routes
-app.use('/api/ussd', ussdRoutes);
 // WebSocket routes
 app.use('/api/websocket', websocketRoutes);
 

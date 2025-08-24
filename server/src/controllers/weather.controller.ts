@@ -426,7 +426,7 @@ export const getRegionalAlerts = async (req: Request, res: Response) => {
       });
     }
 
-    let query: any = { 'location.state': region };
+    const query: any = { 'location.state': region };
 
     if (severity) {
       query['alerts.severity'] = severity;

@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/15</span>
+                <span class='fraction'>15/15</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/15</span>
+                <span class='fraction'>15/15</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -350,7 +350,7 @@
 <a name='L285'></a><a href='#L285'>285</a>
 <a name='L286'></a><a href='#L286'>286</a>
 <a name='L287'></a><a href='#L287'>287</a>
-<a name='L288'></a><a href='#L288'>288</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L288'></a><a href='#L288'>288</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -419,7 +419,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -479,7 +479,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -530,7 +530,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -578,7 +578,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -625,19 +625,19 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import mongoose, { Document, Schema } from 'mongoose';</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import mongoose, { Document, Schema } from 'mongoose';
 &nbsp;
 // Loan Application Interface
 export interface ILoanApplication extends Document {
@@ -706,7 +706,7 @@ export interface IFinancialGoal extends Document {
 }
 &nbsp;
 // Loan Application Schema
-const loanApplicationSchema = <span class="cstat-no" title="statement not covered" >new Schema&lt;ILoanApplication&gt;({</span>
+const loanApplicationSchema = new Schema&lt;ILoanApplication&gt;({
   farmerId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -766,7 +766,7 @@ const loanApplicationSchema = <span class="cstat-no" title="statement not covere
 });
 &nbsp;
 // Insurance Policy Schema
-const insurancePolicySchema = <span class="cstat-no" title="statement not covered" >new Schema&lt;IInsurancePolicy&gt;({</span>
+const insurancePolicySchema = new Schema&lt;IInsurancePolicy&gt;({
   farmerId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -817,7 +817,7 @@ const insurancePolicySchema = <span class="cstat-no" title="statement not covere
 });
 &nbsp;
 // Financial Health Schema
-const financialHealthSchema = <span class="cstat-no" title="statement not covered" >new Schema&lt;IFinancialHealth&gt;({</span>
+const financialHealthSchema = new Schema&lt;IFinancialHealth&gt;({
   farmerId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -865,7 +865,7 @@ const financialHealthSchema = <span class="cstat-no" title="statement not covere
 });
 &nbsp;
 // Financial Goal Schema
-const financialGoalSchema = <span class="cstat-no" title="statement not covered" >new Schema&lt;IFinancialGoal&gt;({</span>
+const financialGoalSchema = new Schema&lt;IFinancialGoal&gt;({
   farmerId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -912,18 +912,18 @@ const financialGoalSchema = <span class="cstat-no" title="statement not covered"
 });
 &nbsp;
 // Indexes for better query performance
-<span class="cstat-no" title="statement not covered" >loanApplicationSchema.index({ farmerId: 1, status: 1 });</span>
-<span class="cstat-no" title="statement not covered" >loanApplicationSchema.index({ status: 1, submittedAt: -1 });</span>
-<span class="cstat-no" title="statement not covered" >insurancePolicySchema.index({ farmerId: 1, status: 1 });</span>
-<span class="cstat-no" title="statement not covered" >insurancePolicySchema.index({ status: 1, endDate: 1 });</span>
-<span class="cstat-no" title="statement not covered" >financialGoalSchema.index({ farmerId: 1, status: 1 });</span>
-<span class="cstat-no" title="statement not covered" >financialGoalSchema.index({ targetDate: 1 });</span>
+loanApplicationSchema.index({ farmerId: 1, status: 1 });
+loanApplicationSchema.index({ status: 1, submittedAt: -1 });
+insurancePolicySchema.index({ farmerId: 1, status: 1 });
+insurancePolicySchema.index({ status: 1, endDate: 1 });
+financialGoalSchema.index({ farmerId: 1, status: 1 });
+financialGoalSchema.index({ targetDate: 1 });
 &nbsp;
 // Export models
-export const <span class="cstat-no" title="statement not covered" >LoanApplication = mongoose.model&lt;ILoanApplication&gt;('LoanApplication', loanApplicationSchema);</span>
-export const <span class="cstat-no" title="statement not covered" >InsurancePolicy = mongoose.model&lt;IInsurancePolicy&gt;('InsurancePolicy', insurancePolicySchema);</span>
-export const <span class="cstat-no" title="statement not covered" >FinancialHealth = mongoose.model&lt;IFinancialHealth&gt;('FinancialHealth', financialHealthSchema);</span>
-export const <span class="cstat-no" title="statement not covered" >FinancialGoal = mongoose.model&lt;IFinancialGoal&gt;('FinancialGoal', financialGoalSchema);</span>
+export const LoanApplication = mongoose.model&lt;ILoanApplication&gt;('LoanApplication', loanApplicationSchema);
+export const InsurancePolicy = mongoose.model&lt;IInsurancePolicy&gt;('InsurancePolicy', insurancePolicySchema);
+export const FinancialHealth = mongoose.model&lt;IFinancialHealth&gt;('FinancialHealth', financialHealthSchema);
+export const FinancialGoal = mongoose.model&lt;IFinancialGoal&gt;('FinancialGoal', financialGoalSchema);
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -931,7 +931,7 @@ export const <span class="cstat-no" title="statement not covered" >FinancialGoal
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-22T11:41:20.108Z
+                at 2025-08-22T11:51:44.559Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

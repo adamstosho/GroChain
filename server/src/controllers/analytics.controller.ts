@@ -635,6 +635,294 @@ export class AnalyticsController {
       });
     }
   }
+
+  /**
+   * Get partner dashboard analytics
+   * GET /api/analytics/partner/:partnerId
+   */
+  async getPartnerDashboard(req: Request, res: Response): Promise<void> {
+    try {
+      const { partnerId } = req.params;
+      const filters = {
+        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+        period: req.query.period as 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | undefined,
+        region: req.query.region as string | undefined
+      };
+
+      if (!partnerId) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Partner ID is required'
+        });
+        return;
+      }
+
+      const partnerData = await analyticsService.getPartnerDashboard(partnerId, filters);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Partner dashboard data retrieved successfully',
+        data: partnerData
+      });
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error in getPartnerDashboard:');
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve partner dashboard data',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Get partner statistics
+   * GET /api/analytics/partner/:partnerId/stats
+   */
+  async getPartnerStats(req: Request, res: Response): Promise<void> {
+    try {
+      const { partnerId } = req.params;
+
+      if (!partnerId) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Partner ID is required'
+        });
+        return;
+      }
+
+      const partnerStats = await analyticsService.getPartnerDashboard(partnerId);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Partner statistics retrieved successfully',
+        data: partnerStats
+      });
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error in getPartnerStats:');
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve partner statistics',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Get farmer dashboard analytics
+   * GET /api/analytics/farmer/:farmerId
+   */
+  async getFarmerDashboard(req: Request, res: Response): Promise<void> {
+    try {
+      const { farmerId } = req.params;
+      const filters = {
+        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+        period: req.query.period as 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | undefined,
+        region: req.query.region as string | undefined
+      };
+
+      if (!farmerId) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Farmer ID is required'
+        });
+        return;
+      }
+
+      const farmerData = await analyticsService.getFarmerDashboard(farmerId, filters);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Farmer dashboard data retrieved successfully',
+        data: farmerData
+      });
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error in getFarmerDashboard:');
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve farmer dashboard data',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Get farmer statistics
+   * GET /api/analytics/farmer/:farmerId/stats
+   */
+  async getFarmerStats(req: Request, res: Response): Promise<void> {
+    try {
+      const { farmerId } = req.params;
+
+      if (!farmerId) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Farmer ID is required'
+        });
+        return;
+      }
+
+      const farmerStats = await analyticsService.getFarmerStats(farmerId);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Farmer statistics retrieved successfully',
+        data: farmerStats
+      });
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error in getFarmerStats:');
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve farmer statistics',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Get buyer dashboard analytics
+   * GET /api/analytics/buyer/:buyerId
+   */
+  async getBuyerDashboard(req: Request, res: Response): Promise<void> {
+    try {
+      const { buyerId } = req.params;
+      const filters = {
+        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+        period: req.query.period as 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | undefined,
+        region: req.query.region as string | undefined
+      };
+
+      if (!buyerId) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Buyer ID is required'
+        });
+        return;
+      }
+
+      const buyerData = await analyticsService.getBuyerDashboard(buyerId, filters);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Buyer dashboard data retrieved successfully',
+        data: buyerData
+      });
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error in getBuyerDashboard:');
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve buyer dashboard data',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Get buyer statistics
+   * GET /api/analytics/buyer/:buyerId/stats
+   */
+  async getBuyerStats(req: Request, res: Response): Promise<void> {
+    try {
+      const { buyerId } = req.params;
+
+      if (!buyerId) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Buyer ID is required'
+        });
+        return;
+      }
+
+      const buyerStats = await analyticsService.getBuyerStats(buyerId);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Buyer statistics retrieved successfully',
+        data: buyerStats
+      });
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error in getBuyerStats:');
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve buyer statistics',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Get agency dashboard analytics
+   * GET /api/analytics/agency/:agencyId
+   */
+  async getAgencyDashboard(req: Request, res: Response): Promise<void> {
+    try {
+      const { agencyId } = req.params;
+      const filters = {
+        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+        period: req.query.period as 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | undefined,
+        region: req.query.region as string | undefined
+      };
+
+      if (!agencyId) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Agency ID is required'
+        });
+        return;
+      }
+
+      const agencyData = await analyticsService.getAgencyDashboard(agencyId, filters);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Agency dashboard data retrieved successfully',
+        data: agencyData
+      });
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error in getAgencyDashboard:');
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve agency dashboard data',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Get agency statistics
+   * GET /api/analytics/agency/:agencyId/stats
+   */
+  async getAgencyStats(req: Request, res: Response): Promise<void> {
+    try {
+      const { agencyId } = req.params;
+
+      if (!agencyId) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Agency ID is required'
+        });
+        return;
+      }
+
+      const agencyStats = await analyticsService.getAgencyStats(agencyId);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Agency statistics retrieved successfully',
+        data: agencyStats
+      });
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error in getAgencyStats:');
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve agency statistics',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
 }
 
 export default new AnalyticsController();

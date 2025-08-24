@@ -338,8 +338,6 @@ export const getOrderTracking = async (req: Request, res: Response) => {
 // Favorites/Wishlist
 export const getFavorites = async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
-    
     // Mock favorites data - in real implementation, this would come from a Favorites model
     const favorites = await Listing.find({ 
       _id: { $in: [] } // Empty array for now - would be populated from favorites collection
@@ -353,8 +351,6 @@ export const getFavorites = async (req: Request, res: Response) => {
 
 export const addToFavorites = async (req: Request, res: Response) => {
   try {
-    const { userId, listingId } = req.body;
-    
     // Mock implementation - in real implementation, this would add to Favorites collection
     return res.status(200).json({ 
       status: 'success', 
@@ -367,8 +363,6 @@ export const addToFavorites = async (req: Request, res: Response) => {
 
 export const removeFromFavorites = async (req: Request, res: Response) => {
   try {
-    const { userId, listingId } = req.params;
-    
     // Mock implementation - in real implementation, this would remove from Favorites collection
     return res.status(200).json({ 
       status: 'success', 

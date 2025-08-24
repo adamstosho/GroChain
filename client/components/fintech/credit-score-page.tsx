@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Alert, AlertDescription } from "@/components/ui/Alert"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   ArrowLeft,
   CreditCard,
@@ -54,22 +54,24 @@ export function CreditScorePage() {
 
   const fetchCreditScore = async () => {
     try {
-      setLoading(true)
-      setError("")
-
-      const response = await api.get(`/api/fintech/credit-score/${user?.id}`)
+      setLoading(true);
+      setError(null);
+      
+      // Use the correct API method that exists in the API client
+      const response = await api.getCreditScore(user?.id || '');
+      
       if (response.success) {
-        setCreditScore(response.creditScore)
+        setCreditScore(response.data);
       } else {
-        throw new Error(response.error || "Failed to fetch credit score")
+        setError(response.error || 'Failed to fetch credit score');
       }
-    } catch (error) {
-      console.error("Credit score fetch error:", error)
-      setError("Failed to load credit score data")
+    } catch (err) {
+      console.error('Error fetching credit score:', err);
+      setError('Failed to fetch credit score. Please try again.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const getCreditScoreColor = (score: number) => {
     if (score >= 750) return "text-green-600"

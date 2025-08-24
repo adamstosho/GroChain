@@ -4,11 +4,14 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
-import mongoose from 'mongoose';
+
 import authRoutes from './routes/auth.routes';
 import partnerRoutes from './routes/partner.routes';
+import partnerSettingsRoutes from './routes/partner-settings.routes';
+import farmerRoutes from './routes/farmer.routes';
 import referralRoutes from './routes/referral.routes';
 import harvestRoutes from './routes/harvest.routes';
+import harvestApprovalRoutes from './routes/harvest-approval.routes';
 import shipmentRoutes from './routes/shipment.routes';
 import marketplaceRoutes from './routes/marketplace.routes';
 import fintechRoutes from './routes/fintech.routes';
@@ -17,7 +20,7 @@ import paymentRoutes from './routes/payment.routes';
 import notificationRoutes from './routes/notification.routes';
 import commissionRoutes from './routes/commission.routes';
 import verifyRoutes from './routes/verify.routes';
-import pwaRoutes from './routes/pwa.routes';
+
 
 import languageRoutes from './routes/language.routes';
 
@@ -155,8 +158,11 @@ app.get('/metrics', async (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/partners', partnerRoutes);
+app.use('/api/partner-settings', partnerSettingsRoutes);
+app.use('/api/farmers', farmerRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/harvests', harvestRoutes);
+app.use('/api/harvest-approval', harvestApprovalRoutes);
 app.use('/api/shipments', shipmentRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/fintech', fintechRoutes);
@@ -167,7 +173,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/commissions', commissionRoutes);
 app.use('/api/commission', commissionRoutes);
 app.use('/api/verify', verifyRoutes);
-app.use('/api/pwa', pwaRoutes);
+
 
 app.use('/api/language', languageRoutes);
 

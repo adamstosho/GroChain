@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   ArrowLeft,
   Search,
@@ -24,6 +24,7 @@ import {
 import Link from "next/link"
 import { QRCodeGenerator } from "./qr-code-generator"
 import { generateQRCodeData } from "@/lib/qr-utils"
+import { api } from "@/lib/api"
 
 // No mock data - QR codes will be fetched from real APIs
 
@@ -47,14 +48,20 @@ export function QRCodeManagement() {
     const fetchQRCodes = async () => {
       try {
         setLoading(true)
+        setError("")
+        
+        console.log("🔍 Fetching QR codes...")
         const response = await api.getUserQRCodes()
+        console.log("🔍 QR codes response:", response)
+        
         if (response.success && response.data) {
-          setQrCodes(response.data)
+          setQrCodes(response.data as any[])
         } else {
+          console.log("🔍 No QR codes found, setting empty array")
           setQrCodes([])
         }
       } catch (error) {
-        console.error("Failed to fetch QR codes:", error)
+        console.error("🔍 Failed to fetch QR codes:", error)
         setError("Failed to load QR codes")
         setQrCodes([])
       } finally {

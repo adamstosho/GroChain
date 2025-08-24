@@ -1,8 +1,0 @@
-{
-  "/api/auth/me/route": "app/api/auth/me/route.js",
-  "/fintech/page": "app/fintech/page.js",
-  "/page": "app/page.js",
-  "/verify/page": "app/verify/page.js",
-  "/api/auth/set-cookie/route": "app/api/auth/set-cookie/route.js",
-  "/api/auth/clear-cookie/route": "app/api/auth/clear-cookie/route.js"
-}

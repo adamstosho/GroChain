@@ -5,8 +5,8 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
-import { Alert, AlertDescription } from "@/components/ui/Alert"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   CreditCard,
   TrendingUp,
@@ -33,6 +33,11 @@ import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
 import Link from "next/link"
 import { toast } from "sonner"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 
 interface CreditScore {
   score: number
@@ -59,6 +64,17 @@ export function FintechDashboard() {
   const [loanReferrals, setLoanReferrals] = useState<LoanReferral[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [financialHealth, setFinancialHealth] = useState<any>(null)
+  const [loanApplications, setLoanApplications] = useState<any[]>([])
+  const [showLoanModal, setShowLoanModal] = useState(false)
+  const [applyingLoan, setApplyingLoan] = useState(false)
+  const [loanForm, setLoanForm] = useState({
+    amount: '',
+    purpose: '',
+    duration: '',
+    collateral: '',
+    description: ''
+  })
 
   useEffect(() => {
     if (user) {
@@ -72,9 +88,30 @@ export function FintechDashboard() {
       setError("")
 
       // Fetch credit score data
-      const creditResponse = await api.get(`/api/fintech/credit-score/${user?.id}`)
+      const creditResponse = await api.getCreditScore(user?.id || '');
       if (creditResponse.success) {
-        setCreditScore(creditResponse.creditScore)
+        setCreditScore(creditResponse.data);
+      }
+
+      // Fetch financial health data
+      try {
+        const healthResponse = await api.get("/api/fintech/financial-health")
+        if (healthResponse.success) {
+          setFinancialHealth(healthResponse.data)
+        }
+      } catch (error) {
+        console.log("Financial health not available yet")
+      }
+
+      // Fetch loan applications
+      try {
+        const loansResponse = await api.getLoanApplications(user?.id)
+        if (loansResponse.success) {
+          setLoanApplications(loansResponse.data || [])
+        }
+      } catch (error) {
+        console.log("Loan applications not available yet")
+        setLoanApplications([])
       }
 
       // Note: Backend doesn't have loan-applications endpoint yet
@@ -86,6 +123,41 @@ export function FintechDashboard() {
       setError("Failed to load financial data. Some features may not be available yet.")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const applyForLoan = async () => {
+    try {
+      setApplyingLoan(true)
+      
+      const response = await api.submitLoanApplication({
+        farmerId: user?.id,
+        amount: parseFloat(loanForm.amount),
+        purpose: loanForm.purpose,
+        duration: loanForm.duration,
+        collateral: loanForm.collateral,
+        description: loanForm.description
+      })
+
+      if (response.success) {
+        toast.success("Loan application submitted successfully!")
+        setShowLoanModal(false)
+        setLoanForm({
+          amount: '',
+          purpose: '',
+          duration: '',
+          collateral: '',
+          description: ''
+        })
+        fetchFintechData() // Refresh data
+      } else {
+        toast.error(response.error || "Failed to submit loan application")
+      }
+    } catch (error) {
+      console.error("Loan application error:", error)
+      toast.error("Failed to submit loan application")
+    } finally {
+      setApplyingLoan(false)
     }
   }
 
@@ -178,7 +250,7 @@ export function FintechDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-4 h-auto p-1">
             <TabsTrigger value="overview" className="text-xs sm:text-sm">
               Overview
             </TabsTrigger>
@@ -187,6 +259,9 @@ export function FintechDashboard() {
             </TabsTrigger>
             <TabsTrigger value="loans" className="text-xs sm:text-sm">
               Loan Referrals
+            </TabsTrigger>
+            <TabsTrigger value="health" className="text-xs sm:text-sm">
+              Financial Health
             </TabsTrigger>
           </TabsList>
 
@@ -217,17 +292,17 @@ export function FintechDashboard() {
                       
                       <div className="text-center">
                         <div className="text-2xl font-bold text-foreground">
-                          {creditScore.history.length}
+                          {creditScore.history?.length || 0}
                         </div>
                         <p className="text-sm text-muted-foreground">Transactions</p>
                         <p className="text-xs text-muted-foreground">
-                          Last updated: {new Date(creditScore.updatedAt).toLocaleDateString()}
+                          Last updated: {creditScore.updatedAt ? new Date(creditScore.updatedAt).toLocaleDateString() : 'N/A'}
                         </p>
                       </div>
 
                       <div className="text-center">
                         <div className="text-2xl font-bold text-foreground">
-                          ₦{creditScore.history.reduce((total, tx) => total + tx.amount, 0).toLocaleString()}
+                          ₦{(creditScore.history?.reduce((total, tx) => total + (tx.amount || 0), 0) || 0).toLocaleString()}
                         </div>
                         <p className="text-sm text-muted-foreground">Total Volume</p>
                         <p className="text-xs text-muted-foreground">
@@ -272,24 +347,24 @@ export function FintechDashboard() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-600">{loanReferrals.length}</p>
+                      <p className="text-2xl font-bold text-blue-600">{loanReferrals?.length || 0}</p>
                       <p className="text-sm text-muted-foreground">Total Referrals</p>
                     </div>
                     <div className="text-center p-4 bg-green-50 rounded-lg">
                       <p className="text-2xl font-bold text-green-600">
-                        {loanReferrals.filter(l => l.status === 'approved').length}
+                        {loanReferrals?.filter(l => l.status === 'approved')?.length || 0}
                       </p>
                       <p className="text-sm text-muted-foreground">Approved</p>
                     </div>
                     <div className="text-center p-4 bg-yellow-50 rounded-lg">
                       <p className="text-2xl font-bold text-yellow-600">
-                        {loanReferrals.filter(l => l.status === 'pending').length}
+                        {loanReferrals?.filter(l => l.status === 'pending')?.length || 0}
                       </p>
                       <p className="text-sm text-muted-foreground">Pending</p>
                     </div>
                     <div className="text-center p-4 bg-purple-50 rounded-lg">
                       <p className="text-2xl font-bold text-purple-600">
-                        ₦{loanReferrals.reduce((total, referral) => total + (referral.amount || 0), 0).toLocaleString()}
+                        ₦{(loanReferrals?.reduce((total, referral) => total + (referral.amount || 0), 0) || 0).toLocaleString()}
                       </p>
                       <p className="text-sm text-muted-foreground">Total Requested</p>
                     </div>
@@ -344,14 +419,14 @@ export function FintechDashboard() {
                     <div className="space-y-6">
                       {/* Score Display */}
                       <div className="text-center p-6 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg">
-                        <div className={`text-6xl font-bold ${getCreditScoreColor(creditScore.score)}`}>
-                          {creditScore.score}
+                        <div className={`text-6xl font-bold ${getCreditScoreColor(creditScore?.score || 0)}`}>
+                          {creditScore?.score || 0}
                         </div>
                         <p className="text-xl text-muted-foreground mt-2">
-                          {getCreditScoreRating(creditScore.score)} Credit Rating
+                          {getCreditScoreRating(creditScore?.score || 0)} Credit Rating
                         </p>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Last updated: {new Date(creditScore.updatedAt).toLocaleDateString()}
+                          Last updated: {creditScore?.updatedAt ? new Date(creditScore.updatedAt).toLocaleDateString() : 'N/A'}
                         </p>
                       </div>
 
@@ -359,13 +434,17 @@ export function FintechDashboard() {
                       <div>
                         <h4 className="font-medium mb-3">Transaction History</h4>
                         <div className="space-y-2">
-                          {creditScore.history.map((transaction, index) => (
+                          {creditScore?.history?.map((transaction, index) => (
                             <div key={index} className="flex items-center justify-between p-2 bg-muted/30 rounded">
                               <span className="text-sm">{new Date(transaction.date).toLocaleDateString()}</span>
-                              <span className="font-medium">₦{transaction.amount.toLocaleString()}</span>
+                              <span className="font-medium">₦{(transaction.amount || 0).toLocaleString()}</span>
                               <span className="text-xs text-muted-foreground">ID: {transaction.transactionId}</span>
                             </div>
-                          ))}
+                          )) || (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                              No transaction history available
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -401,7 +480,7 @@ export function FintechDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {loanReferrals.length === 0 ? (
+                  {loanReferrals?.length === 0 ? (
                     <div className="text-center py-8">
                       <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
                       <p className="text-muted-foreground mb-2">No loan referrals yet</p>
@@ -417,7 +496,7 @@ export function FintechDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {loanReferrals.map((referral) => (
+                      {loanReferrals?.map((referral) => (
                         <div
                           key={referral.id}
                           className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
@@ -429,8 +508,8 @@ export function FintechDashboard() {
                             <div>
                               <p className="font-medium">Loan Referral</p>
                               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <span>₦{referral.amount.toLocaleString()}</span>
-                                <span>{new Date(referral.createdAt).toLocaleDateString()}</span>
+                                <span>₦{(referral.amount || 0).toLocaleString()}</span>
+                                <span>{referral.createdAt ? new Date(referral.createdAt).toLocaleDateString() : 'N/A'}</span>
                               </div>
                             </div>
                           </div>
@@ -447,8 +526,179 @@ export function FintechDashboard() {
               </Card>
             </div>
           </TabsContent>
+
+          <TabsContent value="health" className="space-y-6">
+            {financialHealth ? (
+              <div className="space-y-6">
+                {/* Financial Health Overview */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="w-5 h-5 text-primary" />
+                      Financial Health Overview
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="text-center p-4 bg-blue-50 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {financialHealth.netWorth ? `₦${financialHealth.netWorth.toLocaleString()}` : 'N/A'}
+                        </div>
+                        <p className="text-sm text-blue-700">Net Worth</p>
+                      </div>
+                      <div className="text-center p-4 bg-green-50 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">
+                          {financialHealth.savingsRate ? `${financialHealth.savingsRate}%` : 'N/A'}
+                        </div>
+                        <p className="text-sm text-green-700">Savings Rate</p>
+                      </div>
+                      <div className="text-center p-4 bg-purple-50 rounded-lg">
+                        <div className="text-2xl font-bold text-purple-600">
+                          {financialHealth.debtToIncome ? `${financialHealth.debtToIncome}%` : 'N/A'}
+                        </div>
+                        <p className="text-sm text-purple-700">Debt-to-Income</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Financial Metrics */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Detailed Metrics</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span>Monthly Income</span>
+                        <span className="font-medium">₦{(financialHealth.monthlyIncome || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>Monthly Expenses</span>
+                        <span className="font-medium">₦{(financialHealth.monthlyExpenses || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>Total Savings</span>
+                        <span className="font-medium">₦{(financialHealth.totalSavings || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>Total Debt</span>
+                        <span className="font-medium">₦{(financialHealth.totalDebt || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground mb-2">Financial health data not available</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Complete more transactions to build your financial health profile
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
+
+        {/* Loan Application Modal */}
+        <Dialog open={showLoanModal} onOpenChange={setShowLoanModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Apply for Loan Referral</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="amount">Loan Amount (₦)</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    placeholder="Enter amount"
+                    value={loanForm.amount}
+                    onChange={(e) => setLoanForm({ ...loanForm, amount: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="duration">Loan Duration</Label>
+                  <Select value={loanForm.duration} onValueChange={(value) => setLoanForm({ ...loanForm, duration: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select duration" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3">3 months</SelectItem>
+                      <SelectItem value="6">6 months</SelectItem>
+                      <SelectItem value="12">12 months</SelectItem>
+                      <SelectItem value="24">24 months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="purpose">Loan Purpose</Label>
+                <Select value={loanForm.purpose} onValueChange={(value) => setLoanForm({ ...loanForm, purpose: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select purpose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="equipment">Farm Equipment</SelectItem>
+                    <SelectItem value="seeds">Seeds & Fertilizers</SelectItem>
+                    <SelectItem value="expansion">Farm Expansion</SelectItem>
+                    <SelectItem value="storage">Storage Facilities</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="collateral">Collateral (Optional)</Label>
+                <Input
+                  id="collateral"
+                  placeholder="Describe any collateral"
+                  value={loanForm.collateral}
+                  onChange={(e) => setLoanForm({ ...loanForm, collateral: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Provide additional details about your loan request"
+                  value={loanForm.description}
+                  onChange={(e) => setLoanForm({ ...loanForm, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setShowLoanModal(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={applyForLoan}
+                  disabled={applyingLoan || !loanForm.amount || !loanForm.purpose || !loanForm.duration}
+                >
+                  {applyingLoan ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Submit Application
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
     </DashboardLayout>
   )
 }

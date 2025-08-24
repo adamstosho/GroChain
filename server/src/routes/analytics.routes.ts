@@ -219,4 +219,104 @@ router.get(
   analyticsController.getAnalyticsSummary
 );
 
+/**
+ * @route   GET /api/analytics/partner/:partnerId
+ * @desc    Get partner dashboard analytics
+ * @access  Private (Partner, Admin)
+ */
+router.get(
+  '/partner/:partnerId',
+  authenticate,
+  authorize(['partner', 'admin']),
+  validateRequest(analyticsFiltersSchema, 'query'),
+  analyticsController.getPartnerDashboard
+);
+
+/**
+ * @route   GET /api/analytics/partner/:partnerId/stats
+ * @desc    Get partner statistics
+ * @access  Private (Partner, Admin)
+ */
+router.get(
+  '/partner/:partnerId/stats',
+  authenticate,
+  authorize(['partner', 'admin']),
+  analyticsController.getPartnerStats
+);
+
+/**
+ * @route   GET /api/analytics/farmer/:farmerId
+ * @desc    Get farmer dashboard analytics
+ * @access  Private (Farmer, Admin)
+ */
+router.get(
+  '/farmer/:farmerId',
+  authenticate,
+  authorize(['farmer', 'admin']),
+  validateRequest(analyticsFiltersSchema, 'query'),
+  analyticsController.getFarmerDashboard
+);
+
+/**
+ * @route   GET /api/analytics/farmer/:farmerId/stats
+ * @desc    Get farmer statistics
+ * @access  Private (Farmer, Admin)
+ */
+router.get(
+  '/farmer/:farmerId/stats',
+  authenticate,
+  authorize(['farmer', 'admin']),
+  analyticsController.getFarmerStats
+);
+
+/**
+ * @route   GET /api/analytics/buyer/:buyerId
+ * @desc    Get buyer dashboard analytics
+ * @access  Private (Buyer, Admin)
+ */
+router.get(
+  '/buyer/:buyerId',
+  authenticate,
+  authorize(['buyer', 'admin']),
+  validateRequest(analyticsFiltersSchema, 'query'),
+  analyticsController.getBuyerDashboard
+);
+
+/**
+ * @route   GET /api/analytics/buyer/:buyerId/stats
+ * @desc    Get buyer statistics
+ * @access  Private (Buyer, Admin)
+ */
+router.get(
+  '/buyer/:buyerId/stats',
+  authenticate,
+  authorize(['buyer', 'admin']),
+  analyticsController.getBuyerStats
+);
+
+/**
+ * @route   GET /api/analytics/agency/:agencyId
+ * @desc    Get agency dashboard analytics
+ * @access  Private (Agency, Admin)
+ */
+router.get(
+  '/agency/:agencyId',
+  authenticate,
+  authorize(['agency', 'admin']),
+  validateRequest(analyticsFiltersSchema, 'query'),
+  analyticsController.getAgencyDashboard
+);
+
+/**
+ * @route   GET /api/analytics/agency/:agencyId/stats
+ * @desc    Get agency statistics
+ * @access  Private (Agency, Admin)
+ */
+router.get(
+  '/agency/:agencyId/stats',
+  authenticate,
+  authorize(['agency', 'admin']),
+  analyticsController.getAgencyStats
+);
+
 export default router;

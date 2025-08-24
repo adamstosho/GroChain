@@ -1,368 +1,372 @@
 "use client"
 
-import { useState } from "react"
-import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
-import { Progress } from "@/components/ui/Progress"
-import { Brain, TrendingUp, Lightbulb, AlertCircle, Camera, BarChart3, Leaf, Droplets, Sun, Bug } from "lucide-react"
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import Link from "next/link"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { 
+  Brain, 
+  Activity, 
+  TrendingUp, 
+  BarChart3, 
+  Zap, 
+  Target, 
+  Clock, 
+  CheckCircle,
+  AlertTriangle,
+  Loader2,
+  Play,
+  Pause,
+  Settings,
+  Download,
+  Upload,
+  RefreshCw
+} from "lucide-react"
 
-interface AIInsight {
+interface AIModel {
   id: string
-  type: "recommendation" | "prediction" | "alert" | "analysis"
-  title: string
-  description: string
+  name: string
+  type: 'crop_analysis' | 'yield_prediction' | 'disease_detection' | 'weather_forecast'
+  status: 'active' | 'training' | 'inactive' | 'error'
+  accuracy: number
+  lastTraining: string
+  nextTraining: string
+  performance: number
+  version: string
+}
+
+interface Prediction {
+  id: string
+  model: string
+  input: string
+  output: string
   confidence: number
-  priority: "high" | "medium" | "low"
-  category: "crop_health" | "irrigation" | "pest_control" | "harvest_timing"
-  createdAt: string
+  timestamp: string
+  status: 'success' | 'processing' | 'failed'
 }
 
-interface CropAnalysis {
-  cropType: string
-  healthScore: number
-  growthStage: string
-  estimatedHarvest: string
-  recommendations: string[]
-}
+const AIDashboard = () => {
+  const [models, setModels] = useState<AIModel[]>([])
+  const [predictions, setPredictions] = useState<Prediction[]>([])
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState("overview")
 
-const mockInsights: AIInsight[] = [
-  {
-    id: "1",
-    type: "recommendation",
-    title: "Optimal Irrigation Schedule",
-    description:
-      "Based on soil moisture data and weather forecast, increase irrigation frequency by 20% for the next 5 days.",
-    confidence: 92,
-    priority: "high",
-    category: "irrigation",
-    createdAt: "2025-01-16T10:30:00Z",
-  },
-  {
-    id: "2",
-    type: "prediction",
-    title: "Harvest Timing Prediction",
-    description: "Tomatoes in Field A are expected to be ready for harvest in 12-15 days based on growth analysis.",
-    confidence: 87,
-    priority: "medium",
-    category: "harvest_timing",
-    createdAt: "2025-01-16T09:15:00Z",
-  },
-  {
-    id: "3",
-    type: "alert",
-    title: "Potential Pest Activity",
-    description: "Environmental conditions suggest increased risk of aphid infestation. Consider preventive measures.",
-    confidence: 78,
-    priority: "high",
-    category: "pest_control",
-    createdAt: "2025-01-16T08:45:00Z",
-  },
-  {
-    id: "4",
-    type: "analysis",
-    title: "Crop Health Assessment",
-    description: "Overall crop health has improved by 15% compared to last month. Continue current practices.",
-    confidence: 94,
-    priority: "low",
-    category: "crop_health",
-    createdAt: "2025-01-15T16:20:00Z",
-  },
-]
+  useEffect(() => {
+    fetchAIData()
+  }, [])
 
-const mockCropAnalysis: CropAnalysis[] = [
-  {
-    cropType: "Tomatoes",
-    healthScore: 87,
-    growthStage: "Flowering",
-    estimatedHarvest: "2025-02-01",
-    recommendations: ["Increase potassium fertilizer", "Monitor for blossom end rot", "Maintain consistent watering"],
-  },
-  {
-    cropType: "Yam",
-    healthScore: 92,
-    growthStage: "Tuber Development",
-    estimatedHarvest: "2025-03-15",
-    recommendations: ["Reduce nitrogen application", "Hill soil around plants", "Watch for pest activity"],
-  },
-  {
-    cropType: "Cassava",
-    healthScore: 78,
-    growthStage: "Root Formation",
-    estimatedHarvest: "2025-04-20",
-    recommendations: ["Improve drainage", "Apply organic matter", "Monitor for mosaic virus"],
-  },
-]
+  const fetchAIData = async () => {
+    try {
+      setLoading(true)
+      // Mock data for now
+      const mockModels: AIModel[] = [
+        {
+          id: "1",
+          name: "Crop Health Analyzer",
+          type: "crop_analysis",
+          status: "active",
+          accuracy: 94.2,
+          lastTraining: "2025-01-14T10:00:00Z",
+          nextTraining: "2025-01-21T10:00:00Z",
+          performance: 98.5,
+          version: "2.1.0"
+        },
+        {
+          id: "2",
+          name: "Yield Predictor Pro",
+          type: "yield_prediction",
+          status: "training",
+          accuracy: 89.7,
+          lastTraining: "2025-01-15T08:00:00Z",
+          nextTraining: "2025-01-22T08:00:00Z",
+          performance: 92.3,
+          version: "1.8.2"
+        },
+        {
+          id: "3",
+          name: "Disease Detection ML",
+          type: "disease_detection",
+          status: "active",
+          accuracy: 96.8,
+          lastTraining: "2025-01-13T14:00:00Z",
+          nextTraining: "2025-01-20T14:00:00Z",
+          performance: 97.1,
+          version: "3.0.1"
+        }
+      ]
 
-// Mock user for layout
-const mockUser = {
-  id: "1",
-  name: "John Farmer",
-  email: "john@farm.com",
-  role: "farmer",
-  avatar: "/placeholder.svg",
-}
+      const mockPredictions: Prediction[] = [
+        {
+          id: "1",
+          model: "Crop Health Analyzer",
+          input: "Tomato leaf image",
+          output: "Healthy - No disease detected",
+          confidence: 98.5,
+          timestamp: "2025-01-15T10:30:00Z",
+          status: "success"
+        },
+        {
+          id: "2",
+          model: "Yield Predictor Pro",
+          input: "Rice field data",
+          output: "Expected yield: 2.8 tons/hectare",
+          confidence: 89.2,
+          timestamp: "2025-01-15T09:15:00Z",
+          status: "success"
+        }
+      ]
 
-export function AIDashboard() {
-  const [insights] = useState<AIInsight[]>(mockInsights)
-  const [cropAnalysis] = useState<CropAnalysis[]>(mockCropAnalysis)
-  const [activeTab, setActiveTab] = useState("insights")
+      setModels(mockModels)
+      setPredictions(mockPredictions)
+    } catch (error) {
+      console.error("Failed to fetch AI data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const getInsightIcon = (type: AIInsight["type"]) => {
+  const getModelIcon = (type: string) => {
     switch (type) {
-      case "recommendation":
-        return <Lightbulb className="w-5 h-5 text-primary" />
-      case "prediction":
-        return <TrendingUp className="w-5 h-5 text-info" />
-      case "alert":
-        return <AlertCircle className="w-5 h-5 text-warning" />
-      case "analysis":
-        return <BarChart3 className="w-5 h-5 text-success" />
+      case 'crop_analysis':
+        return <Activity className="w-5 h-5" />
+      case 'yield_prediction':
+        return <TrendingUp className="w-5 h-5" />
+      case 'disease_detection':
+        return <Target className="w-5 h-5" />
+      case 'weather_forecast':
+        return <Zap className="w-5 h-5" />
       default:
-        return <Brain className="w-5 h-5 text-muted-foreground" />
+        return <Brain className="w-5 h-5" />
     }
   }
 
-  const getPriorityBadge = (priority: AIInsight["priority"]) => {
-    switch (priority) {
-      case "high":
-        return <Badge variant="destructive">High Priority</Badge>
-      case "medium":
-        return <Badge variant="secondary">Medium Priority</Badge>
-      case "low":
-        return <Badge variant="outline">Low Priority</Badge>
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800'
+      case 'training':
+        return 'bg-blue-100 text-blue-800'
+      case 'inactive':
+        return 'bg-gray-100 text-gray-800'
+      case 'error':
+        return 'bg-red-100 text-red-800'
       default:
-        return <Badge variant="outline">{priority}</Badge>
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
-  const getCategoryIcon = (category: AIInsight["category"]) => {
-    switch (category) {
-      case "crop_health":
-        return <Leaf className="w-4 h-4 text-success" />
-      case "irrigation":
-        return <Droplets className="w-4 h-4 text-blue-500" />
-      case "pest_control":
-        return <Bug className="w-4 h-4 text-destructive" />
-      case "harvest_timing":
-        return <Sun className="w-4 h-4 text-orange-500" />
+  const getPredictionStatusColor = (status: string) => {
+    switch (status) {
+      case 'success':
+        return 'bg-green-100 text-green-800'
+      case 'processing':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'failed':
+        return 'bg-red-100 text-red-800'
       default:
-        return <Brain className="w-4 h-4 text-muted-foreground" />
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
-  const getHealthScoreColor = (score: number) => {
-    if (score >= 80) return "text-success"
-    if (score >= 60) return "text-warning"
-    return "text-destructive"
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
-    <DashboardLayout user={mockUser}>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">AI Insights</h1>
-            <p className="text-muted-foreground">AI-powered recommendations and analysis for your farm</p>
-          </div>
-          <div className="flex gap-2">
-            <Link href="/image-recognition">
-              <Button variant="outline" size="lg" className="bg-transparent">
-                <Camera className="w-4 h-4 mr-2" />
-                Image Analysis
-              </Button>
-            </Link>
-            <Button size="lg">
-              <Brain className="w-4 h-4 mr-2" />
-              Generate Report
-            </Button>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-foreground">AI & ML Dashboard</h1>
+          <p className="text-muted-foreground">Monitor AI models, predictions, and system performance</p>
         </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="insights">AI Insights</TabsTrigger>
-            <TabsTrigger value="crops">Crop Analysis</TabsTrigger>
-            <TabsTrigger value="predictions">Predictions</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="insights" className="space-y-6">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Total Insights</p>
-                      <p className="text-2xl font-bold text-foreground">{insights.length}</p>
-                    </div>
-                    <Brain className="w-8 h-8 text-primary" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">High Priority</p>
-                      <p className="text-2xl font-bold text-foreground">
-                        {insights.filter((i) => i.priority === "high").length}
-                      </p>
-                    </div>
-                    <AlertCircle className="w-8 h-8 text-destructive" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Recommendations</p>
-                      <p className="text-2xl font-bold text-foreground">
-                        {insights.filter((i) => i.type === "recommendation").length}
-                      </p>
-                    </div>
-                    <Lightbulb className="w-8 h-8 text-primary" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Avg Confidence</p>
-                      <p className="text-2xl font-bold text-foreground">
-                        {Math.round(insights.reduce((acc, i) => acc + i.confidence, 0) / insights.length)}%
-                      </p>
-                    </div>
-                    <TrendingUp className="w-8 h-8 text-success" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Insights List */}
-            <div className="space-y-4">
-              {insights.map((insight, index) => (
-                <motion.div
-                  key={insight.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                >
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-4 flex-1">
-                          <div className="mt-1">{getInsightIcon(insight.type)}</div>
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <h4 className="font-medium text-foreground">{insight.title}</h4>
-                              {getCategoryIcon(insight.category)}
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-3">{insight.description}</p>
-                            <div className="flex items-center space-x-4">
-                              {getPriorityBadge(insight.priority)}
-                              <div className="flex items-center space-x-2">
-                                <span className="text-xs text-muted-foreground">Confidence:</span>
-                                <div className="flex items-center space-x-2">
-                                  <Progress value={insight.confidence} className="w-16 h-2" />
-                                  <span className="text-xs font-medium">{insight.confidence}%</span>
-                                </div>
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(insight.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          View Details
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="crops" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {cropAnalysis.map((crop, index) => (
-                <motion.div
-                  key={crop.cropType}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                >
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{crop.cropType}</CardTitle>
-                        <Badge variant="outline">{crop.growthStage}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Health Score</span>
-                          <span className={getHealthScoreColor(crop.healthScore)}>{crop.healthScore}%</span>
-                        </div>
-                        <Progress value={crop.healthScore} className="h-2" />
-                      </div>
-
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Estimated Harvest</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(crop.estimatedHarvest).toLocaleDateString()}
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">AI Recommendations</p>
-                        <ul className="text-sm text-muted-foreground space-y-1">
-                          {crop.recommendations.map((rec, idx) => (
-                            <li key={idx} className="flex items-start">
-                              <span className="mr-2">•</span>
-                              <span>{rec}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <Button variant="outline" size="sm" className="w-full bg-transparent">
-                        View Detailed Analysis
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="predictions">
-            <Card>
-              <CardHeader>
-                <CardTitle>AI Predictions & Forecasts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Advanced AI predictions and forecasting models will be implemented in the next phase.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchAIData} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button>
+            <Upload className="w-4 h-4 mr-2" />
+            Deploy Model
+          </Button>
+        </div>
       </div>
-    </DashboardLayout>
+
+      {/* Stats Overview */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Active Models</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {models.filter(m => m.status === 'active').length}
+                </p>
+              </div>
+              <Brain className="h-8 w-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Avg Accuracy</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {Math.round(models.reduce((sum, m) => sum + m.accuracy, 0) / models.length)}%
+                </p>
+              </div>
+              <Target className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Today's Predictions</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {predictions.filter(p => 
+                    new Date(p.timestamp).toDateString() === new Date().toDateString()
+                  ).length}
+                </p>
+              </div>
+              <BarChart3 className="h-8 w-8 text-purple-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">System Health</p>
+                <p className="text-2xl font-bold text-foreground">98%</p>
+                <p className="text-xs text-muted-foreground">All models operational</p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="models">Models</TabsTrigger>
+          <TabsTrigger value="predictions">Predictions</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {models.map((model) => (
+              <Card key={model.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm">{model.name}</CardTitle>
+                    <Badge className={getStatusColor(model.status)}>
+                      {model.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      {getModelIcon(model.type)}
+                      <span className="text-sm text-muted-foreground">{model.type.replace('_', ' ')}</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Accuracy</p>
+                        <p className="font-semibold">{model.accuracy}%</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Performance</p>
+                        <p className="font-semibold">{model.performance}%</p>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        Last trained: {new Date(model.lastTraining).toLocaleDateString()}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Settings className="w-3 h-3" />
+                        v{model.version}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="flex-1">
+                        <Play className="w-3 h-3 mr-1" />
+                        Test
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1">
+                        <Settings className="w-3 h-3 mr-1" />
+                        Configure
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="models" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Model Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Detailed model management features coming soon...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="predictions" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Predictions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {predictions.map((prediction) => (
+                  <div key={prediction.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex-1">
+                      <p className="font-medium">{prediction.model}</p>
+                      <p className="text-sm text-muted-foreground">{prediction.input}</p>
+                      <p className="text-sm">{prediction.output}</p>
+                    </div>
+                    <div className="text-right">
+                      <Badge className={getPredictionStatusColor(prediction.status)}>
+                        {prediction.status}
+                      </Badge>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {prediction.confidence}% confidence
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(prediction.timestamp).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }
+
+export { AIDashboard }

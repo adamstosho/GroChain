@@ -85,7 +85,7 @@ export function Dashboard() {
       case "partner":
         return <PartnerDashboard user={user} />
       case "aggregator":
-        return <AgencyDashboard user={user} />
+        return <AgencyDashboard />
       case "admin":
         return <AdminDashboard user={user} />
       default:

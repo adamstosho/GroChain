@@ -235,9 +235,10 @@ export function HarvestDetail({ harvestId }: HarvestDetailProps) {
   // Debug logging
   console.log("🔍 Harvest Detail - harvestData:", harvestData)
   console.log("🔍 Harvest Detail - serverHarvest:", serverHarvest)
-  console.log("🔍 Harvest Detail - final harvest:", harvest)
 
   const harvest = serverHarvest || mockHarvest
+
+  console.log("🔍 Harvest Detail - final harvest:", harvest)
 
   const status = statusConfig[(harvest.status as keyof typeof statusConfig) || "verified"]
   const StatusIcon = status.icon

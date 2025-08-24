@@ -155,6 +155,7 @@ export const uploadCSVAndOnboard = async (req: Request & { file?: any }, res: Re
       ]
     });
 
+    // Check for duplicates (currently not used but kept for future implementation)
     const duplicates = duplicateCheck.map(user => ({
       email: user.email,
       phone: user.phone,

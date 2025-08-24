@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { 
@@ -31,7 +31,7 @@ import { useAuth } from "@/lib/auth-context"
 import { api } from "@/lib/api"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { toast } from "sonner"
-import { Alert, AlertDescription } from "@/components/ui/Alert"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface RegionalData {
   [region: string]: {

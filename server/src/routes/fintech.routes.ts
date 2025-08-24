@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { getCreditScore, createLoanReferral } from '../controllers/fintech.controller';
 import { 
+  getCreditScore, 
+  createLoanReferral,
   getLoanApplications, 
   createLoanApplication, 
   getLoanStats,

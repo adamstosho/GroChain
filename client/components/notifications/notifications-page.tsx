@@ -5,12 +5,15 @@ import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { Bell, Settings, Check, Clock, Package, CreditCard, CloudRain, Users } from "lucide-react"
+import { Bell, Settings, Check, Clock, Package, CreditCard, CloudRain, Users, Wifi, WifiOff, Zap, AlertTriangle, Info, CheckCircle, XCircle, Loader2, RefreshCw, Volume2, VolumeX, Smartphone, Mail, MessageSquare } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { api } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
+import { useWebSocket } from "@/lib/websocket-context"
+import { toast } from "react-hot-toast"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface Notification {
   id: string
@@ -50,22 +53,128 @@ const defaultPreferences: NotificationPreferences = {
 
 export function NotificationsPage() {
   const { user } = useAuth()
+  const { socket, isConnected, connect, disconnect } = useWebSocket()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [preferences, setPreferences] = useState<NotificationPreferences>(defaultPreferences)
   const [activeTab, setActiveTab] = useState("notifications")
   const [prefLoading, setPrefLoading] = useState(false)
-  const canSend = user?.role === 'admin' || user?.role === 'partner'
+  const [canSend, setCanSend] = useState(false)
   const [sendForm, setSendForm] = useState({ audience: 'all', role: 'farmer', userId: '', type: 'system', title: '', message: '' })
   const [bulkForm, setBulkForm] = useState({ userIds: '', type: 'system', title: '', message: '' })
+  const [realTimeEnabled, setRealTimeEnabled] = useState(true)
+  const [pushSupported, setPushSupported] = useState(false)
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>('default')
+  const [notificationStats, setNotificationStats] = useState({
+    total: 0,
+    unread: 0,
+    today: 0,
+    thisWeek: 0
+  })
+
+  // Check push notification support
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      setPushSupported(true)
+      setPushPermission(Notification.permission)
+    }
+  }, [])
+
+  // WebSocket connection for real-time notifications
+  useEffect(() => {
+    if (realTimeEnabled && user && !isConnected) {
+      connect()
+    }
+
+    return () => {
+      if (isConnected) {
+        disconnect()
+      }
+    }
+  }, [realTimeEnabled, user, isConnected, connect, disconnect])
+
+  // Listen for real-time notifications
+  useEffect(() => {
+    if (!socket) return
+
+    const handleNewNotification = (data: any) => {
+      const newNotification: Notification = {
+        id: data.id || Date.now().toString(),
+        type: data.type || 'system',
+        title: data.title || 'New Notification',
+        message: data.message || '',
+        read: false,
+        createdAt: new Date().toISOString(),
+        actionUrl: data.actionUrl
+      }
+
+      setNotifications(prev => [newNotification, ...prev])
+      setNotificationStats(prev => ({
+        ...prev,
+        total: prev.total + 1,
+        unread: prev.unread + 1
+      }))
+
+      // Show browser notification if enabled
+      if (pushSupported && pushPermission === 'granted' && preferences.pushNotifications) {
+        new Notification(newNotification.title, {
+          body: newNotification.message,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag: newNotification.id
+        })
+      }
+
+      // Play notification sound if enabled
+      if (preferences.pushNotifications) {
+        playNotificationSound()
+      }
+    }
+
+    const handleNotificationUpdate = (data: any) => {
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif.id === data.id 
+            ? { ...notif, ...data }
+            : notif
+        )
+      )
+    }
+
+    socket.on('notification:new', handleNewNotification)
+    socket.on('notification:update', handleNotificationUpdate)
+
+    return () => {
+      socket.off('notification:new', handleNewNotification)
+      socket.off('notification:update', handleNotificationUpdate)
+    }
+  }, [socket, pushSupported, pushPermission, preferences.pushNotifications])
 
   // Fetch notifications from backend
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        // This would fetch user's notifications from backend
-        // For now, we'll start with empty state
-        console.log("Fetching notifications from backend...")
-        // TODO: Implement api.getNotifications() when backend endpoint is ready
+        const response = await api.get("/api/notifications")
+        if (response.success && response.data) {
+          const notifs = response.data.data || response.data
+          setNotifications(notifs)
+          
+          // Calculate stats
+          const total = notifs.length
+          const unread = notifs.filter((n: Notification) => !n.read).length
+          const today = notifs.filter((n: Notification) => {
+            const today = new Date()
+            const notifDate = new Date(n.createdAt)
+            return notifDate.toDateString() === today.toDateString()
+          }).length
+          const thisWeek = notifs.filter((n: Notification) => {
+            const weekAgo = new Date()
+            weekAgo.setDate(weekAgo.getDate() - 7)
+            const notifDate = new Date(n.createdAt)
+            return notifDate >= weekAgo
+          }).length
+
+          setNotificationStats({ total, unread, today, thisWeek })
+        }
       } catch (error) {
         console.error("Failed to fetch notifications:", error)
       }
@@ -216,6 +325,66 @@ export function NotificationsPage() {
     }
   }
 
+  const requestPushPermission = async () => {
+    try {
+      const permission = await Notification.requestPermission()
+      setPushPermission(permission)
+      
+      if (permission === 'granted') {
+        toast.success("Push notifications enabled!")
+        // Register service worker for push notifications
+        if ('serviceWorker' in navigator) {
+          try {
+            const registration = await navigator.serviceWorker.register('/sw.js')
+            console.log('Service Worker registered:', registration)
+          } catch (error) {
+            console.error('Service Worker registration failed:', error)
+          }
+        }
+      } else {
+        toast.error("Push notifications permission denied")
+      }
+    } catch (error) {
+      console.error("Failed to request push permission:", error)
+      toast.error("Failed to enable push notifications")
+    }
+  }
+
+  const playNotificationSound = () => {
+    try {
+      const audio = new Audio('/notification-sound.mp3')
+      audio.volume = 0.5
+      audio.play().catch(() => {
+        // Fallback: create a simple beep sound
+        const context = new (window.AudioContext || (window as any).webkitAudioContext)()
+        const oscillator = context.createOscillator()
+        const gainNode = context.createGain()
+        
+        oscillator.connect(gainNode)
+        gainNode.connect(context.destination)
+        
+        oscillator.frequency.value = 800
+        gainNode.gain.value = 0.1
+        
+        oscillator.start()
+        oscillator.stop(context.currentTime + 0.1)
+      })
+    } catch (error) {
+      console.log("Could not play notification sound")
+    }
+  }
+
+  const toggleRealTime = () => {
+    setRealTimeEnabled(!realTimeEnabled)
+    if (!realTimeEnabled) {
+      connect()
+      toast.success("Real-time notifications enabled")
+    } else {
+      disconnect()
+      toast.info("Real-time notifications disabled")
+    }
+  }
+
   return (
     <DashboardLayout user={user as any}>
       <div className="space-y-6">
@@ -225,15 +394,15 @@ export function NotificationsPage() {
             <h1 className="text-2xl font-heading font-bold text-foreground flex items-center">
               <Bell className="w-6 h-6 mr-2 text-primary" />
               Notifications
-              {unreadCount > 0 && (
+              {notificationStats.unread > 0 && (
                 <Badge variant="destructive" className="ml-2">
-                  {unreadCount}
+                  {notificationStats.unread}
                 </Badge>
               )}
             </h1>
             <p className="text-muted-foreground">Stay updated with your GroChain activities</p>
           </div>
-          {unreadCount > 0 && (
+          {notificationStats.unread > 0 && (
             <Button onClick={markAllAsRead} variant="outline">
               <Check className="w-4 h-4 mr-2" />
               Mark All Read
@@ -242,18 +411,22 @@ export function NotificationsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="notifications">
               Notifications
-              {unreadCount > 0 && (
+              {notificationStats.unread > 0 && (
                 <Badge variant="destructive" className="ml-2 text-xs">
-                  {unreadCount}
+                  {notificationStats.unread}
                 </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="preferences">
               <Settings className="w-4 h-4 mr-2" />
               Preferences
+            </TabsTrigger>
+            <TabsTrigger value="real-time" disabled={!canSend}>
+              <Wifi className="w-4 h-4 mr-2" />
+              Real-time
             </TabsTrigger>
             <TabsTrigger value="send" disabled={!canSend}>Send</TabsTrigger>
           </TabsList>
@@ -546,6 +719,126 @@ export function NotificationsPage() {
               </Card>
             </TabsContent>
           )}
+
+          <TabsContent value="real-time" className="space-y-6">
+            {/* Connection Status */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wifi className="w-5 h-5 text-primary" />
+                  Real-time Connection Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">WebSocket Connection</span>
+                  <div className="flex items-center gap-2">
+                    {isConnected ? (
+                      <div className="flex items-center gap-2 text-green-600">
+                        <Wifi className="w-4 h-4" />
+                        <span>Connected</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-red-600">
+                        <WifiOff className="w-4 h-4" />
+                        <span>Disconnected</span>
+                      </div>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleRealTime}
+                    >
+                      {realTimeEnabled ? 'Disable' : 'Enable'}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Push Notifications</span>
+                  <div className="flex items-center gap-2">
+                    {pushSupported ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {pushPermission === 'granted' ? 'Enabled' : 
+                           pushPermission === 'denied' ? 'Denied' : 'Not Requested'}
+                        </span>
+                        {pushPermission !== 'granted' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={requestPushPermission}
+                          >
+                            Enable
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Not Supported</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Notification Sound</span>
+                  <Switch
+                    checked={preferences.pushNotifications}
+                    onCheckedChange={(checked) => updatePreferences({ ...preferences, pushNotifications: checked })}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Real-time Statistics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Real-time Statistics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{notificationStats.total}</div>
+                    <p className="text-sm text-blue-700">Total</p>
+                  </div>
+                  <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                    <div className="text-2xl font-bold text-yellow-600">{notificationStats.unread}</div>
+                    <p className="text-sm text-yellow-700">Unread</p>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{notificationStats.today}</div>
+                    <p className="text-sm text-green-700">Today</p>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">{notificationStats.thisWeek}</div>
+                    <p className="text-sm text-purple-700">This Week</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Connection Log */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Connection Log</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <span>Last connected: {isConnected ? 'Now' : 'Unknown'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-muted-foreground" />
+                    <span>Real-time: {realTimeEnabled ? 'Enabled' : 'Disabled'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-muted-foreground" />
+                    <span>Push notifications: {pushPermission === 'granted' ? 'Enabled' : 'Disabled'}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>

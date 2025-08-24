@@ -1,459 +1,330 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
-import { Progress } from "@/components/ui/Progress"
-import {
-  Thermometer,
-  Droplets,
-  Wind,
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { 
+  Wifi, 
+  Activity, 
+  AlertTriangle, 
+  CheckCircle, 
+  Clock, 
+  Thermometer, 
+  Droplets, 
   Sun,
-  Wifi,
-  WifiOff,
-  AlertTriangle,
-  TrendingUp,
+  Battery,
+  Signal,
+  MapPin,
   Settings,
   Plus,
+  RefreshCw,
+  Loader2
 } from "lucide-react"
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { api } from "@/lib/api"
-import { useAuth } from "@/lib/auth-context"
-import Link from "next/link"
 
 interface Sensor {
   id: string
   name: string
-  type: "temperature" | "humidity" | "soil_moisture" | "ph" | "light"
+  type: 'temperature' | 'humidity' | 'soil_moisture' | 'light' | 'ph'
   location: string
-  status: "online" | "offline" | "warning"
-  lastReading: {
-    value: number
-    unit: string
-    timestamp: string
-  }
-  batteryLevel: number
+  status: 'online' | 'offline' | 'maintenance'
+  lastReading: number
+  unit: string
+  battery: number
+  signal: number
+  lastUpdate: string
+  alerts: string[]
 }
 
-interface SensorReading {
-  id: string
-  sensorId: string
-  value: number
+interface SensorData {
   timestamp: string
+  value: number
+  unit: string
 }
 
-const mockSensors: Sensor[] = [
-  {
-    id: "sensor_1",
-    name: "Temperature Sensor A",
-    type: "temperature",
-    location: "Field A - North Section",
-    status: "online",
-    lastReading: {
-      value: 28.5,
-      unit: "°C",
-      timestamp: "2025-01-16T10:30:00Z",
-    },
-    batteryLevel: 85,
-  },
-  {
-    id: "sensor_2",
-    name: "Soil Moisture B",
-    type: "soil_moisture",
-    location: "Field B - South Section",
-    status: "warning",
-    lastReading: {
-      value: 35,
-      unit: "%",
-      timestamp: "2025-01-16T10:25:00Z",
-    },
-    batteryLevel: 20,
-  },
-  {
-    id: "sensor_3",
-    name: "Humidity Monitor",
-    type: "humidity",
-    location: "Greenhouse 1",
-    status: "online",
-    lastReading: {
-      value: 65,
-      unit: "%",
-      timestamp: "2025-01-16T10:32:00Z",
-    },
-    batteryLevel: 92,
-  },
-  {
-    id: "sensor_4",
-    name: "pH Sensor C",
-    type: "ph",
-    location: "Field C - Center",
-    status: "offline",
-    lastReading: {
-      value: 6.8,
-      unit: "pH",
-      timestamp: "2025-01-15T18:45:00Z",
-    },
-    batteryLevel: 0,
-  },
-]
-
-const mockStats = {
-  totalSensors: 12,
-  onlineSensors: 9,
-  alertsCount: 3,
-  avgBattery: 74,
-}
-
-export function IoTDashboard() {
-  const { user } = useAuth()
+const IoTDashboard = () => {
   const [sensors, setSensors] = useState<Sensor[]>([])
+  const [selectedSensor, setSelectedSensor] = useState<Sensor | null>(null)
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
-  const [stats, setStats] = useState(mockStats)
-  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true)
-        const resp = await api.getSensors()
-        if (resp.success && resp.data) {
-          const list: any[] = ((resp.data as any).data || resp.data) as any[]
-          const mapped: Sensor[] = list.map((s: any) => ({
-            id: s._id || s.id,
-            name: s.metadata?.model || s.sensorId || 'Sensor',
-            type: (s.sensorType === 'soil' ? 'soil_moisture' : s.sensorType) as Sensor['type'],
-            location: `${s.location?.latitude ?? ''}, ${s.location?.longitude ?? ''}`,
-            status: (s.status === 'active' ? 'online' : (s.status === 'inactive' ? 'offline' : 'warning')) as Sensor['status'],
-            lastReading: { value: s.readings?.[s.readings.length-1]?.value ?? 0, unit: s.readings?.[s.readings.length-1]?.unit ?? '', timestamp: s.readings?.[s.readings.length-1]?.timestamp ?? new Date().toISOString() },
-            batteryLevel: s.batteryLevel ?? 100,
-          }))
-          setSensors(mapped)
-          setStats({
-            totalSensors: mapped.length,
-            onlineSensors: mapped.filter(x=> x.status==='online').length,
-            alertsCount: 0,
-            avgBattery: Math.round(mapped.reduce((a,b)=> a + (b.batteryLevel||0),0)/Math.max(mapped.length,1)),
-          })
-        }
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
+    fetchSensorData()
   }, [])
 
-  const getSensorIcon = (type: Sensor["type"]) => {
+  const fetchSensorData = async () => {
+    try {
+      setLoading(true)
+      // Mock data for now
+      const mockSensors: Sensor[] = [
+        {
+          id: "1",
+          name: "Tomato Field Sensor 1",
+          type: "temperature",
+          location: "Lagos Farm A",
+          status: "online",
+          lastReading: 28.5,
+          unit: "°C",
+          battery: 85,
+          signal: 92,
+          lastUpdate: "2025-01-15T10:30:00Z",
+          alerts: []
+        },
+        {
+          id: "2",
+          name: "Rice Field Humidity",
+          type: "humidity",
+          location: "Kano Farm B",
+          status: "online",
+          lastReading: 65,
+          unit: "%",
+          battery: 72,
+          signal: 88,
+          lastUpdate: "2025-01-15T10:25:00Z",
+          alerts: []
+        },
+        {
+          id: "3",
+          name: "Yam Field Soil",
+          type: "soil_moisture",
+          location: "Enugu Farm C",
+          status: "maintenance",
+          lastReading: 45,
+          unit: "%",
+          battery: 23,
+          signal: 45,
+          lastUpdate: "2025-01-15T09:15:00Z",
+          alerts: ["Low battery", "Weak signal"]
+        }
+      ]
+      setSensors(mockSensors)
+    } catch (error) {
+      console.error("Failed to fetch sensor data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getSensorIcon = (type: string) => {
     switch (type) {
-      case "temperature":
-        return <Thermometer className="w-5 h-5 text-orange-500" />
-      case "humidity":
-        return <Droplets className="w-5 h-5 text-blue-500" />
-      case "soil_moisture":
-        return <Droplets className="w-5 h-5 text-brown-500" />
-      case "ph":
-        return <Wind className="w-5 h-5 text-purple-500" />
-      case "light":
-        return <Sun className="w-5 h-5 text-yellow-500" />
+      case 'temperature':
+        return <Thermometer className="w-5 h-5" />
+      case 'humidity':
+        return <Droplets className="w-5 h-5" />
+      case 'soil_moisture':
+        return <Sun className="w-5 h-5" />
+      case 'light':
+        return <Sun className="w-5 h-5" />
+      case 'ph':
+        return <Activity className="w-5 h-5" />
       default:
-        return <Settings className="w-5 h-5 text-muted-foreground" />
+        return <Wifi className="w-5 h-5" />
     }
   }
 
-  const getStatusIcon = (status: Sensor["status"]) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case "online":
-        return <Wifi className="w-4 h-4 text-success" />
-      case "offline":
-        return <WifiOff className="w-4 h-4 text-destructive" />
-      case "warning":
-        return <AlertTriangle className="w-4 h-4 text-warning" />
+      case 'online':
+        return 'bg-green-100 text-green-800'
+      case 'offline':
+        return 'bg-red-100 text-red-800'
+      case 'maintenance':
+        return 'bg-yellow-100 text-yellow-800'
       default:
-        return <WifiOff className="w-4 h-4 text-muted-foreground" />
-    }
-  }
-
-  const getStatusBadge = (status: Sensor["status"]) => {
-    switch (status) {
-      case "online":
-        return <Badge variant="default">Online</Badge>
-      case "offline":
-        return <Badge variant="destructive">Offline</Badge>
-      case "warning":
-        return <Badge variant="secondary">Warning</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
   const getBatteryColor = (level: number) => {
-    if (level > 50) return "text-success"
-    if (level > 20) return "text-warning"
-    return "text-destructive"
+    if (level > 60) return 'text-green-600'
+    if (level > 30) return 'text-yellow-600'
+    return 'text-red-600'
+  }
+
+  const getSignalColor = (level: number) => {
+    if (level > 80) return 'text-green-600'
+    if (level > 50) return 'text-yellow-600'
+    return 'text-red-600'
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
-    <DashboardLayout user={user as any}>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">IoT Dashboard</h1>
-            <p className="text-muted-foreground">Monitor your farm sensors and environmental conditions</p>
-          </div>
-          <div className="flex gap-2">
-            <Link href="/iot/sensors">
-              <Button variant="outline" size="lg" className="bg-transparent">
-                <Settings className="w-4 h-4 mr-2" />
-                Manage Sensors
-              </Button>
-            </Link>
-            <Button size="lg">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Sensor
-            </Button>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-foreground">IoT Dashboard</h1>
+          <p className="text-muted-foreground">Monitor and manage IoT sensors across all farms</p>
         </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="sensors">Sensors</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-              >
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Total Sensors</p>
-                        <p className="text-2xl font-bold text-foreground">{stats.totalSensors}</p>
-                      </div>
-                      <Settings className="w-8 h-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Online</p>
-                        <p className="text-2xl font-bold text-foreground">{stats.onlineSensors}</p>
-                      </div>
-                      <Wifi className="w-8 h-8 text-success" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Alerts</p>
-                        <p className="text-2xl font-bold text-foreground">{stats.alertsCount}</p>
-                      </div>
-                      <AlertTriangle className="w-8 h-8 text-warning" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Avg Battery</p>
-                        <p className="text-2xl font-bold text-foreground">{stats.avgBattery}%</p>
-                      </div>
-                      <TrendingUp className="w-8 h-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </div>
-
-            {/* Current Conditions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Current Environmental Conditions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div className="text-center">
-                    <Thermometer className="w-12 h-12 text-orange-500 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-foreground">28.5°C</p>
-                    <p className="text-sm text-muted-foreground">Temperature</p>
-                  </div>
-                  <div className="text-center">
-                    <Droplets className="w-12 h-12 text-blue-500 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-foreground">65%</p>
-                    <p className="text-sm text-muted-foreground">Humidity</p>
-                  </div>
-                  <div className="text-center">
-                    <Droplets className="w-12 h-12 text-brown-500 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-foreground">35%</p>
-                    <p className="text-sm text-muted-foreground">Soil Moisture</p>
-                  </div>
-                  <div className="text-center">
-                    <Wind className="w-12 h-12 text-purple-500 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-foreground">6.8</p>
-                    <p className="text-sm text-muted-foreground">pH Level</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Alerts */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <AlertTriangle className="w-5 h-5 mr-2 text-warning" />
-                  Recent Alerts
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border border-warning/20 bg-warning/5 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <AlertTriangle className="w-5 h-5 text-warning" />
-                      <div>
-                        <h4 className="font-medium text-foreground">Low Battery Warning</h4>
-                        <p className="text-sm text-muted-foreground">Soil Moisture B - Battery at 20%</p>
-                      </div>
-                    </div>
-                    <Badge variant="secondary">2 hours ago</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 border border-destructive/20 bg-destructive/5 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <WifiOff className="w-5 h-5 text-destructive" />
-                      <div>
-                        <h4 className="font-medium text-foreground">Sensor Offline</h4>
-                        <p className="text-sm text-muted-foreground">pH Sensor C - No data received</p>
-                      </div>
-                    </div>
-                    <Badge variant="destructive">5 hours ago</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 border border-info/20 bg-info/5 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Droplets className="w-5 h-5 text-info" />
-                      <div>
-                        <h4 className="font-medium text-foreground">Soil Moisture Low</h4>
-                        <p className="text-sm text-muted-foreground">Field A - Consider irrigation</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline">1 day ago</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="sensors" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {sensors.map((sensor, index) => (
-                <motion.div
-                  key={sensor.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                >
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          {getSensorIcon(sensor.type)}
-                          <div>
-                            <CardTitle className="text-lg">{sensor.name}</CardTitle>
-                            <p className="text-sm text-muted-foreground">{sensor.location}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(sensor.status)}
-                          {getStatusBadge(sensor.status)}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-2xl font-bold text-foreground">
-                            {sensor.lastReading.value}
-                            {sensor.lastReading.unit}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Last reading: {new Date(sensor.lastReading.timestamp).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Battery Level</span>
-                          <span className={getBatteryColor(sensor.batteryLevel)}>{sensor.batteryLevel}%</span>
-                        </div>
-                        <Progress value={sensor.batteryLevel} className="h-2" />
-                      </div>
-
-                      <div className="flex justify-end gap-2">
-                        <Link href={`/iot/sensors/${sensor.id}`}>
-                          <Button variant="outline" size="sm">View</Button>
-                        </Link>
-                        <Button variant="ghost" size="sm">
-                          <Settings className="w-4 h-4 mr-2" />
-                          Configure
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="analytics">
-            <Card>
-              <CardHeader>
-                <CardTitle>Sensor Analytics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Detailed sensor analytics and historical data visualization will be implemented in the next phase.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchSensorData} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Sensor
+          </Button>
+        </div>
       </div>
-    </DashboardLayout>
+
+      {/* Stats Overview */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Sensors</p>
+                <p className="text-2xl font-bold text-foreground">{sensors.length}</p>
+              </div>
+              <Wifi className="h-8 w-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Online</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {sensors.filter(s => s.status === 'online').length}
+                </p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Alerts</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {sensors.reduce((sum, s) => sum + s.alerts.length, 0)}
+                </p>
+              </div>
+              <AlertTriangle className="h-8 w-8 text-orange-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Avg Battery</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {Math.round(sensors.reduce((sum, s) => sum + s.battery, 0) / sensors.length)}%
+                </p>
+              </div>
+              <Battery className="h-8 w-8 text-purple-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="sensors">Sensors</TabsTrigger>
+          <TabsTrigger value="alerts">Alerts</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {sensors.map((sensor) => (
+              <Card key={sensor.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm">{sensor.name}</CardTitle>
+                    <Badge className={getStatusColor(sensor.status)}>
+                      {sensor.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      {getSensorIcon(sensor.type)}
+                      <span className="text-sm text-muted-foreground">{sensor.type.replace('_', ' ')}</span>
+                    </div>
+                    
+                    <div className="text-center">
+                      <p className="text-2xl font-bold">{sensor.lastReading}</p>
+                      <p className="text-sm text-muted-foreground">{sensor.unit}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="flex items-center gap-1">
+                        <Battery className={`w-3 h-3 ${getBatteryColor(sensor.battery)}`} />
+                        <span>{sensor.battery}%</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Signal className={`w-3 h-3 ${getSignalColor(sensor.signal)}`} />
+                        <span>{sensor.signal}%</span>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {sensor.location}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {new Date(sensor.lastUpdate).toLocaleTimeString()}
+                      </div>
+                    </div>
+
+                    {sensor.alerts.length > 0 && (
+                      <div className="pt-2 border-t">
+                        <p className="text-xs text-orange-600 font-medium">Alerts:</p>
+                        {sensor.alerts.map((alert, index) => (
+                          <p key={index} className="text-xs text-orange-600">• {alert}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="sensors" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sensor Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Detailed sensor management features coming soon...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="alerts" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>System Alerts</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Alert management features coming soon...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }
+
+export { IoTDashboard }

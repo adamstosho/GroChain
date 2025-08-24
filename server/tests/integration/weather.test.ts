@@ -97,9 +97,10 @@ describe('Weather API Integration Tests', () => {
           country: 'Nigeria',
           days: 5
         })
-        .expect(500); // Will fail due to missing API keys, but tests parameter validation
+        .expect(200); // Now returns mock data in test mode
 
-      expect(res.body.status).toBe('error');
+      expect(res.body.status).toBe('success');
+      expect(res.body.data).toBeDefined();
     });
   });
 
@@ -253,36 +254,52 @@ describe('Weather API Integration Tests', () => {
 
       const validWeatherData = {
         location: {
-          name: 'Jos',
+          lat: 9.0820,
+          lng: 8.6753,
+          city: 'Jos',
           state: 'Plateau',
-          country: 'Nigeria',
-          coordinates: {
-            lat: 9.0820,
-            lng: 8.6753
-          }
+          country: 'Nigeria'
         },
         current: {
-          temp_c: 25,
-          temp_f: 77,
-          condition: {
-            text: 'Partly cloudy',
-            icon: '116'
-          },
-          wind_kph: 15,
-          humidity: 65,
-          pressure_mb: 1013,
-          uv: 8
+          temperature: 25,
+          humidity: 60,
+          windSpeed: 5,
+          windDirection: 'S',
+          pressure: 1013,
+          visibility: 10,
+          uvIndex: 5,
+          weatherCondition: 'Clear',
+          weatherIcon: '01d',
+          feelsLike: 26,
+          dewPoint: 16,
+          cloudCover: 20
         },
-        agriculturalRisk: 'low',
-        recommendations: ['Suitable for most crops', 'Monitor soil moisture']
+        forecast: [],
+        alerts: [],
+        agricultural: {
+          soilMoisture: 75,
+          soilTemperature: 25,
+          growingDegreeDays: 15,
+          frostRisk: 'low',
+          droughtIndex: 30,
+          pestRisk: 'medium',
+          plantingRecommendation: 'Optimal conditions for most crops',
+          irrigationAdvice: 'Normal conditions. Follow standard irrigation schedule.'
+        },
+        metadata: {
+          source: 'OpenWeather API + Agricultural Analysis',
+          lastUpdated: new Date(),
+          dataQuality: 'high',
+          nextUpdate: new Date(Date.now() + 30 * 60 * 1000)
+        }
       };
 
       const weatherData = new WeatherData(validWeatherData);
       const savedData = await weatherData.save();
 
       expect(savedData._id).toBeDefined();
-      expect(savedData.location.name).toBe('Jos');
-      expect(savedData.agriculturalRisk).toBe('low');
+      expect(savedData.location.city).toBe('Jos');
+      expect(savedData.agricultural.frostRisk).toBe('low');
 
       // Clean up
       await WeatherData.findByIdAndDelete(savedData._id);

@@ -1,104 +1,52 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Progress } from "@/components/ui/Progress"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Brain, 
-  TrendingUp, 
   Lightbulb, 
+  TrendingUp, 
   Target, 
-  Calendar, 
-  MapPin, 
-  Leaf, 
-  Droplets, 
-  Sun, 
-  Thermometer,
-  BarChart3,
-  CheckCircle,
+  Clock, 
+  CheckCircle, 
   AlertTriangle,
   Loader2,
   RefreshCw,
-  Zap,
-  Clock,
-  DollarSign,
-  Users,
-  Globe
+  Download,
+  Upload,
+  Settings
 } from "lucide-react"
-import { api } from "@/lib/api"
-import { toast } from "sonner"
 
 interface Recommendation {
   id: string
-  type: 'crop_selection' | 'irrigation' | 'fertilizer' | 'pest_control' | 'harvest_timing' | 'market_timing'
+  type: 'crop_selection' | 'fertilizer' | 'irrigation' | 'pest_control' | 'harvest_timing'
   title: string
   description: string
   confidence: number
-  priority: 'high' | 'medium' | 'low'
   impact: 'high' | 'medium' | 'low'
-  implementationTime: string
-  estimatedCost: number
-  expectedBenefit: number
-  category: string
+  status: 'implemented' | 'pending' | 'rejected'
   createdAt: string
+  farmerId: string
+  farmerName: string
+  estimatedBenefit: string
 }
 
-interface CropRecommendation {
-  cropName: string
-  variety: string
-  plantingSeason: string
-  expectedYield: number
-  marketPrice: number
-  confidence: number
-  reasons: string[]
-  risks: string[]
-  alternatives: string[]
+interface RecommendationStats {
+  totalRecommendations: number
+  implementedCount: number
+  pendingCount: number
+  averageConfidence: number
+  totalBenefit: string
 }
 
-interface MarketInsight {
-  cropName: string
-  currentPrice: number
-  priceTrend: 'rising' | 'falling' | 'stable'
-  demandLevel: 'high' | 'medium' | 'low'
-  supplyLevel: 'high' | 'medium' | 'low'
-  bestSellingTime: string
-  marketSize: number
-  competition: 'low' | 'medium' | 'high'
-  exportPotential: boolean
-}
-
-interface WeatherRecommendation {
-  location: string
-  forecast: string
-  recommendations: string[]
-  risks: string[]
-  preparationSteps: string[]
-  timeline: string
-}
-
-export function AIRecommendationSystem() {
+const AIRecommendationSystem = () => {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-  const [cropRecommendations, setCropRecommendations] = useState<CropRecommendation[]>([])
-  const [marketInsights, setMarketInsights] = useState<MarketInsight[]>([])
-  const [weatherRecommendations, setWeatherRecommendations] = useState<WeatherRecommendation[]>([])
-  const [loading, setLoading] = useState(false)
+  const [stats, setStats] = useState<RecommendationStats | null>(null)
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
-  
-  // Form states
-  const [location, setLocation] = useState("")
-  const [soilType, setSoilType] = useState("")
-  const [climate, setClimate] = useState("")
-  const [farmSize, setFarmSize] = useState("")
-  const [experience, setExperience] = useState("")
-  const [budget, setBudget] = useState("")
-  const [cropInterest, setCropInterest] = useState("")
 
   useEffect(() => {
     fetchRecommendations()
@@ -107,145 +55,115 @@ export function AIRecommendationSystem() {
   const fetchRecommendations = async () => {
     try {
       setLoading(true)
-      
-      // TODO: Replace with actual API calls when backend endpoints are implemented
-      // const [recsRes, cropsRes, marketRes, weatherRes] = await Promise.all([
-      //   api.get("/api/ai/recommendations"),
-      //   api.get("/api/ai/crop-recommendations"),
-      //   api.get("/api/ai/market-insights"),
-      //   api.get("/api/ai/weather-recommendations")
-      // ])
-
-      // For now, use mock data
-      const mockRecommendations = [
+      // Mock data for now
+      const mockRecommendations: Recommendation[] = [
         {
-          id: "rec_001",
+          id: "1",
           type: "crop_selection",
-          title: "Optimal Crop Selection",
-          description: "Based on your soil type and climate, consider planting cassava and yam this season",
-          confidence: 92,
-          priority: "high",
+          title: "Switch to Drought-Resistant Varieties",
+          description: "Based on weather patterns, consider planting drought-resistant rice varieties for better yield stability.",
+          confidence: 94.2,
           impact: "high",
-          category: "crop_planning"
-        }
-      ]
-      
-      const mockCropRecommendations = [
+          status: "implemented",
+          createdAt: "2025-01-15T10:00:00Z",
+          farmerId: "farmer1",
+          farmerName: "Adunni Adebayo",
+          estimatedBenefit: "25% yield increase"
+        },
         {
-          id: "crop_001",
-          name: "Cassava",
-          confidence: 95,
-          reasons: ["Drought resistant", "High yield potential", "Good market demand"],
-          season: "Year-round",
-          expectedYield: "25-30 tons/ha"
-        }
-      ]
-      
-      const mockMarketInsights = [
+          id: "2",
+          type: "fertilizer",
+          title: "Optimize NPK Application",
+          description: "Soil analysis shows optimal NPK ratio should be 15:15:15 for current crop stage.",
+          confidence: 89.7,
+          impact: "medium",
+          status: "pending",
+          createdAt: "2025-01-14T14:30:00Z",
+          farmerId: "farmer2",
+          farmerName: "Ibrahim Okafor",
+          estimatedBenefit: "15% cost reduction"
+        },
         {
-          id: "market_001",
-          crop: "Tomatoes",
-          price: 450,
-          trend: "rising",
-          demand: "high",
-          supply: "moderate",
-          recommendation: "Consider increasing production"
+          id: "3",
+          type: "irrigation",
+          title: "Implement Drip Irrigation",
+          description: "Water usage analysis suggests drip irrigation could reduce water consumption by 40%.",
+          confidence: 91.3,
+          impact: "high",
+          status: "pending",
+          createdAt: "2025-01-13T09:15:00Z",
+          farmerId: "farmer3",
+          farmerName: "Choma Ezeh",
+          estimatedBenefit: "40% water savings"
         }
       ]
-      
-      const mockWeatherRecommendations = [
-        {
-          id: "weather_001",
-          location: "Lagos",
-          forecast: "Moderate rainfall expected",
-          recommendation: "Prepare for planting season",
-          risk: "low"
-        }
-      ]
+
+      const mockStats: RecommendationStats = {
+        totalRecommendations: mockRecommendations.length,
+        implementedCount: mockRecommendations.filter(r => r.status === 'implemented').length,
+        pendingCount: mockRecommendations.filter(r => r.status === 'pending').length,
+        averageConfidence: Math.round(mockRecommendations.reduce((sum, r) => sum + r.confidence, 0) / mockRecommendations.length),
+        totalBenefit: "₦2.5M estimated savings"
+      }
 
       setRecommendations(mockRecommendations)
-      setCropRecommendations(mockCropRecommendations)
-      setMarketInsights(mockMarketInsights)
-      setWeatherRecommendations(mockWeatherRecommendations)
+      setStats(mockStats)
     } catch (error) {
       console.error("Failed to fetch recommendations:", error)
-      toast.error("Failed to load AI recommendations")
     } finally {
       setLoading(false)
     }
   }
 
-  const generatePersonalizedRecommendations = async () => {
-    if (!location || !soilType || !climate || !farmSize) {
-      toast.error("Please fill in all required fields")
-      return
-    }
-
-    try {
-      setLoading(true)
-      
-      // TODO: Replace with actual API call when backend endpoint is implemented
-      // const response = await api.post("/api/ai/personalized-recommendations", {
-      //   location,
-      //   soilType,
-      //   climate,
-      //   farmSize: parseFloat(farmSize),
-      //   experience,
-      //   budget: parseFloat(budget),
-      //   cropInterest
-      // })
-
-      // For now, simulate successful generation
-      toast.success("Personalized recommendations generated successfully!")
-      
-      // Generate mock personalized recommendations
-      const personalizedRecs = [
-        {
-          id: "personal_001",
-          type: "crop_selection",
-          title: "Personalized Crop Plan",
-          description: `Based on your ${farmSize} hectare farm in ${location} with ${soilType} soil and ${climate} climate`,
-          confidence: 88,
-          priority: "high",
-          impact: "high",
-          category: "personalized"
-        }
-      ]
-      
-      setRecommendations(prev => [...personalizedRecs, ...prev])
-    } catch (error) {
-      console.error("Failed to generate recommendations:", error)
-      toast.error("Failed to generate personalized recommendations")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high": return "text-red-600"
-      case "medium": return "text-yellow-600"
-      case "low": return "text-green-600"
-      default: return "text-gray-600"
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'crop_selection':
+        return <Target className="w-5 h-5" />
+      case 'fertilizer':
+        return <TrendingUp className="w-5 h-5" />
+      case 'irrigation':
+        return <Lightbulb className="w-5 h-5" />
+      case 'pest_control':
+        return <AlertTriangle className="w-5 h-5" />
+      case 'harvest_timing':
+        return <Clock className="w-5 h-5" />
+      default:
+        return <Brain className="w-5 h-5" />
     }
   }
 
   const getImpactColor = (impact: string) => {
     switch (impact) {
-      case "high": return "bg-blue-100 text-blue-800"
-      case "medium": return "bg-yellow-100 text-yellow-800"
-      case "low": return "bg-green-100 text-green-800"
-      default: return "bg-gray-100 text-gray-800"
+      case 'high':
+        return 'bg-red-100 text-red-800'
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'low':
+        return 'bg-green-100 text-green-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
-  const getPriceTrendIcon = (trend: string) => {
-    switch (trend) {
-      case "rising": return <TrendingUp className="w-4 h-4 text-green-600" />
-      case "falling": return <TrendingUp className="w-4 h-4 text-red-600 transform rotate-180" />
-      case "stable": return <BarChart3 className="w-4 h-4 text-blue-600" />
-      default: return <BarChart3 className="w-4 h-4 text-gray-600" />
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'implemented':
+        return 'bg-green-100 text-green-800'
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'rejected':
+        return 'bg-red-100 text-red-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -253,474 +171,172 @@ export function AIRecommendationSystem() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold">AI Recommendation System</h2>
-          <p className="text-muted-foreground">
-            Get personalized AI-powered recommendations for your farming operations
-          </p>
+          <h1 className="text-2xl font-heading font-bold text-foreground">AI Recommendation System</h1>
+          <p className="text-muted-foreground">Smart farming recommendations powered by AI and data analysis</p>
         </div>
-        <Button onClick={fetchRecommendations} disabled={loading} variant="outline">
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Input Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Generate Personalized Recommendations</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="location">Location *</Label>
-              <Input
-                id="location"
-                placeholder="e.g., Lagos, Nigeria"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="soilType">Soil Type *</Label>
-              <Select value={soilType} onValueChange={setSoilType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select soil type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="loamy">Loamy</SelectItem>
-                  <SelectItem value="clay">Clay</SelectItem>
-                  <SelectItem value="sandy">Sandy</SelectItem>
-                  <SelectItem value="silt">Silt</SelectItem>
-                  <SelectItem value="peat">Peat</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="climate">Climate *</Label>
-              <Select value={climate} onValueChange={setClimate}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select climate" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tropical">Tropical</SelectItem>
-                  <SelectItem value="subtropical">Subtropical</SelectItem>
-                  <SelectItem value="temperate">Temperate</SelectItem>
-                  <SelectItem value="arid">Arid</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="farmSize">Farm Size (acres) *</Label>
-              <Input
-                id="farmSize"
-                type="number"
-                placeholder="e.g., 10"
-                value={farmSize}
-                onChange={(e) => setFarmSize(e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="experience">Farming Experience</Label>
-              <Select value={experience} onValueChange={setExperience}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select experience level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="beginner">Beginner (0-2 years)</SelectItem>
-                  <SelectItem value="intermediate">Intermediate (3-5 years)</SelectItem>
-                  <SelectItem value="advanced">Advanced (5+ years)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="budget">Budget (₦)</Label>
-              <Input
-                id="budget"
-                type="number"
-                placeholder="e.g., 500000"
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-              />
-            </div>
-          </div>
-          
-          <div className="mt-4">
-            <Label htmlFor="cropInterest">Crop of Interest</Label>
-            <Input
-              id="cropInterest"
-              placeholder="e.g., Tomatoes, Yam, Cassava"
-              value={cropInterest}
-              onChange={(e) => setCropInterest(e.target.value)}
-            />
-          </div>
-          
-          <Button 
-            onClick={generatePersonalizedRecommendations} 
-            disabled={loading || !location || !soilType || !climate || !farmSize}
-            className="mt-4"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Brain className="w-4 h-4 mr-2" />
-                Generate Recommendations
-              </>
-            )}
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchRecommendations} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
           </Button>
-        </CardContent>
-      </Card>
-
-      {/* Tabs */}
-      <div className="space-y-4">
-        <div className="flex space-x-2 border-b">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`px-4 py-2 font-medium ${
-              activeTab === "overview" 
-                ? "border-b-2 border-primary text-primary" 
-                : "text-muted-foreground"
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab("crops")}
-            className={`px-4 py-2 font-medium ${
-              activeTab === "crops" 
-                ? "border-b-2 border-primary text-primary" 
-                : "text-muted-foreground"
-            }`}
-          >
-            Crop Recommendations
-          </button>
-          <button
-            onClick={() => setActiveTab("market")}
-            className={`px-4 py-2 font-medium ${
-              activeTab === "market" 
-                ? "border-b-2 border-primary text-primary" 
-                : "text-muted-foreground"
-            }`}
-          >
-            Market Insights
-          </button>
-          <button
-            onClick={() => setActiveTab("weather")}
-            className={`px-4 py-2 font-medium ${
-              activeTab === "weather" 
-                ? "border-b-2 border-primary text-primary" 
-                : "text-muted-foreground"
-            }`}
-          >
-            Weather & Climate
-          </button>
+          <Button>
+            <Upload className="w-4 h-4 mr-2" />
+            Generate New
+          </Button>
         </div>
-
-        {/* Overview Tab */}
-        {activeTab === "overview" && (
-          <div className="space-y-6">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Total Recommendations</p>
-                      <p className="text-2xl font-bold">{recommendations.length}</p>
-                    </div>
-                    <Brain className="w-8 h-8 text-primary" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">High Priority</p>
-                      <p className="text-2xl font-bold text-red-600">
-                        {recommendations.filter(r => r.priority === 'high').length}
-                      </p>
-                    </div>
-                    <AlertTriangle className="w-8 h-8 text-red-600" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">High Impact</p>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {recommendations.filter(r => r.impact === 'high').length}
-                      </p>
-                    </div>
-                    <Zap className="w-8 h-8 text-blue-600" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Avg Confidence</p>
-                      <p className="text-2xl font-bold text-green-600">
-                        {recommendations.length > 0 
-                          ? Math.round(recommendations.reduce((acc, r) => acc + r.confidence, 0) / recommendations.length)
-                          : 0}%
-                      </p>
-                    </div>
-                    <Target className="w-8 h-8 text-green-600" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Recent Recommendations */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent AI Recommendations</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recommendations.slice(0, 5).map((rec, index) => (
-                    <motion.div
-                      key={rec.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.1 }}
-                      className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-medium">{rec.title}</h4>
-                          <Badge className={getImpactColor(rec.impact)}>
-                            {rec.impact} Impact
-                          </Badge>
-                          <Badge variant="outline" className={getPriorityColor(rec.priority)}>
-                            {rec.priority} Priority
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">{rec.description}</p>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span>Confidence: {rec.confidence}%</span>
-                          <span>Implementation: {rec.implementationTime}</span>
-                          <span>Cost: ₦{rec.estimatedCost.toLocaleString()}</span>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        View Details
-                      </Button>
-                    </motion.div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Crop Recommendations Tab */}
-        {activeTab === "crops" && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {cropRecommendations.map((crop, index) => (
-                <motion.div
-                  key={crop.cropName}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                >
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{crop.cropName}</CardTitle>
-                        <Badge variant="outline">{crop.variety}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Expected Yield</span>
-                          <span className="font-medium">{crop.expectedYield} tons/ha</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Market Price</span>
-                          <span className="font-medium">₦{crop.marketPrice.toLocaleString()}/kg</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Confidence</span>
-                          <span className="font-medium">{crop.confidence}%</span>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Planting Season</p>
-                        <p className="text-sm text-muted-foreground">{crop.plantingSeason}</p>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Key Reasons</p>
-                        <ul className="text-sm text-muted-foreground space-y-1">
-                          {crop.reasons.slice(0, 3).map((reason, idx) => (
-                            <li key={idx} className="flex items-start">
-                              <CheckCircle className="w-3 h-3 mr-2 mt-0.5 text-green-600 flex-shrink-0" />
-                              <span>{reason}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      
-                      <Button variant="outline" size="sm" className="w-full">
-                        View Full Analysis
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Market Insights Tab */}
-        {activeTab === "market" && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {marketInsights.map((insight, index) => (
-                <motion.div
-                  key={insight.cropName}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                >
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{insight.cropName}</CardTitle>
-                        {getPriceTrendIcon(insight.priceTrend)}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Current Price</span>
-                          <span className="font-medium">₦{insight.currentPrice.toLocaleString()}/kg</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Price Trend</span>
-                          <Badge variant="outline" className="capitalize">
-                            {insight.priceTrend}
-                          </Badge>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Demand Level</span>
-                          <Badge variant="outline" className="capitalize">
-                            {insight.demandLevel}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Best Selling Time</p>
-                        <p className="text-sm text-muted-foreground">{insight.bestSellingTime}</p>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Market Analysis</p>
-                        <div className="flex items-center gap-2 text-sm">
-                          <span>Market Size:</span>
-                          <Badge variant="outline">₦{insight.marketSize.toLocaleString()}M</Badge>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <span>Competition:</span>
-                          <Badge variant="outline" className="capitalize">{insight.competition}</Badge>
-                        </div>
-                        {insight.exportPotential && (
-                          <Badge className="bg-green-100 text-green-800">
-                            Export Potential
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      <Button variant="outline" size="sm" className="w-full">
-                        View Market Report
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Weather Tab */}
-        {activeTab === "weather" && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {weatherRecommendations.map((weather, index) => (
-                <motion.div
-                  key={weather.location}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                >
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{weather.location}</CardTitle>
-                        <Badge variant="outline">{weather.timeline}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Weather Forecast</p>
-                        <p className="text-sm text-muted-foreground">{weather.forecast}</p>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Recommendations</p>
-                        <ul className="text-sm text-muted-foreground space-y-1">
-                          {weather.recommendations.slice(0, 3).map((rec, idx) => (
-                            <li key={idx} className="flex items-start">
-                              <CheckCircle className="w-3 h-3 mr-2 mt-0.5 text-green-600 flex-shrink-0" />
-                              <span>{rec}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Preparation Steps</p>
-                        <ul className="text-sm text-muted-foreground space-y-1">
-                          {weather.preparationSteps.slice(0, 2).map((step, idx) => (
-                            <li key={idx} className="flex items-start">
-                              <Clock className="w-3 h-3 mr-2 mt-0.5 text-blue-600 flex-shrink-0" />
-                              <span>{step}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      
-                      <Button variant="outline" size="sm" className="w-full">
-                        View Full Forecast
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Stats Overview */}
+      {stats && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Recommendations</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.totalRecommendations}</p>
+                </div>
+                <Brain className="h-8 w-8 text-blue-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Implemented</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.implementedCount}</p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.pendingCount}</p>
+                </div>
+                <Clock className="h-8 w-8 text-yellow-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Avg Confidence</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.averageConfidence}%</p>
+                </div>
+                <Target className="h-8 w-8 text-purple-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="recommendations">All Recommendations</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {recommendations.map((recommendation) => (
+              <Card key={recommendation.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm">{recommendation.title}</CardTitle>
+                    <Badge className={getStatusColor(recommendation.status)}>
+                      {recommendation.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      {getTypeIcon(recommendation.type)}
+                      <span className="text-sm text-muted-foreground">{recommendation.type.replace('_', ' ')}</span>
+                    </div>
+                    
+                    <p className="text-sm text-muted-foreground">{recommendation.description}</p>
+
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Confidence</p>
+                        <p className="font-semibold">{recommendation.confidence}%</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Impact</p>
+                        <Badge className={getImpactColor(recommendation.impact)}>
+                          {recommendation.impact}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {new Date(recommendation.createdAt).toLocaleDateString()}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" />
+                        {recommendation.estimatedBenefit}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground mb-1">Farmer:</p>
+                      <p className="text-sm font-medium">{recommendation.farmerName}</p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="flex-1">
+                        <Settings className="w-3 h-3 mr-1" />
+                        Configure
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1">
+                        <Download className="w-3 h-3 mr-1" />
+                        Export
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="recommendations" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recommendation Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Detailed recommendation management features coming soon...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recommendation Analytics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Analytics and reporting features coming soon...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
+
+export { AIRecommendationSystem }

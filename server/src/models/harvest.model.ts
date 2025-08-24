@@ -8,6 +8,15 @@ export interface IHarvest extends Document {
   geoLocation: { lat: number; lng: number };
   batchId: string;
   qrData: string;
+  status: 'pending' | 'verified' | 'rejected' | 'approved';
+  verifiedBy?: mongoose.Types.ObjectId;
+  verifiedAt?: Date;
+  rejectionReason?: string;
+  quality: 'excellent' | 'good' | 'fair' | 'poor';
+  description?: string;
+  unit: string;
+  location: string;
+  images: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +43,15 @@ const HarvestSchema = new Schema<IHarvest>(
     },
     batchId: { type: String, required: false, unique: true, default: () => `BATCH-${Math.random().toString(36).slice(2, 10).toUpperCase()}` },
     qrData: { type: String, required: false, default: '' },
+    status: { type: String, enum: ['pending', 'verified', 'rejected', 'approved'], default: 'pending' },
+    verifiedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    verifiedAt: { type: Date },
+    rejectionReason: { type: String },
+    quality: { type: String, enum: ['excellent', 'good', 'fair', 'poor'], default: 'good' },
+    description: { type: String },
+    unit: { type: String, default: 'kg' },
+    location: { type: String },
+    images: { type: [String], default: [] },
   },
   { timestamps: true }
 );

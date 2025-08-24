@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { api } from "@/lib/api"
 import Link from "next/link"
+import { DashboardLayout } from "./dashboard-layout"
 
 interface User {
   id: string
@@ -55,22 +56,36 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        const response = await api.get("/admin/stats")
-        setStats(
-          response.data || {
-            totalUsers: 1250,
-            totalProducts: 3400,
-            totalRevenue: 2500000,
-            activeOrders: 89,
-          },
-        )
+        // Use the correct API methods that exist in the API client
+        const [analyticsResp, fintechResp, marketplaceResp] = await Promise.all([
+          api.getDashboardAnalytics(),
+          api.getFintechAnalytics(),
+          api.getMarketplaceAnalytics()
+        ])
+
+        // Combine data from multiple endpoints to create admin stats
+        const analyticsData = analyticsResp.success ? analyticsResp.data : {}
+        const fintechData = fintechResp.success ? fintechResp.data : {}
+        const marketplaceData = marketplaceResp.success ? marketplaceResp.data : {}
+
+        setStats({
+          totalUsers: analyticsData.totalUsers || 1250,
+          totalProducts: marketplaceData.totalProducts || 3400,
+          totalRevenue: fintechData.totalRevenue || 2500000,
+          activeOrders: marketplaceData.activeOrders || 89,
+          systemAlerts: analyticsData.systemAlerts || 0,
+          pendingVerifications: analyticsData.pendingVerifications || 0,
+        })
       } catch (error) {
         console.error("Failed to fetch admin data:", error)
+        // Fallback to default stats if API calls fail
         setStats({
           totalUsers: 1250,
           totalProducts: 3400,
           totalRevenue: 2500000,
           activeOrders: 89,
+          systemAlerts: 0,
+          pendingVerifications: 0,
         })
       } finally {
         setLoading(false)
@@ -82,7 +97,20 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <DashboardLayout user={user}>
+        {/* Welcome Section */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-heading font-bold text-foreground">Admin Dashboard</h1>
+            <p className="text-muted-foreground">System overview and management</p>
+          </div>
+          <Badge variant="secondary" className="w-fit">
+            <Shield className="w-4 h-4 mr-1" />
+            Administrator
+          </Badge>
+        </div>
+
+        {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <Card key={i}>
@@ -95,12 +123,12 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
             </Card>
           ))}
         </div>
-      </div>
+      </DashboardLayout>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <DashboardLayout user={user}>
       {/* Welcome Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -339,7 +367,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
           </Card>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
 

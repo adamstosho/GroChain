@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/11</span>
+                <span class='fraction'>11/11</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/11</span>
+                <span class='fraction'>11/11</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -84,48 +84,48 @@
 <a name='L19'></a><a href='#L19'>19</a>
 <a name='L20'></a><a href='#L20'>20</a>
 <a name='L21'></a><a href='#L21'>21</a>
-<a name='L22'></a><a href='#L22'>22</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<a name='L22'></a><a href='#L22'>22</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { Router } from 'express';</span>
-<span class="cstat-no" title="statement not covered" >import { authenticateJWT } from '../middlewares/auth.middleware';</span>
-<span class="cstat-no" title="statement not covered" >import { authorizeRoles } from '../middlewares/rbac.middleware';</span>
-<span class="cstat-no" title="statement not covered" >import { CommissionController } from '../controllers/commission.controller';</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from 'express';
+import { authenticateJWT } from '../middlewares/auth.middleware';
+import { authorizeRoles } from '../middlewares/rbac.middleware';
+import { CommissionController } from '../controllers/commission.controller';
 &nbsp;
-const router = <span class="cstat-no" title="statement not covered" >Router();</span>
+const router = Router();
 &nbsp;
 // Get commission summary for authenticated partner
-<span class="cstat-no" title="statement not covered" >router.get('/summary', authenticateJWT, authorizeRoles('partner', 'admin'), CommissionController.getCommissionSummary);</span>
+router.get('/summary', authenticateJWT, authorizeRoles('partner', 'admin'), CommissionController.getCommissionSummary);
 &nbsp;
 // Get commission history with pagination
-<span class="cstat-no" title="statement not covered" >router.get('/history', authenticateJWT, authorizeRoles('partner', 'admin'), CommissionController.getCommissionHistory);</span>
+router.get('/history', authenticateJWT, authorizeRoles('partner', 'admin'), CommissionController.getCommissionHistory);
 &nbsp;
 // Request commission withdrawal
-<span class="cstat-no" title="statement not covered" >router.post('/withdraw', authenticateJWT, authorizeRoles('partner', 'admin'), CommissionController.requestWithdrawal);</span>
+router.post('/withdraw', authenticateJWT, authorizeRoles('partner', 'admin'), CommissionController.requestWithdrawal);
 &nbsp;
 // Admin routes
-<span class="cstat-no" title="statement not covered" >router.get('/all', authenticateJWT, authorizeRoles('admin'), CommissionController.getAllCommissions);</span>
-<span class="cstat-no" title="statement not covered" >router.post('/process-payment', authenticateJWT, authorizeRoles('admin'), CommissionController.processCommissionPayment);</span>
+router.get('/all', authenticateJWT, authorizeRoles('admin'), CommissionController.getAllCommissions);
+router.post('/process-payment', authenticateJWT, authorizeRoles('admin'), CommissionController.processCommissionPayment);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export default router;</span>
+export default router;
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -133,7 +133,7 @@ const router = <span class="cstat-no" title="statement not covered" >Router();</
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-22T11:41:20.108Z
+                at 2025-08-22T11:51:44.559Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

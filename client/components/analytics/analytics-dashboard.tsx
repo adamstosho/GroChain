@@ -5,8 +5,8 @@ import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { 
@@ -39,7 +39,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { AnalyticsCharts } from "./analytics-charts"
 import { AnalyticsMetrics } from "./analytics-metrics"
 import { AnalyticsTables } from "./analytics-tables"
-import { Alert, AlertDescription } from "@/components/ui/Alert"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 
 interface AnalyticsData {
@@ -170,15 +170,15 @@ export function AnalyticsDashboard() {
 
       // Fetch comprehensive analytics data from backend APIs
       const [dashboardRes, farmersRes, transactionsRes, harvestsRes, marketplaceRes, fintechRes, impactRes, partnersRes, weatherRes] = await Promise.all([
-        api.get("/api/analytics/dashboard", { params: filters }),
-        api.get("/api/analytics/farmers", { params: filters }),
-        api.get("/api/analytics/transactions", { params: filters }),
-        api.get("/api/analytics/harvests", { params: filters }),
-        api.get("/api/analytics/marketplace", { params: filters }),
-        api.get("/api/analytics/fintech", { params: filters }),
-        api.get("/api/analytics/impact", { params: filters }),
-        api.get("/api/analytics/partners", { params: filters }),
-        api.get("/api/analytics/weather", { params: filters })
+        api.getDashboardAnalytics(),
+        api.getFarmersAnalytics(),
+        api.getTransactionsAnalytics(),
+        api.getHarvestsAnalytics(),
+        api.getMarketplaceAnalytics(),
+        api.getFintechAnalytics(),
+        api.getImpactAnalytics(),
+        api.getPartnersAnalytics(),
+        api.getWeatherAnalytics()
       ])
 
       // Combine all analytics data
@@ -207,7 +207,7 @@ export function AnalyticsDashboard() {
   const fetchPredictiveAnalytics = async () => {
     try {
       setPredictiveLoading(true)
-      const response = await api.get("/api/analytics/predictive", { params: filters })
+      const response = await api.getPredictiveAnalytics()
       if (response.success) {
         setPredictiveData(response.data)
       } else {
@@ -224,7 +224,7 @@ export function AnalyticsDashboard() {
   const generateReport = async () => {
     try {
       setReportLoading(true)
-      const response = await api.post("/api/analytics/report", {
+      const response = await api.generateAnalyticsReport({
         filters,
         format: exportFormat
       })
@@ -246,7 +246,7 @@ export function AnalyticsDashboard() {
   const compareAnalytics = async () => {
     try {
       setCompareLoading(true)
-      const response = await api.post("/api/analytics/compare", {
+      const response = await api.compareAnalytics({
         filters,
         comparisonType: "period"
       })

@@ -28,6 +28,13 @@ import {
   Moon,
   BarChart3,
   CreditCard,
+  Truck,
+  Upload,
+  UserPlus,
+  Shield,
+  Brain,
+  Wifi,
+  AlertTriangle,
 } from "lucide-react"
 import Link from "next/link"
 import { useTheme } from "next-themes"
@@ -55,11 +62,13 @@ interface DashboardLayoutProps {
 const navigationItems = {
   farmer: [
     { name: "Dashboard", href: "/dashboard", icon: Home },
-    { name: "My Products", href: "/harvests", icon: Package },
+    { name: "My Harvests", href: "/harvests", icon: Package },
     { name: "QR Codes", href: "/qr-codes", icon: QrCode },
     { name: "Marketplace", href: "/marketplace", icon: ShoppingCart },
     { name: "Fintech", href: "/fintech", icon: CreditCard },
+    { name: "Shipments", href: "/shipments", icon: Truck },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
+    { name: "Weather", href: "/weather", icon: BarChart3 },
   ],
   buyer: [
     { name: "Dashboard", href: "/dashboard", icon: Home },
@@ -67,16 +76,92 @@ const navigationItems = {
     { name: "My Orders", href: "/orders", icon: Package },
     { name: "Verify Product", href: "/verify", icon: QrCode },
     { name: "Fintech", href: "/fintech", icon: CreditCard },
+    { name: "Favorites", href: "/favorites", icon: ShoppingCart },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
+  ],
+  partner: [
+    { name: "Dashboard", href: "/dashboard", icon: Home },
+    { name: "My Farmers", href: "/partners", icon: Users },
+    { name: "Farmer Onboarding", href: "/partners/onboard", icon: UserPlus },
+    { name: "Bulk Upload", href: "/partners/bulk", icon: Upload },
+    { name: "Commissions", href: "/commissions", icon: CreditCard },
+    { name: "Referrals", href: "/referrals", icon: Users },
+    { name: "Analytics", href: "/analytics", icon: BarChart3 },
+    { name: "Marketplace", href: "/marketplace", icon: ShoppingCart },
+  ],
+  aggregator: [
+    { name: "Dashboard", href: "/dashboard", icon: Home },
+    { name: "My Farmers", href: "/partners", icon: Users },
+    { name: "Farmer Onboarding", href: "/partners/onboard", icon: UserPlus },
+    { name: "Bulk Upload", href: "/partners/bulk", icon: Upload },
+    { name: "Commissions", href: "/commissions", icon: CreditCard },
+    { name: "Logistics", href: "/shipments", icon: Truck },
+    { name: "Analytics", href: "/analytics", icon: BarChart3 },
+    { name: "Marketplace", href: "/marketplace", icon: ShoppingCart },
   ],
   agency: [
     { name: "Dashboard", href: "/dashboard", icon: Home },
     { name: "My Farmers", href: "/partners", icon: Users },
-    { name: "Commissions", href: "/commissions", icon: Package },
-    { name: "Fintech", href: "/fintech", icon: CreditCard },
+    { name: "Farmer Onboarding", href: "/partners/onboard", icon: UserPlus },
+    { name: "Bulk Upload", href: "/partners/bulk", icon: Upload },
+    { name: "Commissions", href: "/commissions", icon: CreditCard },
+    { name: "Logistics", href: "/shipments", icon: Truck },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
     { name: "Marketplace", href: "/marketplace", icon: ShoppingCart },
   ],
+  admin: [
+    { name: "Dashboard", href: "/dashboard", icon: Home },
+    { name: "User Management", href: "/admin/users", icon: Users },
+    { name: "System Analytics", href: "/analytics", icon: BarChart3 },
+    { name: "IoT & Sensors", href: "/iot", icon: Wifi },
+    { name: "AI & ML", href: "/ai", icon: Brain },
+    { name: "Quality Control", href: "/admin/quality", icon: Shield },
+    { name: "System Settings", href: "/admin/settings", icon: Settings },
+    { name: "Marketplace", href: "/marketplace", icon: ShoppingCart },
+  ],
+}
+
+const quickActions = {
+  farmer: [
+    { name: "Record Harvest", href: "/harvests/new", icon: Package },
+    { name: "Generate QR", href: "/qr-codes/generate", icon: QrCode },
+    { name: "List Product", href: "/marketplace/list", icon: ShoppingCart },
+    { name: "Check Weather", href: "/weather", icon: BarChart3 },
+  ],
+  buyer: [
+    { name: "Browse Products", href: "/marketplace", icon: ShoppingCart },
+    { name: "Verify Product", href: "/verify", icon: QrCode },
+    { name: "View Orders", href: "/orders", icon: Package },
+    { name: "Check Fintech", href: "/fintech", icon: CreditCard },
+  ],
+  partner: [
+    { name: "Add Farmer", href: "/partners/onboard", icon: UserPlus },
+    { name: "Bulk Upload", href: "/partners/bulk", icon: Upload },
+    { name: "View Commissions", href: "/commissions", icon: CreditCard },
+    { name: "Analytics", href: "/analytics", icon: BarChart3 },
+  ],
+  aggregator: [
+    { name: "Add Farmer", href: "/partners/onboard", icon: UserPlus },
+    { name: "Bulk Upload", href: "/partners/bulk", icon: Upload },
+    { name: "Track Shipments", href: "/shipments", icon: Truck },
+    { name: "View Commissions", href: "/commissions", icon: CreditCard },
+  ],
+  agency: [
+    { name: "Add Farmer", href: "/partners/onboard", icon: UserPlus },
+    { name: "Bulk Upload", href: "/partners/bulk", icon: Upload },
+    { name: "Track Shipments", href: "/shipments", icon: Truck },
+    { name: "View Commissions", href: "/commissions", icon: CreditCard },
+  ],
+  admin: [
+    { name: "User Management", href: "/admin/users", icon: Users },
+    { name: "System Health", href: "/admin/health", icon: Shield },
+    { name: "IoT Dashboard", href: "/iot", icon: Wifi },
+    { name: "AI Models", href: "/ai", icon: Brain },
+  ],
+}
+
+const getQuickActions = (role?: string) => {
+  return quickActions[role as keyof typeof quickActions] || quickActions.farmer
 }
 
 export function DashboardLayout({ children, user }: DashboardLayoutProps) {
@@ -125,6 +210,16 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
             </Button>
           </div>
 
+          {/* Role Indicator */}
+          <div className="px-4 sm:px-6 py-2 border-b border-border">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-primary rounded-full"></div>
+              <span className="text-xs font-medium text-muted-foreground capitalize">
+                {user?.role || "user"} Dashboard
+              </span>
+            </div>
+          </div>
+
           {/* Navigation */}
           <nav className="flex-1 px-3 sm:px-4 py-4 sm:py-6 space-y-1 sm:space-y-2 overflow-y-auto">
             {navigation.map((item) => {
@@ -147,6 +242,26 @@ export function DashboardLayout({ children, user }: DashboardLayoutProps) {
               )
             })}
           </nav>
+
+          {/* Role-specific Quick Actions */}
+          <div className="px-3 sm:px-4 py-4 border-t border-border">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              Quick Actions
+            </h3>
+            <div className="space-y-1">
+              {getQuickActions(user?.role).map((action) => (
+                <Link
+                  key={action.name}
+                  href={action.href}
+                  className="flex items-center space-x-3 px-3 py-2 text-xs font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <action.icon className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{action.name}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
 
           {/* Settings */}
           <div className="px-3 sm:px-4 py-4 border-t border-border flex-shrink-0">

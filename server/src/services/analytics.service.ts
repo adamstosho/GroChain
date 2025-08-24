@@ -1,14 +1,25 @@
+import { Request, Response } from 'express';
+import { User, IUser } from '../models/user.model';
+import { Harvest, IHarvest } from '../models/harvest.model';
+import { Order, IOrder } from '../models/order.model';
+import { Transaction, ITransaction } from '../models/transaction.model';
+import { Commission, ICommission } from '../models/commission.model';
+import { Shipment, IShipment } from '../models/shipment.model';
+import { Partner, IPartner } from '../models/partner.model';
+import { Listing, IListing } from '../models/listing.model';
+import { Product, IProduct } from '../models/product.model';
+import { Favorite, IFavorite } from '../models/favorite.model';
+import { Notification, INotification } from '../models/notification.model';
+import { CreditScore, ICreditScore } from '../models/creditScore.model';
+import { LoanReferral, ILoanReferral } from '../models/loanReferral.model';
+import { IBVNVerification } from '../models/bvnVerification.model';
+import { WeatherData, IWeatherData } from '../models/weather.model';
+import { Referral, IReferral } from '../models/referral.model';
+// IFintech interface not needed for this service
 import { IAnalyticsData } from '../models/analytics.model';
-import { User } from '../models/user.model';
-import { Transaction } from '../models/transaction.model';
-import { Harvest } from '../models/harvest.model';
-import { Product } from '../models/product.model';
-import { Order } from '../models/order.model';
-import { CreditScore } from '../models/creditScore.model';
-import { LoanReferral } from '../models/loanReferral.model';
-import { Partner } from '../models/partner.model';
-import { WeatherData } from '../models/weather.model';
 import { logger } from '../utils/logger';
+import mongoose from 'mongoose';
+// MarketplaceListing model is not needed - using Listing model instead
 
 export interface AnalyticsFilters {
   startDate?: Date;
@@ -558,7 +569,7 @@ class AnalyticsService {
         $group: {
           _id: null,
           total: { $sum: 1 },
-          active: { $sum: { $cond: ['$isActive', 1, 0] } },
+          active: { $sum: { $cond: ['$status', 'active', 0] } },
           farmerReferrals: { $sum: '$farmerCount' },
           revenueGenerated: { $sum: '$revenueGenerated' }
         }
@@ -607,7 +618,7 @@ class AnalyticsService {
       }
     ];
 
-    const result = await WeatherData.aggregate(pipeline);
+          const result = await WeatherData.aggregate(pipeline);
     const metrics = result[0] || { averageTemperature: 0, averageHumidity: 0, rainfall: 0, droughtDays: 0, favorableDays: 0 };
 
     return {
@@ -920,7 +931,7 @@ class AnalyticsService {
     try {
       const metrics = await this.generateDashboardMetrics(filters);
       
-      const analyticsData = new (await import('../models/analytics.model')).default({
+             const analyticsData = new (await import('../models/analytics.model')).default({
         date: new Date(),
         period: filters.period || 'monthly',
         region: filters.region || 'all',
@@ -967,8 +978,7 @@ class AnalyticsService {
         query.region = filters.region;
       }
 
-      return await (await import('../models/analytics.model')).default
-        .find(query)
+             return await (await import('../models/analytics.model')).default.find(query)
         .sort({ date: -1 })
         .limit(100);
     } catch (error) {
@@ -1195,6 +1205,1468 @@ class AnalyticsService {
       logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating predictive analytics');
       throw new Error('Failed to generate predictive analytics');
     }
+  }
+
+  /**
+   * Get partner dashboard analytics
+   */
+  async getPartnerDashboard(partnerId: string, filters: AnalyticsFilters = {}): Promise<{
+    stats: {
+      totalFarmers: number
+      activeFarmers: number
+      totalCommission: number
+      monthlyCommission: number
+      farmersThisMonth: number
+      conversionRate: number
+      totalHarvests: number
+      totalShipments: number
+      pendingCommissions: number
+      performanceScore: number
+    }
+    recentFarmers: Array<{
+      _id: string
+      name: string
+      email: string
+      phone: string
+      location: string
+      status: string
+      joinedDate: string
+      totalHarvests: number
+      totalEarnings: number
+      lastActivity: string
+    }>
+    commissionStats: {
+      totalEarned: number
+      pendingAmount: number
+      monthlyTrend: Array<{
+        month: string
+        amount: number
+        farmerCount: number
+      }>
+      topEarners: Array<{
+        farmerId: string
+        farmerName: string
+        totalCommission: number
+        harvestCount: number
+      }>
+    }
+    networkGrowth: {
+      monthlyGrowth: number
+      regionalDistribution: Record<string, number>
+      farmerCategories: Array<{
+        category: string
+        count: number
+        totalValue: number
+      }>
+    }
+  }> {
+    try {
+      const startDate = filters.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default to last 30 days
+      const endDate = filters.endDate || new Date();
+
+      // Get partner's farmers
+      const farmers = await User.find({
+        partner: partnerId,
+        role: 'farmer'
+      }).sort({ createdAt: -1 })
+        .limit(10);
+
+      // Calculate basic stats
+      const totalFarmers = await User.countDocuments({ partner: partnerId, role: 'farmer' });
+      const activeFarmers = await User.countDocuments({ 
+        partner: partnerId, 
+        role: 'farmer',
+        status: 'active'
+      });
+
+      // Get farmers joined this month
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const farmersThisMonth = await User.countDocuments({
+        partner: partnerId,
+        role: 'farmer',
+        createdAt: { $gte: monthStart }
+      });
+
+      const conversionRate = totalFarmers > 0 ? (activeFarmers / totalFarmers) * 100 : 0;
+
+      // Get harvest and shipment counts
+      const totalHarvests = await Harvest.countDocuments({
+        farmer: { $in: farmers.map(f => f._id) }
+      });
+
+      // Note: Harvests don't have 'shipped' status, using approved instead
+      const totalShipments = await Harvest.countDocuments({
+        farmer: { $in: farmers.map(f => f._id) },
+        status: 'approved'
+      });
+
+      // Calculate commission stats
+      const commissionStats = await this.getPartnerCommissionStats(partnerId, startDate, endDate);
+      const totalCommission = commissionStats.totalEarned;
+      const monthlyCommission = commissionStats.monthlyTrend[commissionStats.monthlyTrend.length - 1]?.amount || 0;
+      const pendingCommissions = commissionStats.pendingAmount;
+
+      // Calculate performance score
+      const performanceScore = this.calculatePartnerPerformanceScore({
+        farmerCount: totalFarmers,
+        revenueGenerated: totalCommission
+      });
+
+      // Get regional distribution
+      const regionalDistribution = await this.getPartnerRegionalDistribution(partnerId);
+
+      // Get farmer categories
+      const farmerCategories = await this.getPartnerFarmerCategories(partnerId);
+
+      return {
+        stats: {
+          totalFarmers,
+          activeFarmers,
+          totalCommission,
+          monthlyCommission,
+          farmersThisMonth,
+          conversionRate: Math.round(conversionRate),
+          totalHarvests,
+          totalShipments,
+          pendingCommissions,
+          performanceScore: Math.round(performanceScore)
+        },
+        recentFarmers: farmers.map((farmer: any) => ({
+          _id: farmer._id?.toString() || 'Unknown',
+          name: farmer.name || farmer.email || 'Unknown',
+          email: farmer.email,
+          phone: farmer.phone || 'N/A',
+          location: 'Unknown', // User model doesn't have location field
+          status: farmer.status || 'inactive',
+          joinedDate: farmer.createdAt?.toISOString() || new Date().toISOString(),
+          totalHarvests: 0, // Would need to calculate from harvests
+          totalEarnings: 0, // Would need to calculate from transactions
+          lastActivity: farmer.updatedAt?.toISOString() || new Date().toISOString()
+        })),
+        commissionStats,
+        networkGrowth: {
+          monthlyGrowth: await this.calculatePartnerMonthlyGrowth(partnerId, startDate, endDate),
+          regionalDistribution,
+          farmerCategories
+        }
+      };
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating partner dashboard');
+      throw new Error('Failed to generate partner dashboard');
+    }
+  }
+
+  /**
+   * Get partner commission statistics
+   */
+  private async getPartnerCommissionStats(partnerId: string, startDate: Date, endDate: Date): Promise<{
+    totalEarned: number
+    pendingAmount: number
+    monthlyTrend: Array<{
+      month: string
+      amount: number
+      farmerCount: number
+    }>
+    topEarners: Array<{
+      farmerId: string
+      farmerName: string
+      totalCommission: number
+      harvestCount: number
+    }>
+  }> {
+    try {
+      // Get partner's farmers
+      const partnerFarmers = await User.find({ partner: partnerId, role: 'farmer' });
+      const farmerIds = partnerFarmers.map(f => f._id);
+
+      // Calculate total commission (3% of farmer transactions)
+      const farmerTransactions = await Transaction.aggregate([
+        { $match: { 
+          userId: { $in: farmerIds },
+          status: 'completed',
+          createdAt: { $gte: startDate, $lte: endDate }
+        }},
+        { $group: {
+          _id: '$userId',
+          totalAmount: { $sum: '$amount' },
+          transactionCount: { $sum: 1 }
+        }}
+      ]);
+
+      const totalEarned = farmerTransactions.reduce((sum, t) => sum + (t.totalAmount * 0.03), 0);
+      const pendingAmount = totalEarned * 0.2; // Assume 20% pending
+
+      // Get monthly trend
+      const monthlyTrend = await Transaction.aggregate([
+        { $match: { 
+          userId: { $in: farmerIds },
+          status: 'completed',
+          createdAt: { $gte: startDate, $lte: endDate }
+        }},
+        { $group: {
+          _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+          amount: { $sum: { $multiply: ['$amount', 0.03] } },
+          farmerCount: { $addToSet: '$userId' }
+        }},
+        { $sort: { _id: 1 } }
+      ]);
+
+      // Get top earners
+      const topEarners = await Transaction.aggregate([
+        { $match: { 
+          userId: { $in: farmerIds },
+          status: 'completed'
+        }},
+        { $group: {
+          _id: '$userId',
+          totalCommission: { $sum: { $multiply: ['$amount', 0.03] } },
+          harvestCount: { $sum: 1 }
+        }},
+        { $sort: { totalCommission: -1 } },
+        { $limit: 5 }
+      ]);
+
+      return {
+        totalEarned,
+        pendingAmount,
+        monthlyTrend: monthlyTrend.map(trend => ({
+          month: trend._id,
+          amount: trend.amount,
+          farmerCount: trend.farmerCount.length
+        })),
+        topEarners: topEarners.map((earner: any) => ({
+          farmerId: earner._id?.toString() || 'Unknown',
+          farmerName: partnerFarmers.find((f: any) => f._id?.toString() === earner._id?.toString())?.name || 'Unknown',
+          totalCommission: earner.totalCommission || 0,
+          harvestCount: earner.harvestCount || 0
+        }))
+      };
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting partner commission stats');
+      return {
+        totalEarned: 0,
+        pendingAmount: 0,
+        monthlyTrend: [],
+        topEarners: []
+      };
+    }
+  }
+
+  /**
+   * Get partner regional distribution
+   */
+  private async getPartnerRegionalDistribution(partnerId: string): Promise<Record<string, number>> {
+    try {
+      const pipeline = [
+        { $match: { partner: partnerId, role: 'farmer' } },
+        { $group: {
+          _id: '$location',
+          count: { $sum: 1 }
+        }}
+      ];
+
+      const result = await User.aggregate(pipeline);
+      const distribution: Record<string, number> = {};
+      
+      result.forEach((item: any) => {
+        distribution[item._id || 'Unknown'] = item.count;
+      });
+
+      return distribution;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting partner regional distribution');
+      return {};
+    }
+  }
+
+  /**
+   * Get partner farmer categories
+   */
+  private async getPartnerFarmerCategories(partnerId: string): Promise<Array<{
+    category: string
+    count: number
+    totalValue: number
+  }>> {
+    try {
+      // This would need to be implemented based on your farmer categorization logic
+      // For now, returning empty array
+      return [];
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting partner farmer categories');
+      return [];
+    }
+  }
+
+  /**
+   * Calculate partner monthly growth
+   */
+  private async calculatePartnerMonthlyGrowth(partnerId: string, startDate?: Date, endDate?: Date): Promise<number> {
+    try {
+      const currentStart = startDate || new Date();
+      currentStart.setMonth(currentStart.getMonth() - 1);
+      const currentEnd = endDate || new Date();
+
+      const previousStart = new Date(currentStart);
+      previousStart.setMonth(previousStart.getMonth() - 1);
+      const previousEnd = new Date(currentStart);
+
+      const [currentFarmers, previousFarmers] = await Promise.all([
+        User.countDocuments({ 
+          partner: partnerId, 
+          role: 'farmer',
+          createdAt: { $gte: currentStart, $lte: currentEnd } 
+        }),
+        User.countDocuments({ 
+          partner: partnerId, 
+          role: 'farmer',
+          createdAt: { $gte: previousStart, $lte: previousEnd } 
+        })
+      ]);
+
+      if (previousFarmers === 0) return currentFarmers > 0 ? 100 : 0;
+      return ((currentFarmers - previousFarmers) / previousFarmers) * 100;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error calculating partner monthly growth');
+      return 0;
+    }
+  }
+
+  /**
+   * Get farmer dashboard analytics
+   */
+  async getFarmerDashboard(farmerId: string, filters: AnalyticsFilters = {}): Promise<{
+    stats: {
+      totalHarvests: number
+      activeListings: number
+      totalEarnings: number
+      verificationRate: number
+      monthlyGrowth: number
+      averageHarvestValue: number
+    }
+    recentHarvests: Array<{
+      _id: string
+      cropType: string
+      quantity: number
+      unit: string
+      harvestDate: string
+      status: string
+      qrCode: string
+      location: string
+      geoLocation?: {
+        lat: number
+        lng: number
+      }
+    }>
+    marketplaceStats: {
+      totalListings: number
+      activeOrders: number
+      monthlyRevenue: number
+      topProducts: Array<{
+        _id: string
+        product: string
+        sales: number
+        revenue: number
+      }>
+    }
+    weatherData: {
+      current: {
+        temp: number
+        condition: string
+        humidity: number
+      }
+      forecast: Array<{
+        date: string
+        temp: number
+        condition: string
+      }>
+    }
+  }> {
+    try {
+      const startDate = filters.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default to last 30 days
+      const endDate = filters.endDate || new Date();
+
+      // Get farmer harvests
+      const harvests = await Harvest.find({
+        farmer: farmerId,
+        createdAt: { $gte: startDate, $lte: endDate }
+      }).sort({ createdAt: -1 })
+        .limit(10);
+
+      // Get farmer marketplace listings
+      const listings = await Listing.find({
+        farmer: farmerId,
+        createdAt: { $gte: startDate, $lte: endDate }
+      }).sort({ createdAt: -1 });
+
+      // Calculate stats
+      const totalHarvests = await Harvest.countDocuments({ farmer: farmerId });
+      const verifiedHarvests = await Harvest.countDocuments({ 
+        farmer: farmerId, 
+        status: 'verified' 
+      });
+      const verificationRate = totalHarvests > 0 ? (verifiedHarvests / totalHarvests) * 100 : 0;
+
+      const totalListings = await Listing.countDocuments({ farmer: farmerId });
+      const activeListings = await Listing.countDocuments({ 
+        farmer: farmerId, 
+        status: { $in: ['active', 'pending'] } 
+      });
+
+      // Calculate earnings from marketplace
+      const earnings = await Listing.aggregate([
+        { $match: { farmer: new mongoose.Types.ObjectId(farmerId), status: 'sold' } },
+        { $group: { _id: null, total: { $sum: { $multiply: ['$price', '$quantity'] } } } }
+      ]);
+
+      const totalEarnings = earnings.length > 0 ? earnings[0].total : 0;
+      const monthlyGrowth = await this.calculateFarmerMonthlyGrowth(farmerId, startDate, endDate);
+      const averageHarvestValue = totalHarvests > 0 ? totalEarnings / totalHarvests : 0;
+
+      // Get top products by revenue
+      const topProducts = await Listing.aggregate([
+        { $match: { farmer: new mongoose.Types.ObjectId(farmerId) } },
+        { $group: {
+          _id: '$product',
+          sales: { $sum: '$quantity' },
+          revenue: { $sum: { $multiply: ['$price', '$quantity'] } }
+        }},
+        { $sort: { revenue: -1 } },
+        { $limit: 5 }
+      ]);
+
+      // Get active orders count
+      const activeOrders = await Order.countDocuments({
+        'items.listing': { $in: listings.map((l: any) => l._id) },
+        status: { $in: ['pending', 'paid'] }
+      });
+
+      return {
+        stats: {
+          totalHarvests,
+          activeListings,
+          totalEarnings,
+          verificationRate: Math.round(verificationRate),
+          monthlyGrowth,
+          averageHarvestValue
+        },
+        recentHarvests: harvests.map(harvest => ({
+          _id: harvest._id?.toString() || 'Unknown',
+          cropType: harvest.cropType || 'Unknown',
+          quantity: harvest.quantity || 0,
+          unit: 'kg', // Default unit since it's not in the model
+          harvestDate: harvest.date?.toISOString() || new Date().toISOString(),
+          status: 'pending', // Default status since it's not in the model
+          qrCode: harvest.qrData || harvest.batchId || harvest._id?.toString() || 'Unknown',
+          location: 'Unknown', // Default location since it's not in the model
+          geoLocation: harvest.geoLocation
+        })),
+        marketplaceStats: {
+          totalListings,
+          activeOrders,
+          monthlyRevenue: totalEarnings,
+          topProducts: topProducts.map((product: any) => ({
+            _id: product._id?.toString() || 'Unknown',
+            product: product._id || 'Unknown',
+            sales: product.sales || 0,
+            revenue: product.revenue || 0
+          }))
+        },
+        weatherData: {
+          current: { temp: 0, condition: "No Data", humidity: 0 },
+          forecast: []
+        }
+      };
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating farmer dashboard');
+      throw new Error('Failed to generate farmer dashboard');
+    }
+  }
+
+  /**
+   * Get farmer statistics
+   */
+  async getFarmerStats(farmerId: string): Promise<{
+    totalHarvests: number
+    activeListings: number
+    totalEarnings: number
+    verificationRate: number
+    monthlyGrowth: number
+    averageHarvestValue: number
+    harvestCategories: Array<{
+      category: string
+      count: number
+      totalValue: number
+    }>
+    recentActivity: Array<{
+      type: 'harvest' | 'listing' | 'verification' | 'sale'
+      description: string
+      date: string
+      amount?: number
+    }>
+  }> {
+    try {
+      // Get basic stats
+      const totalHarvests = await Harvest.countDocuments({ farmer: farmerId });
+      const verifiedHarvests = await Harvest.countDocuments({ 
+        farmer: farmerId, 
+        status: 'verified' 
+      });
+      const verificationRate = totalHarvests > 0 ? (verifiedHarvests / totalHarvests) * 100 : 0;
+
+      const totalListings = await Listing.countDocuments({ farmer: farmerId });
+      const activeListings = await Listing.countDocuments({ 
+        farmer: farmerId, 
+        status: { $in: ['active', 'pending'] } 
+      });
+
+      // Calculate earnings
+      const earnings = await Listing.aggregate([
+        { $match: { farmer: new mongoose.Types.ObjectId(farmerId), status: 'sold' } },
+        { $group: { _id: null, total: { $sum: { $multiply: ['$price', '$quantity'] } } } }
+      ]);
+
+      const totalEarnings = earnings.length > 0 ? earnings[0].total : 0;
+      const monthlyGrowth = await this.calculateFarmerMonthlyGrowth(farmerId);
+      const averageHarvestValue = totalHarvests > 0 ? totalEarnings / totalHarvests : 0;
+
+      // Get harvest categories
+      const harvestCategories = await Harvest.aggregate([
+        { $match: { farmer: new mongoose.Types.ObjectId(farmerId) } },
+        { $group: {
+          _id: '$cropType',
+          count: { $sum: 1 },
+          totalValue: { $sum: { $ifNull: ['$estimatedValue', 0] } }
+        }},
+        { $sort: { count: -1 } },
+        { $limit: 5 }
+      ]);
+
+      // Get recent activity
+      const recentActivity = await this.getFarmerRecentActivity(farmerId);
+
+      return {
+        totalHarvests,
+        activeListings,
+        totalEarnings,
+        verificationRate: Math.round(verificationRate),
+        monthlyGrowth,
+        averageHarvestValue,
+        harvestCategories: harvestCategories.map(cat => ({
+          category: cat._id || 'Uncategorized',
+          count: cat.count,
+          totalValue: cat.totalValue
+        })),
+        recentActivity
+      };
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating farmer stats');
+      throw new Error('Failed to generate farmer stats');
+    }
+  }
+
+  /**
+   * Calculate farmer monthly growth
+   */
+  private async calculateFarmerMonthlyGrowth(farmerId: string, startDate?: Date, endDate?: Date): Promise<number> {
+    try {
+      const currentStart = startDate || new Date();
+      currentStart.setMonth(currentStart.getMonth() - 1);
+      const currentEnd = endDate || new Date();
+
+      const previousStart = new Date(currentStart);
+      previousStart.setMonth(previousStart.getMonth() - 1);
+      const previousEnd = new Date(currentStart);
+
+      const [currentHarvests, previousHarvests] = await Promise.all([
+        Harvest.countDocuments({ 
+          farmer: farmerId, 
+          createdAt: { $gte: currentStart, $lte: currentEnd } 
+        }),
+        Harvest.countDocuments({ 
+          farmer: farmerId, 
+          createdAt: { $gte: previousStart, $lte: previousEnd } 
+        })
+      ]);
+
+      if (previousHarvests === 0) return currentHarvests > 0 ? 100 : 0;
+      return ((currentHarvests - previousHarvests) / previousHarvests) * 100;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error calculating farmer monthly growth');
+      return 0;
+    }
+  }
+
+  /**
+   * Get farmer recent activity
+   */
+  private async getFarmerRecentActivity(farmerId: string): Promise<Array<{
+    type: 'harvest' | 'listing' | 'verification' | 'sale'
+    description: string
+    date: string
+    amount?: number
+  }>> {
+    try {
+      const activities = [];
+
+      // Get recent harvests
+      const recentHarvests = await Harvest.find({ farmer: farmerId })
+        .sort({ createdAt: -1 })
+        .limit(5);
+
+      for (const harvest of recentHarvests) {
+        activities.push({
+          type: 'harvest' as const,
+          description: `${harvest.cropType} harvest registered`,
+          date: (harvest as any).createdAt?.toISOString() || new Date().toISOString(),
+          amount: harvest.quantity || 0 // Using quantity since estimatedValue doesn't exist
+        });
+      }
+
+      // Get recent listings
+      const recentListings = await Listing.find({ farmer: farmerId })
+        .sort({ createdAt: -1 })
+        .limit(3);
+
+      for (const listing of recentListings) {
+        activities.push({
+          type: 'listing' as const,
+          description: `${listing.product} listed for sale`,
+          date: (listing as any).createdAt?.toISOString() || new Date().toISOString(),
+          amount: listing.price * listing.quantity
+        });
+      }
+
+      // Sort by date and return top 10
+      return activities
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 10);
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting farmer recent activity');
+      return [];
+    }
+  }
+
+  /**
+   * Get buyer dashboard analytics
+   */
+  async getBuyerDashboard(buyerId: string, filters: AnalyticsFilters = {}): Promise<{
+    stats: {
+      totalOrders: number
+      activeOrders: number
+      totalSpent: number
+      savedProducts: number
+      monthlyGrowth: number
+      averageOrderValue: number
+    }
+    recentOrders: Array<{
+      _id: string
+      items: Array<{
+        listing: {
+          _id: string
+          product: string
+          price: number
+          images: string[]
+        }
+        quantity: number
+        price: number
+      }>
+      total: number
+      status: string
+      createdAt: string
+      updatedAt: string
+    }>
+    topProducts: Array<{
+      _id: string
+      product: string
+      totalSpent: number
+      orderCount: number
+      lastOrderDate: string
+    }>
+    spendingTrend: Array<{
+      date: string
+      amount: number
+      orderCount: number
+    }>
+  }> {
+    try {
+      const startDate = filters.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default to last 30 days
+      const endDate = filters.endDate || new Date();
+
+      // Get buyer orders
+      const orders = await Order.find({
+        buyer: buyerId,
+        createdAt: { $gte: startDate, $lte: endDate }
+      }).populate('items.listing', 'product price images')
+        .sort({ createdAt: -1 })
+        .limit(10);
+
+      // Get buyer favorites count
+      const savedProducts = await Favorite.countDocuments({ userId: buyerId });
+
+      // Calculate stats
+      const totalOrders = await Order.countDocuments({ buyer: buyerId });
+      const activeOrders = await Order.countDocuments({ 
+        buyer: buyerId, 
+        status: { $in: ['pending', 'paid'] } 
+      });
+
+      const totalSpent = await Order.aggregate([
+        { $match: { buyer: new mongoose.Types.ObjectId(buyerId), status: { $in: ['paid', 'delivered', 'completed'] } } },
+        { $group: { _id: null, total: { $sum: '$total' } } }
+      ]);
+
+      const monthlyGrowth = await this.calculateBuyerMonthlyGrowth(buyerId, startDate, endDate);
+      const averageOrderValue = totalSpent.length > 0 ? totalSpent[0].total / totalOrders : 0;
+
+      // Get top products by spending
+      const topProducts = await Order.aggregate([
+        { $match: { buyer: new mongoose.Types.ObjectId(buyerId) } },
+        { $unwind: '$items' },
+        { $group: {
+          _id: '$items.listing',
+          totalSpent: { $sum: '$items.price' },
+          orderCount: { $sum: 1 },
+          lastOrderDate: { $max: '$createdAt' }
+        }},
+        { $sort: { totalSpent: -1 } },
+        { $limit: 5 }
+      ]);
+
+      // Get spending trend
+      const spendingTrend = await Order.aggregate([
+        { $match: { buyer: new mongoose.Types.ObjectId(buyerId) } },
+        { $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          amount: { $sum: '$total' },
+          orderCount: { $sum: 1 }
+        }},
+        { $sort: { _id: 1 } }
+      ]);
+
+      return {
+        stats: {
+          totalOrders,
+          activeOrders,
+          totalSpent: totalSpent.length > 0 ? totalSpent[0].total : 0,
+          savedProducts,
+          monthlyGrowth,
+          averageOrderValue
+        },
+        recentOrders: orders.map(order => ({
+          _id: (order as any)._id?.toString() || 'Unknown',
+          items: (order as any).items?.map((item: any) => ({
+            listing: {
+              _id: item.listing?._id?.toString() || 'Unknown',
+              product: item.listing?.product || 'Unknown Product',
+              price: item.listing?.price || 0,
+              images: item.listing?.images || []
+            },
+            quantity: item.quantity || 0,
+            price: item.price || 0
+          })) || [],
+          total: (order as any).total || 0,
+          status: (order as any).status || 'pending',
+          createdAt: (order as any).createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: (order as any).updatedAt?.toISOString() || new Date().toISOString()
+        })),
+        topProducts: topProducts.map((product: any) => ({
+          _id: product._id?.toString() || 'Unknown',
+          product: product._id?.product || 'Unknown Product',
+          totalSpent: product.totalSpent || 0,
+          orderCount: product.orderCount || 0,
+          lastOrderDate: product.lastOrderDate?.toISOString() || new Date().toISOString()
+        })),
+        spendingTrend: spendingTrend.map((trend: any) => ({
+          date: trend._id || 'Unknown',
+          amount: trend.amount || 0,
+          orderCount: trend.orderCount || 0
+        }))
+      };
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating buyer dashboard');
+      throw new Error('Failed to generate buyer dashboard');
+    }
+  }
+
+  /**
+   * Get buyer statistics
+   */
+  async getBuyerStats(buyerId: string): Promise<{
+    totalOrders: number
+    activeOrders: number
+    totalSpent: number
+    savedProducts: number
+    monthlyGrowth: number
+    averageOrderValue: number
+    favoriteCategories: Array<{
+      category: string
+      count: number
+      totalSpent: number
+    }>
+    recentActivity: Array<{
+      type: 'order' | 'favorite' | 'verification' | 'payment'
+      description: string
+      date: string
+      amount?: number
+    }>
+  }> {
+    try {
+      // Get basic stats
+      const totalOrders = await Order.countDocuments({ buyer: buyerId });
+      const activeOrders = await Order.countDocuments({ 
+        buyer: buyerId, 
+        status: { $in: ['pending', 'paid'] } 
+      });
+
+      const totalSpent = await Order.aggregate([
+        { $match: { buyer: new mongoose.Types.ObjectId(buyerId), status: { $in: ['paid', 'delivered', 'completed'] } } },
+        { $group: { _id: null, total: { $sum: '$total' } } }
+      ]);
+
+      const savedProducts = await Favorite.countDocuments({ userId: buyerId });
+
+      // Calculate monthly growth
+      const monthlyGrowth = await this.calculateBuyerMonthlyGrowth(buyerId);
+      const averageOrderValue = totalSpent.length > 0 ? totalSpent[0].total / totalOrders : 0;
+
+      // Get favorite categories
+      const favoriteCategories = await Favorite.aggregate([
+        { $match: { userId: new mongoose.Types.ObjectId(buyerId) } },
+        { $lookup: { from: 'listings', localField: 'listingId', foreignField: '_id', as: 'listing' } },
+        { $unwind: '$listing' },
+        { $group: {
+          _id: '$listing.category',
+          count: { $sum: 1 },
+          totalSpent: { $sum: 0 } // Would need to calculate from orders
+        }},
+        { $sort: { count: -1 } },
+        { $limit: 5 }
+      ]);
+
+      // Get recent activity
+      const recentActivity = await this.getBuyerRecentActivity(buyerId);
+
+      return {
+        totalOrders,
+        activeOrders,
+        totalSpent: totalSpent.length > 0 ? totalSpent[0].total : 0,
+        savedProducts,
+        monthlyGrowth,
+        averageOrderValue,
+        favoriteCategories: favoriteCategories.map(cat => ({
+          category: cat._id || 'Uncategorized',
+          count: cat.count,
+          totalSpent: cat.totalSpent
+        })),
+        recentActivity
+      };
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating buyer stats');
+      throw new Error('Failed to generate buyer stats');
+    }
+  }
+
+  /**
+   * Calculate buyer monthly growth
+   */
+  private async calculateBuyerMonthlyGrowth(buyerId: string, startDate?: Date, endDate?: Date): Promise<number> {
+    try {
+      const currentStart = startDate || new Date();
+      currentStart.setMonth(currentStart.getMonth() - 1);
+      const currentEnd = endDate || new Date();
+
+      const previousStart = new Date(currentStart);
+      previousStart.setMonth(previousStart.getMonth() - 1);
+      const previousEnd = new Date(currentStart);
+
+      const [currentOrders, previousOrders] = await Promise.all([
+        Order.countDocuments({ 
+          buyer: buyerId, 
+          createdAt: { $gte: currentStart, $lte: currentEnd } 
+        }),
+        Order.countDocuments({ 
+          buyer: buyerId, 
+          createdAt: { $gte: previousStart, $lte: previousEnd } 
+        })
+      ]);
+
+      if (previousOrders === 0) return currentOrders > 0 ? 100 : 0;
+      return ((currentOrders - previousOrders) / previousOrders) * 100;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error calculating buyer monthly growth');
+      return 0;
+    }
+  }
+
+  /**
+   * Get buyer recent activity
+   */
+  private async getBuyerRecentActivity(buyerId: string): Promise<Array<{
+    type: 'order' | 'favorite' | 'verification' | 'payment'
+    description: string
+    date: string
+    amount?: number
+  }>> {
+    try {
+      const activities = [];
+
+      // Get recent orders
+      const recentOrders = await Order.find({ buyer: buyerId })
+        .sort({ createdAt: -1 })
+        .limit(5);
+
+      for (const order of recentOrders) {
+        activities.push({
+          type: 'order' as const,
+          description: `Order #${(order as any)._id?.toString().slice(-6) || 'Unknown'} placed`,
+          date: (order as any).createdAt?.toISOString() || new Date().toISOString(),
+          amount: (order as any).total || 0
+        });
+      }
+
+      // Get recent favorites
+      const recentFavorites = await Favorite.find({ userId: buyerId })
+        .sort({ createdAt: -1 })
+        .limit(3);
+
+      for (const favorite of recentFavorites) {
+        activities.push({
+          type: 'favorite' as const,
+          description: 'Product added to favorites',
+          date: (favorite as any).createdAt?.toISOString() || new Date().toISOString()
+        });
+      }
+
+      // Sort by date and return top 10
+      return activities
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 10);
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting buyer recent activity');
+      return [];
+    }
+  }
+
+  // Agency Dashboard Services
+  async getAgencyDashboard(agencyId: string, filters: AnalyticsFilters = {}): Promise<{
+    stats: {
+      totalFarmers: number
+      activeFarmers: number
+      totalCommission: number
+      monthlyCommission: number
+      farmersThisMonth: number
+      conversionRate: number
+      totalHarvests: number
+      totalShipments: number
+      pendingCommissions: number
+    }
+    recentFarmers: Array<{
+      _id: string
+      name: string
+      email: string
+      phone: string
+      location: string
+      status: 'active' | 'inactive' | 'pending'
+      joinedDate: string
+      totalHarvests: number
+      totalEarnings: number
+      lastActivity: string
+      partnerId: string
+    }>
+    commissionStats: Array<{
+      _id: string
+      farmerId: string
+      farmerName: string
+      amount: number
+      status: 'pending' | 'paid' | 'cancelled'
+      transactionId?: string
+      createdAt: string
+      paidAt?: string
+      description: string
+    }>
+    shipmentStats: Array<{
+      _id: string
+      farmerId: string
+      farmerName: string
+      destination: string
+      status: 'pending' | 'in-transit' | 'delivered' | 'cancelled'
+      createdAt: string
+      deliveredAt?: string
+      trackingNumber: string
+    }>
+    recentActivities: Array<{
+      id: string
+      title: string
+      description: string
+      time: string
+      status: 'success' | 'info' | 'warning' | 'error'
+    }>
+    monthlyGrowth: number
+  }> {
+    try {
+      const startDate = filters.startDate || new Date();
+      startDate.setMonth(startDate.getMonth() - 1);
+      const endDate = filters.endDate || new Date();
+
+      const [
+        totalFarmers,
+        activeFarmers,
+        totalCommission,
+        monthlyCommission,
+        farmersThisMonth,
+        totalHarvests,
+        totalShipments,
+        pendingCommissions,
+        recentFarmers,
+        commissionStats,
+        shipmentStats,
+        monthlyGrowth
+      ] = await Promise.all([
+        this.getAgencyTotalFarmers(agencyId),
+        this.getAgencyActiveFarmers(agencyId),
+        this.getAgencyTotalCommission(agencyId),
+        this.getAgencyMonthlyCommission(agencyId, startDate, endDate),
+        this.getAgencyFarmersThisMonth(agencyId, startDate, endDate),
+        this.getAgencyTotalHarvests(agencyId),
+        this.getAgencyTotalShipments(agencyId),
+        this.getAgencyPendingCommissions(agencyId),
+        this.getAgencyRecentFarmers(agencyId),
+        this.getAgencyCommissionStats(agencyId),
+        this.getAgencyShipmentStats(agencyId),
+        this.calculateAgencyMonthlyGrowth(agencyId, startDate, endDate)
+      ]);
+
+      const conversionRate = totalFarmers > 0 ? (activeFarmers / totalFarmers) * 100 : 0;
+
+      const recentActivities = await this.getAgencyRecentActivities(agencyId);
+
+      return {
+        stats: {
+          totalFarmers,
+          activeFarmers,
+          totalCommission,
+          monthlyCommission,
+          farmersThisMonth,
+          conversionRate: Math.round(conversionRate * 100) / 100,
+          totalHarvests,
+          totalShipments,
+          pendingCommissions
+        },
+        recentFarmers,
+        commissionStats,
+        shipmentStats,
+        recentActivities,
+        monthlyGrowth
+      };
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating agency dashboard');
+      throw new Error('Failed to generate agency dashboard');
+    }
+  }
+
+  async getAgencyStats(agencyId: string): Promise<{
+    stats: {
+      totalFarmers: number
+      activeFarmers: number
+      totalCommission: number
+      monthlyCommission: number
+      farmersThisMonth: number
+      conversionRate: number
+      totalHarvests: number
+      totalShipments: number
+      pendingCommissions: number
+    }
+    monthlyGrowth: number
+  }> {
+    try {
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 1);
+      const endDate = new Date();
+
+      const [
+        totalFarmers,
+        activeFarmers,
+        totalCommission,
+        monthlyCommission,
+        farmersThisMonth,
+        totalHarvests,
+        totalShipments,
+        pendingCommissions,
+        monthlyGrowth
+      ] = await Promise.all([
+        this.getAgencyTotalFarmers(agencyId),
+        this.getAgencyActiveFarmers(agencyId),
+        this.getAgencyTotalCommission(agencyId),
+        this.getAgencyMonthlyCommission(agencyId, startDate, endDate),
+        this.getAgencyFarmersThisMonth(agencyId, startDate, endDate),
+        this.getAgencyTotalHarvests(agencyId),
+        this.getAgencyTotalShipments(agencyId),
+        this.getAgencyPendingCommissions(agencyId),
+        this.calculateAgencyMonthlyGrowth(agencyId, startDate, endDate)
+      ]);
+
+      const conversionRate = totalFarmers > 0 ? (activeFarmers / totalFarmers) * 100 : 0;
+
+      return {
+        stats: {
+          totalFarmers,
+          activeFarmers,
+          totalCommission,
+          monthlyCommission,
+          farmersThisMonth,
+          conversionRate: Math.round(conversionRate * 100) / 100,
+          totalHarvests,
+          totalShipments,
+          pendingCommissions
+        },
+        monthlyGrowth
+      };
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating agency stats');
+      throw new Error('Failed to generate agency stats');
+    }
+  }
+
+  private async getAgencyTotalFarmers(agencyId: string): Promise<number> {
+    try {
+      const partner = await Partner.findById(agencyId);
+      if (!partner) return 0;
+      return partner.onboardedFarmers?.length || 0;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency total farmers');
+      return 0;
+    }
+  }
+
+  private async getAgencyActiveFarmers(agencyId: string): Promise<number> {
+    try {
+      const partner = await Partner.findById(agencyId);
+      if (!partner || !partner.onboardedFarmers?.length) return 0;
+
+      const activeFarmers = await User.countDocuments({
+        _id: { $in: partner.onboardedFarmers },
+        status: 'active'
+      });
+
+      return activeFarmers;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency active farmers');
+      return 0;
+    }
+  }
+
+  private async getAgencyTotalCommission(agencyId: string): Promise<number> {
+    try {
+      const totalCommission = await Transaction.aggregate([
+        { $match: { partnerId: new mongoose.Types.ObjectId(agencyId) } },
+        { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
+      ]);
+
+      return totalCommission[0]?.total || 0;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency total commission');
+      return 0;
+    }
+  }
+
+  private async getAgencyMonthlyCommission(agencyId: string, startDate: Date, endDate: Date): Promise<number> {
+    try {
+      const monthlyCommission = await Transaction.aggregate([
+        {
+          $match: {
+            partnerId: new mongoose.Types.ObjectId(agencyId),
+            createdAt: { $gte: startDate, $lte: endDate }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
+      ]);
+
+      return monthlyCommission[0]?.total || 0;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency monthly commission');
+      return 0;
+    }
+  }
+
+  private async getAgencyFarmersThisMonth(agencyId: string, startDate: Date, endDate: Date): Promise<number> {
+    try {
+      const partner = await Partner.findById(agencyId);
+      if (!partner || !partner.onboardedFarmers?.length) return 0;
+
+      const farmersThisMonth = await User.countDocuments({
+        _id: { $in: partner.onboardedFarmers },
+        createdAt: { $gte: startDate, $lte: endDate }
+      });
+
+      return farmersThisMonth;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency farmers this month');
+      return 0;
+    }
+  }
+
+  private async getAgencyTotalHarvests(agencyId: string): Promise<number> {
+    try {
+      const partner = await Partner.findById(agencyId);
+      if (!partner || !partner.onboardedFarmers?.length) return 0;
+
+      const totalHarvests = await Harvest.countDocuments({
+        farmer: { $in: partner.onboardedFarmers }
+      });
+
+      return totalHarvests;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency total harvests');
+      return 0;
+    }
+  }
+
+  private async getAgencyTotalShipments(agencyId: string): Promise<number> {
+    try {
+      const partner = await Partner.findById(agencyId);
+      if (!partner || !partner.onboardedFarmers?.length) return 0;
+
+      const totalShipments = await Shipment.countDocuments({
+        harvestBatch: {
+          $in: await Harvest.find({ farmer: { $in: partner.onboardedFarmers } }).distinct('_id')
+        }
+      });
+
+      return totalShipments;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency total shipments');
+      return 0;
+    }
+  }
+
+  private async getAgencyPendingCommissions(agencyId: string): Promise<number> {
+    try {
+      const pendingCommissions = await Transaction.countDocuments({
+        partnerId: agencyId,
+        status: 'pending'
+      });
+
+      return pendingCommissions;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency pending commissions');
+      return 0;
+    }
+  }
+
+  private async getAgencyRecentFarmers(agencyId: string): Promise<Array<{
+    _id: string
+    name: string
+    email: string
+    phone: string
+    location: string
+    status: 'active' | 'inactive' | 'pending'
+    joinedDate: string
+    totalHarvests: number
+    totalEarnings: number
+    lastActivity: string
+    partnerId: string
+  }>> {
+    try {
+      const partner = await Partner.findById(agencyId);
+      if (!partner || !partner.onboardedFarmers?.length) return [];
+
+      const recentFarmers = await User.find({
+        _id: { $in: partner.onboardedFarmers }
+      })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .populate('profile');
+
+      return recentFarmers.map((farmer: any) => ({
+        _id: farmer._id?.toString() || 'Unknown',
+        name: farmer.profile?.fullName || farmer.email || 'Unknown',
+        email: farmer.email || 'Unknown',
+        phone: farmer.profile?.phone || 'N/A',
+        location: farmer.profile?.location || 'N/A',
+        status: farmer.status || 'inactive',
+        joinedDate: farmer.createdAt?.toISOString() || new Date().toISOString(),
+        totalHarvests: 0, // Will be calculated separately if needed
+        totalEarnings: 0, // Will be calculated separately if needed
+        lastActivity: farmer.updatedAt?.toISOString() || new Date().toISOString(),
+        partnerId: agencyId
+      }));
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency recent farmers');
+      return [];
+    }
+  }
+
+  private async getAgencyCommissionStats(agencyId: string): Promise<Array<{
+    _id: string
+    farmerId: string
+    farmerName: string
+    amount: number
+    status: 'pending' | 'paid' | 'cancelled'
+    transactionId?: string
+    createdAt: string
+    paidAt?: string
+    description: string
+  }>> {
+    try {
+      const commissionStats = await Transaction.find({
+        partnerId: agencyId
+      })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .populate('farmer', 'profile.fullName email');
+
+      return commissionStats.map((commission: any) => ({
+        _id: commission._id?.toString() || 'Unknown',
+        farmerId: commission.farmer?._id?.toString() || 'Unknown',
+        farmerName: commission.farmer?.profile?.fullName || commission.farmer?.email || 'Unknown',
+        amount: commission.commissionAmount || 0,
+        status: commission.status as 'pending' | 'paid' | 'cancelled',
+        transactionId: commission._id?.toString() || 'Unknown',
+        createdAt: commission.createdAt?.toISOString() || new Date().toISOString(),
+        paidAt: commission.paidAt?.toISOString(),
+        description: commission.description || 'Commission earned'
+      }));
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency commission stats');
+      return [];
+    }
+  }
+
+  private async getAgencyShipmentStats(agencyId: string): Promise<Array<{
+    _id: string
+    farmerId: string
+    farmerName: string
+    destination: string
+    status: 'pending' | 'in-transit' | 'delivered' | 'cancelled'
+    createdAt: string
+    deliveredAt?: string
+    trackingNumber: string
+  }>> {
+    try {
+      const partner = await Partner.findById(agencyId);
+      if (!partner || !partner.onboardedFarmers?.length) return [];
+
+      const harvestIds = await Harvest.find({
+        farmer: { $in: partner.onboardedFarmers }
+      }).distinct('_id');
+
+      const shipmentStats = await Shipment.find({
+        harvestBatch: { $in: harvestIds }
+      })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .populate({
+          path: 'harvestBatch',
+          populate: {
+            path: 'farmer',
+            select: 'profile.fullName email'
+          }
+        });
+
+      return shipmentStats.map((shipment: any) => ({
+        _id: shipment._id?.toString() || 'Unknown',
+        farmerId: shipment.harvestBatch?.farmer?._id?.toString() || 'Unknown',
+        farmerName: shipment.harvestBatch?.farmer?.profile?.fullName || shipment.harvestBatch?.farmer?.email || 'Unknown',
+        destination: shipment.destination || 'Unknown',
+        status: 'pending' as 'pending' | 'in-transit' | 'delivered' | 'cancelled', // Default status
+        createdAt: shipment.createdAt?.toISOString() || new Date().toISOString(),
+        deliveredAt: shipment.deliveredAt?.toISOString(),
+        trackingNumber: shipment._id?.toString().slice(-8).toUpperCase() || 'UNKNOWN'
+      }));
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency shipment stats');
+      return [];
+    }
+  }
+
+  private async getAgencyRecentActivities(agencyId: string): Promise<Array<{
+    id: string
+    title: string
+    description: string
+    time: string
+    status: 'success' | 'info' | 'warning' | 'error'
+  }>> {
+    try {
+      const activities = [];
+
+      // Get recent farmer registrations
+      const recentFarmers = await User.find({
+        partnerId: agencyId
+      })
+        .sort({ createdAt: -1 })
+        .limit(3);
+
+      for (const farmer of recentFarmers) {
+        activities.push({
+          id: `farmer-${(farmer as any)._id?.toString() || 'Unknown'}`,
+          title: 'New farmer onboarded',
+          description: `${(farmer as any).profile?.fullName || (farmer as any).email || 'Unknown'} joined the network`,
+          time: this.getTimeAgo((farmer as any).createdAt),
+          status: 'success' as const
+        });
+      }
+
+      // Get recent commission payments
+      const recentCommissions = await Transaction.find({
+        partnerId: agencyId,
+        status: 'paid'
+      })
+        .sort({ paidAt: -1 })
+        .limit(2);
+
+      for (const commission of recentCommissions) {
+        activities.push({
+          id: `commission-${(commission as any)._id?.toString() || 'Unknown'}`,
+          title: 'Commission payment',
+          description: `₦${(commission as any).commissionAmount?.toLocaleString() || '0'} commission paid`,
+          time: this.getTimeAgo((commission as any).paidAt || (commission as any).createdAt),
+          status: 'success' as const
+        });
+      }
+
+      // Sort by time and return top 5
+      return activities
+        .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+        .slice(0, 5);
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency recent activities');
+      return [];
+    }
+  }
+
+  private async calculateAgencyMonthlyGrowth(agencyId: string, startDate: Date, endDate: Date): Promise<number> {
+    try {
+      const currentStart = startDate;
+      const currentEnd = endDate;
+
+      const previousStart = new Date(currentStart);
+      previousStart.setMonth(previousStart.getMonth() - 1);
+      const previousEnd = new Date(currentStart);
+
+      const [currentFarmers, previousFarmers] = await Promise.all([
+        this.getAgencyFarmersThisMonth(agencyId, currentStart, currentEnd),
+        this.getAgencyFarmersThisMonth(agencyId, previousStart, previousEnd)
+      ]);
+
+      if (previousFarmers === 0) return currentFarmers > 0 ? 100 : 0;
+      return ((currentFarmers - previousFarmers) / previousFarmers) * 100;
+    } catch (error) {
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error calculating agency monthly growth');
+      return 0;
+    }
+  }
+
+  private getTimeAgo(date: Date): string {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return `${diffInSeconds} seconds ago`;
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    return `${Math.floor(diffInSeconds / 2592000)} months ago`;
   }
 }
 

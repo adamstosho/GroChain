@@ -1,9 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import Joi from 'joi';
 
 // This function is replaced by the enhanced version below
 
-export const validateParams = (schema: Joi.ObjectSchema) => {
+export const validateParams = (schema: Joi.ObjectSchema): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req.params);
     if (error) {
@@ -19,7 +19,7 @@ export const validateParams = (schema: Joi.ObjectSchema) => {
   };
 };
 
-export const validateQuery = (schema: Joi.ObjectSchema) => {
+export const validateQuery = (schema: Joi.ObjectSchema): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req.query);
     if (error) {
@@ -35,8 +35,13 @@ export const validateQuery = (schema: Joi.ObjectSchema) => {
   };
 };
 
-export const validateRequest = (schema: Joi.ObjectSchema, source: 'body' | 'query' | 'params' = 'body') => {
+export const validateRequest = (schema?: Joi.ObjectSchema, source: 'body' | 'query' | 'params' = 'body'): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction) => {
+    // If no schema provided, just pass through
+    if (!schema) {
+      return next();
+    }
+    
     const data = source === 'body' ? req.body : source === 'query' ? req.query : req.params;
     const { error, value } = schema.validate(data);
     if (error) {
@@ -56,6 +61,11 @@ export const validateRequest = (schema: Joi.ObjectSchema, source: 'body' | 'quer
     }
     next();
   };
+};
+
+// Create a no-op middleware for when no validation is needed
+export const noValidation: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
+  next();
 };
 
 export const validateAnalyticsFilters = (filters: any) => {

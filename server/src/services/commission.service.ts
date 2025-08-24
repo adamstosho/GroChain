@@ -83,7 +83,10 @@ export class CommissionService {
         if (partner?.contactPhone) {
           await sendSMS(partner.contactPhone, `GroChain: You earned a commission of ₦${commissionAmount.toFixed(2)}.`);
         }
-      } catch (_) {}
+      } catch (error) {
+        // Log error but continue processing
+        console.error('Error sending SMS notification:', error);
+      }
 
       return true;
     } catch (error) {
@@ -225,7 +228,10 @@ export class CommissionService {
         if (partner.contactPhone) {
           await sendSMS(partner.contactPhone, `GroChain: Your withdrawal of ₦${amount.toFixed(2)} has been processed.`);
         }
-      } catch (_) {}
+      } catch (error) {
+        // Log error but continue processing
+        console.error('Error sending SMS notification:', error);
+      }
 
       return true;
     } catch (error) {
@@ -314,7 +320,10 @@ export class CommissionService {
         if (partner?.contactPhone) {
           await sendSMS(partner.contactPhone, `GroChain: Your commission payment of ₦${amount.toFixed(2)} has been processed. Reference: ${reference}`);
         }
-      } catch (_) {}
+      } catch (error) {
+        // Log error but continue processing
+        console.error('Error sending SMS notification:', error);
+      }
 
       return true;
     } catch (error) {

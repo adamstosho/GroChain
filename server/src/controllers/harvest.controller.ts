@@ -13,7 +13,7 @@ const harvestSchema = Joi.object({
   quantity: Joi.number().required(),
   date: Joi.date().required(),
   geoLocation: Joi.object({ lat: Joi.number().required(), lng: Joi.number().required() }).required(),
-  unit: Joi.string().default('kg'),
+  unit: Joi.string().valid('kg', 'tons', 'pieces', 'bundles', 'bags', 'crates').default('kg').optional(),
   location: Joi.string().optional(),
   description: Joi.string().optional(),
   quality: Joi.string().valid('excellent', 'good', 'fair', 'poor').default('good'),
@@ -24,11 +24,35 @@ export const createHarvest = async (req: AuthRequest, res: Response) => {
   try {
     console.log('🌾 Creating harvest for user:', req.user?.id);
     console.log('🌾 Request body:', req.body);
+    console.log('🌾 Request body unit field:', req.body.unit);
+    console.log('🌾 Request body unit field type:', typeof req.body.unit);
+    console.log('🌾 Request body unit field length:', req.body.unit?.length);
     
-    const { error, value } = harvestSchema.validate(req.body);
+    // Preprocess the request body to handle empty unit values
+    const processedBody = {
+      ...req.body,
+      unit: req.body.unit && req.body.unit.trim() !== '' ? req.body.unit.trim() : 'kg'
+    };
+    
+    // Additional validation for unit field
+    const allowedUnits = ['kg', 'tons', 'pieces', 'bundles', 'bags', 'crates']
+    if (processedBody.unit && !allowedUnits.includes(processedBody.unit)) {
+      console.log('🌾 Invalid unit value:', processedBody.unit, 'defaulting to kg')
+      processedBody.unit = 'kg'
+    }
+    
+    console.log('🌾 Processed body unit field:', processedBody.unit);
+    
+    const { error, value } = harvestSchema.validate(processedBody);
     if (error) {
       console.log('🌾 Validation error:', error.details[0].message);
-      return res.status(400).json({ status: 'error', message: error.details[0].message });
+      console.log('🌾 Validation error details:', error.details);
+      console.log('🌾 Validation error path:', error.details[0].path);
+      return res.status(400).json({ 
+        status: 'error', 
+        message: error.details[0].message,
+        details: error.details.map(d => ({ message: d.message, path: d.path }))
+      });
     }
     
     // Ensure the farmer field is set to the authenticated user's ID

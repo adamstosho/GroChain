@@ -1,6 +1,0 @@
-{
-  "name": "GroChain DevTools",
-  "description": "Development tools configuration for GroChain PWA",
-  "version": "1.0.0",
-  "devtools_page": "devtools.html"
-}

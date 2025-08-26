@@ -1,478 +1,315 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
-import { 
-  Search, 
-  ShoppingCart, 
-  Package, 
-  Star, 
-  Eye, 
-  Calendar, 
-  QrCode, 
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Users,
-  Loader2,
-  AlertCircle,
-  X,
-  RefreshCw
-} from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
-import { api } from "@/lib/api"
+import { StatsCard } from "@/components/dashboard/stats-card"
+import { RecentActivity } from "@/components/dashboard/recent-activity"
+import { QuickActions } from "@/components/dashboard/quick-actions"
+import { apiService } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
+import { ShoppingCart, Package, Heart, TrendingUp, Search, QrCode, Eye } from "lucide-react"
 import Link from "next/link"
-import { DashboardLayout } from "./dashboard-layout"
-import { toast } from "sonner"
+import Image from "next/image"
 
-interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-  phone: string
-  emailVerified: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-interface BuyerDashboardProps {
-  user: User
-}
-
-interface BuyerStats {
-  totalOrders: number
-  activeOrders: number
-  totalSpent: number
-  savedProducts: number
-  monthlyGrowth: number
-  averageOrderValue: number
-}
-
-interface Order {
-  _id: string
-  items: Array<{
-    listing: {
-      _id: string
-      product: string
-      price: number
-      images: string[]
-    }
-    quantity: number
-    price: number
-  }>
-  total: number
-  status: 'pending' | 'paid' | 'delivered' | 'cancelled' | 'completed'
-  createdAt: string
-  updatedAt: string
-}
-
-export function BuyerDashboard({ user }: BuyerDashboardProps) {
-  const { user: authUser } = useAuth()
-  const [activeTab, setActiveTab] = useState("overview")
-  const [stats, setStats] = useState<BuyerStats | null>(null)
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+export function BuyerDashboard() {
+  const [stats, setStats] = useState<any>(null)
+  const [recentOrders, setRecentOrders] = useState<any[]>([])
+  const [featuredProducts, setFeaturedProducts] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast()
 
   useEffect(() => {
-    if (authUser?.id) {
-      fetchDashboardData()
-    }
-  }, [authUser?.id])
+    const fetchDashboardData = async () => {
+      try {
+        const [dashboardResponse, ordersResponse, listingsResponse] = await Promise.all([
+          apiService.getDashboard(),
+          apiService.getOrders(),
+          apiService.getListings({ limit: 6, featured: true }),
+        ])
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true)
-      setError("")
-
-      // Fetch buyer dashboard data from API
-      const [dashboardResponse, ordersResponse] = await Promise.all([
-        api.getBuyerDashboard(authUser?.id || ''),
-        api.getBuyerOrders(authUser?.id || '', { limit: 10, sortBy: 'createdAt', sortOrder: 'desc' })
-      ])
-
-      if (dashboardResponse.success && dashboardResponse.data) {
-        setStats(dashboardResponse.data.stats)
-        setOrders(dashboardResponse.data.recentOrders || [])
-      } else {
-        throw new Error(dashboardResponse.message || 'Failed to fetch dashboard data')
+        setStats(dashboardResponse.data)
+        setRecentOrders(ordersResponse.data?.slice(0, 5) || [])
+        setFeaturedProducts(listingsResponse.data || [])
+      } catch (error: any) {
+        toast({
+          title: "Error loading dashboard",
+          description: error.message,
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
       }
-
-      if (ordersResponse.success && ordersResponse.data) {
-        setOrders(ordersResponse.data.orders || [])
-      }
-
-      setLastUpdated(new Date())
-      toast.success("Dashboard data updated successfully")
-    } catch (error) {
-      console.error("Dashboard fetch error:", error)
-      const errorMessage = error instanceof Error ? error.message : "Failed to load dashboard data"
-      setError(errorMessage)
-      toast.error(errorMessage)
-      
-      // Set default empty stats on error
-      setStats({
-        totalOrders: 0,
-        activeOrders: 0,
-        totalSpent: 0,
-        savedProducts: 0,
-        monthlyGrowth: 0,
-        averageOrderValue: 0
-      })
-      setOrders([])
-    } finally {
-      setLoading(false)
     }
-  }
 
-  const handleRefresh = async () => {
-    setRefreshing(true)
-    await fetchDashboardData()
-    setRefreshing(false)
-  }
+    fetchDashboardData()
+  }, [toast])
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
-  }
+  const quickActions = [
+    {
+      title: "Browse Products",
+      description: "Explore fresh produce",
+      icon: Search,
+      href: "/dashboard/products",
+      color: "bg-primary/10 text-primary",
+    },
+    {
+      title: "Scan QR Code",
+      description: "Verify product authenticity",
+      icon: QrCode,
+      href: "/dashboard/scanner",
+      color: "bg-secondary/10 text-secondary",
+    },
+    {
+      title: "View Orders",
+      description: "Track your purchases",
+      icon: Eye,
+      href: "/dashboard/orders",
+      color: "bg-accent/10 text-accent",
+    },
+    {
+      title: "My Favorites",
+      description: "Saved products",
+      icon: Heart,
+      href: "/dashboard/favorites",
+      color: "bg-success/10 text-success",
+    },
+  ]
 
-  if (loading && !stats) {
+  if (isLoading) {
     return (
-      <DashboardLayout user={user}>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="space-y-0 pb-2">
+                <div className="h-4 bg-muted rounded w-1/2" />
+                <div className="h-8 bg-muted rounded w-3/4" />
+              </CardHeader>
+            </Card>
+          ))}
         </div>
-      </DashboardLayout>
+      </div>
     )
   }
 
   return (
-    <DashboardLayout user={user}>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">
-              Welcome back, {user.name.split(" ")[0]}!
-            </h1>
-            <p className="text-muted-foreground">Discover and purchase verified Nigerian produce</p>
-            {lastUpdated && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Last updated: {lastUpdated.toLocaleTimeString()}
-              </p>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Link href="/verify">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto bg-transparent">
-                <QrCode className="w-4 h-4 mr-2" />
-                Verify Product
-              </Button>
-            </Link>
-            <Link href="/marketplace">
-              <Button size="lg" className="w-full sm:w-auto">
-                <Search className="w-4 h-4 mr-2" />
-                Browse Products
-              </Button>
-            </Link>
-          </div>
-        </div>
+    <div className="space-y-6">
+      {/* Stats Overview */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          title="Total Orders"
+          value={stats?.totalOrders || 0}
+          description="All time purchases"
+          icon={ShoppingCart}
+          trend={{ value: 5, isPositive: true }}
+        />
+        <StatsCard
+          title="Active Orders"
+          value={stats?.activeOrders || 0}
+          description="In progress"
+          icon={Package}
+          trend={{ value: 2, isPositive: true }}
+        />
+        <StatsCard
+          title="Favorites"
+          value={stats?.totalFavorites || 0}
+          description="Saved products"
+          icon={Heart}
+          trend={{ value: 3, isPositive: true }}
+        />
+        <StatsCard
+          title="Total Spent"
+          value={`₦${(stats?.totalSpent || 0).toLocaleString()}`}
+          description="This month"
+          icon={TrendingUp}
+          trend={{ value: 12, isPositive: true }}
+        />
+      </div>
 
-        {/* Error Alert */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-red-50 border border-red-200 rounded-lg p-4"
-          >
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              <span className="text-red-800">{error}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setError("")}
-                className="ml-auto text-red-600 hover:text-red-800"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </motion.div>
-        )}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Quick Actions */}
+          <QuickActions actions={quickActions} />
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="orders">My Orders</TabsTrigger>
-            <TabsTrigger value="favorites">Favorites</TabsTrigger>
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-6">
-            {/* Stats Cards */}
-            {stats && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
-                        <p className="text-2xl font-bold text-foreground">{stats.totalOrders}</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          {stats.monthlyGrowth >= 0 ? (
-                            <TrendingUp className="w-3 h-3 text-green-600" />
-                          ) : (
-                            <TrendingDown className="w-3 h-3 text-red-600" />
-                          )}
-                          <span className={`text-xs ${stats.monthlyGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {Math.abs(stats.monthlyGrowth).toFixed(1)}%
-                          </span>
-                        </div>
-                      </div>
-                      <ShoppingCart className="w-8 h-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Active Orders</p>
-                        <p className="text-2xl font-bold text-foreground">{stats.activeOrders}</p>
-                      </div>
-                      <Package className="w-8 h-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Total Spent</p>
-                        <p className="text-2xl font-bold text-foreground">{formatCurrency(stats.totalSpent)}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Avg: {formatCurrency(stats.averageOrderValue)}
-                        </p>
-                      </div>
-                      <DollarSign className="w-8 h-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Saved Products</p>
-                        <p className="text-2xl font-bold text-foreground">{stats.savedProducts}</p>
-                      </div>
-                      <Star className="w-8 h-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
+          {/* Search Bar */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Find Fresh Produce</CardTitle>
+              <CardDescription>Search for verified agricultural products</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex space-x-2">
+                <Input placeholder="Search for products, farmers, or locations..." className="flex-1" />
+                <Button>
+                  <Search className="h-4 w-4 mr-2" />
+                  Search
+                </Button>
               </div>
-            )}
+            </CardContent>
+          </Card>
 
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <ShoppingCart className="w-5 h-5 mr-2 text-primary" />
-                  Quick Actions
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Link href="/marketplace">
-                    <Button
-                      variant="outline"
-                      className="w-full h-auto p-4 flex flex-col items-center space-y-2 bg-transparent"
-                    >
-                      <Search className="w-6 h-6" />
-                      <span>Browse Products</span>
-                    </Button>
-                  </Link>
-                  <Link href="/verify">
-                    <Button
-                      variant="outline"
-                      className="w-full h-auto p-4 flex flex-col items-center space-y-2 bg-transparent"
-                    >
-                      <QrCode className="w-6 h-6" />
-                      <span>Verify Product</span>
-                    </Button>
-                  </Link>
-                  <Link href="/orders">
-                    <Button
-                      variant="outline"
-                      className="w-full h-auto p-4 flex flex-col items-center space-y-2 bg-transparent"
-                    >
-                      <Package className="w-6 h-6" />
-                      <span>My Orders</span>
-                    </Button>
-                  </Link>
-                  <Link href="/favorites">
-                    <Button
-                      variant="outline"
-                      className="w-full h-auto p-4 flex flex-col items-center space-y-2 bg-transparent"
-                    >
-                      <Star className="w-6 h-6" />
-                      <span>Favorites</span>
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Orders */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Recent Orders</CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                  >
-                    <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                    Refresh
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {orders.length > 0 ? (
-                  <div className="space-y-4">
-                    {orders.slice(0, 5).map((order, index) => (
-                      <motion.div
-                        key={order._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                        className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                            <Package className="w-6 h-6 text-primary" />
+          {/* Featured Products */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Featured Products</CardTitle>
+                <CardDescription>Fresh, verified produce from local farmers</CardDescription>
+              </div>
+              <Button asChild size="sm">
+                <Link href="/dashboard/products">View All</Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {featuredProducts.length > 0 ? (
+                  featuredProducts.map((product) => (
+                    <div key={product._id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="aspect-square bg-muted rounded-lg mb-3 relative overflow-hidden">
+                        {product.images?.[0] ? (
+                          <Image
+                            src={product.images[0] || "/placeholder.svg"}
+                            alt={product.product?.cropName || "Product"}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <Package className="h-8 w-8 text-muted-foreground" />
                           </div>
-                          <div>
-                            <h4 className="font-medium text-foreground">
-                              {order.items[0]?.listing.product || 'Product'}
-                            </h4>
-                            <p className="text-sm text-muted-foreground">
-                              {order.items.length} item{order.items.length !== 1 ? 's' : ''}
-                            </p>
-                            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                              <span className="flex items-center">
-                                <Package className="w-3 h-3 mr-1" />
-                                {order.items.reduce((sum, item) => sum + item.quantity, 0)} units
-                              </span>
-                              <span className="flex items-center">
-                                <Calendar className="w-3 h-3 mr-1" />
-                                {new Date(order.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="font-medium">{product.product?.cropName || "Fresh Produce"}</h3>
+                        <p className="text-sm text-muted-foreground">{product.location}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-primary">₦{product.price?.toLocaleString()}</span>
+                          <Badge variant="secondary">{product.qualityGrade}</Badge>
                         </div>
-                        <div className="flex items-center space-x-3">
-                          <div className="text-right">
-                            <p className="font-medium text-foreground">{formatCurrency(order.total)}</p>
-                            <Badge variant="secondary">{order.status}</Badge>
-                          </div>
-                          <Link href={`/orders/${order._id}`}>
-                            <Button variant="ghost" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </motion.div>
-                    ))}
+                        <Button size="sm" className="w-full" asChild>
+                          <Link href={`/dashboard/products/${product._id}`}>View Details</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-8">
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No featured products available</p>
                   </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Orders */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Recent Orders</CardTitle>
+                <CardDescription>Your latest purchases</CardDescription>
+              </div>
+              <Button asChild size="sm">
+                <Link href="/dashboard/orders">View All</Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentOrders.length > 0 ? (
+                  recentOrders.map((order) => (
+                    <div key={order._id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <ShoppingCart className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Order #{order._id.slice(-6)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            ₦{order.totalAmount?.toLocaleString()} • {new Date(order.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Badge
+                          variant={
+                            order.status === "delivered"
+                              ? "default"
+                              : order.status === "pending"
+                                ? "secondary"
+                                : "outline"
+                          }
+                        >
+                          {order.status}
+                        </Badge>
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/dashboard/orders/${order._id}`}>View</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  ))
                 ) : (
                   <div className="text-center py-8">
-                    <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No orders yet</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Start shopping to see your orders here
-                    </p>
-                    <Link href="/marketplace">
-                      <Button>
-                        <Search className="w-4 h-4 mr-2" />
-                        Browse Products
-                      </Button>
-                    </Link>
+                    <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No orders yet</p>
+                    <Button asChild className="mt-4">
+                      <Link href="/dashboard/products">Start Shopping</Link>
+                    </Button>
                   </div>
                 )}
-                {orders.length > 0 && (
-                  <div className="mt-4 text-center">
-                    <Link href="/orders">
-                      <Button variant="outline">View All Orders</Button>
-                    </Link>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-          <TabsContent value="orders" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Order Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Order management features coming soon...</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+        {/* Sidebar */}
+        <div className="space-y-6">
+          <RecentActivity />
 
-          <TabsContent value="favorites" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Saved Products</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Favorites management coming soon...</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="profile" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Profile Settings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p className="text-muted-foreground">
-                    Manage your profile and account settings.
-                  </p>
-                  <div className="flex gap-2">
-                    <Link href="/profile">
-                      <Button variant="outline">
-                        <Users className="w-4 h-4 mr-2" />
-                        Edit Profile
-                      </Button>
-                    </Link>
-                  </div>
+          {/* QR Scanner */}
+          <Card>
+            <CardHeader>
+              <CardTitle>QR Code Scanner</CardTitle>
+              <CardDescription>Verify product authenticity</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center space-y-4">
+                <div className="h-32 w-32 mx-auto border-2 border-dashed border-muted-foreground rounded-lg flex items-center justify-center">
+                  <QrCode className="h-12 w-12 text-muted-foreground" />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                <Button asChild className="w-full">
+                  <Link href="/dashboard/scanner">Open Scanner</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Shopping Tips */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Shopping Tips</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start space-x-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary mt-2" />
+                  <p>Always verify products with QR codes before purchasing</p>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary mt-2" />
+                  <p>Check farmer ratings and reviews</p>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary mt-2" />
+                  <p>Look for organic and premium quality grades</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </DashboardLayout>
+    </div>
   )
 }

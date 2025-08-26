@@ -1,437 +1,277 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
+import { Search, Filter, Grid, List, MapPin, Star, Heart, ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
-  Search, 
-  Filter, 
-  Package, 
-  MapPin, 
-  DollarSign, 
-  Star, 
-  Eye, 
-  ShoppingCart,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-  Plus
-} from "lucide-react"
+import { Slider } from "@/components/ui/slider"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { api } from "@/lib/api"
+import type { Product } from "@/lib/types"
 import Link from "next/link"
 import Image from "next/image"
 
-interface MarketplaceListing {
-  id: string
-  product: string
-  price: number
-  quantity: number
-  farmer: {
-    id: string
-    name: string
-    location: string
-    rating: number
-  }
-  images: string[]
-  description: string
-  category: string
-  unit: string
-  harvestDate: string
-  status: string
-  createdAt: string
-}
-
-interface MarketplaceFilters {
-  search: string
-  category: string
-  location: string
-  minPrice: string
-  maxPrice: string
-  sortBy: string
-}
-
 export default function MarketplacePage() {
-  const [listings, setListings] = useState<MarketplaceListing[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-  const [filters, setFilters] = useState<MarketplaceFilters>({
-    search: "",
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filters, setFilters] = useState({
     category: "all",
-    location: "all",
-    minPrice: "",
-    maxPrice: "",
-    sortBy: "newest"
+    location: "",
+    priceRange: [0, 10000],
+    sortBy: "newest",
   })
-  const [categories, setCategories] = useState<string[]>([])
-  const [locations, setLocations] = useState<string[]>([])
 
   useEffect(() => {
-    fetchMarketplaceData()
-  }, [filters])
+    fetchProducts()
+  }, [filters, searchQuery])
 
-  const fetchMarketplaceData = async () => {
+  const fetchProducts = async () => {
     try {
       setLoading(true)
-      setError("")
+      const params = new URLSearchParams({
+        search: searchQuery,
+        category: filters.category,
+        location: filters.location,
+        minPrice: filters.priceRange[0].toString(),
+        maxPrice: filters.priceRange[1].toString(),
+        sortBy: filters.sortBy,
+      })
 
-      // Build query parameters
-      const queryParams: any = {}
-      if (filters.search) queryParams.search = filters.search
-      if (filters.category && filters.category !== "all") queryParams.category = filters.category
-      if (filters.location && filters.location !== "all") queryParams.location = filters.location
-      if (filters.minPrice) queryParams.minPrice = parseFloat(filters.minPrice)
-      if (filters.maxPrice) queryParams.maxPrice = parseFloat(filters.maxPrice)
-      if (filters.sortBy) queryParams.sortBy = filters.sortBy
-
-      const response = await api.getMarketplaceListings(queryParams)
-      
-      if (response.success) {
-        const data = response.data as any
-        setListings(data.listings || data || [])
-        
-        // Extract unique categories and locations for filters
-        const uniqueCategories = [...new Set(data.listings?.map((l: any) => l.category).filter(Boolean) || [])] as string[]
-        const uniqueLocations = [...new Set(data.listings?.map((l: any) => l.farmer?.location).filter(Boolean) || [])] as string[]
-        
-        setCategories(uniqueCategories)
-        setLocations(uniqueLocations)
-      } else {
-        throw new Error(response.error || "Failed to fetch marketplace listings")
-      }
+      const response = await api.get(`/marketplace/products?${params}`)
+      setProducts(response.data.products || [])
     } catch (error) {
-      console.error("Marketplace fetch error:", error)
-      setError(error instanceof Error ? error.message : "Failed to fetch marketplace listings")
-      
-      // Set empty states when API fails
-      setListings([])
-      setCategories([])
-      setLocations([])
+      console.error("Failed to fetch products:", error)
     } finally {
       setLoading(false)
     }
   }
 
-  // No mock data - all data comes from real APIs
-
-  const handleFilterChange = (key: keyof MarketplaceFilters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
+  const handleAddToCart = async (productId: string) => {
+    try {
+      await api.post("/marketplace/cart", { productId, quantity: 1 })
+      // Show success message
+    } catch (error) {
+      console.error("Failed to add to cart:", error)
+    }
   }
 
-  const clearFilters = () => {
-    setFilters({
-      search: "",
-      category: "all",
-      location: "all",
-      minPrice: "",
-      maxPrice: "",
-      sortBy: "newest"
-    })
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
-
-  if (loading && listings.length === 0) {
-    return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading marketplace...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+  const handleToggleFavorite = async (productId: string) => {
+    try {
+      await api.post(`/marketplace/products/${productId}/favorite`)
+      // Update local state
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50">
+      <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Marketplace</h1>
-            <p className="text-muted-foreground">
-              Discover fresh, quality produce from local farmers
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={fetchMarketplaceData} disabled={loading}>
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <RefreshCw className="w-4 h-4 mr-2" />
-              )}
-              Refresh
-            </Button>
-            <Link href="/harvests/new">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Sell Your Produce
-              </Button>
-            </Link>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Marketplace</h1>
+          <p className="text-gray-600">Discover fresh, verified agricultural products from trusted farmers</p>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        {/* Search and Filters */}
+        <div className="mb-8 space-y-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search products, farmers, or locations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+                    <Filter className="h-4 w-4" />
+                    Filters
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Filter Products</SheetTitle>
+                  </SheetHeader>
+                  <div className="space-y-6 mt-6">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Category</label>
+                      <Select
+                        value={filters.category}
+                        onValueChange={(value) => setFilters({ ...filters, category: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All categories</SelectItem>
+                          <SelectItem value="grains">Grains</SelectItem>
+                          <SelectItem value="vegetables">Vegetables</SelectItem>
+                          <SelectItem value="fruits">Fruits</SelectItem>
+                          <SelectItem value="tubers">Tubers</SelectItem>
+                          <SelectItem value="legumes">Legumes</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-        {/* Filters */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-              {/* Search */}
-              <div className="lg:col-span-2">
-                <SearchWithSuggestions value={filters.search} onChange={(v) => handleFilterChange('search', v)} />
-              </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Price Range (₦)</label>
+                      <Slider
+                        value={filters.priceRange}
+                        onValueChange={(value) => setFilters({ ...filters, priceRange: value })}
+                        max={10000}
+                        step={100}
+                        className="mt-2"
+                      />
+                      <div className="flex justify-between text-sm text-gray-500 mt-1">
+                        <span>₦{filters.priceRange[0]}</span>
+                        <span>₦{filters.priceRange[1]}</span>
+                      </div>
+                    </div>
 
-              {/* Category */}
-              <div>
-                <Select value={filters.category} onValueChange={(value) => handleFilterChange("category", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Sort By</label>
+                      <Select
+                        value={filters.sortBy}
+                        onValueChange={(value) => setFilters({ ...filters, sortBy: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="newest">Newest First</SelectItem>
+                          <SelectItem value="price_low">Price: Low to High</SelectItem>
+                          <SelectItem value="price_high">Price: High to Low</SelectItem>
+                          <SelectItem value="rating">Highest Rated</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
 
-              {/* Location */}
-              <div>
-                <Select value={filters.location} onValueChange={(value) => handleFilterChange("location", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Locations</SelectItem>
-                    {locations.map((location) => (
-                      <SelectItem key={location} value={location}>{location}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Sort */}
-              <div>
-                <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange("sortBy", value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">Newest First</SelectItem>
-                    <SelectItem value="oldest">Oldest First</SelectItem>
-                    <SelectItem value="price_low">Price: Low to High</SelectItem>
-                    <SelectItem value="price_high">Price: High to Low</SelectItem>
-                    <SelectItem value="rating">Highest Rated</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Clear Filters */}
-              <div>
-                <Button variant="outline" onClick={clearFilters} className="w-full">
-                  Clear
+              <div className="flex border rounded-lg">
+                <Button
+                  variant={viewMode === "grid" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("grid")}
+                >
+                  <Grid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                >
+                  <List className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Results Count */}
-        <div className="flex items-center justify-between">
-          <p className="text-muted-foreground">
-            {listings.length} product{listings.length !== 1 ? 's' : ''} found
-          </p>
+          </div>
         </div>
 
-        {/* Listings Grid */}
-        {listings.length > 0 ? (
+        {/* Products Grid */}
+        {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {listings.map((listing, index) => (
-              <motion.div
-                key={listing.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-              >
-                <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
-                  <CardContent className="p-0">
-                    {/* Product Image */}
-                    <div className="relative h-48 bg-muted rounded-t-lg overflow-hidden">
-                      <Image
-                        src={listing.images[0] || "/fresh-tomatoes.png"}
-                        alt={listing.product}
-                        fill
-                        className="object-cover"
-                      />
-                      <div className="absolute top-2 right-2">
-                        <Badge variant="secondary" className="bg-white/90 text-foreground">
-                          {listing.status}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    {/* Product Info */}
-                    <div className="p-4 space-y-3">
-                      <div>
-                        <h3 className="font-semibold text-lg line-clamp-1">{listing.product}</h3>
-                        <p className="text-sm text-muted-foreground line-clamp-2">{listing.description}</p>
-                      </div>
-
-                      {/* Price and Quantity */}
-                      <div className="flex items-center justify-between">
-                        <div className="text-2xl font-bold text-primary">
-                          {formatCurrency(listing.price)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {listing.quantity} {listing.unit}
-                        </div>
-                      </div>
-
-                      {/* Farmer Info */}
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-muted-foreground" />
-                          <span>{listing.farmer.location}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                          <span>{listing.farmer.rating}</span>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex gap-2">
-                        <Link href={`/marketplace/${listing.id}`} className="flex-1">
-                          <Button variant="outline" className="w-full">
-                            <Eye className="w-4 h-4 mr-2" />
-                            View Details
-                          </Button>
-                        </Link>
-                        <Button className="flex-1">
-                          <ShoppingCart className="w-4 h-4 mr-2" />
-                          Buy Now
-                        </Button>
-                      </div>
-
-                      {/* Harvest Date */}
-                      <div className="text-xs text-muted-foreground text-center">
-                        Harvested: {formatDate(listing.harvestDate)}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+            {[...Array(8)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <div className="h-48 bg-gray-200 rounded-t-lg"></div>
+                <CardContent className="p-4">
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded mb-4"></div>
+                  <div className="h-6 bg-gray-200 rounded"></div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         ) : (
-          /* Empty State */
-          <Card>
-            <CardContent className="p-12 text-center">
-              <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">No products found</h3>
-              <p className="text-muted-foreground mb-4">
-                {filters.search || filters.category || filters.location
-                  ? "Try adjusting your search or filters"
-                  : "No products are currently available in the marketplace"
-                }
-              </p>
-              {filters.search || filters.category || filters.location ? (
-                <Button variant="outline" onClick={clearFilters}>
-                  Clear Filters
-                </Button>
-              ) : (
-                <Link href="/harvests/new">
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Your First Product
+          <div
+            className={
+              viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : "space-y-4"
+            }
+          >
+            {products.map((product) => (
+              <Card key={product.id} className="group hover:shadow-lg transition-shadow">
+                <CardHeader className="p-0 relative">
+                  <div className="relative h-48 overflow-hidden rounded-t-lg">
+                    <Image
+                      src={
+                        product.images?.[0] || "/placeholder.svg?height=200&width=300&query=fresh agricultural product"
+                      }
+                      alt={product.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform"
+                    />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="absolute top-2 right-2 bg-white/80 hover:bg-white"
+                      onClick={() => handleToggleFavorite(product.id)}
+                    >
+                      <Heart className="h-4 w-4" />
+                    </Button>
+                    {product.isVerified && <Badge className="absolute top-2 left-2 bg-green-600">Verified</Badge>}
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-semibold text-lg">{product.name}</h3>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="text-sm">{product.rating || 4.5}</span>
+                    </div>
+                  </div>
+
+                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
+
+                  <div className="flex items-center gap-2 mb-3">
+                    <MapPin className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">{product.location}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-2xl font-bold text-green-600">₦{product.price}</span>
+                      <span className="text-sm text-gray-500">/{product.unit}</span>
+                    </div>
+                    <Badge variant="outline">{product.category}</Badge>
+                  </div>
+                </CardContent>
+
+                <CardFooter className="p-4 pt-0 flex gap-2">
+                  <Button className="flex-1" onClick={() => handleAddToCart(product.id)}>
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Add to Cart
                   </Button>
-                </Link>
-              )}
-            </CardContent>
-          </Card>
+                  <Button variant="outline" asChild>
+                    <Link href={`/marketplace/products/${product.id}`}>View Details</Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {products.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <Search className="h-16 w-16 mx-auto" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No products found</h3>
+            <p className="text-gray-600">Try adjusting your search or filters</p>
+          </div>
         )}
       </div>
-    </div>
-  )
-}
-
-function SearchWithSuggestions({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [items, setItems] = useState<{ label: string; value: string }[]>([])
-  useEffect(() => {
-    const q = value.trim()
-    if (q.length < 2) { setItems([]); setOpen(false); return }
-    let active = true
-    setLoading(true)
-    api.getSearchSuggestions(q).then(resp => {
-      if (!active) return
-      if (resp.success && (resp.data as any)?.suggestions) {
-        const arr = (resp.data as any).suggestions.map((s: any) => ({ label: s.label, value: s.value }))
-        setItems(arr); setOpen(arr.length > 0)
-      } else { setItems([]); setOpen(false) }
-    }).finally(() => setLoading(false))
-    return () => { active = false }
-  }, [value])
-
-  return (
-    <div className="relative">
-      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-      <Input
-        placeholder="Search products..."
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="pl-10"
-        onFocus={() => value.trim().length >= 2 && setOpen(items.length > 0)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-      />
-      {open && (
-        <div className="absolute z-20 mt-1 w-full bg-card border border-border rounded-md shadow-sm max-h-56 overflow-auto">
-          {loading ? (
-            <div className="px-3 py-2 text-sm text-muted-foreground">Searching…</div>
-          ) : items.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-muted-foreground">No suggestions</div>
-          ) : (
-            items.map((it) => (
-              <button key={it.value} className="w-full text-left px-3 py-2 text-sm hover:bg-muted" onMouseDown={(e) => { e.preventDefault(); onChange(it.value); setOpen(false) }}>
-                {it.label}
-              </button>
-            ))
-          )}
-        </div>
-      )}
     </div>
   )
 }

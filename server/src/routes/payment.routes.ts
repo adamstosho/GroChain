@@ -1,11 +1,14 @@
 import { Router } from 'express';
-import { initializeOrderPayment, verifyPaymentWebhook } from '../controllers/payment.controller';
+import { initializeOrderPayment, verifyPaymentWebhook, getPaymentConfig } from '../controllers/payment.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
 import { authorizeRoles } from '../middlewares/rbac.middleware';
 import { validateRequest } from '../middlewares/validation.middleware';
 import Joi from 'joi';
 
 const router = Router();
+
+// Get payment configuration (public endpoint)
+router.get('/config', getPaymentConfig);
 
 // Only authenticated buyers/partners/admins should initialize payments
 router.post(

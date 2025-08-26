@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { User, UserRole } from '../models/user.model';
 import { Partner } from '../models/partner.model';
 import { Referral } from '../models/referral.model';
+import { FarmerProfile } from '../models/farmer-profile.model';
 import { sendBulkSMSInvitations, sendSMS } from '../services/notification.service';
 import Joi from 'joi';
 import csv from 'csv-parser';
@@ -354,6 +355,125 @@ export const bulkOnboard = async (req: Request, res: Response) => {
   return res.status(201).json({ status: 'success', onboarded, failed });
 };
 
+// Single farmer onboarding
+export const onboardSingleFarmer = async (req: Request, res: Response) => {
+  try {
+    const { partnerId, farmer } = req.body;
+    
+    // Find the partner
+    const partner = await Partner.findById(partnerId);
+    if (!partner) {
+      return res.status(404).json({ 
+        status: 'error', 
+        message: 'Partner not found.',
+        code: 'PARTNER_NOT_FOUND'
+      });
+    }
+
+    // Check if farmer already exists
+    const existingFarmer = await User.findOne({ 
+      $or: [{ email: farmer.email }, { phone: farmer.phone }] 
+    });
+    
+    if (existingFarmer) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'A farmer with this email or phone number already exists.',
+        code: 'FARMER_ALREADY_EXISTS'
+      });
+    }
+
+    // Create the farmer user
+    const farmerUser = new User({
+      name: `${farmer.firstName} ${farmer.lastName}`.trim(),
+      email: farmer.email,
+      phone: farmer.phone,
+      password: `GroChain-${Date.now()}`, // Generate a temporary password
+      role: UserRole.FARMER,
+      partner: partnerId, // Set the partner reference
+      emailVerified: false,
+      phoneVerified: false,
+    });
+
+    await farmerUser.save();
+
+    // Create farmer profile with additional information
+    const farmerProfile = new FarmerProfile({
+      farmerId: farmerUser._id,
+      state: farmer.state,
+      lga: farmer.lga,
+      address: farmer.address || '',
+      farmSize: farmer.farmSize || 0,
+      cropTypes: farmer.cropTypes || '',
+      experience: farmer.experience || 0,
+      notes: farmer.notes || '',
+      organization: farmer.organization || '',
+    });
+
+    await farmerProfile.save();
+
+    // Add farmer to partner's onboarded farmers list
+    partner.onboardedFarmers.push(farmerUser._id as any);
+    await partner.save();
+
+    // Create referral record
+    await Referral.create({ 
+      farmer: farmerUser._id, 
+      partner: partner._id, 
+      status: 'pending', 
+      commission: 0,
+      createdAt: new Date()
+    });
+
+    // Send SMS invitation
+    try {
+      const message = `Welcome to GroChain, ${farmer.firstName}! Your account has been created successfully. You can now access the platform and start your digital farming journey.`;
+      await sendSMS(farmer.phone, message);
+    } catch (smsError) {
+      console.error('Failed to send SMS invite:', smsError);
+      // Continue with the process even if SMS fails
+    }
+
+    // Return success response
+    res.status(201).json({
+      status: 'success',
+      message: 'Farmer onboarded successfully',
+      code: 'SUCCESS',
+      data: {
+        farmerId: farmerUser._id,
+        email: farmer.email,
+        phone: farmer.phone,
+        name: `${farmer.firstName} ${farmer.lastName}`,
+        partnerId: partner._id,
+        referralId: (await Referral.findOne({ farmer: farmerUser._id, partner: partner._id }))?._id
+      }
+    });
+
+  } catch (error) {
+    console.error('Single farmer onboarding error:', error);
+    
+    let errorCode = 'INTERNAL_ERROR';
+    let statusCode = 500;
+    
+    if (error instanceof Error) {
+      if (error.message.includes('validation')) {
+        errorCode = 'VALIDATION_ERROR';
+        statusCode = 400;
+      } else if (error.message.includes('duplicate')) {
+        errorCode = 'DUPLICATE_ERROR';
+        statusCode = 400;
+      }
+    }
+    
+    return res.status(statusCode).json({ 
+      status: 'error', 
+      message: error instanceof Error ? error.message : 'Error onboarding farmer.',
+      code: errorCode,
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
 export const getPartnerMetrics = async (req: Request, res: Response) => {
   try {
     const partner = await Partner.findById(req.params.id).populate('onboardedFarmers');
@@ -485,6 +605,170 @@ export const getPartnerMetrics = async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error('Partner metrics error:', err);
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+// Get all partners
+export const getAllPartners = async (req: Request, res: Response) => {
+  try {
+    const partners = await Partner.find({})
+      .select('name type contactEmail contactPhone referralCode commissionBalance onboardedFarmers email farmerCount revenueGenerated isActive region createdAt updatedAt')
+      .populate('onboardedFarmers', 'name email status');
+
+    // Transform data to match frontend expectations
+    const transformedPartners = partners.map(partner => ({
+      id: partner._id,
+      name: partner.name,
+      email: partner.contactEmail || partner.email || '',
+      phone: partner.contactPhone || '',
+      location: partner.region || 'Unknown',
+      joinDate: partner.createdAt,
+      status: partner.isActive ? 'active' : 'inactive',
+      productsCount: partner.farmerCount || 0,
+      totalSales: partner.revenueGenerated || 0,
+      commission: partner.commissionBalance || 0,
+      lastActive: partner.updatedAt,
+      type: partner.type,
+      referralCode: partner.referralCode,
+      farmerCount: partner.onboardedFarmers?.length || 0
+    }));
+
+    return res.status(200).json({
+      status: 'success',
+      data: transformedPartners
+    });
+  } catch (error) {
+    console.error('Get all partners error:', error);
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+// Get partner by ID
+export const getPartnerById = async (req: Request, res: Response) => {
+  try {
+    const partner = await Partner.findById(req.params.id)
+      .populate('onboardedFarmers', 'name email status phone');
+
+    if (!partner) {
+      return res.status(404).json({ status: 'error', message: 'Partner not found.' });
+    }
+
+    const transformedPartner = {
+      id: partner._id,
+      name: partner.name,
+      email: partner.contactEmail || partner.email || '',
+      phone: partner.contactPhone || '',
+      location: partner.region || 'Unknown',
+      joinDate: partner.createdAt,
+      status: partner.isActive ? 'active' : 'inactive',
+      productsCount: partner.farmerCount || 0,
+      totalSales: partner.revenueGenerated || 0,
+      commission: partner.commissionBalance || 0,
+      lastActive: partner.updatedAt,
+      type: partner.type,
+      referralCode: partner.referralCode,
+      farmerCount: partner.onboardedFarmers?.length || 0,
+      onboardedFarmers: partner.onboardedFarmers
+    };
+
+    return res.status(200).json({
+      status: 'success',
+      data: transformedPartner
+    });
+  } catch (error) {
+    console.error('Get partner by ID error:', error);
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+// Create new partner
+export const createPartner = async (req: Request, res: Response) => {
+  try {
+    const { name, type, contactEmail, contactPhone, region } = req.body;
+
+    // Validate required fields
+    if (!name) {
+      return res.status(400).json({ status: 'error', message: 'Partner name is required.' });
+    }
+
+    const partner = new Partner({
+      name,
+      type: type || 'other',
+      contactEmail,
+      contactPhone,
+      region,
+      isActive: true
+    });
+
+    await partner.save();
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Partner created successfully.',
+      data: partner
+    });
+  } catch (error) {
+    console.error('Create partner error:', error);
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+// Update partner
+export const updatePartner = async (req: Request, res: Response) => {
+  try {
+    const { name, type, contactEmail, contactPhone, region, isActive } = req.body;
+
+    const partner = await Partner.findById(req.params.id);
+    if (!partner) {
+      return res.status(404).json({ status: 'error', message: 'Partner not found.' });
+    }
+
+    // Update fields
+    if (name !== undefined) partner.name = name;
+    if (type !== undefined) partner.type = type;
+    if (contactEmail !== undefined) partner.contactEmail = contactEmail;
+    if (contactPhone !== undefined) partner.contactPhone = contactPhone;
+    if (region !== undefined) partner.region = region;
+    if (isActive !== undefined) partner.isActive = isActive;
+
+    await partner.save();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Partner updated successfully.',
+      data: partner
+    });
+  } catch (error) {
+    console.error('Update partner error:', error);
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+// Delete partner
+export const deletePartner = async (req: Request, res: Response) => {
+  try {
+    const partner = await Partner.findById(req.params.id);
+    if (!partner) {
+      return res.status(404).json({ status: 'error', message: 'Partner not found.' });
+    }
+
+    // Check if partner has onboarded farmers
+    if (partner.onboardedFarmers && partner.onboardedFarmers.length > 0) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'Cannot delete partner with onboarded farmers. Please transfer farmers first.' 
+      });
+    }
+
+    await Partner.findByIdAndDelete(req.params.id);
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Partner deleted successfully.'
+    });
+  } catch (error) {
+    console.error('Delete partner error:', error);
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }
 };

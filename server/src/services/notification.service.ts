@@ -114,11 +114,41 @@ export const sendEmail = async (email: string, subject: string, message: string)
 
 export const sendUSSD = async (phone: string, message: string, sessionId?: string) => {
   try {
-    // For now, just log the USSD message and return success
-    // This will be implemented when USSD gateway is configured
-    console.log(`USSD to ${phone}: ${message} (USSD service not fully configured)`);
-    return { success: true, message: 'USSD logged (service not fully configured)' };
+    // Check if USSD gateway is configured
+    const ussdGatewayUrl = process.env.USSD_GATEWAY_URL;
+    const ussdApiKey = process.env.USSD_API_KEY;
+    
+    if (!ussdGatewayUrl || !ussdApiKey) {
+      console.log(`USSD to ${phone}: ${message} (USSD gateway not configured)`);
+      return { success: true, message: 'USSD logged (gateway not configured)' };
+    }
+
+    // Send USSD message via Africastalking gateway
+    const response = await fetch(ussdGatewayUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apiKey': ussdApiKey
+      },
+      body: JSON.stringify({
+        phoneNumber: phone,
+        message: message,
+        sessionId: sessionId || `ussd-${Date.now()}`,
+        serviceCode: '*123*1#'
+      })
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log(`USSD sent successfully to ${phone}:`, result);
+      return { success: true, messageId: result.messageId };
+    }
+
+    const errorText = await response.text();
+    console.error(`USSD failed to ${phone}:`, errorText);
+    return { success: false, error: errorText };
   } catch (error) {
+    console.error(`USSD error to ${phone}:`, error);
     return { success: false, error: (error as Error).message };
   }
 };

@@ -26,17 +26,14 @@ export const partnerSettingsController = {
       // Get partner organization details
       const partner = await Partner.findOne({ user: userId });
       const partnerDetails = partner ? {
-        organizationName: partner.organizationName,
-        organizationType: partner.organizationType,
-        registrationNumber: partner.registrationNumber,
-        address: partner.address,
-        contactPerson: partner.contactPerson,
-        phone: partner.phone,
-        website: partner.website,
-        services: partner.services,
-        regions: partner.regions,
-        commissionRate: partner.commissionRate,
-        status: partner.status
+        name: partner.name,
+        type: partner.type,
+        contactEmail: partner.contactEmail,
+        contactPhone: partner.contactPhone,
+        region: partner.region,
+        commissionBalance: partner.commissionBalance,
+        farmerCount: partner.farmerCount,
+        isActive: partner.isActive
       } : {};
 
       res.json({
@@ -56,7 +53,7 @@ export const partnerSettingsController = {
         }
       });
     } catch (error) {
-      logger.error('Error getting partner profile:', error);
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting partner profile');
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   },
@@ -93,12 +90,11 @@ export const partnerSettingsController = {
           { user: userId },
           {
             $set: {
-              organizationName: updateData.partner.organizationName,
-              organizationType: updateData.partner.organizationType,
-              address: updateData.partner.address,
-              contactPerson: updateData.partner.contactPerson,
-              phone: updateData.partner.phone,
-              website: updateData.partner.website
+              name: updateData.partner.name,
+              type: updateData.partner.type,
+              contactEmail: updateData.partner.contactEmail,
+              contactPhone: updateData.partner.contactPhone,
+              region: updateData.partner.region
             }
           },
           { upsert: true, new: true }
@@ -111,7 +107,7 @@ export const partnerSettingsController = {
         data: user
       });
     } catch (error) {
-      logger.error('Error updating partner profile:', error);
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error updating partner profile');
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   },
@@ -144,7 +140,7 @@ export const partnerSettingsController = {
         }
       });
     } catch (error) {
-      logger.error('Error getting partner preferences:', error);
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting partner preferences');
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   },
@@ -178,7 +174,7 @@ export const partnerSettingsController = {
         data: user
       });
     } catch (error) {
-      logger.error('Error updating partner preferences:', error);
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error updating partner preferences');
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   },
@@ -199,12 +195,11 @@ export const partnerSettingsController = {
       // Get partner organization settings
       const partner = await Partner.findOne({ user: userId });
       const partnerSettings = partner ? {
-        services: partner.services || [],
-        regions: partner.regions || [],
-        commissionRate: partner.commissionRate || 0,
-        autoOnboarding: partner.autoOnboarding || false,
-        qualityStandards: partner.qualityStandards || [],
-        trainingPrograms: partner.trainingPrograms || []
+        type: partner.type,
+        region: partner.region,
+        commissionBalance: partner.commissionBalance,
+        farmerCount: partner.farmerCount,
+        isActive: partner.isActive
       } : {};
 
       res.json({
@@ -233,7 +228,7 @@ export const partnerSettingsController = {
         }
       });
     } catch (error) {
-      logger.error('Error getting partner settings:', error);
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting partner settings');
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   },
@@ -254,12 +249,8 @@ export const partnerSettingsController = {
           { user: userId },
           {
             $set: {
-              services: updateData.organization.services,
-              regions: updateData.organization.regions,
-              commissionRate: updateData.organization.commissionRate,
-              autoOnboarding: updateData.organization.autoOnboarding,
-              qualityStandards: updateData.organization.qualityStandards,
-              trainingPrograms: updateData.organization.trainingPrograms
+              type: updateData.organization.type,
+              region: updateData.organization.region
             }
           },
           { upsert: true, new: true }
@@ -272,7 +263,7 @@ export const partnerSettingsController = {
         data: updateData
       });
     } catch (error) {
-      logger.error('Error updating partner settings:', error);
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error updating partner settings');
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   }

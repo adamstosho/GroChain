@@ -4,7 +4,7 @@ import { AuthRequest } from './auth.middleware';
 export const authorizeRoles = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ status: 'error', message: 'Forbidden: insufficient permissions.' });
+      return res.status(403).json({ success: false, message: 'Forbidden: insufficient permissions.' });
     }
     next();
   };

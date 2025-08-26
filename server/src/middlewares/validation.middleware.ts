@@ -1,19 +1,16 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import Joi from 'joi';
 
-// This function is replaced by the enhanced version below
-
 export const validateParams = (schema: Joi.ObjectSchema): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req.params);
     if (error) {
       return res.status(400).json({
-        status: 'error',
+        success: false,
         message: 'Invalid parameters',
         details: error.details.map(detail => detail.message),
       });
     }
-    // Avoid reassigning req.params (read-only in some Express versions). Merge instead.
     Object.assign(req.params as any, value);
     next();
   };
@@ -24,12 +21,11 @@ export const validateQuery = (schema: Joi.ObjectSchema): RequestHandler => {
     const { error, value } = schema.validate(req.query);
     if (error) {
       return res.status(400).json({
-        status: 'error',
+        success: false,
         message: 'Invalid query parameters',
         details: error.details.map(detail => detail.message),
       });
     }
-    // Avoid reassigning req.query (read-only getter in Express 5). Merge instead.
     Object.assign(req.query as any, value);
     next();
   };
@@ -45,10 +41,12 @@ export const validateRequest = (schema?: Joi.ObjectSchema, source: 'body' | 'que
     const data = source === 'body' ? req.body : source === 'query' ? req.query : req.params;
     const { error, value } = schema.validate(data);
     if (error) {
+      console.log('🔍 Validation error:', error.details);
       return res.status(400).json({
-        status: 'error',
+        success: false,
         message: 'Validation error',
         details: error.details.map(detail => detail.message),
+        field: error.details[0]?.path?.join('.'),
       });
     }
     
@@ -61,11 +59,6 @@ export const validateRequest = (schema?: Joi.ObjectSchema, source: 'body' | 'que
     }
     next();
   };
-};
-
-// Create a no-op middleware for when no validation is needed
-export const noValidation: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
-  next();
 };
 
 export const validateAnalyticsFilters = (filters: any) => {

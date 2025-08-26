@@ -5,6 +5,7 @@ export interface IFavorite extends Document {
   listingId: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+  listing?: any; // Virtual field for populated listing data
 }
 
 const FavoriteSchema = new Schema<IFavorite>({
@@ -16,7 +17,7 @@ const FavoriteSchema = new Schema<IFavorite>({
   },
   listingId: {
     type: Schema.Types.ObjectId,
-    ref: 'MarketplaceListing',
+    ref: 'Listing',
     required: true,
     index: true
   }
@@ -29,7 +30,7 @@ FavoriteSchema.index({ userId: 1, listingId: 1 }, { unique: true });
 
 // Virtual for populating listing details
 FavoriteSchema.virtual('listing', {
-  ref: 'MarketplaceListing',
+  ref: 'Listing',
   localField: 'listingId',
   foreignField: '_id',
   justOne: true

@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { Order } from '../models/order.model';
 import { Transaction, TransactionStatus, TransactionType } from '../models/transaction.model';
-import { initializePayment, verifyPayment } from '../utils/paystack.util';
+import { initializePayment, verifyPayment, isPaystackConfigured, getPaystackConfig } from '../utils/paystack.util';
 import crypto from 'crypto';
 import { CommissionService } from '../services/commission.service';
 import { CreditScore } from '../models/creditScore.model';
@@ -212,5 +212,28 @@ export const verifyPaymentWebhook = async (req: Request, res: Response) => {
   } catch (err) {
     console.error('verifyPaymentWebhook error:', err);
     return res.status(500).json({ status: 'error', message: 'Payment verification failed.' });
+  }
+};
+
+export const getPaymentConfig = async (req: Request, res: Response) => {
+  try {
+    const config = getPaystackConfig();
+    const isConfigured = isPaystackConfigured();
+    
+    res.json({
+      status: 'success',
+      data: {
+        ...config,
+        isConfigured,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Payment config error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get payment configuration',
+      error: (error as Error).message
+    });
   }
 };

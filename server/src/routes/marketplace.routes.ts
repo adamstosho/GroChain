@@ -67,6 +67,7 @@ router.post(
       farmer: Joi.string().required(),
       partner: Joi.string().required(),
       images: Joi.array().items(Joi.string().uri()).optional(),
+      description: Joi.string().optional(),
     })
   ),
   createListing
@@ -88,7 +89,7 @@ router.post(
 router.patch(
   '/orders/:id/status',
   authenticateJWT,
-  authorizeRoles('partner', 'aggregator', 'admin'),
+  authorizeRoles('partner', 'admin'),
   validateRequest(Joi.object({ status: Joi.string().valid('pending', 'paid', 'delivered', 'cancelled').required() })),
   updateOrderStatus
 );
@@ -126,14 +127,14 @@ router.get(
 router.get(
   '/favorites/:userId',
   authenticateJWT,
-  authorizeRoles('buyer', 'farmer', 'admin'),
+  authorizeRoles('buyer', 'admin'),
   getFavorites
 );
 
 router.post(
   '/favorites',
   authenticateJWT,
-  authorizeRoles('buyer', 'farmer', 'admin'),
+  authorizeRoles('buyer', 'admin'),
   validateRequest(
     Joi.object({
       userId: Joi.string().required(),
@@ -146,7 +147,7 @@ router.post(
 router.delete(
   '/favorites/:userId/:listingId',
   authenticateJWT,
-  authorizeRoles('buyer', 'farmer', 'admin'),
+  authorizeRoles('buyer', 'admin'),
   removeFromFavorites
 );
 

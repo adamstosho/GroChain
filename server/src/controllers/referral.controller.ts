@@ -9,10 +9,10 @@ export class ReferralController {
    */
   async createReferral(req: Request, res: Response): Promise<void> {
     try {
-      const { referrerId, referredUserId, referralType, notes } = req.body;
+      const { partnerId, farmerId, notes } = req.body;
 
       // Validate required fields
-      const requiredFields = ['referrerId', 'referredUserId', 'referralType'];
+      const requiredFields = ['partnerId', 'farmerId'];
       const missingFields = requiredFields.filter(field => !req.body[field]);
       
       if (missingFields.length > 0) {
@@ -23,24 +23,14 @@ export class ReferralController {
         return;
       }
 
-      // Validate referral type
-      const validTypes = ['farmer', 'partner', 'aggregator'];
-      if (!validTypes.includes(referralType)) {
-        res.status(400).json({
-          status: 'error',
-          message: `Invalid referral type. Must be one of: ${validTypes.join(', ')}`
-        });
-        return;
-      }
-
-      // Create referral
+      // Create referral using the correct model fields
       const referral = await Referral.create({
-        referrerId,
-        referredUserId,
-        referralType,
-        notes,
+        partner: partnerId,
+        farmer: farmerId,
         status: 'pending',
-        createdAt: new Date()
+        commission: 0,
+        commissionRate: 0.05, // 5% default
+        transactionAmount: 0
       });
 
       res.status(201).json({
@@ -58,28 +48,28 @@ export class ReferralController {
   }
 
   /**
-   * Get referrals for a referrer
+   * Get referrals for a partner
    * GET /api/referrals
    */
   async getReferrals(req: Request, res: Response): Promise<void> {
     try {
-      const { referrerId, status, referralType, limit = 20, offset = 0 } = req.query;
+      const { referrerId, status, limit = 20, offset = 0 } = req.query;
 
       if (!referrerId) {
         res.status(400).json({
           status: 'error',
-          message: 'Referrer ID is required'
+          message: 'Partner ID is required'
         });
         return;
       }
 
-      // Build query
-      const query: any = { referrerId: referrerId as string };
+      // Build query - use 'partner' field as per model
+      const query: any = { partner: referrerId as string };
       if (status) query.status = status;
-      if (referralType) query.referralType = referralType;
 
       // Get referrals with pagination
       const referrals = await Referral.find(query)
+        .populate('farmer', 'name email phone')
         .sort({ createdAt: -1 })
         .limit(Number(limit))
         .skip(Number(offset))
@@ -125,7 +115,7 @@ export class ReferralController {
       }
 
       // Validate status
-      const validStatuses = ['pending', 'completed', 'rejected'];
+      const validStatuses = ['pending', 'completed', 'cancelled'];
       if (!validStatuses.includes(status)) {
         res.status(400).json({
           status: 'error',
@@ -163,7 +153,7 @@ export class ReferralController {
   }
 
   /**
-   * Get referral statistics for a referrer
+   * Get referral statistics for a partner
    * GET /api/referrals/stats/:referrerId
    */
   async getReferralStats(req: Request, res: Response): Promise<void> {
@@ -173,13 +163,13 @@ export class ReferralController {
       if (!referrerId) {
         res.status(400).json({
           status: 'error',
-          message: 'Referrer ID is required'
+          message: 'Partner ID is required'
         });
         return;
       }
 
       const stats = await Referral.aggregate([
-        { $match: { referrerId } },
+        { $match: { partner: referrerId } },
         {
           $group: {
             _id: '$status',
@@ -192,7 +182,7 @@ export class ReferralController {
         total: 0,
         pending: 0,
         completed: 0,
-        rejected: 0
+        cancelled: 0
       };
 
       stats.forEach(stat => {
@@ -361,7 +351,7 @@ export class ReferralController {
 
       // Find the referral for this farmer
       const referral = await Referral.findOne({
-        referredUserId: farmerId,
+        farmer: farmerId,
         status: 'pending'
       }).exec();
 

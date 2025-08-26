@@ -8,24 +8,15 @@ import mongoose from 'mongoose';
 import { createServer } from 'http';
 import authRoutes from './routes/auth.routes';
 import partnerRoutes from './routes/partner.routes';
-import referralRoutes from './routes/referral.routes';
 import harvestRoutes from './routes/harvest.routes';
-import shipmentRoutes from './routes/shipment.routes';
 import marketplaceRoutes from './routes/marketplace.routes';
 import fintechRoutes from './routes/fintech.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import paymentRoutes from './routes/payment.routes';
 import notificationRoutes from './routes/notification.routes';
-import commissionRoutes from './routes/commission.routes';
 import verifyRoutes from './routes/verify.routes';
-
-import languageRoutes from './routes/language.routes';
+import userRoutes from './routes/user.routes';
 import weatherRoutes from './routes/weather.routes';
-import websocketRoutes from './routes/websocket.routes';
-import bvnVerificationRoutes from './routes/bvnVerification.routes';
-import swaggerUi from 'swagger-ui-express';
-// Use lightweight Swagger temporarily while full spec is reconciled
-import swaggerSpec from './swagger-lite';
 import { errorHandler } from './middlewares/error.middleware';
 import { apiLimiter, authLimiter, devLimiter } from './middlewares/rateLimit.middleware';
 import client from 'prom-client';
@@ -218,12 +209,8 @@ app.get('/metrics', async (req, res) => {
 app.use('/api/auth', authRoutes);
 // Partner routes
 app.use('/api/partners', partnerRoutes);
-// Referral routes
-app.use('/api/referrals', referralRoutes);
 // Harvest routes
 app.use('/api/harvests', harvestRoutes);
-// Shipment routes
-app.use('/api/shipments', shipmentRoutes);
 // Marketplace routes
 app.use('/api/marketplace', marketplaceRoutes);
 // Fintech routes
@@ -234,24 +221,12 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/payments', paymentRoutes);
 // Notification routes
 app.use('/api/notifications', notificationRoutes);
-// Commission routes
-app.use('/api/commissions', commissionRoutes);
 // Verify routes (public QR verification)
 app.use('/api/verify', verifyRoutes);
-
-// Language routes
-app.use('/api/languages', languageRoutes);
 // Weather routes
 app.use('/api/weather', weatherRoutes);
-// BVN Verification routes
-app.use('/api/verification', bvnVerificationRoutes);
-// WebSocket routes
-app.use('/api/websocket', websocketRoutes);
-
-// (deduplicated)
-
-// Swagger docs
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Users routes (admin/manager tools)
+app.use('/api/users', userRoutes);
 
 // Global error handler
 app.use(errorHandler);

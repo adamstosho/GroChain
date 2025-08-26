@@ -14,7 +14,7 @@ const registerSchema = Joi.object({
   email: Joi.string().email().required(),
   phone: Joi.string().required(),
   password: Joi.string().min(6).required(),
-  role: Joi.string().valid('farmer', 'partner', 'aggregator', 'admin', 'buyer').optional(),
+  role: Joi.string().valid('farmer', 'partner', 'admin', 'buyer').optional(),
 });
 
 const loginSchema = Joi.object({
@@ -71,6 +71,10 @@ router.get('/protected', authenticateJWT, async (req: AuthRequest, res) => {
   } catch (e) {
     return res.status(500).json({ status: 'error', message: 'Server error' })
   }
+});
+
+router.get('/health', (req, res) => {
+  res.status(200).json({ status: 'up' });
 });
 
 export default router;

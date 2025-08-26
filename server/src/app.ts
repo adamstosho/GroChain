@@ -7,29 +7,19 @@ import pinoHttp from 'pino-http';
 
 import authRoutes from './routes/auth.routes';
 import partnerRoutes from './routes/partner.routes';
-import partnerSettingsRoutes from './routes/partner-settings.routes';
 import farmerRoutes from './routes/farmer.routes';
-import referralRoutes from './routes/referral.routes';
 import harvestRoutes from './routes/harvest.routes';
 import harvestApprovalRoutes from './routes/harvest-approval.routes';
-import shipmentRoutes from './routes/shipment.routes';
 import marketplaceRoutes from './routes/marketplace.routes';
 import fintechRoutes from './routes/fintech.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import paymentRoutes from './routes/payment.routes';
 import notificationRoutes from './routes/notification.routes';
-import commissionRoutes from './routes/commission.routes';
 import verifyRoutes from './routes/verify.routes';
-
-
-import languageRoutes from './routes/language.routes';
-
 import weatherRoutes from './routes/weather.routes';
-import websocketRoutes from './routes/websocket.routes';
-import bvnVerificationRoutes from './routes/bvnVerification.routes';
+import userRoutes from './routes/user.routes';
 import qrCodeRoutes from './routes/qrCode.routes';
 import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './swagger-lite';
 import { errorHandler } from './middlewares/error.middleware';
 import { apiLimiter, authLimiter, devLimiter } from './middlewares/rateLimit.middleware';
 import client from 'prom-client';
@@ -116,7 +106,11 @@ if (process.env.NODE_ENV === 'development') {
 } else {
   // Use production rate limiting
   app.use('/api/auth', authLimiter);
-  app.use('/api', apiLimiter);
+  // Exclude payment webhook from generic limiter to avoid dropped provider callbacks
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/payments/verify')) return next();
+    return apiLimiter(req, res, next);
+  });
   console.log('🚀 Production mode: Using strict rate limiting');
 }
 
@@ -158,32 +152,21 @@ app.get('/metrics', async (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/partners', partnerRoutes);
-app.use('/api/partner-settings', partnerSettingsRoutes);
 app.use('/api/farmers', farmerRoutes);
-app.use('/api/referrals', referralRoutes);
 app.use('/api/harvests', harvestRoutes);
 app.use('/api/harvest-approval', harvestApprovalRoutes);
-app.use('/api/shipments', shipmentRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/fintech', fintechRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
-// Support both plural and singular for backward compatibility
-app.use('/api/commissions', commissionRoutes);
-app.use('/api/commission', commissionRoutes);
 app.use('/api/verify', verifyRoutes);
-
-
-app.use('/api/language', languageRoutes);
-
 app.use('/api/weather', weatherRoutes);
-app.use('/api/websocket', websocketRoutes);
-app.use('/api/verification', bvnVerificationRoutes);
 app.use('/api/qr-codes', qrCodeRoutes);
 
-// Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Swagger UI (serves /public/swagger.json)
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(undefined, { swaggerUrl: '/public/swagger.json' }));
+app.use('/api/users', userRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

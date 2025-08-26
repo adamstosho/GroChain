@@ -1,82 +1,76 @@
-// import { Paystack } from '@paystack/paystack-sdk';
+// @ts-ignore
+import Paystack from '@paystack/paystack-sdk';
 
-// Temporary stub implementation to get server running
-// TODO: Fix type declarations and re-enable Paystack
-const paystack = {
-  transaction: {
-    initialize: async (data: any) => {
-      console.warn('Paystack integration temporarily disabled - using stub implementation');
-      return {
-        status: true,
-        message: 'Payment initialization (stub)',
-        data: {
-          authorization_url: 'https://example.com/payment-stub',
-          access_code: 'stub-access-code',
-          reference: data.reference
-        }
-      };
-    },
-    verify: async (reference: string) => {
-      console.warn('Paystack integration temporarily disabled - using stub implementation');
-      return {
-        status: true,
-        message: 'Payment verification (stub)',
-        data: {
-          id: 12345,
-          domain: 'test',
-          amount: 1000,
-          currency: 'NGN',
-          status: 'success',
-          reference: reference,
-          metadata: { orderId: 'stub-order-id' }, // Include orderId for payment controller
-          gateway_response: 'Approved',
-          channel: 'card',
-          ip_address: '127.0.0.1',
-          fees: 0,
-          customer: {
-            id: 1,
-            customer_code: 'CUS_stub',
-            first_name: 'Test',
-            last_name: 'Customer',
-            email: 'test@example.com',
-            phone: '+2348000000000',
-            metadata: {},
-            risk_action: 'default',
-            international_format_phone: '+2348000000000'
-          },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          paid_at: new Date().toISOString(),
-          transaction_date: new Date().toISOString()
-        }
-      };
-    }
-  }
-};
+// Initialize Paystack with secret key
+const paystack = new Paystack(process.env.PAYSTACK_SECRET_KEY || '');
 
 export const initializePayment = async (email: string, amount: number, reference: string, metadata?: any, name?: string) => {
   try {
+    if (!process.env.PAYSTACK_SECRET_KEY) {
+      throw new Error('Paystack secret key not configured');
+    }
+
     const response = await paystack.transaction.initialize({
       email,
-      name: name || 'GroChain Customer',
       amount: amount * 100, // Convert to kobo
       reference,
       metadata,
       callback_url: `${process.env.BASE_URL}/api/payments/verify`,
+      currency: 'NGN'
     });
+    
+    console.log('Paystack payment initialized:', response);
     return response;
   } catch (error) {
     console.error('Paystack initialization error:', error);
-    throw new Error('Failed to initialize payment');
+    throw error;
   }
 };
 
 export const verifyPayment = async (reference: string) => {
   try {
+    if (!process.env.PAYSTACK_SECRET_KEY) {
+      throw new Error('Paystack secret key not configured');
+    }
+
     const response = await paystack.transaction.verify(reference);
+    console.log('Paystack payment verified:', response);
     return response;
   } catch (error) {
     console.error('Paystack verification error:', error);
-    throw new Error('Failed to verify payment');
+    throw error;
+  }
+};
+
+export const isPaystackConfigured = (): boolean => {
+  return !!(process.env.PAYSTACK_SECRET_KEY && process.env.PAYSTACK_PUBLIC_KEY);
+};
+
+export const getPaystackConfig = () => {
+  return {
+    publicKey: process.env.PAYSTACK_PUBLIC_KEY || null,
+    secretKey: process.env.PAYSTACK_SECRET_KEY ? '***CONFIGURED***' : null,
+    baseUrl: process.env.PAYSTACK_BASE_URL || 'https://api.paystack.co',
+    webhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET ? '***CONFIGURED***' : null
+  };
+};
+
+export const getTransactionStatus = async (reference: string) => {
+  try {
+    if (!process.env.PAYSTACK_SECRET_KEY) {
+      throw new Error('Paystack secret key not configured');
+    }
+
+    const response = await paystack.transaction.verify(reference);
+    return {
+      status: response.data.status,
+      amount: response.data.amount,
+      currency: response.data.currency,
+      reference: response.data.reference,
+      metadata: response.data.metadata
+    };
+  } catch (error) {
+    console.error('Paystack transaction status error:', error);
+    throw error;
   }
 };

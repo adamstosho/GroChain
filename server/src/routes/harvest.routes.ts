@@ -29,15 +29,6 @@ router.get(
 router.post(
   '/',
   authenticateJWT,
-  validateRequest(
-    Joi.object({
-      farmer: Joi.string().required(),
-      cropType: Joi.string().required(),
-      quantity: Joi.number().required(),
-      date: Joi.date().required(),
-      geoLocation: Joi.object({ lat: Joi.number().required(), lng: Joi.number().required() }).required(),
-    })
-  ),
   createHarvest
 );
 

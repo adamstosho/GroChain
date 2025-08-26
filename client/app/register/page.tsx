@@ -1,10 +1,14 @@
-import { ErrorBoundary } from "@/components/error-boundary"
-import { RoleSelection } from "@/components/auth/role-selection"
+import { RegisterForm } from "@/components/auth/register-form"
+import { AuthLayout } from "@/components/auth/auth-layout"
 
 export default function RegisterPage() {
   return (
-    <ErrorBoundary>
-      <RoleSelection />
-    </ErrorBoundary>
+    <AuthLayout
+      title="Join GroChain"
+      subtitle="Choose your role in Nigeria's digital agriculture platform"
+      showFeatures={false}
+    >
+      <RegisterForm />
+    </AuthLayout>
   )
 }

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Listing } from '../models/listing.model';
 import { Order } from '../models/order.model';
 import Joi from 'joi';
+import { Favorite } from '../models/favorite.model';
 
 const listingSchema = Joi.object({
   product: Joi.string().required(),
@@ -10,6 +11,7 @@ const listingSchema = Joi.object({
   farmer: Joi.string().required(),
   partner: Joi.string().required(),
   images: Joi.array().items(Joi.string()).optional(),
+  description: Joi.string().optional(),
 });
 
 export const getListings = async (req: Request, res: Response) => {
@@ -338,37 +340,139 @@ export const getOrderTracking = async (req: Request, res: Response) => {
 // Favorites/Wishlist
 export const getFavorites = async (req: Request, res: Response) => {
   try {
-    // Mock favorites data - in real implementation, this would come from a Favorites model
-    const favorites = await Listing.find({ 
-      _id: { $in: [] } // Empty array for now - would be populated from favorites collection
-    }).populate('farmer', 'name email');
+    const { userId } = req.params;
     
-    return res.status(200).json({ status: 'success', favorites });
+    // Validate userId
+    if (!userId) {
+       return res.status(400).json({ success: false, message: 'User ID is required' });
+    }
+
+    // Get user's favorites with populated listing details
+    const favorites = await Favorite.find({ userId })
+      .populate({
+        path: 'listing',
+        model: 'Listing',
+        populate: {
+          path: 'farmer',
+          model: 'User',
+          select: 'name email location rating'
+        }
+      })
+      .sort({ createdAt: -1 });
+
+    // Transform the data to match frontend expectations
+    const transformedFavorites = favorites.map(fav => {
+      const favoriteDoc = fav.toObject();
+      const listing = (favoriteDoc as any).listing as any;
+      return {
+        _id: favoriteDoc._id,
+        product: listing?.title || listing?.product,
+        price: listing?.price,
+        quantity: listing?.quantity,
+        unit: listing?.unit,
+        images: listing?.images || [],
+        farmer: {
+          name: listing?.farmer?.name || 'Unknown Farmer',
+          location: listing?.farmer?.location || 'Unknown Location',
+          rating: (listing?.farmer as any)?.rating || 0
+        },
+        status: listing?.status || 'active',
+        createdAt: favoriteDoc.createdAt,
+        updatedAt: favoriteDoc.updatedAt
+      };
+    });
+
+    return res.status(200).json({ 
+      success: true,
+      data: {
+        favorites: transformedFavorites 
+      }
+    });
   } catch (err) {
-    return res.status(500).json({ status: 'error', message: 'Server error.' });
+    console.error('Error fetching favorites:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch favorites' });
   }
 };
 
 export const addToFavorites = async (req: Request, res: Response) => {
   try {
-    // Mock implementation - in real implementation, this would add to Favorites collection
-    return res.status(200).json({ 
-      status: 'success', 
-      message: 'Added to favorites successfully' 
+    const { userId, listingId } = req.body;
+    
+    // Validate required fields
+    if (!userId || !listingId) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'User ID and Listing ID are required' 
+      });
+    }
+
+    // Check if listing exists
+    const listing = await Listing.findById(listingId);
+    if (!listing) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Listing not found' 
+      });
+    }
+
+    // Check if already in favorites
+    const existingFavorite = await Favorite.findOne({ userId, listingId });
+    if (existingFavorite) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Product is already in favorites' 
+      });
+    }
+
+    // Add to favorites
+    const newFavorite = new Favorite({
+      userId,
+      listingId
+    });
+    
+    await newFavorite.save();
+
+    return res.status(201).json({ 
+      success: true,
+      message: 'Added to favorites successfully',
+      data: {
+        favorite: newFavorite
+      }
     });
   } catch (err) {
-    return res.status(500).json({ status: 'error', message: 'Server error.' });
+    console.error('Error adding to favorites:', err);
+    return res.status(500).json({ success: false, message: 'Failed to add to favorites' });
   }
 };
 
 export const removeFromFavorites = async (req: Request, res: Response) => {
   try {
-    // Mock implementation - in real implementation, this would remove from Favorites collection
+    const { userId, listingId } = req.params;
+    
+    // Validate required fields
+    if (!userId || !listingId) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'User ID and Listing ID are required' 
+      });
+    }
+
+    // Remove from favorites
+    const deletedFavorite = await Favorite.findOneAndDelete({ userId, listingId });
+    
+    if (!deletedFavorite) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Favorite not found' 
+      });
+    }
+
     return res.status(200).json({ 
-      status: 'success', 
+      success: true,
       message: 'Removed from favorites successfully' 
     });
   } catch (err) {
-    return res.status(500).json({ status: 'error', message: 'Server error.' });
+    console.error('Error removing from favorites:', err);
+    return res.status(500).json({ success: false, message: 'Failed to remove from favorites' });
   }
 };

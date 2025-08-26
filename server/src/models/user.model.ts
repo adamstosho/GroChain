@@ -4,7 +4,6 @@ import bcrypt from 'bcryptjs';
 export enum UserRole {
   FARMER = 'farmer',
   PARTNER = 'partner',
-  AGGREGATOR = 'aggregator',
   ADMIN = 'admin',
   BUYER = 'buyer', 
 }
@@ -39,10 +38,18 @@ export interface IUser extends Document {
   phone: string;
   password: string;
   role: UserRole;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'suspended';
   partner?: string; // Partner ID for farmers
   emailVerified?: boolean;
   phoneVerified?: boolean;
+  // Profile fields
+  location?: string;
+  gender?: string;
+  age?: number;
+  education?: string;
+  // Suspension fields
+  suspensionReason?: string;
+  suspendedAt?: Date;
   // Password reset
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
@@ -67,10 +74,18 @@ const UserSchema = new Schema<IUser>(
     phone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: { type: String, enum: Object.values(UserRole), default: UserRole.FARMER },
-    status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+    status: { type: String, enum: ['active', 'inactive', 'suspended'], default: 'active' },
     partner: { type: String, ref: 'User' }, // Reference to partner user
     emailVerified: { type: Boolean, default: false },
     phoneVerified: { type: Boolean, default: false },
+    // Profile fields
+    location: { type: String },
+    gender: { type: String },
+    age: { type: Number },
+    education: { type: String },
+    // Suspension fields
+    suspensionReason: { type: String },
+    suspendedAt: { type: Date },
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
     emailVerificationToken: { type: String },

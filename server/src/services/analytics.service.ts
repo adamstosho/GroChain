@@ -185,7 +185,7 @@ class AnalyticsService {
         weather: weatherMetrics
       };
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating dashboard metrics');
+      logger.error(`Error generating dashboard metrics: ${error instanceof Error ? error.message : 'Unknown error'}`);
       // In unit tests that disconnect DB, propagate error so tests can assert rejection
       if (process.env.NODE_ENV === 'test') {
         try {
@@ -371,7 +371,7 @@ class AnalyticsService {
    */
   private async getHarvestMetrics(startDate: Date, endDate: Date, region?: string): Promise<any> {
     const matchStage: any = {
-      harvestDate: { $gte: startDate, $lte: endDate }
+      date: { $gte: startDate, $lte: endDate }
     };
 
     if (region) {
@@ -382,14 +382,14 @@ class AnalyticsService {
     const totalResult = await Harvest.countDocuments(matchStage);
     const volumeResult = await Harvest.aggregate([
       { $match: matchStage },
-      { $group: { _id: null, total: { $sum: '$volume' } } }
+      { $group: { _id: null, total: { $sum: '$quantity' } } }
     ]);
     const totalVolume = volumeResult[0]?.total || 0;
 
     // Get crop distribution
     const cropPipeline = [
       { $match: { ...matchStage, cropType: { $exists: true, $ne: null } } },
-      { $group: { _id: '$cropType', volume: { $sum: '$volume' } } }
+      { $group: { _id: '$cropType', volume: { $sum: '$quantity' } } }
     ];
     const cropResult = await Harvest.aggregate(cropPipeline);
     const byCrop: Record<string, number> = {};
@@ -404,9 +404,10 @@ class AnalyticsService {
     ];
     const qualityResult = await Harvest.aggregate(qualityPipeline);
     const byQuality = {
-      premium: qualityResult.find(q => q._id === 'premium')?.count || 0,
-      standard: qualityResult.find(q => q._id === 'standard')?.count || 0,
-      basic: qualityResult.find(q => q._id === 'basic')?.count || 0
+      excellent: qualityResult.find(q => q._id === 'excellent')?.count || 0,
+      good: qualityResult.find(q => q._id === 'good')?.count || 0,
+      fair: qualityResult.find(q => q._id === 'fair')?.count || 0,
+      poor: qualityResult.find(q => q._id === 'poor')?.count || 0
     };
 
     // Get trend data
@@ -427,37 +428,24 @@ class AnalyticsService {
    * Get marketplace metrics
    */
   private async getMarketplaceMetrics(startDate: Date, endDate: Date, region?: string): Promise<any> {
-    const matchStage: any = {
-      createdAt: { $gte: startDate, $lte: endDate }
-    };
-
-    if (region) {
-      matchStage.region = region;
-    }
+    const matchStageListings: any = { createdAt: { $gte: startDate, $lte: endDate } };
+    const matchStageOrders: any = { createdAt: { $gte: startDate, $lte: endDate } };
 
     // Get listings and orders
     const [listings, orders] = await Promise.all([
-      Product.countDocuments(matchStage),
-      Order.countDocuments(matchStage)
+      Listing.countDocuments(matchStageListings),
+      Order.countDocuments(matchStageOrders)
     ]);
 
-    // Get revenue and commission
-    const revenuePipeline = [
-      { $match: { ...matchStage, status: 'completed' } },
-      {
-        $group: {
-          _id: null,
-          revenue: { $sum: '$totalAmount' },
-          commission: { $sum: { $multiply: ['$totalAmount', 0.03] } } // 3% commission
-        }
-      }
-    ];
+    // Revenue from orders marked as paid/delivered/completed
+    const revenueAgg = await Order.aggregate([
+      { $match: { ...matchStageOrders, status: { $in: ['paid', 'delivered', 'completed'] } } },
+      { $group: { _id: null, revenue: { $sum: '$total' } } }
+    ]);
+    const revenue = revenueAgg[0]?.revenue || 0;
+    const commission = Math.round(revenue * 0.03);
 
-    const revenueResult = await Order.aggregate(revenuePipeline);
-    const revenue = revenueResult[0]?.revenue || 0;
-    const commission = revenueResult[0]?.commission || 0;
-
-    // Get top products
+    // Top products from listings marked as sold in period
     const topProducts = await this.getTopProducts(startDate, endDate, region);
 
     return {
@@ -465,7 +453,7 @@ class AnalyticsService {
       orders,
       revenue,
       commission,
-      activeProducts: await Product.countDocuments({ status: 'active', ...matchStage }),
+      activeProducts: await Listing.countDocuments({ status: 'active', createdAt: { $gte: startDate, $lte: endDate } }),
       topProducts
     };
   }
@@ -483,16 +471,16 @@ class AnalyticsService {
     }
 
     // Get credit score metrics using separate pipelines to avoid nested accumulator issues
-    const creditScoreTotal = await CreditScore.countDocuments(matchStage);
+    const creditScoreTotal = await CreditScore.countDocuments({ updatedAt: { $gte: startDate, $lte: endDate } });
     const creditScoreAverage = await CreditScore.aggregate([
-      { $match: matchStage },
+      { $match: { updatedAt: { $gte: startDate, $lte: endDate } } },
       { $group: { _id: null, average: { $avg: '$score' } } }
     ]);
     const average = creditScoreAverage[0]?.average || 0;
 
     // Get distribution using separate aggregation
     const distributionPipeline = [
-      { $match: { ...matchStage, score: { $exists: true, $ne: null } } },
+      { $match: { updatedAt: { $gte: startDate, $lte: endDate }, score: { $exists: true, $ne: null } } },
       {
         $group: {
           _id: {
@@ -597,37 +585,37 @@ class AnalyticsService {
    */
   private async getWeatherMetrics(startDate: Date, endDate: Date, region?: string): Promise<any> {
     const matchStage: any = {
-      timestamp: { $gte: startDate, $lte: endDate }
+      'metadata.lastUpdated': { $gte: startDate, $lte: endDate }
     };
-
     if (region) {
-      matchStage.region = region;
+      matchStage['location.state'] = region;
     }
 
-    const pipeline = [
+    // Averages of current snapshot
+    const basics = await WeatherData.aggregate([
       { $match: matchStage },
-      {
-        $group: {
-          _id: null,
-          averageTemperature: { $avg: '$current.temperature' },
-          averageHumidity: { $avg: '$current.humidity' },
-          rainfall: { $sum: '$current.precipitation' },
-          droughtDays: { $sum: { $cond: [{ $lt: ['$current.precipitation', 1] }, 1, 0] } },
-          favorableDays: { $sum: { $cond: [{ $and: [{ $gte: ['$current.temperature', 20] }, { $lte: ['$current.temperature', 30] }] }, 1, 0] } }
-        }
-      }
-    ];
+      { $group: { _id: null, averageTemperature: { $avg: '$current.temperature' }, averageHumidity: { $avg: '$current.humidity' } } }
+    ]);
+    const basicMetrics = basics[0] || { averageTemperature: 0, averageHumidity: 0 };
 
-          const result = await WeatherData.aggregate(pipeline);
-    const metrics = result[0] || { averageTemperature: 0, averageHumidity: 0, rainfall: 0, droughtDays: 0, favorableDays: 0 };
+    // Derived rainfall and favorable days from forecast documents in range
+    const forecastAgg = await WeatherData.aggregate([
+      { $match: matchStage },
+      { $unwind: '$forecast' },
+      { $match: { 'forecast.date': { $gte: startDate, $lte: endDate } } },
+      { $group: { _id: null, rainfall: { $sum: '$forecast.precipitation' },
+        favorableDays: { $sum: { $cond: [{ $and: [{ $gte: ['$forecast.highTemp', 20] }, { $lte: ['$forecast.highTemp', 30] }] }, 1, 0] } },
+        droughtDays: { $sum: { $cond: [{ $lt: ['$forecast.precipitation', 1] }, 1, 0] } } } }
+    ]);
+    const forecastMetrics = forecastAgg[0] || { rainfall: 0, favorableDays: 0, droughtDays: 0 };
 
     return {
-      averageTemperature: metrics.averageTemperature || 0,
-      averageHumidity: metrics.averageHumidity || 0,
-      rainfall: metrics.rainfall || 0,
-      droughtDays: metrics.droughtDays || 0,
-      favorableDays: metrics.favorableDays || 0,
-      impact: this.calculateWeatherImpact(metrics)
+      averageTemperature: basicMetrics.averageTemperature || 0,
+      averageHumidity: basicMetrics.averageHumidity || 0,
+      rainfall: forecastMetrics.rainfall || 0,
+      droughtDays: forecastMetrics.droughtDays || 0,
+      favorableDays: forecastMetrics.favorableDays || 0,
+      impact: this.calculateWeatherImpact({ favorableDays: forecastMetrics.favorableDays || 0, droughtDays: forecastMetrics.droughtDays || 0 })
     };
   }
 
@@ -738,45 +726,13 @@ class AnalyticsService {
    * Get top products
    */
   private async getTopProducts(startDate: Date, endDate: Date, region?: string): Promise<Array<{ productId: string; name: string; sales: number; revenue: number }>> {
-    const matchStage: any = {
-      createdAt: { $gte: startDate, $lte: endDate },
-      status: 'completed'
-    };
-
-    if (region) {
-      matchStage.region = region;
-    }
-
-    const pipeline = [
-      { $match: matchStage },
-      {
-        $group: {
-          _id: '$productId',
-          sales: { $sum: 1 },
-          revenue: { $sum: '$totalAmount' }
-        }
-      },
-      { $sort: { revenue: -1 as const } },
+    return Listing.aggregate([
+      { $match: { status: 'sold', createdAt: { $gte: startDate, $lte: endDate } } },
+      { $group: { _id: '$product', sales: { $sum: '$quantity' }, revenue: { $sum: { $multiply: ['$price', '$quantity'] } } } },
+      { $sort: { revenue: -1 } },
       { $limit: 10 },
-      {
-        $lookup: {
-          from: 'products',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'product'
-        }
-      },
-      {
-        $project: {
-          productId: '$_id',
-          name: { $arrayElemAt: ['$product.name', 0] },
-          sales: 1,
-          revenue: 1
-        }
-      }
-    ];
-
-    return await Order.aggregate(pipeline);
+      { $project: { productId: '$_id', name: '$_id', sales: 1, revenue: 1, _id: 0 } }
+    ]);
   }
 
   /**
@@ -954,14 +910,12 @@ class AnalyticsService {
 
       return await analyticsData.save();
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating analytics report');
+      logger.error(`Error generating analytics report: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to generate analytics report');
     }
   }
 
-  /**
-   * Get analytics data for a specific period
-   */
+ 
   async getAnalyticsData(filters: AnalyticsFilters): Promise<IAnalyticsData[]> {
     try {
       const query: any = {};
@@ -982,7 +936,7 @@ class AnalyticsService {
         .sort({ date: -1 })
         .limit(100);
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error fetching analytics data');
+      logger.error(`Error fetching analytics data: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to fetch analytics data');
     }
   }
@@ -1008,7 +962,7 @@ class AnalyticsService {
           };
       }
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error exporting analytics data');
+      logger.error(`Error exporting analytics data: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to export analytics data');
     }
   }
@@ -1125,7 +1079,7 @@ class AnalyticsService {
 
       return { baseline, current, changes };
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating comparative analytics');
+      logger.error(`Error generating comparative analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to generate comparative analytics');
     }
   }
@@ -1147,7 +1101,7 @@ class AnalyticsService {
 
       return regionalMetrics;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating regional analytics');
+      logger.error(`Error generating regional analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to generate regional analytics');
     }
   }
@@ -1202,7 +1156,7 @@ class AnalyticsService {
         confidence: 0.75 // 75% confidence level
       };
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating predictive analytics');
+      logger.error(`Error generating predictive analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to generate predictive analytics');
     }
   }
@@ -1353,7 +1307,7 @@ class AnalyticsService {
         }
       };
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating partner dashboard');
+      logger.error(`Error generating partner dashboard: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to generate partner dashboard');
     }
   }
@@ -1444,7 +1398,7 @@ class AnalyticsService {
         }))
       };
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting partner commission stats');
+      logger.error(`Error getting partner commission stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return {
         totalEarned: 0,
         pendingAmount: 0,
@@ -1476,7 +1430,7 @@ class AnalyticsService {
 
       return distribution;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting partner regional distribution');
+      logger.error(`Error getting partner regional distribution: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return {};
     }
   }
@@ -1494,7 +1448,7 @@ class AnalyticsService {
       // For now, returning empty array
       return [];
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting partner farmer categories');
+      logger.error(`Error getting partner farmer categories: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return [];
     }
   }
@@ -1528,7 +1482,7 @@ class AnalyticsService {
       if (previousFarmers === 0) return currentFarmers > 0 ? 100 : 0;
       return ((currentFarmers - previousFarmers) / previousFarmers) * 100;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error calculating partner monthly growth');
+      logger.error(`Error calculating partner monthly growth: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return 0;
     }
   }
@@ -1584,64 +1538,127 @@ class AnalyticsService {
     }
   }> {
     try {
+      logger.info(`Fetching farmer dashboard for farmerId: ${farmerId}`);
       const startDate = filters.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default to last 30 days
       const endDate = filters.endDate || new Date();
 
       // Get farmer harvests
-      const harvests = await Harvest.find({
-        farmer: farmerId,
-        createdAt: { $gte: startDate, $lte: endDate }
-      }).sort({ createdAt: -1 })
-        .limit(10);
+      let harvests: IHarvest[] = [];
+      try {
+        harvests = await Harvest.find({
+          farmer: farmerId,
+          createdAt: { $gte: startDate, $lte: endDate }
+        }).sort({ createdAt: -1 })
+          .limit(10)
+          .exec();
+      } catch (error) {
+        logger.warn(`Could not fetch harvests for farmer ${farmerId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        harvests = [];
+      }
 
       // Get farmer marketplace listings
-      const listings = await Listing.find({
-        farmer: farmerId,
-        createdAt: { $gte: startDate, $lte: endDate }
-      }).sort({ createdAt: -1 });
+      let listings: IListing[] = [];
+      try {
+        listings = await Listing.find({
+          farmer: farmerId,
+          createdAt: { $gte: startDate, $lte: endDate }
+        }).sort({ createdAt: -1 })
+          .exec();
+      } catch (error) {
+        logger.warn(`Could not fetch listings for farmer ${farmerId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        listings = [];
+      }
 
       // Calculate stats
-      const totalHarvests = await Harvest.countDocuments({ farmer: farmerId });
-      const verifiedHarvests = await Harvest.countDocuments({ 
-        farmer: farmerId, 
-        status: 'verified' 
-      });
+      logger.info(`Calculating stats for farmer ${farmerId}`);
+      let totalHarvests = 0;
+      let verifiedHarvests = 0;
+      
+      try {
+        totalHarvests = await Harvest.countDocuments({ farmer: farmerId }).exec();
+        verifiedHarvests = await Harvest.countDocuments({ 
+          farmer: farmerId, 
+          status: 'verified' 
+        }).exec();
+      } catch (error) {
+        logger.warn(`Could not calculate harvest stats for farmer ${farmerId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        totalHarvests = 0;
+        verifiedHarvests = 0;
+      }
+      
       const verificationRate = totalHarvests > 0 ? (verifiedHarvests / totalHarvests) * 100 : 0;
 
-      const totalListings = await Listing.countDocuments({ farmer: farmerId });
-      const activeListings = await Listing.countDocuments({ 
-        farmer: farmerId, 
-        status: { $in: ['active', 'pending'] } 
-      });
+      let totalListings = 0;
+      let activeListings = 0;
+      
+      try {
+        totalListings = await Listing.countDocuments({ farmer: farmerId }).exec();
+        activeListings = await Listing.countDocuments({ 
+          farmer: farmerId, 
+          status: { $in: ['active', 'pending'] } 
+        }).exec();
+      } catch (error) {
+        logger.warn(`Could not calculate listing stats for farmer ${farmerId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        totalListings = 0;
+        activeListings = 0;
+      }
 
       // Calculate earnings from marketplace
-      const earnings = await Listing.aggregate([
-        { $match: { farmer: new mongoose.Types.ObjectId(farmerId), status: 'sold' } },
-        { $group: { _id: null, total: { $sum: { $multiply: ['$price', '$quantity'] } } } }
-      ]);
-
-      const totalEarnings = earnings.length > 0 ? earnings[0].total : 0;
-      const monthlyGrowth = await this.calculateFarmerMonthlyGrowth(farmerId, startDate, endDate);
+      let earnings: Array<{ _id: null; total: number }> = [];
+      let totalEarnings = 0;
+      
+      try {
+        earnings = await Listing.aggregate([
+          { $match: { farmer: new mongoose.Types.ObjectId(farmerId), status: 'sold' } },
+          { $group: { _id: null, total: { $sum: { $multiply: ['$price', '$quantity'] } } } }
+        ]).exec();
+        totalEarnings = earnings.length > 0 ? earnings[0].total : 0;
+      } catch (error) {
+        logger.warn(`Could not calculate earnings for farmer ${farmerId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        totalEarnings = 0;
+      }
+      let monthlyGrowth: number = 0;
+      try {
+        monthlyGrowth = await this.calculateFarmerMonthlyGrowth(farmerId, startDate, endDate);
+      } catch (error) {
+        logger.warn(`Could not calculate monthly growth for farmer ${farmerId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        monthlyGrowth = 0;
+      }
+      
       const averageHarvestValue = totalHarvests > 0 ? totalEarnings / totalHarvests : 0;
 
       // Get top products by revenue
-      const topProducts = await Listing.aggregate([
-        { $match: { farmer: new mongoose.Types.ObjectId(farmerId) } },
-        { $group: {
-          _id: '$product',
-          sales: { $sum: '$quantity' },
-          revenue: { $sum: { $multiply: ['$price', '$quantity'] } }
-        }},
-        { $sort: { revenue: -1 } },
-        { $limit: 5 }
-      ]);
+      let topProducts: Array<{ _id: string; sales: number; revenue: number }> = [];
+      try {
+        topProducts = await Listing.aggregate([
+          { $match: { farmer: new mongoose.Types.ObjectId(farmerId) } },
+          { $group: {
+            _id: '$product',
+            sales: { $sum: '$quantity' },
+            revenue: { $sum: { $multiply: ['$price', '$quantity'] } }
+          }},
+          { $sort: { revenue: -1 } },
+          { $limit: 5 }
+        ]).exec();
+      } catch (error) {
+        logger.warn(`Could not fetch top products for farmer ${farmerId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        topProducts = [];
+      }
 
       // Get active orders count
-      const activeOrders = await Order.countDocuments({
-        'items.listing': { $in: listings.map((l: any) => l._id) },
-        status: { $in: ['pending', 'paid'] }
-      });
+      let activeOrders = 0;
+      try {
+        activeOrders = await Order.countDocuments({
+          'items.listing': { $in: listings.map((l: IListing) => l._id) },
+          status: { $in: ['pending', 'paid'] }
+        }).exec();
+      } catch (error) {
+        logger.warn(`Could not calculate active orders for farmer ${farmerId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        activeOrders = 0;
+      }
 
+      logger.info(`Farmer dashboard data calculated successfully for ${farmerId}: ${totalHarvests} harvests, ${activeListings} listings`);
+      
       return {
         stats: {
           totalHarvests,
@@ -1679,7 +1696,7 @@ class AnalyticsService {
         }
       };
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating farmer dashboard');
+      logger.error(`Error generating farmer dashboard: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to generate farmer dashboard');
     }
   }
@@ -1761,7 +1778,7 @@ class AnalyticsService {
         recentActivity
       };
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating farmer stats');
+      logger.error(`Error generating farmer stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to generate farmer stats');
     }
   }
@@ -1793,7 +1810,7 @@ class AnalyticsService {
       if (previousHarvests === 0) return currentHarvests > 0 ? 100 : 0;
       return ((currentHarvests - previousHarvests) / previousHarvests) * 100;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error calculating farmer monthly growth');
+      logger.error(`Error calculating farmer monthly growth: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return 0;
     }
   }
@@ -1843,7 +1860,7 @@ class AnalyticsService {
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 10);
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting farmer recent activity');
+      logger.error(`Error getting farmer recent activity: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return [];
     }
   }
@@ -1985,7 +2002,7 @@ class AnalyticsService {
         }))
       };
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating buyer dashboard');
+      logger.error(`Error generating buyer dashboard: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to generate buyer dashboard');
     }
   }
@@ -2063,7 +2080,7 @@ class AnalyticsService {
         recentActivity
       };
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating buyer stats');
+      logger.error(`Error generating buyer stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to generate buyer stats');
     }
   }
@@ -2095,7 +2112,7 @@ class AnalyticsService {
       if (previousOrders === 0) return currentOrders > 0 ? 100 : 0;
       return ((currentOrders - previousOrders) / previousOrders) * 100;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error calculating buyer monthly growth');
+      logger.error(`Error calculating buyer monthly growth: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return 0;
     }
   }
@@ -2144,7 +2161,7 @@ class AnalyticsService {
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 10);
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting buyer recent activity');
+      logger.error(`Error getting buyer recent activity: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return [];
     }
   }
@@ -2261,7 +2278,7 @@ class AnalyticsService {
         monthlyGrowth
       };
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating agency dashboard');
+      logger.error(`Error generating agency dashboard: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to generate agency dashboard');
     }
   }
@@ -2324,7 +2341,7 @@ class AnalyticsService {
         monthlyGrowth
       };
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error generating agency stats');
+      logger.error(`Error generating agency stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error('Failed to generate agency stats');
     }
   }
@@ -2335,7 +2352,7 @@ class AnalyticsService {
       if (!partner) return 0;
       return partner.onboardedFarmers?.length || 0;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency total farmers');
+      logger.error(`Error getting agency total farmers: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return 0;
     }
   }
@@ -2352,7 +2369,7 @@ class AnalyticsService {
 
       return activeFarmers;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency active farmers');
+      logger.error(`Error getting agency active farmers: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return 0;
     }
   }
@@ -2366,7 +2383,7 @@ class AnalyticsService {
 
       return totalCommission[0]?.total || 0;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency total commission');
+      logger.error(`Error getting agency total commission: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return 0;
     }
   }
@@ -2385,7 +2402,7 @@ class AnalyticsService {
 
       return monthlyCommission[0]?.total || 0;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency monthly commission');
+      logger.error(`Error getting agency monthly commission: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return 0;
     }
   }
@@ -2402,7 +2419,7 @@ class AnalyticsService {
 
       return farmersThisMonth;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency farmers this month');
+      logger.error(`Error getting agency farmers this month: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return 0;
     }
   }
@@ -2418,7 +2435,7 @@ class AnalyticsService {
 
       return totalHarvests;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency total harvests');
+      logger.error(`Error getting agency total harvests: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return 0;
     }
   }
@@ -2436,7 +2453,7 @@ class AnalyticsService {
 
       return totalShipments;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency total shipments');
+      logger.error(`Error getting agency total shipments: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return 0;
     }
   }
@@ -2450,7 +2467,7 @@ class AnalyticsService {
 
       return pendingCommissions;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency pending commissions');
+      logger.error(`Error getting agency pending commissions: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return 0;
     }
   }
@@ -2493,7 +2510,7 @@ class AnalyticsService {
         partnerId: agencyId
       }));
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency recent farmers');
+      logger.error(`Error getting agency recent farmers: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return [];
     }
   }
@@ -2529,7 +2546,7 @@ class AnalyticsService {
         description: commission.description || 'Commission earned'
       }));
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency commission stats');
+      logger.error(`Error getting agency commission stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return [];
     }
   }
@@ -2576,7 +2593,7 @@ class AnalyticsService {
         trackingNumber: shipment._id?.toString().slice(-8).toUpperCase() || 'UNKNOWN'
       }));
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency shipment stats');
+      logger.error(`Error getting agency shipment stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return [];
     }
   }
@@ -2631,7 +2648,7 @@ class AnalyticsService {
         .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
         .slice(0, 5);
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting agency recent activities');
+      logger.error(`Error getting agency recent activities: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return [];
     }
   }
@@ -2653,7 +2670,7 @@ class AnalyticsService {
       if (previousFarmers === 0) return currentFarmers > 0 ? 100 : 0;
       return ((currentFarmers - previousFarmers) / previousFarmers) * 100;
     } catch (error) {
-      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error calculating agency monthly growth');
+      logger.error(`Error calculating agency monthly growth: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return 0;
     }
   }

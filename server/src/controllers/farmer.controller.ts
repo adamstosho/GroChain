@@ -39,7 +39,7 @@ export const farmerController = {
         }
       });
     } catch (error) {
-      logger.error('Error getting farmer profile:', error);
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting farmer profile');
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   },
@@ -74,7 +74,7 @@ export const farmerController = {
         data: user
       });
     } catch (error) {
-      logger.error('Error updating farmer profile:', error);
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error updating farmer profile');
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   },
@@ -107,7 +107,7 @@ export const farmerController = {
         }
       });
     } catch (error) {
-      logger.error('Error getting farmer preferences:', error);
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting farmer preferences');
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   },
@@ -141,7 +141,7 @@ export const farmerController = {
         data: user
       });
     } catch (error) {
-      logger.error('Error updating farmer preferences:', error);
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error updating farmer preferences');
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   },
@@ -184,7 +184,7 @@ export const farmerController = {
         }
       });
     } catch (error) {
-      logger.error('Error getting farmer settings:', error);
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error getting farmer settings');
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   },
@@ -208,7 +208,7 @@ export const farmerController = {
         data: updateData
       });
     } catch (error) {
-      logger.error('Error updating farmer settings:', error);
+      logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error updating farmer settings');
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   }

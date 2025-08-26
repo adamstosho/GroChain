@@ -123,46 +123,46 @@ router.post('/export',
 
 // User Profile & Settings
 router.get('/profile/me', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer', 'aggregator']), 
+  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
   userController.getMyProfile
 );
 
 router.put('/profile/me', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer', 'aggregator']), 
+  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
   validateRequest(userValidation.updateProfile),
   userController.updateMyProfile
 );
 
 router.get('/preferences/me', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer', 'aggregator']), 
+  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
   userController.getMyPreferences
 );
 
 router.put('/preferences/me', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer', 'aggregator']), 
+  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
   validateRequest(userValidation.updatePreferences),
   userController.updateMyPreferences
 );
 
 router.get('/settings/me', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer', 'aggregator']), 
+  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
   userController.getMySettings
 );
 
 router.put('/settings/me', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer', 'aggregator']), 
+  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
   validateRequest(userValidation.updateSettings),
   userController.updateMySettings
 );
 
 router.post('/change-password', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer', 'aggregator']), 
+  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
   validateRequest(userValidation.changePassword),
   userController.changePassword
 );
 
 router.post('/reset-password', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer', 'aggregator']), 
+  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
   validateRequest(userValidation.resetPassword),
   userController.resetPassword
 );

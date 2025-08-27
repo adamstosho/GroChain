@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { apiService } from "@/lib/api"
+import { useAuthStore } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 import { Cloud, Sun, CloudRain, Wind, Droplets } from "lucide-react"
 
@@ -11,16 +12,44 @@ export function WeatherWidget() {
   const [weather, setWeather] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+  const { user } = useAuthStore()
 
   useEffect(() => {
     const fetchWeather = async () => {
       try {
-        const response = await apiService.getCurrentWeather()
-        setWeather(response.data)
+        // Derive defaults from user location or fall back to Lagos
+        const locationString = user?.location || "Lagos, Nigeria"
+        // Very basic parse: "City, State" or just a single city; default country Nigeria
+        const [cityRaw, stateRaw] = locationString.split(",").map((s) => s.trim())
+        const city = cityRaw || "Lagos"
+        const state = stateRaw || "Lagos"
+        const country = "Nigeria"
+        // Default coordinates for Lagos if none are known
+        const lat = 6.5244
+        const lng = 3.3792
+
+        const response = await apiService.getCurrentWeather({ lat, lng, city, state, country })
+        const d: any = (response as any)?.data || {}
+        const mapped = {
+          location: `${d.location?.city || city}, ${d.location?.state || state}, ${d.location?.country || country}`,
+          current: {
+            temperature: d.current?.temp ?? 0,
+            humidity: d.current?.humidity ?? 0,
+            windSpeed: d.current?.windSpeed ?? 0,
+            description: d.current?.condition || "",
+          },
+          agriculturalInsights: {
+            plantingRecommendations: d.agricultural?.plantingRecommendation ? [d.agricultural.plantingRecommendation] : [],
+            harvestingRecommendations: [],
+            irrigationAdvice: d.agricultural?.irrigationAdvice || "",
+            pestWarnings: [],
+          },
+        }
+        setWeather(mapped)
       } catch (error: any) {
         // Use mock data if API fails
         setWeather({
-          location: "Lagos, Nigeria",
+          location: "Lagos, Lagos, Nigeria",
           current: {
             temperature: 28,
             humidity: 75,

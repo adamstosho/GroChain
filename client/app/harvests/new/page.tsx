@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { api } from "@/lib/api"
+import { apiService } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -24,11 +25,14 @@ export default function NewHarvestPage() {
     unit: "kg",
     harvestDate: "",
     location: "",
+    lat: "6.5244",
+    lng: "3.3792",
     farmSize: "",
     qualityGrade: "A",
     description: "",
     images: [] as File[],
   })
+  const { toast } = useToast()
 
   const handleInputChange = (field: string, value: string) => {
     setHarvestData((prev) => ({ ...prev, [field]: value }))
@@ -45,23 +49,31 @@ export default function NewHarvestPage() {
     e.preventDefault()
     try {
       setLoading(true)
+      // Upload images first and collect URLs via marketplace upload endpoint
+      const imageUrls: string[] = await apiService.uploadImages(harvestData.images)
 
-      const formData = new FormData()
-      Object.entries(harvestData).forEach(([key, value]) => {
-        if (key === "images") {
-          ;(value as File[]).forEach((file) => formData.append("images", file))
-        } else {
-          formData.append(key, value as string)
-        }
-      })
+      // Map UI fields to backend schema
+      const qualityMap: Record<string, string> = { A: "excellent", B: "good", C: "fair" }
+      const payload = {
+        cropType: harvestData.cropType,
+        quantity: Number(harvestData.quantity),
+        date: harvestData.harvestDate,
+        geoLocation: { lat: Number(harvestData.lat), lng: Number(harvestData.lng) },
+        unit: harvestData.unit,
+        location: harvestData.location,
+        description: harvestData.description,
+        quality: (qualityMap[harvestData.qualityGrade] || "good") as any,
+        images: imageUrls,
+      }
 
-      const response = await api.post("/harvests", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-
-      router.push(`/harvests/${response.data.id}`)
+      const response = await apiService.createHarvest(payload)
+      const created = (response as any)?.harvest || (response as any)?.data?.harvest || (response as any)
+      const id = created?._id || created?.id
+      toast({ title: "Harvest logged", description: "Your harvest has been created successfully." })
+      router.push(id ? `/harvests/${id}` : "/harvests")
     } catch (error) {
       console.error("Failed to create harvest:", error)
+      toast({ title: "Failed to create harvest", description: (error as any)?.message || "Please try again.", variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -148,7 +160,7 @@ export default function NewHarvestPage() {
                           <SelectItem value="kg">Kilograms (kg)</SelectItem>
                           <SelectItem value="tons">Tons</SelectItem>
                           <SelectItem value="bags">Bags</SelectItem>
-                          <SelectItem value="baskets">Baskets</SelectItem>
+                          <SelectItem value="crates">Crates</SelectItem>
                           <SelectItem value="pieces">Pieces</SelectItem>
                         </SelectContent>
                       </Select>
@@ -185,15 +197,27 @@ export default function NewHarvestPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="location">Location *</Label>
-                    <Input
-                      id="location"
-                      value={harvestData.location}
-                      onChange={(e) => handleInputChange("location", e.target.value)}
-                      placeholder="Farm location (State, LGA, Village)"
-                      required
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2">
+                      <Label htmlFor="location">Location *</Label>
+                      <Input
+                        id="location"
+                        value={harvestData.location}
+                        onChange={(e) => handleInputChange("location", e.target.value)}
+                        placeholder="Farm location (State, LGA, Village)"
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="lat">Lat *</Label>
+                        <Input id="lat" type="number" step="0.0001" value={harvestData.lat} onChange={(e) => handleInputChange("lat", e.target.value)} required />
+                      </div>
+                      <div>
+                        <Label htmlFor="lng">Lng *</Label>
+                        <Input id="lng" type="number" step="0.0001" value={harvestData.lng} onChange={(e) => handleInputChange("lng", e.target.value)} required />
+                      </div>
+                    </div>
                   </div>
                 </div>
 

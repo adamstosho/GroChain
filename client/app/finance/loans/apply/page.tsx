@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { api } from "@/lib/api"
+import { apiService } from "@/lib/api"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -60,20 +60,17 @@ export default function LoanApplicationPage() {
     try {
       setLoading(true)
 
-      const formData = new FormData()
-      Object.entries(loanData).forEach(([key, value]) => {
-        if (key === "documents") {
-          ;(value as File[]).forEach((file) => formData.append("documents", file))
-        } else {
-          formData.append(key, value.toString())
-        }
-      })
+      const payload = {
+        amount: Number(loanData.amount),
+        purpose: loanData.purpose || 'other',
+        term: Number(loanData.term),
+        description: loanData.description || undefined,
+      }
 
-      const response = await api.post("/fintech/loans/apply", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-
-      router.push(`/finance/loans/${response.data.id}`)
+      const response: any = await apiService.createLoanApplication(payload)
+      const created = response?.data || response
+      const id = created?._id || created?.id
+      router.push(`/finance/loans${id ? `/${id}` : ''}`)
     } catch (error) {
       console.error("Failed to submit loan application:", error)
     } finally {

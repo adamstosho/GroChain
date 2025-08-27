@@ -11,16 +11,15 @@ import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 
 export default function DashboardPage() {
-  const { user, isAuthenticated, hasAccess } = useAuthGuard()
+  const { user, isAuthenticated, isHydrated } = useAuthGuard()
   const router = useRouter()
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login")
-    }
-  }, [isAuthenticated, router])
+    if (!isHydrated) return
+    if (!isAuthenticated) router.push("/login")
+  }, [isAuthenticated, isHydrated, router])
 
-  if (!isAuthenticated || !user) {
+  if (!isHydrated || !isAuthenticated || !user) {
     return <LoadingSpinner />
   }
 

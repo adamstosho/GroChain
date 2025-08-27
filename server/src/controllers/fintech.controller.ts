@@ -6,6 +6,9 @@ import {
   FinancialGoal 
 } from '../models/fintech.model';
 import { logger } from '../utils/logger';
+import { CreditScore } from '../models/creditScore.model';
+import { Harvest } from '../models/harvest.model';
+import { User } from '../models/user.model';
 
 // Extend Request interface to include user
 interface AuthenticatedRequest extends Request {
@@ -587,46 +590,61 @@ export const createFinancialGoal = async (req: AuthenticatedRequest, res: Respon
 // Credit Score Controller
 export const getCreditScore = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { farmerId } = req.params;
+    const paramFarmerId = req.params.farmerId;
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not authenticated'
-      });
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    // Mock credit score data - this would come from actual credit scoring system
-    const creditScore = {
+    const farmerId = paramFarmerId === 'me' || !paramFarmerId ? userId : paramFarmerId;
+
+    // Load stored credit score document if available
+    const scoreDoc = await CreditScore.findOne({ $or: [{ farmer: farmerId }, { userId: farmerId }] });
+    const baseInitial = Number(process.env.CREDIT_SCORE_INITIAL || 500);
+    const rawScore = scoreDoc?.score ?? baseInitial;
+    // Normalize to 300-850 range without randomness
+    const normalizedScore = Math.max(300, Math.min(850, rawScore < 300 ? 300 + rawScore : rawScore));
+
+    // Derive factors from real data
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const harvestCount = await Harvest.countDocuments({ farmer: farmerId as any, date: { $gte: sixMonthsAgo } });
+    const paymentEvents = scoreDoc?.history?.length || 0;
+    const user = await User.findById(farmerId).select('createdAt');
+    const accountAgeMonths = user?.createdAt ? ((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0;
+
+    // Scale factors to 0-100 deterministically from real counts
+    const paymentHistory = Math.max(0, Math.min(100, paymentEvents * 5));
+    const harvestConsistency = Math.max(0, Math.min(100, harvestCount * 15));
+    const businessStability = Math.max(0, Math.min(100, Math.round(Math.min(1, accountAgeMonths / 24) * 100)));
+    // Market reputation proxy: based on verified/approved harvest share (requires extra query)
+    const approvedCount = await Harvest.countDocuments({ farmer: farmerId as any, status: { $in: ['verified', 'approved', 'listed'] } });
+    const marketReputation = Math.max(0, Math.min(100, approvedCount * 10));
+
+    const recommendations: string[] = [];
+    if (paymentHistory < 80) recommendations.push('Increase on-time payments to improve your score.');
+    if (harvestConsistency < 60) recommendations.push('Log harvests consistently to demonstrate stable production.');
+    if (businessStability < 60) recommendations.push('Keep your account active; stability improves with time.');
+    if (marketReputation < 60) recommendations.push('Aim for verified/approved harvests to build reputation.');
+
+    const result = {
       farmerId,
-      score: Math.floor(Math.random() * 300) + 500, // 500-800 range
-      rating: 'Good',
-      factors: [
-        'Payment History',
-        'Credit Utilization',
-        'Length of Credit History',
-        'Types of Credit',
-        'Recent Credit Inquiries'
-      ],
-      lastUpdated: new Date().toISOString(),
-      recommendations: [
-        'Maintain timely payments',
-        'Keep credit utilization below 30%',
-        'Avoid opening too many new accounts'
-      ]
+      score: Math.round(normalizedScore),
+      factors: {
+        paymentHistory,
+        harvestConsistency,
+        businessStability,
+        marketReputation,
+      },
+      recommendations,
+      lastUpdated: (scoreDoc as any)?.updatedAt || new Date(),
     };
 
-    return res.status(200).json({
-      success: true,
-      data: creditScore
-    });
+    return res.status(200).json({ success: true, data: result });
   } catch (error: any) {
     logger.error('Error fetching credit score:', error?.message || error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to fetch credit score'
-    });
+    return res.status(500).json({ success: false, message: 'Failed to fetch credit score' });
   }
 };
 

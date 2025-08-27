@@ -14,13 +14,26 @@ class ApiService {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      ...options.headers,
+    const headers: Record<string, string> = { "Content-Type": "application/json" }
+    // Normalize incoming headers into a plain record
+    if (options.headers) {
+      if (Array.isArray(options.headers)) {
+        for (const [k, v] of options.headers as any) headers[k] = String(v)
+      } else if (options.headers instanceof Headers) {
+        (options.headers as Headers).forEach((v, k) => (headers[k] = v))
+      } else {
+        Object.assign(headers, options.headers as any)
+      }
     }
 
-    if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`
+    if (this.token && this.token !== 'undefined') {
+      headers["Authorization"] = `Bearer ${this.token}`
+    }
+
+    // If sending FormData, let the browser set the correct multipart boundary
+    if (options.body instanceof FormData) {
+      // @ts-ignore
+      delete headers["Content-Type"]
     }
 
     try {
@@ -50,14 +63,17 @@ class ApiService {
 
         if (response.status === 0 || !response.status) {
           errorMessage =
-            "Network error: Unable to connect to server. Please check if the backend is running on " + this.baseUrl
+            "Network error: Unable to connect to server. Please ensure the backend server is running on " + this.baseUrl
         } else if (response.status >= 500) {
           errorMessage = "Server error: " + errorMessage
         } else if (response.status === 404) {
           errorMessage = "Endpoint not found: " + endpoint
         }
 
-        throw new Error(errorMessage)
+        const err: any = new Error(errorMessage)
+        err.status = response.status
+        err.payload = data
+        throw err
       }
 
       return data
@@ -119,8 +135,43 @@ class ApiService {
   }
 
   async logout() {
-    return this.request("/api/auth/logout", {
+    try {
+      return await this.request("/api/auth/logout", {
+        method: "POST",
+      })
+    } catch (e) {
+      // Ignore network errors here; we'll still clear local state
+      return { success: true, message: "Logged out" } as any
+    }
+  }
+
+  // Email verification helpers
+  async verifyEmail(token: string) {
+    return this.request<{ message: string }>("/api/auth/verify-email", {
       method: "POST",
+      body: JSON.stringify({ token }),
+    })
+  }
+
+  async resendVerification(email: string) {
+    return this.request<{ message: string }>("/api/auth/resend-verification", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  // Password reset helpers
+  async forgotPassword(email: string) {
+    return this.request<{ message: string }>("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  async resetPassword(token: string, password: string) {
+    return this.request<{ message: string }>("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
     })
   }
 
@@ -133,6 +184,38 @@ class ApiService {
     return this.request<User>("/api/users/profile/me", {
       method: "PUT",
       body: JSON.stringify(userData),
+    })
+  }
+
+  // User Preferences
+  async getPreferences() {
+    return this.request("/api/users/preferences/me")
+  }
+
+  async updatePreferences(notifications: any) {
+    return this.request("/api/users/preferences/me", {
+      method: "PUT",
+      body: JSON.stringify({ notifications }),
+    })
+  }
+
+  // User Settings
+  async getSettings() {
+    return this.request("/api/users/settings/me")
+  }
+
+  async updateSettings(settings: { security?: any; display?: any; performance?: any }) {
+    return this.request("/api/users/settings/me", {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    })
+  }
+
+  // Password
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request("/api/users/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
     })
   }
 
@@ -149,7 +232,7 @@ class ApiService {
   async createHarvest(harvestData: Partial<Harvest>) {
     return this.request<Harvest>("/api/harvests", {
       method: "POST",
-      body: JSON.stringify(harvestData),
+      body: JSON.stringify(harvestData as any),
     })
   }
 
@@ -194,20 +277,59 @@ class ApiService {
     return this.request<Order>(`/api/marketplace/orders/${id}`)
   }
 
+  // Harvest approval → create listing from harvest (farmer only)
+  async createListingFromHarvest(harvestId: string, price: number, description?: string) {
+    return this.request(`/api/harvest-approval/${harvestId}/create-listing`, {
+      method: "POST",
+      body: JSON.stringify({ price, description }),
+    })
+  }
+
   // Weather
-  async getCurrentWeather(location?: string) {
-    const params = location ? `?location=${encodeURIComponent(location)}` : ""
-    return this.request<WeatherData>(`/api/weather/current${params}`)
+  async getCurrentWeather(params?: { lat: number; lng: number; city: string; state: string; country: string }) {
+    let query = ""
+    if (params) {
+      const qs = new URLSearchParams({
+        lat: String(params.lat),
+        lng: String(params.lng),
+        city: params.city,
+        state: params.state,
+        country: params.country,
+      })
+      query = `?${qs.toString()}`
+    }
+    return this.request<WeatherData>(`/api/weather/current${query}`)
   }
 
-  async getWeatherForecast(location?: string) {
-    const params = location ? `?location=${encodeURIComponent(location)}` : ""
-    return this.request<WeatherData>(`/api/weather/forecast${params}`)
+  async getWeatherForecast(params?: { lat: number; lng: number; city: string; state: string; country: string; days?: number }) {
+    let query = ""
+    if (params) {
+      const qs = new URLSearchParams({
+        lat: String(params.lat),
+        lng: String(params.lng),
+        city: params.city,
+        state: params.state,
+        country: params.country,
+        ...(params.days ? { days: String(params.days) } : {}),
+      })
+      query = `?${qs.toString()}`
+    }
+    return this.request<WeatherData>(`/api/weather/forecast${query}`)
   }
 
-  async getAgriculturalInsights(location?: string) {
-    const params = location ? `?location=${encodeURIComponent(location)}` : ""
-    return this.request<WeatherData>(`/api/weather/agricultural-insights${params}`)
+  async getAgriculturalInsights(params?: { lat: number; lng: number; city: string; state: string; country: string }) {
+    let query = ""
+    if (params) {
+      const qs = new URLSearchParams({
+        lat: String(params.lat),
+        lng: String(params.lng),
+        city: params.city,
+        state: params.state,
+        country: params.country,
+      })
+      query = `?${qs.toString()}`
+    }
+    return this.request<WeatherData>(`/api/weather/agricultural-insights${query}`)
   }
 
   // Analytics
@@ -217,18 +339,54 @@ class ApiService {
   }
 
   // File Upload
-  async uploadImage(file: File, type: "harvest" | "listing" | "profile" = "harvest") {
+  async uploadImage(file: File) {
     const formData = new FormData()
-    formData.append("image", file)
-    formData.append("type", type)
-
-    return this.request<{ url: string }>("/api/marketplace/upload-image", {
+    formData.append("images", file)
+    const res: any = await this.request("/api/marketplace/upload-image", {
       method: "POST",
       body: formData,
       headers: {
         Authorization: this.token ? `Bearer ${this.token}` : "",
       } as any,
     })
+    const urls: string[] = res?.urls || res?.data?.urls || []
+    return { url: urls[0] }
+  }
+
+  async uploadImages(files: File[]) {
+    const formData = new FormData()
+    files.forEach((f) => formData.append("images", f))
+    const res: any = await this.request("/api/marketplace/upload-image", {
+      method: "POST",
+      body: formData,
+      headers: {
+        Authorization: this.token ? `Bearer ${this.token}` : "",
+      } as any,
+    })
+    const urls: string[] = res?.urls || res?.data?.urls || []
+    return urls
+  }
+
+  // Fintech - Credit Score and Loans
+  async getMyCreditScore() {
+    return this.request(`/api/fintech/credit-score/me`)
+  }
+
+  async getLoanApplications(filters?: Record<string, any>) {
+    const params = new URLSearchParams(filters)
+    return this.request(`/api/fintech/loan-applications?${params.toString()}`)
+  }
+
+  async createLoanApplication(data: { amount: number; purpose: string; term: number; description?: string }) {
+    return this.request(`/api/fintech/loan-applications`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Harvest delete
+  async deleteHarvest(harvestId: string) {
+    return this.request(`/api/harvests/${harvestId}`, { method: "DELETE" })
   }
 }
 

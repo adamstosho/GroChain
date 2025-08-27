@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
-import { api } from "@/lib/api"
+import { apiService } from "@/lib/api"
 import Link from "next/link"
 
 interface Loan {
@@ -43,8 +43,24 @@ export default function LoansPage() {
         status: statusFilter === "all" ? "" : statusFilter,
       })
 
-      const response = await api.get(`/fintech/loans?${params}`)
-      setLoans(response.data.loans || [])
+      const response: any = await apiService.getLoanApplications({
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        search: searchQuery,
+      })
+      const apps = response?.data?.applications || response?.applications || []
+      setLoans(apps.map((a: any) => ({
+        id: a._id || a.id,
+        amount: a.amount,
+        purpose: a.purpose,
+        interestRate: a.interestRate,
+        term: a.term,
+        status: a.status === 'submitted' ? 'pending' : a.status,
+        appliedDate: a.submittedAt || a.createdAt,
+        approvedDate: a.approvedAt,
+        monthlyPayment: a.monthlyPayment,
+        remainingBalance: a.remainingBalance,
+        nextPaymentDate: a.nextPaymentDate,
+      })))
     } catch (error) {
       console.error("Failed to fetch loans:", error)
     } finally {

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { api } from "@/lib/api"
+import { apiService } from "@/lib/api"
 import type { Harvest } from "@/lib/types"
 import Link from "next/link"
 import Image from "next/image"
@@ -18,21 +18,30 @@ export default function HarvestsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
   useEffect(() => {
     fetchHarvests()
-  }, [searchQuery, statusFilter])
+  }, [searchQuery, statusFilter, page])
 
   const fetchHarvests = async () => {
     try {
       setLoading(true)
-      const params = new URLSearchParams({
-        search: searchQuery,
-        status: statusFilter === "all" ? "" : statusFilter,
-      })
+      const params = new URLSearchParams()
+      if (searchQuery) params.set("cropType", searchQuery)
+      if (statusFilter !== "all") params.set("status", statusFilter)
+      params.set("page", String(page))
+      params.set("limit", String(9))
 
-      const response = await api.get(`/harvests?${params}`)
-      setHarvests(response.data.harvests || [])
+      const response: any = await apiService.request(`/api/harvests?${params.toString()}`)
+      setHarvests(response.harvests || response.data?.harvests || [])
+      const pg = response.pagination || response.data?.pagination
+      if (pg) {
+        setTotalPages(pg.pages || 1)
+      } else {
+        setTotalPages(1)
+      }
     } catch (error) {
       console.error("Failed to fetch harvests:", error)
     } finally {
@@ -45,6 +54,7 @@ export default function HarvestsPage() {
       case "pending":
         return "bg-yellow-100 text-yellow-800"
       case "verified":
+      case "approved":
         return "bg-green-100 text-green-800"
       case "rejected":
         return "bg-red-100 text-red-800"
@@ -57,8 +67,8 @@ export default function HarvestsPage() {
 
   const handleDeleteHarvest = async (harvestId: string) => {
     try {
-      await api.delete(`/harvests/${harvestId}`)
-      setHarvests(harvests.filter((h) => h.id !== harvestId))
+      await apiService.deleteHarvest(harvestId)
+      setHarvests(harvests.filter((h) => String((h as any)._id || (h as any).id) !== String(harvestId)))
     } catch (error) {
       console.error("Failed to delete harvest:", error)
     }
@@ -146,13 +156,13 @@ export default function HarvestsPage() {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="font-semibold text-lg">{harvest.cropType}</h3>
-                    <span className="text-sm text-gray-500">#{harvest.batchNumber}</span>
+                    <span className="text-sm text-gray-500">#{(harvest as any).batchId || (harvest as any).batchNumber}</span>
                   </div>
 
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Calendar className="h-4 w-4" />
-                      <span>Harvested: {new Date(harvest.harvestDate).toLocaleDateString()}</span>
+                      <span>Harvested: {new Date((harvest as any).date || (harvest as any).harvestDate).toLocaleDateString()}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <MapPin className="h-4 w-4" />
@@ -170,7 +180,7 @@ export default function HarvestsPage() {
 
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" asChild className="flex-1 bg-transparent">
-                      <Link href={`/harvests/${harvest.id}`}>
+                      <Link href={`/harvests/${(harvest as any).batchId || (harvest as any)._id || (harvest as any).id}`}>
                         <Eye className="h-3 w-3 mr-1" />
                         View
                       </Link>
@@ -217,6 +227,31 @@ export default function HarvestsPage() {
             <p className="text-gray-600 mb-4">Start by logging your first harvest</p>
             <Button asChild>
               <Link href="/harvests/new">Log New Harvest</Link>
+            </Button>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-8">
+            <Button
+              variant="outline"
+              className="bg-transparent"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Prev
+            </Button>
+            <span className="text-sm text-gray-600">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              className="bg-transparent"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Next
             </Button>
           </div>
         )}

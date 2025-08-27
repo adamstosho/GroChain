@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, refresh, forgotPassword, resetPassword, verifyEmail, resendVerificationEmail, sendSmsOtp, verifySmsOtp } from '../controllers/auth.controller';
+import { register, login, refresh, forgotPassword, resetPassword, verifyEmail, resendVerificationEmail, sendSmsOtp, verifySmsOtp, logout } from '../controllers/auth.controller';
 import { validateRequest } from '../middlewares/validation.middleware';
 import Joi from 'joi';
 import { authenticateJWT, AuthRequest } from '../middlewares/auth.middleware';
@@ -15,7 +15,8 @@ const registerSchema = Joi.object({
   phone: Joi.string().required(),
   password: Joi.string().min(6).required(),
   role: Joi.string().valid('farmer', 'partner', 'admin', 'buyer').optional(),
-});
+  location: Joi.string().optional(),
+}).unknown(true);
 
 const loginSchema = Joi.object({
   email: Joi.string().email().required(),
@@ -46,6 +47,7 @@ router.post('/forgot-password', validateRequest(Joi.object({ email: Joi.string()
 router.post('/reset-password', validateRequest(Joi.object({ token: Joi.string().required(), password: Joi.string().min(6).required() })), resetPassword);
 router.post('/verify-email', validateRequest(tokenSchema), verifyEmail);
 router.post('/resend-verification', validateRequest(Joi.object({ email: Joi.string().email().required() })), resendVerificationEmail);
+router.post('/logout', logout);
 
 // SMS OTP endpoints for phone verification
 router.post('/send-sms-otp', validateRequest(sendSmsOtpSchema), sendSmsOtp);

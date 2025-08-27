@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { api } from "@/lib/api"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { apiService } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 import type { Harvest } from "@/lib/types"
 import Link from "next/link"
 import Image from "next/image"
@@ -15,9 +18,13 @@ import QRCode from "qrcode"
 
 export default function HarvestDetailPage() {
   const params = useParams()
-  const [harvest, setHarvest] = useState<Harvest | null>(null)
+  const [harvest, setHarvest] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [qrCodeUrl, setQrCodeUrl] = useState("")
+  const { toast } = useToast()
+  const [listingOpen, setListingOpen] = useState(false)
+  const [price, setPrice] = useState("")
+  const [listingDesc, setListingDesc] = useState("")
 
   useEffect(() => {
     if (params.id) {
@@ -28,8 +35,9 @@ export default function HarvestDetailPage() {
 
   const fetchHarvest = async () => {
     try {
-      const response = await api.get(`/harvests/${params.id}`)
-      setHarvest(response.data)
+      const response = await apiService.getHarvestProvenance(String(params.id))
+      const h = (response as any)?.provenance || (response as any)?.data?.provenance || (response as any)?.data || response
+      setHarvest(h)
     } catch (error) {
       console.error("Failed to fetch harvest:", error)
     } finally {
@@ -39,7 +47,8 @@ export default function HarvestDetailPage() {
 
   const generateQRCode = async () => {
     try {
-      const url = `${window.location.origin}/verify/${params.id}`
+      const batchId = (harvest as any)?.batchId || String(params.id)
+      const url = `${window.location.origin}/verify/${batchId}`
       const qrUrl = await QRCode.toDataURL(url)
       setQrCodeUrl(qrUrl)
     } catch (error) {
@@ -64,10 +73,14 @@ export default function HarvestDetailPage() {
 
   const handleListOnMarketplace = async () => {
     try {
-      await api.post(`/harvests/${params.id}/list`)
-      setHarvest((prev) => (prev ? { ...prev, status: "listed" } : null))
+      const price = Number(prompt("Enter listing price (NGN):", "0"))
+      if (!price || isNaN(price) || price <= 0) return
+      await apiService.createListingFromHarvest(String(params.id), price)
+      setHarvest((prev: any) => (prev ? { ...prev, status: "listed" } : null))
+      toast({ title: "Listing created", description: "Your harvest is now listed on the marketplace." })
     } catch (error) {
       console.error("Failed to list on marketplace:", error)
+      toast({ title: "Failed to create listing", description: (error as any)?.message || "Try again.", variant: "destructive" })
     }
   }
 
@@ -105,6 +118,7 @@ export default function HarvestDetailPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50">
       <div className="container mx-auto px-4 py-8">
         <Button variant="ghost" asChild className="mb-6">
@@ -122,13 +136,13 @@ export default function HarvestDetailPage() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{harvest.cropType}</h1>
-                    <p className="text-gray-600">Batch #{harvest.batchNumber}</p>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{harvest?.cropType}</h1>
+                    <p className="text-gray-600">Batch #{harvest?.batchId || harvest?.batchNumber}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className={getStatusColor(harvest.status)}>{harvest.status}</Badge>
+                    <Badge className={getStatusColor(harvest?.status)}>{harvest?.status}</Badge>
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/harvests/${harvest.id}/edit`}>
+                      <Link href={`/harvests/${harvest?._id || harvest?.id}/edit`}>
                         <Edit className="h-4 w-4" />
                       </Link>
                     </Button>
@@ -140,8 +154,8 @@ export default function HarvestDetailPage() {
                   <div className="flex items-center gap-3">
                     <Scale className="h-5 w-5 text-green-600" />
                     <div>
-                      <p className="text-2xl font-bold text-green-600">{harvest.quantity}</p>
-                      <p className="text-sm text-gray-500">{harvest.unit}</p>
+                      <p className="text-2xl font-bold text-green-600">{harvest?.quantity}</p>
+                      <p className="text-sm text-gray-500">{harvest?.unit}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -154,7 +168,7 @@ export default function HarvestDetailPage() {
                   <div className="flex items-center gap-3">
                     <MapPin className="h-5 w-5 text-red-600" />
                     <div>
-                      <p className="font-semibold">{harvest.location}</p>
+                      <p className="font-semibold">{harvest?.location}</p>
                       <p className="text-sm text-gray-500">Location</p>
                     </div>
                   </div>
@@ -163,18 +177,18 @@ export default function HarvestDetailPage() {
             </Card>
 
             {/* Images */}
-            {harvest.images && harvest.images.length > 0 && (
+            {harvest?.images && harvest.images.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle>Harvest Images</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {harvest.images.map((image, index) => (
+                    {harvest.images.map((image: string, index: number) => (
                       <div key={index} className="relative h-48 rounded-lg overflow-hidden">
                         <Image
                           src={image || "/placeholder.svg?height=200&width=300&query=agricultural harvest"}
-                          alt={`${harvest.cropType} harvest ${index + 1}`}
+                          alt={`${harvest?.cropType} harvest ${index + 1}`}
                           fill
                           className="object-cover"
                         />
@@ -205,15 +219,15 @@ export default function HarvestDetailPage() {
                         <dl className="space-y-2">
                           <div className="flex justify-between">
                             <dt className="text-gray-600">Variety:</dt>
-                            <dd>{harvest.variety || "Not specified"}</dd>
+                            <dd>{harvest?.variety || "Not specified"}</dd>
                           </div>
                           <div className="flex justify-between">
                             <dt className="text-gray-600">Quality Grade:</dt>
-                            <dd>{harvest.qualityGrade}</dd>
+                            <dd>{harvest?.quality || harvest?.qualityGrade}</dd>
                           </div>
                           <div className="flex justify-between">
                             <dt className="text-gray-600">Farm Size:</dt>
-                            <dd>{harvest.farmSize ? `${harvest.farmSize} hectares` : "Not specified"}</dd>
+                            <dd>{harvest?.farmSize ? `${harvest.farmSize} hectares` : "Not specified"}</dd>
                           </div>
                         </dl>
                       </div>
@@ -222,16 +236,16 @@ export default function HarvestDetailPage() {
                         <dl className="space-y-2">
                           <div className="flex justify-between">
                             <dt className="text-gray-600">Created:</dt>
-                            <dd>{new Date(harvest.createdAt).toLocaleDateString()}</dd>
+                            <dd>{harvest?.createdAt ? new Date(harvest.createdAt).toLocaleDateString() : ""}</dd>
                           </div>
                           <div className="flex justify-between">
                             <dt className="text-gray-600">Last Updated:</dt>
-                            <dd>{new Date(harvest.updatedAt).toLocaleDateString()}</dd>
+                            <dd>{harvest?.updatedAt ? new Date(harvest.updatedAt).toLocaleDateString() : ""}</dd>
                           </div>
                         </dl>
                       </div>
                     </div>
-                    {harvest.description && (
+                    {harvest?.description && (
                       <div className="mt-6">
                         <h4 className="font-semibold mb-2">Description</h4>
                         <p className="text-gray-600">{harvest.description}</p>
@@ -248,7 +262,7 @@ export default function HarvestDetailPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {harvest.status === "verified" ? (
+                      {harvest?.status === "verified" ? (
                         <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg">
                           <CheckCircle className="h-6 w-6 text-green-600" />
                           <div>
@@ -256,7 +270,7 @@ export default function HarvestDetailPage() {
                             <p className="text-sm text-green-600">This harvest has been verified by our partners</p>
                           </div>
                         </div>
-                      ) : harvest.status === "rejected" ? (
+                      ) : harvest?.status === "rejected" ? (
                         <div className="flex items-center gap-3 p-4 bg-red-50 rounded-lg">
                           <XCircle className="h-6 w-6 text-red-600" />
                           <div>
@@ -295,7 +309,7 @@ export default function HarvestDetailPage() {
                         </div>
                       </div>
 
-                      {harvest.status !== "pending" && (
+                      {harvest?.status !== "pending" && (
                         <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg">
                           <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
                             2
@@ -307,7 +321,7 @@ export default function HarvestDetailPage() {
                         </div>
                       )}
 
-                      {harvest.status === "listed" && (
+                      {harvest?.status === "listed" && (
                         <div className="flex items-center gap-4 p-4 bg-purple-50 rounded-lg">
                           <div className="h-8 w-8 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">
                             3
@@ -346,7 +360,17 @@ export default function HarvestDetailPage() {
                       className="mx-auto"
                     />
                     <p className="text-sm text-gray-600">Scan to verify harvest authenticity</p>
-                    <Button variant="outline" size="sm" className="w-full bg-transparent">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full bg-transparent"
+                      onClick={() => {
+                        const link = document.createElement('a')
+                        link.href = qrCodeUrl
+                        link.download = `harvest-${harvest?.batchId || harvest?.batchNumber}.png`
+                        link.click()
+                      }}
+                    >
                       <Download className="h-4 w-4 mr-2" />
                       Download QR Code
                     </Button>
@@ -361,8 +385,8 @@ export default function HarvestDetailPage() {
                 <CardTitle>Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {harvest.status === "verified" && (
-                  <Button className="w-full" onClick={handleListOnMarketplace}>
+                {harvest?.status === "approved" && (
+                  <Button className="w-full" onClick={() => setListingOpen(true)}>
                     List on Marketplace
                   </Button>
                 )}
@@ -382,5 +406,40 @@ export default function HarvestDetailPage() {
         </div>
       </div>
     </div>
+    {/* Listing Dialog */}
+    <Dialog key="listing" open={listingOpen} onOpenChange={setListingOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Listing</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <label className="text-sm text-gray-600">Price (NGN)</label>
+            <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="e.g. 50000" />
+          </div>
+          <div>
+            <label className="text-sm text-gray-600">Description (optional)</label>
+            <Input value={listingDesc} onChange={(e) => setListingDesc(e.target.value)} placeholder="Short description" />
+          </div>
+          <Button
+            className="w-full"
+            disabled={!price || Number(price) <= 0}
+            onClick={async () => {
+              try {
+                await apiService.createListingFromHarvest(String(params.id), Number(price), listingDesc || undefined)
+                setListingOpen(false)
+                setHarvest((prev: any) => (prev ? { ...prev, status: "listed" } : prev))
+                toast({ title: "Listing created", description: "Your harvest is now listed on the marketplace." })
+              } catch (err: any) {
+                toast({ title: "Failed to create listing", description: err?.message || "Try again.", variant: "destructive" })
+              }
+            }}
+          >
+            Create Listing
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

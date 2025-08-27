@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createHarvest, getHarvests, getProvenance, verifyQRCode } from '../controllers/harvest.controller';
+import { createHarvest, getHarvests, getProvenance, verifyQRCode, deleteHarvest } from '../controllers/harvest.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
 import { validateRequest, validateQuery } from '../middlewares/validation.middleware';
 import Joi from 'joi';
@@ -32,12 +32,18 @@ router.post(
   createHarvest
 );
 
+router.delete(
+  '/:id',
+  authenticateJWT,
+  deleteHarvest
+);
+
+// Public QR verification endpoint (no authentication required)
+router.get('/verify/:batchId', verifyQRCode);
+
 // Route alias to match spec: GET /api/harvests/:batchId
 router.get('/:batchId', authenticateJWT, getProvenance);
 
 router.get('/provenance/:batchId', authenticateJWT, getProvenance);
-
-// Public QR verification endpoint (no authentication required)
-router.get('/verify/:batchId', verifyQRCode);
 
 export default router;

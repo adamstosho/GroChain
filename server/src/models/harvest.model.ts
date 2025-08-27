@@ -43,7 +43,7 @@ const HarvestSchema = new Schema<IHarvest>(
     },
     batchId: { type: String, required: false, unique: true, default: () => `BATCH-${Math.random().toString(36).slice(2, 10).toUpperCase()}` },
     qrData: { type: String, required: false, default: '' },
-    status: { type: String, enum: ['pending', 'verified', 'rejected', 'approved'], default: 'pending' },
+    status: { type: String, enum: ['pending', 'verified', 'rejected', 'approved', 'listed'], default: 'pending' },
     verifiedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     verifiedAt: { type: Date },
     rejectionReason: { type: String },

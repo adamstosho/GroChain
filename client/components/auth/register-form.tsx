@@ -141,10 +141,10 @@ export function RegisterForm() {
       })
 
       toast({
-        title: "Welcome to GroChain!",
-        description: "Your account has been created successfully.",
+        title: "Verify your email",
+        description: "We sent you a verification link. Please verify to sign in.",
       })
-      router.push("/dashboard")
+      router.push("/login?verify=1")
     } catch (error: any) {
       console.error("[v0] Registration error:", error)
 

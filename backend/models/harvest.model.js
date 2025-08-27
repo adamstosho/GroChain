@@ -1,0 +1,66 @@
+const mongoose = require('mongoose')
+
+const HarvestSchema = new mongoose.Schema({
+  farmer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  cropType: { type: String, required: true },
+  quantity: { type: Number, required: true, default: 0 },
+  date: { type: Date, default: () => new Date() },
+  geoLocation: { 
+    lat: { type: Number, required: true },
+    lng: { type: Number, required: true }
+  },
+  batchId: { 
+    type: String, 
+    unique: true, 
+    default: () => `BATCH-${Math.random().toString(36).slice(2, 10).toUpperCase()}` 
+  },
+  qrData: { type: String, default: '' },
+  status: { 
+    type: String, 
+    enum: ['pending', 'verified', 'rejected', 'approved', 'listed'], 
+    default: 'pending' 
+  },
+  verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  verifiedAt: { type: Date },
+  rejectionReason: { type: String },
+  quality: { 
+    type: String, 
+    enum: ['excellent', 'good', 'fair', 'poor'], 
+    default: 'good' 
+  },
+  description: String,
+  unit: { type: String, default: 'kg' },
+  location: { type: String },
+  images: { type: [String], default: [] },
+  agriculturalData: {
+    soilType: String,
+    irrigationMethod: String,
+    fertilizerUsed: String,
+    pestControl: String,
+    harvestMethod: String
+  },
+  qualityMetrics: {
+    moistureContent: Number,
+    proteinContent: Number,
+    sizeGrade: String,
+    colorGrade: String,
+    defectPercentage: Number
+  },
+  sustainability: {
+    organicCertified: { type: Boolean, default: false },
+    fairTrade: { type: Boolean, default: false },
+    carbonFootprint: Number,
+    waterUsage: Number
+  }
+}, { timestamps: true })
+
+// Indexes for efficient querying
+HarvestSchema.index({ farmer: 1, status: 1 })
+HarvestSchema.index({ 'geoLocation.lat': 1, 'geoLocation.lng': 1 })
+HarvestSchema.index({ cropType: 1, status: 1 })
+HarvestSchema.index({ createdAt: -1 })
+HarvestSchema.index({ batchId: 1 })
+
+module.exports = mongoose.model('Harvest', HarvestSchema)
+
+

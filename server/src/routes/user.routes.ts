@@ -11,36 +11,36 @@ router.use(authenticate);
 
 // User Overview & Analytics
 router.get('/overview', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   userController.getUserOverview
 );
 
 router.get('/dashboard', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin', 'partner', 'farmer', 'buyer']), 
   userController.getUserDashboard
 );
 
 // User Management CRUD
 router.get('/', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   validateRequest(userValidation.getUsers),
   userController.getUsers
 );
 
 router.get('/:userId', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   validateRequest(userValidation.getUser),
   userController.getUser
 );
 
 router.post('/', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   validateRequest(userValidation.createUser),
   userController.createUser
 );
 
 router.put('/:userId', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   validateRequest(userValidation.updateUser),
   userController.updateUser
 );
@@ -53,13 +53,13 @@ router.delete('/:userId',
 
 // Bulk Operations
 router.post('/bulk-create', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   validateRequest(userValidation.bulkCreateUsers),
   userController.bulkCreateUsers
 );
 
 router.put('/bulk-update', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   validateRequest(userValidation.bulkUpdateUsers),
   userController.bulkUpdateUsers
 );
@@ -72,38 +72,38 @@ router.delete('/bulk-delete',
 
 // User Search & Statistics
 router.get('/search', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   validateRequest(userValidation.searchUsers),
   userController.searchUsers
 );
 
 router.get('/:userId/stats', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   validateRequest(userValidation.getUserStats),
   userController.getUserStats
 );
 
 router.get('/:userId/activity', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   validateRequest(userValidation.getUserActivity),
   userController.getUserActivity
 );
 
 // User Verification & Management
 router.post('/:userId/verify', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   validateRequest(userValidation.verifyUser),
   userController.verifyUser
 );
 
 router.patch('/:userId/suspend', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   validateRequest(userValidation.suspendUser),
   userController.suspendUser
 );
 
 router.patch('/:userId/reactivate', 
-  authorize(['admin', 'manager']), 
+  authorize(['admin']), 
   validateRequest(userValidation.reactivateUser),
   userController.reactivateUser
 );
@@ -123,46 +123,46 @@ router.post('/export',
 
 // User Profile & Settings
 router.get('/profile/me', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
+  authorize(['admin', 'partner', 'farmer', 'buyer']), 
   userController.getMyProfile
 );
 
 router.put('/profile/me', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
+  authorize(['admin', 'partner', 'farmer', 'buyer']), 
   validateRequest(userValidation.updateProfile),
   userController.updateMyProfile
 );
 
 router.get('/preferences/me', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
+  authorize(['admin', 'partner', 'farmer', 'buyer']), 
   userController.getMyPreferences
 );
 
 router.put('/preferences/me', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
+  authorize(['admin', 'partner', 'farmer', 'buyer']), 
   validateRequest(userValidation.updatePreferences),
   userController.updateMyPreferences
 );
 
 router.get('/settings/me', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
+  authorize(['admin', 'partner', 'farmer', 'buyer']), 
   userController.getMySettings
 );
 
 router.put('/settings/me', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
+  authorize(['admin', 'partner', 'farmer', 'buyer']), 
   validateRequest(userValidation.updateSettings),
   userController.updateMySettings
 );
 
 router.post('/change-password', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
+  authorize(['admin', 'partner', 'farmer', 'buyer']), 
   validateRequest(userValidation.changePassword),
   userController.changePassword
 );
 
 router.post('/reset-password', 
-  authorize(['admin', 'manager', 'partner', 'farmer', 'buyer']), 
+  authorize(['admin', 'partner', 'farmer', 'buyer']), 
   validateRequest(userValidation.resetPassword),
   userController.resetPassword
 );

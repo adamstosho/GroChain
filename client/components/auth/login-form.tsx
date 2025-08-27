@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +24,8 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
 
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const needsVerification = searchParams.get("verify") === "1"
   const { toast } = useToast()
   const { login } = useAuthStore()
 
@@ -39,11 +41,21 @@ export function LoginForm() {
       })
       router.push("/dashboard")
     } catch (error: any) {
-      toast({
-        title: "Sign in failed",
-        description: error.message || "Please check your credentials and try again.",
-        variant: "destructive",
-      })
+      const requiresVerification = error?.payload?.requiresVerification || false
+      const email = formData.email
+      if (requiresVerification && email) {
+        toast({
+          title: "Verify your email",
+          description: "Please verify your email before logging in.",
+        })
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`)
+      } else {
+        toast({
+          title: "Sign in failed",
+          description: error.message || "Please check your credentials and try again.",
+          variant: "destructive",
+        })
+      }
     } finally {
       setIsLoading(false)
     }
@@ -67,6 +79,12 @@ export function LoginForm() {
 
   return (
     <div className="space-y-6">
+      {needsVerification && (
+        <div className="p-3 rounded-md border border-yellow-200 bg-yellow-50 text-sm text-yellow-900">
+          Please verify your email. We sent you a verification link. If you didn’t receive it, visit the Verify Email page.
+          <Link href="/verify-email" className="ml-1 underline">Verify Email</Link>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email Address</Label>

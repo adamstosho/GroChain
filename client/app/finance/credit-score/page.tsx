@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react"
-import { api } from "@/lib/api"
+import { apiService } from "@/lib/api"
 import type { CreditScore } from "@/lib/types"
 
 export default function CreditScorePage() {
@@ -22,8 +22,9 @@ export default function CreditScorePage() {
   const fetchCreditScore = async () => {
     try {
       setLoading(true)
-      const response = await api.request<CreditScore>("/api/fintech/credit-score/me")
-      setCreditScore(response.data!)
+      const response: any = await apiService.getMyCreditScore()
+      const data = response?.data || response
+      setCreditScore(data as any)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch credit score")
     } finally {

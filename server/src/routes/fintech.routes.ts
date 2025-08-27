@@ -28,6 +28,17 @@ router.get(
   authorizeRoles('farmer', 'partner', 'admin'),
   getCreditScore
 );
+// Convenience alias for current user
+router.get(
+  '/credit-score/me',
+  authenticateJWT,
+  authorizeRoles('farmer', 'partner', 'admin'),
+  (req, res, next) => {
+    // Delegate to the same controller with farmerId = 'me'
+    (req as any).params.farmerId = 'me';
+    return (getCreditScore as any)(req, res, next);
+  }
+);
 
 // Only partners or admins can create loan referrals
 router.post(

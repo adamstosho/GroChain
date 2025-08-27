@@ -8,7 +8,7 @@ import { webSocketService } from '../services/websocket.service';
 import { v4 as uuidv4 } from 'uuid';
 
 const harvestSchema = Joi.object({
-  farmer: Joi.string().required(),
+  farmer: Joi.string().optional(),
   cropType: Joi.string().required(),
   quantity: Joi.number().required(),
   date: Joi.date().required(),
@@ -18,7 +18,7 @@ const harvestSchema = Joi.object({
   description: Joi.string().optional(),
   quality: Joi.string().valid('excellent', 'good', 'fair', 'poor').default('good'),
   images: Joi.array().items(Joi.string()).optional(),
-});
+}).unknown(true);
 
 export const createHarvest = async (req: AuthRequest, res: Response) => {
   try {
@@ -106,6 +106,7 @@ export const getHarvests = async (req: AuthRequest, res: Response) => {
     const {
       farmer,
       cropType,
+      status,
       startDate,
       endDate,
       minQuantity,
@@ -139,6 +140,11 @@ export const getHarvests = async (req: AuthRequest, res: Response) => {
     // Crop type filter
     if (cropType) {
       filter.cropType = { $regex: cropType as string, $options: 'i' };
+    }
+
+    // Status filter
+    if (status) {
+      filter.status = status;
     }
 
     // Date range filter
@@ -195,10 +201,17 @@ export const getHarvests = async (req: AuthRequest, res: Response) => {
 
 export const getProvenance = async (req: Request, res: Response) => {
   try {
-    const { batchId } = req.params;
-    const harvest = await Harvest.findOne({ batchId }).populate('farmer');
+    const { batchId } = req.params as any;
+    let harvest = await Harvest.findOne({ batchId }).populate('farmer');
     if (!harvest) {
-      return res.status(404).json({ status: 'error', message: 'Harvest batch not found.' });
+      // Fallback: if param looks like an ObjectId, try by _id
+      const isObjectId = /^[a-fA-F0-9]{24}$/.test(String(batchId));
+      if (isObjectId) {
+        harvest = await Harvest.findById(batchId).populate('farmer');
+      }
+    }
+    if (!harvest) {
+      return res.status(404).json({ status: 'error', message: 'Harvest not found.' });
     }
     return res.status(200).json({ status: 'success', provenance: harvest });
   } catch (err) {
@@ -248,7 +261,7 @@ export const verifyQRCode = async (req: Request, res: Response) => {
       verification: {
         timestamp: new Date(),
         verifiedBy: 'GroChain QR System',
-        verificationUrl: `${process.env.BASE_URL || 'http://localhost:5000'}/api/verify/${batchId}`
+        verificationUrl: `${process.env.BASE_URL || 'http://localhost:5000'}/api/harvests/verify/${batchId}`
       }
     };
 
@@ -267,3 +280,30 @@ export const verifyQRCode = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const deleteHarvest = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params as any
+    if (!id) {
+      return res.status(400).json({ status: 'error', message: 'Harvest ID is required' })
+    }
+
+    const harvest = await Harvest.findById(id)
+    if (!harvest) {
+      return res.status(404).json({ status: 'error', message: 'Harvest not found' })
+    }
+
+    // Only owner (farmer) or admin can delete
+    const isOwner = req.user && String(harvest.farmer) === req.user.id
+    const isAdmin = req.user && (req.user as any).role === 'admin'
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ status: 'error', message: 'Forbidden' })
+    }
+
+    await harvest.deleteOne()
+    return res.status(200).json({ status: 'success', message: 'Harvest deleted', data: { id } })
+  } catch (err) {
+    console.error('Error deleting harvest:', err)
+    return res.status(500).json({ status: 'error', message: 'Server error.' })
+  }
+}

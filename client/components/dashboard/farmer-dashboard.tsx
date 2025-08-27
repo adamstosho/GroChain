@@ -19,17 +19,20 @@ export function FarmerDashboard() {
   const [recentHarvests, setRecentHarvests] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+  const [credit, setCredit] = useState<any>(null)
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [dashboardResponse, harvestsResponse] = await Promise.all([
+        const [dashboardResponse, harvestsResponse, creditResp] = await Promise.all([
           apiService.getDashboard(),
           apiService.getHarvests({ limit: 5 }),
+          apiService.getMyCreditScore(),
         ])
 
         setStats(dashboardResponse.data)
         setRecentHarvests(harvestsResponse.data || [])
+        setCredit((creditResp as any)?.data || creditResp)
       } catch (error: any) {
         toast({
           title: "Error loading dashboard",
@@ -237,11 +240,13 @@ export function FarmerDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-center space-y-4">
-                <div className="text-3xl font-bold text-primary">750</div>
-                <div className="text-sm text-muted-foreground">Excellent</div>
-                <Progress value={75} className="h-2" />
+                <div className="text-3xl font-bold text-primary">{credit?.score ?? 0}</div>
+                <div className="text-sm text-muted-foreground">
+                  {credit?.score >= 750 ? 'Excellent' : credit?.score >= 650 ? 'Good' : credit?.score >= 550 ? 'Fair' : 'Poor'}
+                </div>
+                <Progress value={Math.min(100, Math.max(0, ((credit?.score ?? 0) - 300) / (850 - 300) * 100))} className="h-2" />
                 <Button variant="outline" size="sm" asChild>
-                  <Link href="/dashboard/financial">View Details</Link>
+                  <Link href="/finance/credit-score">View Details</Link>
                 </Button>
               </div>
             </CardContent>

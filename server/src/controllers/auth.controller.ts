@@ -8,9 +8,10 @@ const registerSchema = Joi.object({
   name: Joi.string().required(),
   email: Joi.string().email().required(),
   phone: Joi.string().required(),
-  password: Joi.string().min(6).required(),
+  password: Joi.string().min(8).required(),
   role: Joi.string().valid(...Object.values(UserRole)).optional(),
-});
+  location: Joi.string().optional(),
+}).unknown(true);
 
 const loginSchema = Joi.object({
   email: Joi.string().email().required(),
@@ -40,36 +41,53 @@ export const register = async (req: Request, res: Response) => {
     if (error) {
       return res.status(400).json({ status: 'error', message: error.details[0].message });
     }
-    const { name, email, phone, password, role } = value;
-    const existing = await User.findOne({ $or: [{ email }, { phone }] });
-    if (existing) {
+    const nameTrimmed = (value.name as string).trim();
+    const normalizedEmail = (value.email as string).trim().toLowerCase();
+    const normalizedPhone = (value.phone as string).trim();
+    const { password, role, location } = value;
+
+    // Check duplicates explicitly per-field for clearer errors
+    const existingByEmail = await User.findOne({ email: normalizedEmail });
+    if (existingByEmail) {
       return res.status(400).json({ status: 'error', message: 'email already exists' });
+    }
+    const existingByPhone = await User.findOne({ phone: normalizedPhone });
+    if (existingByPhone) {
+      return res.status(400).json({ status: 'error', message: 'phone already exists' });
     }
     
     // Generate email verification token
     const verificationToken = sign(
-      { email, type: 'email_verification' },
+      { email: normalizedEmail, type: 'email_verification' },
       process.env.JWT_SECRET as string,
       { expiresIn: '24h' }
     );
     
     const user = new User({ 
-      name, 
-      email, 
-      phone, 
+      name: nameTrimmed, 
+      email: normalizedEmail, 
+      phone: normalizedPhone, 
       password, 
       role,
+      location,
       emailVerified: false,
       emailVerificationToken: verificationToken,
       emailVerificationExpires: new Date(Date.now() + 86400000) // 24 hours
     });
-    await user.save();
+    try {
+      await user.save();
+    } catch (e: any) {
+      if (e && e.code === 11000) {
+        return res.status(400).json({ status: 'error', message: 'email or phone already exists' });
+      }
+      throw e;
+    }
 
     // Send verification email
     const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
     const emailContent = `
       <h2>Welcome to GroChain!</h2>
-      <p>Hello ${name},</p>
+      <p>Hello ${nameTrimmed},</p>
       <p>Thank you for registering with GroChain. Please verify your email address by clicking the link below:</p>
       <a href="${verificationUrl}" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-decoration: none; border-radius: 4px;">
         Verify Email
@@ -79,12 +97,21 @@ export const register = async (req: Request, res: Response) => {
       <p>Best regards,<br>GroChain Team</p>
     `;
 
-    await sendEmail({
-      to: email,
-      subject: 'Verify your GroChain account',
-      html: emailContent,
-      fromName: 'GroChain'
-    });
+    try {
+      await sendEmail({
+        to: normalizedEmail,
+        subject: 'Verify your GroChain account',
+        html: emailContent,
+        fromName: 'GroChain'
+      });
+    } catch (emailErr) {
+      // In development, log the verification link so users can proceed
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.log(`[DEV] Email verification URL for ${normalizedEmail}: ${verificationUrl}`);
+      }
+      // Continue response even if email fails to send
+    }
     
     // Don't issue JWT tokens - user must verify email first
     return res.status(201).json({ 
@@ -524,6 +551,24 @@ export const verifySmsOtp = async (req: Request, res: Response) => {
       status: 'success', 
       message: 'Phone number verified successfully.' 
     });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Server error.' });
+  }
+};
+
+export const logout = async (req: Request, res: Response) => {
+  try {
+    // Clear auth cookie (best-effort; tokens are stateless)
+    try {
+      res.clearCookie('auth_token', {
+        httpOnly: false,
+        sameSite: 'lax' as any,
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+      });
+    } catch {}
+
+    return res.status(200).json({ status: 'success', message: 'Logged out' });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: 'Server error.' });
   }

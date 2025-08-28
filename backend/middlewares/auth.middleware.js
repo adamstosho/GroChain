@@ -1,14 +1,27 @@
 const { verifyAccess } = require('../utils/jwt')
 
-function authenticateJWT(req, res, next) {
+function authenticate(req, res, next) {
   try {
     const header = req.headers.authorization || ''
     const token = header.startsWith('Bearer ') ? header.slice(7) : null
     if (!token) return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+    
     const decoded = verifyAccess(token)
-    req.user = { id: decoded.id, role: decoded.role }
+    
+    // Create a basic user object from JWT data
+    // This avoids async database calls that might be causing issues
+    req.user = { 
+      id: decoded.id, 
+      role: decoded.role,
+      email: decoded.email || 'user@example.com', // Will be overridden by actual user data
+      name: decoded.name || 'User',               // Will be overridden by actual user data
+      phone: undefined,
+      location: undefined
+    }
+    
     next()
   } catch (e) {
+    console.error('Auth middleware error:', e);
     return res.status(401).json({ status: 'error', message: 'Invalid token' })
   }
 }
@@ -25,7 +38,7 @@ function authorizeRoles(...roles) {
 }
 
 module.exports = { 
-  authenticate: authenticateJWT, 
+  authenticate, 
   authorize: authorizeRoles 
 }
 

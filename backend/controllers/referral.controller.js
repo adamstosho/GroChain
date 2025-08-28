@@ -10,26 +10,53 @@ const referralController = {
       const userId = req.user.id
       const { page = 1, limit = 10, status, farmerId } = req.query
       
-      // Build query
-      const query = { partner: userId }
+      // Build query - find partner by email first
+      let partner = await Partner.findOne({ email: req.user.email })
+      if (!partner) {
+        // Return empty results if no partner profile
+        return res.json({
+          status: 'success',
+          data: {
+            docs: [],
+            totalDocs: 0,
+            limit: parseInt(limit),
+            page: parseInt(page),
+            totalPages: 0,
+            hasNextPage: false,
+            hasPrevPage: false
+          }
+        })
+      }
+      
+      const query = { partner: partner._id }
       if (status) query.status = status
       if (farmerId) query.farmer = farmerId
       
-      const options = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        populate: [
+      // Use regular MongoDB queries instead of paginate
+      const skip = (parseInt(page) - 1) * parseInt(limit)
+      
+      const referrals = await Referral.find(query)
+        .populate([
           { path: 'farmer', select: 'name email phone region' },
           { path: 'partner', select: 'name type contactEmail' }
-        ],
-        sort: { createdAt: -1 }
-      }
+        ])
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
       
-      const referrals = await Referral.paginate(query, options)
+      const total = await Referral.countDocuments(query)
       
       res.json({
         status: 'success',
-        data: referrals
+        data: {
+          docs: referrals,
+          totalDocs: total,
+          limit: parseInt(limit),
+          page: parseInt(page),
+          totalPages: Math.ceil(total / parseInt(limit)),
+          hasNextPage: page * limit < total,
+          hasPrevPage: page > 1
+        }
       })
     } catch (error) {
       console.error('Error getting referrals:', error)
@@ -54,7 +81,7 @@ const referralController = {
       }
       
       // Check if partner exists
-      const partner = await Partner.findOne({ user: userId })
+      const partner = await Partner.findOne({ email: req.user.email })
       if (!partner) {
         return res.status(404).json({
           status: 'error',
@@ -74,7 +101,7 @@ const referralController = {
       // Check if referral already exists
       const existingReferral = await Referral.findOne({
         farmer: farmerId,
-        partner: userId
+        partner: partner._id
       })
       
       if (existingReferral) {
@@ -87,7 +114,7 @@ const referralController = {
       // Create referral
       const referral = new Referral({
         farmer: farmerId,
-        partner: userId,
+        partner: partner._id,
         status: 'pending',
         commissionRate,
         notes: notes || 'Referral created by partner'

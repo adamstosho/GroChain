@@ -490,5 +490,349 @@ const weatherController = {
   }
 }
 
+// Get weather statistics for a region
+exports.getWeatherStatistics = async (req, res) => {
+  try {
+    const { region, period = 'month' } = req.query
+    
+    const match = {}
+    if (region) match['location.state'] = region
+    
+    const now = new Date()
+    const startDate = new Date()
+    
+    if (period === 'week') {
+      startDate.setDate(now.getDate() - 7)
+    } else if (period === 'month') {
+      startDate.setMonth(now.getMonth() - 1)
+    } else if (period === 'quarter') {
+      startDate.setMonth(now.getMonth() - 3)
+    } else if (period === 'year') {
+      startDate.setFullYear(now.getFullYear() - 1)
+    }
+    
+    match.createdAt = { $gte: startDate, $lte: now }
+    
+    const WeatherData = require('../models/weather.model')
+    
+    const stats = await WeatherData.aggregate([
+      { $match: match },
+      { $group: {
+        _id: null,
+        avgTemperature: { $avg: '$current.temperature' },
+        minTemperature: { $min: '$current.temperature' },
+        maxTemperature: { $max: '$current.temperature' },
+        avgHumidity: { $avg: '$current.humidity' },
+        avgWindSpeed: { $avg: '$current.windSpeed' },
+        totalAlerts: { $sum: { $size: { $ifNull: ['$alerts', []] } } },
+        rainyDays: { $sum: { $cond: [{ $gt: ['$current.precipitation', 0] }, 1, 0] } },
+        sunnyDays: { $sum: { $cond: [{ $gt: ['$current.uvIndex', 7] }, 1, 0] } }
+      }},
+      { $project: {
+        _id: 0,
+        avgTemperature: { $round: ['$avgTemperature', 2] },
+        minTemperature: { $round: ['$minTemperature', 2] },
+        maxTemperature: { $round: ['$maxTemperature', 2] },
+        avgHumidity: { $round: ['$avgHumidity', 2] },
+        avgWindSpeed: { $round: ['$avgWindSpeed', 2] },
+        totalAlerts,
+        rainyDays,
+        sunnyDays
+      }}
+    ])
+    
+    // Daily trends
+    const dailyTrends = await WeatherData.aggregate([
+      { $match: match },
+      { $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        avgTemp: { $avg: '$current.temperature' },
+        avgHumidity: { $avg: '$current.humidity' },
+        alerts: { $sum: { $size: { $ifNull: ['$alerts', []] } } }
+      }},
+      { $sort: { _id: 1 } }
+    ])
+    
+    return res.json({
+      status: 'success',
+      data: {
+        period,
+        region: region || 'all',
+        statistics: stats[0] || {},
+        dailyTrends
+      }
+    })
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Server error' })
+  }
+}
+
+// Get regional weather alerts
+exports.getRegionalAlerts = async (req, res) => {
+  try {
+    const { region, severity, active = true } = req.query
+    
+    const match = {}
+    if (region) match['location.state'] = region
+    if (severity) match['alerts.severity'] = severity
+    if (active) match['alerts.active'] = true
+    
+    const WeatherData = require('../models/weather.model')
+    
+    const alerts = await WeatherData.aggregate([
+      { $match: match },
+      { $unwind: '$alerts' },
+      { $match: active ? { 'alerts.active': true } : {} },
+      { $group: {
+        _id: {
+          state: '$location.state',
+          severity: '$alerts.severity',
+          type: '$alerts.type'
+        },
+        count: { $sum: 1 },
+        latestAlert: { $first: '$alerts' }
+      }},
+      { $sort: { '_id.severity': -1, count: -1 } }
+    ])
+    
+    // Group by state for easier consumption
+    const alertsByState = alerts.reduce((acc, alert) => {
+      const state = alert._id.state
+      if (!acc[state]) acc[state] = []
+      acc[state].push({
+        severity: alert._id.severity,
+        type: alert._id.type,
+        count: alert.count,
+        latest: alert.latestAlert
+      })
+      return acc
+    }, {})
+    
+    return res.json({
+      status: 'success',
+      data: {
+        alertsByState,
+        totalAlerts: alerts.reduce((sum, alert) => sum + alert.count, 0),
+        activeAlerts: alerts.filter(alert => alert.latestAlert.active).length
+      }
+    })
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Server error' })
+  }
+}
+
+// Get climate summary for agricultural planning
+exports.getClimateSummary = async (req, res) => {
+  try {
+    const { region, season } = req.query
+    
+    const match = {}
+    if (region) match['location.state'] = region
+    
+    const WeatherData = require('../models/weather.model')
+    
+    // Get seasonal data if specified
+    if (season) {
+      const seasonDates = getSeasonDates(season)
+      match.createdAt = { $gte: seasonDates.start, $lte: seasonDates.end }
+    }
+    
+    const climateData = await WeatherData.aggregate([
+      { $match: match },
+      { $group: {
+        _id: {
+          state: '$location.state',
+          month: { $month: '$createdAt' }
+        },
+        avgTemp: { $avg: '$current.temperature' },
+        avgHumidity: { $avg: '$current.humidity' },
+        totalRainfall: { $sum: '$current.precipitation' },
+        avgWindSpeed: { $avg: '$current.windSpeed' },
+        sunnyHours: { $sum: { $cond: [{ $gt: ['$current.uvIndex', 5] }, 1, 0] } }
+      }},
+      { $sort: { '_id.month': 1 } }
+    ])
+    
+    // Agricultural recommendations based on climate data
+    const recommendations = generateAgriculturalRecommendations(climateData, region)
+    
+    return res.json({
+      status: 'success',
+      data: {
+        region: region || 'all',
+        season: season || 'all',
+        climateData,
+        recommendations,
+        summary: {
+          avgTemperature: climateData.reduce((sum, d) => sum + d.avgTemp, 0) / climateData.length,
+          totalRainfall: climateData.reduce((sum, d) => sum + d.totalRainfall, 0),
+          avgHumidity: climateData.reduce((sum, d) => sum + d.avgHumidity, 0) / climateData.length
+        }
+      }
+    })
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Server error' })
+  }
+}
+
+// Get weather data by coordinates
+exports.getWeatherByCoordinates = async (req, res) => {
+  try {
+    const { lat, lng, radius = 10 } = req.params // radius in km
+    
+    const WeatherData = require('../models/weather.model')
+    
+    // Find weather stations within radius
+    const weatherStations = await WeatherData.find({
+      'location.coordinates': {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [parseFloat(lng), parseFloat(lat)]
+          },
+          $maxDistance: radius * 1000 // Convert km to meters
+        }
+      }
+    }).limit(5)
+    
+    if (weatherStations.length === 0) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'No weather data found for the specified coordinates'
+      })
+    }
+    
+    // Aggregate data from nearby stations
+    const aggregatedData = await WeatherData.aggregate([
+      {
+        $geoNear: {
+          near: {
+            type: 'Point',
+            coordinates: [parseFloat(lng), parseFloat(lat)]
+          },
+          distanceField: 'distance',
+          maxDistance: radius * 1000,
+          spherical: true
+        }
+      },
+      { $limit: 5 },
+      { $group: {
+        _id: null,
+        avgTemperature: { $avg: '$current.temperature' },
+        avgHumidity: { $avg: '$current.humidity' },
+        avgWindSpeed: { $avg: '$current.windSpeed' },
+        avgPrecipitation: { $avg: '$current.precipitation' },
+        avgUVIndex: { $avg: '$current.uvIndex' },
+        nearestStation: { $first: '$$ROOT' }
+      }}
+    ])
+    
+    const result = aggregatedData[0]
+    
+    return res.json({
+      status: 'success',
+      data: {
+        coordinates: { lat: parseFloat(lat), lng: parseFloat(lng) },
+        radius: `${radius}km`,
+        current: {
+          temperature: Math.round(result.avgTemperature * 100) / 100,
+          humidity: Math.round(result.avgHumidity * 100) / 100,
+          windSpeed: Math.round(result.avgWindSpeed * 100) / 100,
+          precipitation: Math.round(result.avgPrecipitation * 100) / 100,
+          uvIndex: Math.round(result.avgUVIndex * 100) / 100
+        },
+        nearestStation: {
+          name: result.nearestStation.location.name,
+          distance: Math.round(result.nearestStation.distance / 1000 * 100) / 100, // Convert to km
+          data: result.nearestStation.current
+        },
+        nearbyStations: weatherStations.length
+      }
+    })
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Server error' })
+  }
+}
+
+// Helper function to get season dates
+function getSeasonDates(season) {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  
+  const seasons = {
+    'spring': { start: new Date(currentYear, 2, 1), end: new Date(currentYear, 4, 31) },
+    'summer': { start: new Date(currentYear, 5, 1), end: new Date(currentYear, 7, 31) },
+    'autumn': { start: new Date(currentYear, 8, 1), end: new Date(currentYear, 10, 31) },
+    'winter': { start: new Date(currentYear, 11, 1), end: new Date(currentYear, 1, 31) },
+    'rainy': { start: new Date(currentYear, 3, 1), end: new Date(currentYear, 9, 30) },
+    'dry': { start: new Date(currentYear, 10, 1), end: new Date(currentYear, 2, 28) }
+  }
+  
+  return seasons[season.toLowerCase()] || { start: new Date(currentYear, 0, 1), end: new Date(currentYear, 11, 31) }
+}
+
+// Helper function to generate agricultural recommendations
+function generateAgriculturalRecommendations(climateData, region) {
+  const recommendations = []
+  
+  if (!climateData || climateData.length === 0) {
+    return [{ type: 'general', message: 'Insufficient climate data for recommendations' }]
+  }
+  
+  const avgTemp = climateData.reduce((sum, d) => sum + d.avgTemp, 0) / climateData.length
+  const totalRainfall = climateData.reduce((sum, d) => sum + d.totalRainfall, 0)
+  const avgHumidity = climateData.reduce((sum, d) => sum + d.avgHumidity, 0) / climateData.length
+  
+  // Temperature-based recommendations
+  if (avgTemp > 30) {
+    recommendations.push({
+      type: 'temperature',
+      severity: 'high',
+      message: 'High temperatures detected. Consider heat-resistant crop varieties and increased irrigation.'
+    })
+  } else if (avgTemp < 15) {
+    recommendations.push({
+      type: 'temperature',
+      severity: 'medium',
+      message: 'Low temperatures detected. Consider cold-tolerant crops and frost protection measures.'
+    })
+  }
+  
+  // Rainfall-based recommendations
+  if (totalRainfall < 100) {
+    recommendations.push({
+      type: 'rainfall',
+      severity: 'high',
+      message: 'Low rainfall detected. Implement drought-resistant farming practices and water conservation.'
+    })
+  } else if (totalRainfall > 500) {
+    recommendations.push({
+      type: 'rainfall',
+      severity: 'medium',
+      message: 'High rainfall detected. Consider flood-resistant crops and proper drainage systems.'
+    })
+  }
+  
+  // Humidity-based recommendations
+  if (avgHumidity > 80) {
+    recommendations.push({
+      type: 'humidity',
+      severity: 'medium',
+      message: 'High humidity detected. Monitor for fungal diseases and ensure proper crop spacing.'
+    })
+  }
+  
+  // Regional-specific recommendations
+  if (region) {
+    recommendations.push({
+      type: 'regional',
+      severity: 'info',
+      message: `Climate analysis complete for ${region}. Consider local agricultural extension advice.`
+    })
+  }
+  
+  return recommendations
+}
+
 module.exports = weatherController
 

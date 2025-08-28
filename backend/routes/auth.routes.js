@@ -19,5 +19,9 @@ router.post('/forgot-password', ctrl.forgotPassword)
 router.post('/reset-password', ctrl.resetPassword)
 router.post('/resend-verification', ctrl.resendVerification)
 
+// SMS OTP
+router.post('/send-sms-otp', ctrl.sendSmsOtp)
+router.post('/verify-sms-otp', ctrl.verifySmsOtp)
+
 module.exports = router
 

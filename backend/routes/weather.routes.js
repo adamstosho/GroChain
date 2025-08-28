@@ -9,6 +9,9 @@ router.get('/current', weatherController.getCurrentWeather)
 // Get weather forecast
 router.get('/forecast', weatherController.getWeatherForecast)
 
+// Alias: agricultural (docs)
+router.get('/agricultural', weatherController.getAgriculturalInsights)
+
 // Get agricultural weather insights
 router.get('/agricultural-insights', weatherController.getAgriculturalInsights)
 
@@ -17,6 +20,28 @@ router.get('/alerts', weatherController.getWeatherAlerts)
 
 // Get historical weather data
 router.get('/historical', weatherController.getHistoricalWeather)
+
+// Coordinates shortcut
+router.get('/coordinates/:lat/:lng', (req, res) => {
+  req.query.lat = req.params.lat
+  req.query.lng = req.params.lng
+  return weatherController.getCurrentWeather(req, res)
+})
+
+// Regional statistics stub
+router.get('/statistics/:region', async (req, res) => {
+  return res.json({ status: 'success', data: { region: req.params.region, stats: {}, message: 'Not yet implemented' } })
+})
+
+// Regional alerts stub
+router.get('/regional-alerts', async (req, res) => {
+  return res.json({ status: 'success', data: { alerts: [], message: 'Not yet implemented' } })
+})
+
+// Climate summary stub
+router.get('/climate-summary', async (req, res) => {
+  return res.json({ status: 'success', data: { summary: {}, message: 'Not yet implemented' } })
+})
 
 // Subscribe to weather alerts (requires authentication)
 router.post('/subscribe', 

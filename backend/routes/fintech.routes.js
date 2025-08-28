@@ -1,38 +1,47 @@
-const router = require('express').Router()
-const { authenticate, authorize } = require('../middlewares/auth.middleware')
+const express = require('express')
+const router = express.Router()
+const ctrl = require('../controllers/fintech.controller')
+const { authenticate, authorizeRoles } = require('../middlewares/auth.middleware')
 
-// Root endpoint - get fintech overview
-router.get('/', authenticate, async (req, res) => {
-  return res.json({ 
-    status: 'success', 
-    data: { 
-      services: ['credit-score', 'loan-applications', 'financial-analysis'],
-      available: true,
-      lastUpdated: new Date()
-    } 
-  })
-})
+// Public routes
+router.get('/loan-referrals', authenticate, ctrl.getLoanReferrals)
+router.get('/loan-stats', authenticate, ctrl.getLoanStats)
+router.get('/insurance-policies', authenticate, ctrl.getInsurancePolicies)
+router.get('/insurance-stats', authenticate, ctrl.getInsuranceStats)
+router.get('/insurance-quotes', authenticate, ctrl.getInsuranceQuotes)
+router.get('/insurance-claims', authenticate, ctrl.getInsuranceClaims)
 
-// Minimal endpoints to satisfy frontend calls; implement controllers similarly later
-router.get('/credit-score/me', authenticate, async (req, res) => {
-  // Simple deterministic score until full implementation
-  return res.json({ status: 'success', data: { farmerId: req.user.id, score: 650, factors: { paymentHistory: 70, harvestConsistency: 60, businessStability: 50, marketReputation: 55 }, recommendations: [], lastUpdated: new Date() } })
-})
+// Protected routes (require authentication)
+router.use(authenticate)
 
-router.get('/credit-score/:farmerId', authenticate, async (req, res) => {
-  const farmerId = req.params.farmerId === 'me' ? req.user.id : req.params.farmerId
-  return res.json({ status: 'success', data: { farmerId, score: 650, factors: { paymentHistory: 70, harvestConsistency: 60, businessStability: 50, marketReputation: 55 }, recommendations: [], lastUpdated: new Date() } })
-})
+// Financial health and analysis
+router.get('/financial-health/:farmerId', ctrl.getFinancialHealth)
+router.get('/crop-financials', ctrl.getCropFinancials)
+router.get('/financial-projections', ctrl.getFinancialProjections)
+router.get('/financial-goals/:farmerId', ctrl.getFinancialGoals)
 
-router.get('/loan-applications', authenticate, async (req, res) => {
-  return res.json({ status: 'success', data: { applications: [], pagination: { currentPage: 1, totalPages: 0, totalItems: 0, itemsPerPage: 10 } } })
-})
+// Credit score routes
+router.get('/credit-score/:farmerId', ctrl.getCreditScore)
+router.post('/credit-score', ctrl.createCreditScore)
+router.put('/credit-score/:id', ctrl.updateCreditScore)
 
-router.post('/loan-applications', authenticate, async (req, res) => {
-  const { amount, purpose, term, description } = req.body || {}
-  const application = { id: `loan_${Date.now()}`, _id: undefined, farmerId: req.user.id, amount, purpose, term, status: 'submitted', interestRate: 12.5, monthlyPayment: Math.round((amount * (1 + 0.125)) / term), submittedAt: new Date(), description }
-  return res.status(201).json({ status: 'success', data: application })
-})
+// Loan application routes
+router.get('/loan-applications', ctrl.getLoanApplications)
+router.post('/loan-applications', ctrl.createLoanApplication)
+router.get('/loan-applications/:id', ctrl.getLoanApplication)
+router.put('/loan-applications/:id', ctrl.updateLoanApplication)
+router.delete('/loan-applications/:id', ctrl.deleteLoanApplication)
+
+// Insurance routes
+router.post('/insurance-policies', ctrl.createInsurancePolicy)
+router.get('/insurance-policies/:id', ctrl.getInsurancePolicy)
+router.put('/insurance-policies/:id', ctrl.updateInsurancePolicy)
+router.delete('/insurance-policies/:id', ctrl.deleteInsurancePolicy)
+
+// Claims routes
+router.post('/insurance-claims', ctrl.createInsuranceClaim)
+router.get('/insurance-claims/:id', ctrl.getInsuranceClaim)
+router.put('/insurance-claims/:id', ctrl.updateInsuranceClaim)
 
 module.exports = router
 

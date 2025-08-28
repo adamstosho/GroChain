@@ -9,6 +9,18 @@ router.get('/harvests', ctrl.getHarvestAnalytics)
 router.get('/marketplace', ctrl.getMarketplaceAnalytics)
 router.get('/financial', ctrl.getFinancialAnalytics)
 
+// Advanced analytics - all now fully aggregated
+router.get('/transactions', authenticate, ctrl.getTransactionAnalytics)
+router.get('/fintech', authenticate, ctrl.getFintechAnalytics)
+router.get('/impact', authenticate, ctrl.getImpactAnalytics)
+router.get('/weather', authenticate, ctrl.getWeatherAnalytics)
+router.get('/reports', authenticate, ctrl.getReportsList)
+router.get('/export', authenticate, ctrl.exportAnalytics)
+router.post('/compare', authenticate, ctrl.compareAnalytics)
+router.post('/regional', authenticate, ctrl.getRegionalAnalytics)
+router.get('/predictive', authenticate, ctrl.getPredictiveAnalytics)
+router.get('/summary', authenticate, ctrl.getAnalyticsSummary)
+
 // Protected routes (require authentication)
 router.use(authenticate)
 

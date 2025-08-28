@@ -270,3 +270,63 @@ exports.getTransactionHistory = async (req, res) => {
     return res.status(500).json({ status: 'error', message: 'Server error' })
   }
 }
+
+exports.webhookVerify = async (req, res) => {
+  try {
+    const signature = req.headers['x-paystack-signature']
+    if (!signature) return res.status(401).json({ status: 'error', message: 'Missing signature' })
+    const secret = process.env.PAYSTACK_WEBHOOK_SECRET || process.env.PAYSTACK_SECRET_KEY
+    const payload = JSON.stringify(req.body)
+    const expected = require('crypto').createHmac('sha512', secret).update(payload).digest('hex')
+    if (expected !== signature) return res.status(401).json({ status: 'error', message: 'Invalid signature' })
+
+    const event = req.body?.event
+    const data = req.body?.data
+    if (!event || !data) return res.status(400).json({ status: 'error', message: 'Invalid payload' })
+
+    // Use reference to find transaction
+    const reference = data.reference
+    let tx = await Transaction.findOne({ reference })
+
+    // Idempotency: if already completed, ack and return
+    if (tx && tx.status === 'completed') {
+      return res.json({ status: 'success', message: 'Already processed' })
+    }
+
+    if (!tx) {
+      // Create a shell transaction if we didn't initiate (rare)
+      tx = new Transaction({
+        type: 'payment',
+        status: 'pending',
+        amount: (data.amount || 0) / 100,
+        currency: (data.currency || 'NGN'),
+        reference: reference,
+        description: 'Paystack webhook',
+        userId: undefined,
+        paymentProvider: 'paystack',
+        metadata: {}
+      })
+    }
+
+    if (event === 'charge.success') {
+      tx.status = 'completed'
+      tx.paymentProviderReference = data.reference
+      tx.processedAt = new Date()
+      tx.metadata.webhook = data
+      await tx.save()
+
+      if (tx.orderId) {
+        const order = await Order.findById(tx.orderId)
+        if (order && order.status !== 'paid') {
+          order.status = 'paid'
+          await order.save()
+          await this.createCommissions(order)
+        }
+      }
+    }
+
+    return res.json({ status: 'success' })
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Server error' })
+  }
+}

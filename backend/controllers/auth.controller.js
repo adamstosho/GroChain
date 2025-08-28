@@ -14,6 +14,7 @@ const registerSchema = Joi.object({
 }).unknown(true)
 
 const tempTokens = new Map()
+const tempSmsOtps = new Map()
 
 async function sendEmail(to, subject, html) {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
@@ -71,8 +72,43 @@ exports.verifyEmail = async (req, res) => {
   return res.json({ status: 'success', message: 'Email verified', user })
 }
 
+exports.sendSmsOtp = async (req, res) => {
+  try {
+    const { phone } = req.body || {}
+    if (!phone) return res.status(400).json({ status: 'error', message: 'Phone required' })
+    const code = (Math.floor(100000 + Math.random() * 900000)).toString()
+    tempSmsOtps.set(phone, { code, exp: Date.now() + 5 * 60 * 1000, attempts: 0 })
+    const sms = require('../utils/sms.util')
+    await sms.sendSMS(phone, `Your GroChain verification code is ${code}`)
+    return res.json({ status: 'success', message: 'OTP sent' })
+  } catch (e) {
+    return res.status(500).json({ status: 'error', message: 'Server error' })
+  }
+}
+
+exports.verifySmsOtp = async (req, res) => {
+  try {
+    const { phone, code } = req.body || {}
+    if (!phone || !code) return res.status(400).json({ status: 'error', message: 'Phone and code required' })
+    const entry = tempSmsOtps.get(phone)
+    if (!entry) return res.status(400).json({ status: 'error', message: 'OTP not found' })
+    if (entry.exp < Date.now()) return res.status(400).json({ status: 'error', message: 'OTP expired' })
+    entry.attempts += 1
+    if (entry.attempts > 5) return res.status(429).json({ status: 'error', message: 'Too many attempts' })
+    if (entry.code !== code) return res.status(400).json({ status: 'error', message: 'Invalid code' })
+    await User.findOneAndUpdate({ phone }, { phoneVerified: true })
+    tempSmsOtps.delete(phone)
+    return res.json({ status: 'success', message: 'Phone verified' })
+  } catch (e) {
+    return res.status(500).json({ status: 'error', message: 'Server error' })
+  }
+}
+
 exports.login = async (req, res) => {
   const { email, password } = req.body || {}
+  if (!email || !password) {
+    return res.status(400).json({ status: 'error', message: 'Email and password required' })
+  }
   const user = await User.findOne({ email })
   if (!user || !(await user.comparePassword(password))) {
     return res.status(401).json({ status: 'error', message: 'Invalid credentials' })

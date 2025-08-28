@@ -11,92 +11,92 @@ router.use(rateLimit('api'))
 // Export routes
 router.post('/export/harvests', 
   authenticate, 
-  authorize(['admin', 'manager']), 
+  authorize('admin','partner'), 
   ExportImportController.exportHarvests
 )
 
 router.post('/export/listings', 
   authenticate, 
-  authorize(['admin', 'manager', 'farmer']), 
+  authorize('admin','partner','farmer'), 
   ExportImportController.exportListings
 )
 
 router.post('/export/users', 
   authenticate, 
-  authorize(['admin']), 
+  authorize('admin'), 
   ExportImportController.exportUsers
 )
 
 router.post('/export/partners', 
   authenticate, 
-  authorize(['admin', 'manager']), 
+  authorize('admin'), 
   ExportImportController.exportPartners
 )
 
 router.post('/export/shipments', 
   authenticate, 
-  authorize(['admin', 'manager', 'logistics']), 
+  authorize('admin','partner'), 
   ExportImportController.exportShipments
 )
 
 router.post('/export/transactions', 
   authenticate, 
-  authorize(['admin', 'finance']), 
+  authorize('admin'), 
   ExportImportController.exportTransactions
 )
 
 router.post('/export/analytics', 
   authenticate, 
-  authorize(['admin', 'analyst']), 
+  authorize('admin'), 
   ExportImportController.exportAnalytics
 )
 
 router.post('/export/custom', 
   authenticate, 
-  authorize(['admin', 'manager']), 
+  authorize('admin','partner'), 
   ExportImportController.exportCustomData
 )
 
 // Import routes
 router.post('/import/data', 
   authenticate, 
-  authorize(['admin']), 
+  authorize('admin'), 
   ExportImportController.importData
 )
 
 router.post('/import/harvests', 
   authenticate, 
-  authorize(['admin', 'manager']), 
+  authorize('admin','partner'), 
   ExportImportController.importHarvests
 )
 
 router.post('/import/listings', 
   authenticate, 
-  authorize(['admin', 'manager']), 
+  authorize('admin','partner'), 
   ExportImportController.importListings
 )
 
 router.post('/import/users', 
   authenticate, 
-  authorize(['admin']), 
+  authorize('admin'), 
   ExportImportController.importUsers
 )
 
 router.post('/import/partners', 
   authenticate, 
-  authorize(['admin', 'manager']), 
+  authorize('admin'), 
   ExportImportController.importPartners
 )
 
 router.post('/import/shipments', 
   authenticate, 
-  authorize(['admin', 'logistics']), 
+  authorize('admin','partner'), 
   ExportImportController.importShipments
 )
 
 router.post('/import/transactions', 
   authenticate, 
-  authorize(['admin', 'finance']), 
+  authorize('admin'), 
   ExportImportController.importTransactions
 )
 
@@ -111,26 +111,26 @@ router.get('/templates',
 
 router.post('/validate-template', 
   authenticate, 
-  authorize(['admin', 'manager']), 
+  authorize('admin','partner'), 
   ExportImportController.validateExportTemplate
 )
 
 router.get('/stats', 
   authenticate, 
-  authorize(['admin']), 
+  authorize('admin'), 
   ExportImportController.getExportStats
 )
 
 router.post('/cleanup', 
   authenticate, 
-  authorize(['admin']), 
+  authorize('admin'), 
   ExportImportController.cleanupOldExports
 )
 
 // File download route
 router.get('/download/:filename', 
   authenticate, 
-  authorize(['admin', 'manager', 'farmer', 'buyer']), 
+  authorize('admin','partner','farmer','buyer'), 
   ExportImportController.downloadExport
 )
 

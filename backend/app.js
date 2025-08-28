@@ -21,6 +21,18 @@ app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 app.use(cookieParser())
 
+// Metrics
+const client = require('prom-client')
+client.collectDefaultMetrics()
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', client.register.contentType)
+    res.end(await client.register.metrics())
+  } catch (e) {
+    res.status(500).send('Metrics error')
+  }
+})
+
 // Import rate limiting middleware
 const rateLimitMiddleware = require('./middlewares/rateLimit.middleware')
 

@@ -9,6 +9,9 @@ router.get('/config', ctrl.getPaymentConfig)
 router.post('/initialize', ctrl.initializePayment)
 router.get('/verify/:reference', ctrl.verifyPayment)
 
+// Paystack webhook (no auth)
+router.post('/verify', express.json({ type: '*/*' }), ctrl.webhookVerify)
+
 // Protected routes (require authentication)
 router.use(authenticate)
 

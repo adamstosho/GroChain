@@ -103,6 +103,19 @@ router.post('/orders', authenticate, authorize('buyer','farmer','partner','admin
   return res.status(201).json(order)
 })
 
+
+
+// Get all orders for the authenticated user
+router.get('/orders', authenticate, async (req, res) => {
+  try {
+    const orders = await Order.find({ buyer: req.user.id }).sort({ createdAt: -1 })
+    return res.json({ status: 'success', data: orders })
+  } catch (error) {
+    console.error('Error fetching orders:', error)
+    return res.status(500).json({ status: 'error', message: 'Failed to fetch orders' })
+  }
+})
+
 // Update and unpublish listings
 router.patch('/listings/:id', authenticate, authorize('farmer','partner','admin'), async (req, res) => {
   try {

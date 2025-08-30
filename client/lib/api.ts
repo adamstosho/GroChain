@@ -147,7 +147,7 @@ class ApiService {
 
   // Email verification helpers
   async verifyEmail(token: string) {
-    return this.request<{ message: string }>("/api/auth/verify-email", {
+    return this.request<{ message: string; user: any }>("/api/auth/verify-email", {
       method: "POST",
       body: JSON.stringify({ token }),
     })
@@ -387,6 +387,399 @@ class ApiService {
   // Harvest delete
   async deleteHarvest(harvestId: string) {
     return this.request(`/api/harvests/${harvestId}`, { method: "DELETE" })
+  }
+
+  // Buyer-specific methods
+  async getBuyerProfile() {
+    return this.request('/api/users/profile/me')
+  }
+
+  async updateBuyerProfile(data: any) {
+    return this.request('/api/users/profile/me', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getMarketplaceListings(params: any = {}) {
+    const queryString = new URLSearchParams(params).toString()
+    return this.request(`/api/marketplace/listings?${queryString}`)
+  }
+
+  async getProductDetails(productId: string) {
+    return this.request(`/api/marketplace/listings/${productId}`)
+  }
+
+  async addToFavorites(listingId: string, notes?: string) {
+    return this.request('/api/marketplace/favorites', {
+      method: 'POST',
+      body: JSON.stringify({ listingId, notes }),
+    })
+  }
+
+  async getFavorites(userId: string, params: any = {}) {
+    const queryString = new URLSearchParams(params).toString()
+    return this.request(`/api/marketplace/favorites/${userId}?${queryString}`)
+  }
+
+  async removeFromFavorites(userId: string, listingId: string) {
+    return this.request(`/api/marketplace/favorites/${userId}/${listingId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async getBuyerOrders(buyerId: string, params: any = {}) {
+    const queryString = new URLSearchParams(params).toString()
+    return this.request(`/api/marketplace/orders/buyer/${buyerId}?${queryString}`)
+  }
+
+  async getOrderDetails(orderId: string) {
+    return this.request(`/api/marketplace/orders/${orderId}`)
+  }
+
+  async getOrderTracking(orderId: string) {
+    return this.request(`/api/marketplace/orders/${orderId}/tracking`)
+  }
+
+  async initializePayment(paymentData: any) {
+    return this.request('/api/payments/initialize', {
+      method: 'POST',
+      body: JSON.stringify(paymentData),
+    })
+  }
+
+  async verifyPayment(reference: string) {
+    return this.request(`/api/payments/verify/${reference}`)
+  }
+
+  async getTransactionHistory(params: any = {}) {
+    const queryString = new URLSearchParams(params).toString()
+    return this.request(`/api/payments/transactions?${queryString}`)
+  }
+
+  async getShipmentDetails(shipmentId: string) {
+    return this.request(`/api/shipments/${shipmentId}`)
+  }
+
+  async reportShipmentIssue(shipmentId: string, issueData: any) {
+    return this.request(`/api/shipments/${shipmentId}/issues`, {
+      method: 'POST',
+      body: JSON.stringify(issueData),
+    })
+  }
+
+  async getBuyerAnalytics(buyerId: string) {
+    return this.request(`/api/analytics/buyers/${buyerId}`)
+  }
+
+  async getFarmerAnalytics(farmerId?: string) {
+    if (farmerId) {
+      return this.request(`/api/analytics/farmers/${farmerId}`)
+    }
+    return this.request('/api/analytics/farmers/me')
+  }
+
+  async getPartnerAnalytics(partnerId?: string) {
+    if (partnerId) {
+      return this.request(`/api/analytics/partners/${partnerId}`)
+    }
+    return this.request('/api/analytics/partners/me')
+  }
+
+  async getDashboardMetrics() {
+    return this.request('/api/analytics/dashboard')
+  }
+
+  async generateReport(reportData: any) {
+    return this.request('/api/analytics/report', {
+      method: 'POST',
+      body: JSON.stringify(reportData),
+    })
+  }
+
+  async getUserNotifications(params: any = {}) {
+    const queryString = new URLSearchParams(params).toString()
+    return this.request(`/api/notifications?${queryString}`)
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    return this.request(`/api/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+    })
+  }
+
+  async updateNotificationPreferences(preferences: any) {
+    return this.request('/api/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify({ notifications: preferences }),
+    })
+  }
+
+  async exportOrderData(exportData: any) {
+    return this.request('/api/export-import/export/orders', {
+      method: 'POST',
+      body: JSON.stringify(exportData),
+    })
+  }
+
+  // QR Code Management
+  async getQRCodes(filters?: Record<string, any>) {
+    const params = new URLSearchParams(filters)
+    return this.request(`/api/qr-codes?${params.toString()}`)
+  }
+
+  async generateQRCode(data: { type: string; itemId: string; metadata?: Record<string, any> }) {
+    return this.request(`/api/qr-codes/generate`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  }
+
+  async verifyQRCode(qrData: string) {
+    return this.request(`/api/qr-codes/verify`, {
+      method: "POST",
+      body: JSON.stringify({ qrData }),
+    })
+  }
+
+  async downloadQRCode(qrCodeId: string, format: 'png' | 'svg' | 'pdf' = 'png') {
+    return this.request(`/api/qr-codes/${qrCodeId}/download?format=${format}`)
+  }
+
+  async revokeQRCode(qrCodeId: string) {
+    return this.request(`/api/qr-codes/${qrCodeId}/revoke`, {
+      method: "PUT",
+    })
+  }
+
+  // Profile Management
+  async getFarmerProfile() {
+    return this.request('/api/farmers/profile/me')
+  }
+
+  async updateFarmerProfile(profileData: any) {
+    return this.request('/api/farmers/profile/me', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    })
+  }
+
+  async getBuyerProfile() {
+    return this.request('/api/users/profile/me')
+  }
+
+  async updateBuyerProfile(profileData: any) {
+    return this.request('/api/users/profile/me', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    })
+  }
+
+  async getPartnerProfile() {
+    return this.request('/api/users/profile/me')
+  }
+
+  async updatePartnerProfile(profileData: any) {
+    return this.request('/api/users/profile/me', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    })
+  }
+
+  async getAdminProfile() {
+    return this.request('/api/users/profile/me')
+  }
+
+  async updateAdminProfile(profileData: any) {
+    return this.request('/api/users/profile/me', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    })
+  }
+
+  // Analytics Endpoints
+  async getPartnerAnalytics(filters: any = {}): Promise<any> {
+    const queryString = new URLSearchParams(filters).toString()
+    return this.request<any>(`/api/analytics/partners/me?${queryString}`)
+  }
+
+  async getPerformanceAnalytics(filters: any = {}): Promise<any> {
+    const queryString = new URLSearchParams(filters).toString()
+    return this.request<any>(`/api/analytics/performance?${queryString}`)
+  }
+
+  async getGeographicAnalytics(filters: any = {}): Promise<any> {
+    const queryString = new URLSearchParams(filters).toString()
+    return this.request<any>(`/api/analytics/geographic?${queryString}`)
+  }
+
+  async getFinancialAnalytics(filters: any = {}): Promise<any> {
+    const queryString = new URLSearchParams(filters).toString()
+    return this.request<any>(`/api/analytics/financial?${queryString}`)
+  }
+
+  async getTrendAnalytics(filters: any = {}): Promise<any> {
+    const queryString = new URLSearchParams(filters).toString()
+    return this.request<any>(`/api/analytics/trends?${queryString}`)
+  }
+
+  async generateAnalyticsReport(config: any): Promise<any> {
+    return this.request<any>("/api/analytics/report", {
+      method: "POST",
+      body: JSON.stringify(config)
+    })
+  }
+
+  async exportAnalyticsData(filters: any, format: string = 'csv'): Promise<Blob> {
+    const queryString = new URLSearchParams({ ...filters, format }).toString()
+    const response = await fetch(`${this.baseUrl}/api/analytics/export?${queryString}`, {
+      headers: {
+        "Authorization": `Bearer ${this.token}`
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Export failed: ${response.statusText}`)
+    }
+    
+    return response.blob()
+  }
+
+  // Approvals Endpoints
+  async getApprovals(filters: any = {}): Promise<any> {
+    const queryString = new URLSearchParams(filters).toString()
+    return this.request<any>(`/api/approvals?${queryString}`)
+  }
+
+  async getApprovalById(approvalId: string): Promise<any> {
+    return this.request<any>(`/api/approvals/${approvalId}`)
+  }
+
+  async getApprovalStats(): Promise<any> {
+    return this.request<any>('/api/approvals/stats')
+  }
+
+  async approveHarvest(approvalId: string, data: { notes?: string; qualityAssessment?: any }): Promise<any> {
+    return this.request<any>(`/api/approvals/${approvalId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async rejectHarvest(approvalId: string, data: { reason: string; notes?: string }): Promise<any> {
+    return this.request<any>(`/api/approvals/${approvalId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async markForReview(approvalId: string, data: { notes?: string }): Promise<any> {
+    return this.request<any>(`/api/approvals/${approvalId}/review`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async batchProcessApprovals(batchAction: any): Promise<any> {
+    return this.request<any>('/api/approvals/batch', {
+      method: 'POST',
+      body: JSON.stringify(batchAction)
+    })
+  }
+
+  async getApprovalMetrics(filters: any = {}): Promise<any> {
+    const queryString = new URLSearchParams(filters).toString()
+    return this.request<any>(`/api/approvals/metrics?${queryString}`)
+  }
+
+  async getApprovalHistory(approvalId: string): Promise<any> {
+    return this.request<any>(`/api/approvals/${approvalId}/history`)
+  }
+
+  async exportApprovals(filters: any, format: string = 'csv'): Promise<Blob> {
+    const queryString = new URLSearchParams({ ...filters, format }).toString()
+    const response = await fetch(`${this.baseUrl}/api/approvals/export?${queryString}`, {
+      headers: {
+        "Authorization": `Bearer ${this.token}`
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Export failed: ${response.statusText}`)
+    }
+    
+    return response.blob()
+  }
+
+  // Commission Management
+  async getCommissions(params?: any): Promise<any> {
+    const queryString = new URLSearchParams(params).toString()
+    return this.request<any>(`/api/commissions?${queryString}`)
+  }
+
+  async getCommissionById(id: string): Promise<any> {
+    return this.request<any>(`/api/commissions/${id}`)
+  }
+
+  async getCommissionStats(params?: any): Promise<any> {
+    const queryString = new URLSearchParams(params).toString()
+    return this.request<any>(`/api/commissions/stats?${queryString}`)
+  }
+
+  async getPartnerCommissionSummary(partnerId: string): Promise<any> {
+    return this.request<any>(`/api/commissions/summary/${partnerId}`)
+  }
+
+  async updateCommissionStatus(id: string, data: { status: string; notes?: string }): Promise<any> {
+    return this.request<any>(`/api/commissions/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async processCommissionPayout(data: { commissionIds: string[]; payoutMethod: string; payoutDetails: any }): Promise<any> {
+    return this.request<any>('/api/commissions/payout', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  // Referral Management
+  async getReferrals(params?: any): Promise<any> {
+    const queryString = new URLSearchParams(params).toString()
+    return this.request<any>(`/api/referrals?${queryString}`)
+  }
+
+  async getReferralById(id: string): Promise<any> {
+    return this.request<any>(`/api/referrals/${id}`)
+  }
+
+  async getReferralStats(): Promise<any> {
+    return this.request<any>('/api/referrals/stats/overview')
+  }
+
+  async getReferralPerformanceStats(period: string = 'month'): Promise<any> {
+    return this.request<any>(`/api/referrals/stats/performance?period=${period}`)
+  }
+
+  async createReferral(data: any): Promise<any> {
+    return this.request<any>('/api/referrals', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async updateReferral(id: string, data: any): Promise<any> {
+    return this.request<any>(`/api/referrals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async deleteReferral(id: string): Promise<any> {
+    return this.request<any>(`/api/referrals/${id}`, {
+      method: 'DELETE'
+    })
   }
 }
 

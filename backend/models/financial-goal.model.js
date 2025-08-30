@@ -149,3 +149,5 @@ FinancialGoalSchema.statics.getGoalsByPriority = function(farmerId, priority) {
 
 module.exports = mongoose.model('FinancialGoal', FinancialGoalSchema)
 
+
+

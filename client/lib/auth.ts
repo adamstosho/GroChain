@@ -3,6 +3,16 @@ import { persist } from "zustand/middleware"
 import { apiService } from "./api"
 import type { User } from "./types"
 
+// Minimal cookie helper (middleware reads auth_token cookie)
+const setCookie = (name: string, value: string, maxAgeSeconds: number = 60 * 60 * 24 * 7) => {
+  if (typeof document === "undefined") return
+  document.cookie = `${name}=${value}; Path=/; Max-Age=${maxAgeSeconds}; SameSite=Lax`
+}
+const clearCookie = (name: string) => {
+  if (typeof document === "undefined") return
+  document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`
+}
+
 interface AuthState {
   user: User | null
   token: string | null
@@ -82,6 +92,9 @@ export const useAuthStore = create<AuthState>()(
           }
 
           apiService.setToken(accessToken)
+          // Ensure Next middleware sees cookie on navigation to protected routes
+          setCookie("auth_token", accessToken)
+          setCookie("refresh_token", refreshToken, 60 * 60 * 24 * 30)
           set({
             user: (get() as any).normalizeUser(rawUser),
             token: accessToken,
@@ -126,6 +139,8 @@ export const useAuthStore = create<AuthState>()(
         // Best-effort call to backend to clear cookie
         try { apiService.logout() } catch {}
         apiService.clearToken()
+        clearCookie("auth_token")
+        clearCookie("refresh_token")
         set({
           user: null,
           token: null,
@@ -151,6 +166,8 @@ export const useAuthStore = create<AuthState>()(
           }
 
           apiService.setToken(newAccessToken)
+          setCookie("auth_token", newAccessToken)
+          setCookie("refresh_token", newRefreshToken, 60 * 60 * 24 * 30)
           set({
             token: newAccessToken,
             refreshToken: newRefreshToken,

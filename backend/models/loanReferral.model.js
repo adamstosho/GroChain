@@ -261,7 +261,6 @@ const loanReferralSchema = new mongoose.Schema({
 })
 
 // Indexes
-loanReferralSchema.index({ referralId: 1 }, { unique: true })
 loanReferralSchema.index({ partner: 1 })
 loanReferralSchema.index({ farmer: 1 })
 loanReferralSchema.index({ status: 1 })

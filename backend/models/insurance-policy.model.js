@@ -44,7 +44,6 @@ const InsurancePolicySchema = new mongoose.Schema({
 InsurancePolicySchema.index({ farmer: 1, status: 1 })
 InsurancePolicySchema.index({ type: 1, region: 1 })
 InsurancePolicySchema.index({ startDate: 1, endDate: 1 })
-InsurancePolicySchema.index({ policyNumber: 1 })
 
 // Virtual for policy duration
 InsurancePolicySchema.virtual('duration').get(function() {
@@ -91,4 +90,5 @@ InsurancePolicySchema.statics.getExpiringPolicies = function(days = 30) {
 }
 
 module.exports = mongoose.model('InsurancePolicy', InsurancePolicySchema)
+
 

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { MarketplaceCard, type MarketplaceProduct } from "@/components/agricultural"
 import { api } from "@/lib/api"
 import type { Product } from "@/lib/types"
 import Link from "next/link"
@@ -69,6 +70,68 @@ export default function MarketplacePage() {
     }
   }
 
+  // Convert Product type to MarketplaceProduct type for our component
+  const convertToMarketplaceProduct = (product: Product): MarketplaceProduct => {
+    return {
+      id: String(product.id),
+      name: product.name,
+      cropType: product.category || "Agricultural Product",
+      variety: product.variety || "Standard",
+      description: product.description || "Fresh agricultural product",
+      price: product.price,
+      unit: product.unit,
+      quantity: (product as any).quantity || 100,
+      availableQuantity: (product as any).availableQuantity || 100,
+      quality: (product as any).quality || "good",
+      grade: (product as any).grade || "B",
+      organic: (product as any).organic || false,
+      harvestDate: new Date((product as any).harvestDate || Date.now()),
+      location: product.location,
+      farmer: {
+        id: (product as any).farmerId || "1",
+        name: (product as any).farmerName || "Unknown Farmer",
+        avatar: (product as any).farmerAvatar || "",
+        rating: product.rating || 4.5,
+        verified: product.isVerified || false,
+        location: product.location
+      },
+      images: product.images || ["/placeholder.svg?height=200&width=300&query=fresh agricultural product"],
+      certifications: (product as any).certifications || ["ISO 22000"],
+      shipping: {
+        available: (product as any).shippingAvailable || true,
+        cost: (product as any).shippingCost || 500,
+        estimatedDays: (product as any).shippingDays || 3
+      },
+      rating: product.rating || 4.5,
+      reviewCount: (product as any).reviewCount || 0,
+      qrCode: (product as any).qrCode || `PRODUCT_${Date.now()}`,
+      tags: (product as any).tags || [product.category, "fresh", "agricultural"]
+    }
+  }
+
+  const handleMarketplaceAction = (action: string, productId: string) => {
+    switch (action) {
+      case "addToCart":
+        handleAddToCart(productId)
+        break
+      case "addToWishlist":
+        handleToggleFavorite(productId)
+        break
+      case "view":
+        // Navigate to product detail page
+        window.location.href = `/marketplace/products/${productId}`
+        break
+      case "contact":
+        // Handle contact logic
+        console.log("Contacting farmer for:", productId)
+        break
+      case "share":
+        // Handle share logic
+        console.log("Sharing product:", productId)
+        break
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50">
       <div className="container mx-auto px-4 py-8">
@@ -104,16 +167,13 @@ export default function MarketplacePage() {
                   </SheetHeader>
                   <div className="space-y-6 mt-6">
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Category</label>
-                      <Select
-                        value={filters.category}
-                        onValueChange={(value) => setFilters({ ...filters, category: value })}
-                      >
+                      <label className="text-sm font-medium">Category</label>
+                      <Select value={filters.category} onValueChange={(value) => setFilters({ ...filters, category: value })}>
                         <SelectTrigger>
-                          <SelectValue placeholder="All categories" />
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All categories</SelectItem>
+                          <SelectItem value="all">All Categories</SelectItem>
                           <SelectItem value="grains">Grains</SelectItem>
                           <SelectItem value="vegetables">Vegetables</SelectItem>
                           <SelectItem value="fruits">Fruits</SelectItem>
@@ -124,26 +184,34 @@ export default function MarketplacePage() {
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Price Range (₦)</label>
-                      <Slider
-                        value={filters.priceRange}
-                        onValueChange={(value) => setFilters({ ...filters, priceRange: value })}
-                        max={10000}
-                        step={100}
-                        className="mt-2"
+                      <label className="text-sm font-medium">Location</label>
+                      <Input
+                        placeholder="Enter location"
+                        value={filters.location}
+                        onChange={(e) => setFilters({ ...filters, location: e.target.value })}
                       />
-                      <div className="flex justify-between text-sm text-gray-500 mt-1">
-                        <span>₦{filters.priceRange[0]}</span>
-                        <span>₦{filters.priceRange[1]}</span>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Price Range</label>
+                      <div className="space-y-2">
+                        <Slider
+                          value={filters.priceRange}
+                          onValueChange={(value) => setFilters({ ...filters, priceRange: value })}
+                          max={10000}
+                          min={0}
+                          step={100}
+                        />
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>₦{filters.priceRange[0]}</span>
+                          <span>₦{filters.priceRange[1]}</span>
+                        </div>
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Sort By</label>
-                      <Select
-                        value={filters.sortBy}
-                        onValueChange={(value) => setFilters({ ...filters, sortBy: value })}
-                      >
+                      <label className="text-sm font-medium">Sort By</label>
+                      <Select value={filters.sortBy} onValueChange={(value) => setFilters({ ...filters, sortBy: value })}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -200,64 +268,16 @@ export default function MarketplacePage() {
             }
           >
             {products.map((product) => (
-              <Card key={product.id} className="group hover:shadow-lg transition-shadow">
-                <CardHeader className="p-0 relative">
-                  <div className="relative h-48 overflow-hidden rounded-t-lg">
-                    <Image
-                      src={
-                        product.images?.[0] || "/placeholder.svg?height=200&width=300&query=fresh agricultural product"
-                      }
-                      alt={product.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform"
-                    />
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="absolute top-2 right-2 bg-white/80 hover:bg-white"
-                      onClick={() => handleToggleFavorite(product.id)}
-                    >
-                      <Heart className="h-4 w-4" />
-                    </Button>
-                    {product.isVerified && <Badge className="absolute top-2 left-2 bg-green-600">Verified</Badge>}
-                  </div>
-                </CardHeader>
-
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold text-lg">{product.name}</h3>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm">{product.rating || 4.5}</span>
-                    </div>
-                  </div>
-
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
-
-                  <div className="flex items-center gap-2 mb-3">
-                    <MapPin className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">{product.location}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-2xl font-bold text-green-600">₦{product.price}</span>
-                      <span className="text-sm text-gray-500">/{product.unit}</span>
-                    </div>
-                    <Badge variant="outline">{product.category}</Badge>
-                  </div>
-                </CardContent>
-
-                <CardFooter className="p-4 pt-0 flex gap-2">
-                  <Button className="flex-1" onClick={() => handleAddToCart(product.id)}>
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Add to Cart
-                  </Button>
-                  <Button variant="outline" asChild>
-                    <Link href={`/marketplace/products/${product.id}`}>View Details</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
+              <MarketplaceCard
+                key={product.id}
+                product={convertToMarketplaceProduct(product)}
+                variant={viewMode === "list" ? "detailed" : "default"}
+                onAddToCart={(id) => handleMarketplaceAction("addToCart", id)}
+                onAddToWishlist={(id) => handleMarketplaceAction("addToWishlist", id)}
+                onView={(id) => handleMarketplaceAction("view", id)}
+                onContact={(id) => handleMarketplaceAction("contact", id)}
+                onShare={(id) => handleMarketplaceAction("share", id)}
+              />
             ))}
           </div>
         )}

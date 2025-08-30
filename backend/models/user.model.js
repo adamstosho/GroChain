@@ -77,7 +77,6 @@ const UserSchema = new mongoose.Schema({
 }, { timestamps: true })
 
 // Indexes
-UserSchema.index({ email: 1 })
 UserSchema.index({ phone: 1 })
 UserSchema.index({ role: 1 })
 UserSchema.index({ status: 1 })

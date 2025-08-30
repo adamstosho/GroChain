@@ -9,9 +9,35 @@ const weatherController = {
   // Get current weather data
   async getCurrentWeather(req, res) {
     try {
+      const { location } = req.params
       const { lat, lng, city, state, country } = req.query
       
-      if (!lat || !lng || !city || !state || !country) {
+      // For development/testing, if no coordinates provided, use default coordinates
+      if (!lat || !lng) {
+        // Default to Lagos coordinates if not provided
+        const defaultCoords = {
+          'Lagos': { lat: 6.5244, lng: 3.3792, city: 'Lagos', state: 'Lagos', country: 'Nigeria' },
+          'Abuja': { lat: 9.0820, lng: 7.3986, city: 'Abuja', state: 'FCT', country: 'Nigeria' },
+          'Kano': { lat: 11.9914, lng: 8.5311, city: 'Kano', state: 'Kano', country: 'Nigeria' },
+          'Port Harcourt': { lat: 4.8156, lng: 7.0498, city: 'Port Harcourt', state: 'Rivers', country: 'Nigeria' }
+        }
+        
+        const cityData = defaultCoords[location] || defaultCoords['Lagos']
+        req.query.lat = cityData.lat
+        req.query.lng = cityData.lng
+        req.query.city = cityData.city
+        req.query.state = cityData.state
+        req.query.country = cityData.country
+      }
+      
+      // Now check if we have the required parameters
+      const finalLat = req.query.lat || lat
+      const finalLng = req.query.lng || lng
+      const finalCity = req.query.city || city
+      const finalState = req.query.state || state
+      const finalCountry = req.query.country || country
+      
+      if (!finalLat || !finalLng || !finalCity || !finalState || !finalCountry) {
         return res.status(400).json({
           status: 'error',
           message: 'lat, lng, city, state, and country are required'
@@ -25,7 +51,7 @@ const weatherController = {
         return res.json({
           status: 'success',
           data: {
-            location: { lat: Number(lat), lng: Number(lng), city, state, country },
+            location: { lat: Number(finalLat), lng: Number(finalLng), city: finalCity, state: finalState, country: finalCountry },
             current: {
               temperature: 25,
               humidity: 65,
@@ -48,7 +74,7 @@ const weatherController = {
       }
       
       // Fetch current weather from OpenWeather API
-      const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric`
+      const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${finalLat}&lon=${finalLng}&appid=${apiKey}&units=metric`
       const currentResponse = await fetch(currentUrl)
       const currentData = await currentResponse.json()
       
@@ -60,18 +86,18 @@ const weatherController = {
       }
       
       // Fetch 5-day forecast
-      const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric`
+      const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${finalLat}&lon=${finalLng}&appid=${apiKey}&units=metric`
       const forecastResponse = await fetch(forecastUrl)
       const forecastData = await forecastResponse.json()
       
       // Process current weather data
       const weatherInfo = {
         location: {
-          lat: Number(lat),
-          lng: Number(lng),
-          city,
-          state,
-          country
+          lat: Number(finalLat),
+          lng: Number(finalLng),
+          city: finalCity,
+          state: finalState,
+          country: finalCountry
         },
         current: {
           temperature: currentData.main?.temp || 0,
@@ -156,9 +182,28 @@ const weatherController = {
   // Get weather forecast
   async getWeatherForecast(req, res) {
     try {
+      const { location } = req.params
       const { lat, lng, days = 5 } = req.query
       
+      // For development/testing, if no coordinates provided, use default coordinates
       if (!lat || !lng) {
+        const defaultCoords = {
+          'Lagos': { lat: 6.5244, lng: 3.3792 },
+          'Abuja': { lat: 9.0820, lng: 7.3986 },
+          'Kano': { lat: 11.9914, lng: 8.5311 },
+          'Port Harcourt': { lat: 4.8156, lng: 7.0498 }
+        }
+        
+        const cityData = defaultCoords[location] || defaultCoords['Lagos']
+        req.query.lat = cityData.lat
+        req.query.lng = cityData.lng
+      }
+      
+      // Now check if we have the required parameters
+      const finalLat = req.query.lat || lat
+      const finalLng = req.query.lng || lng
+      
+      if (!finalLat || !finalLng) {
         return res.status(400).json({
           status: 'error',
           message: 'lat and lng are required'
@@ -166,15 +211,42 @@ const weatherController = {
       }
       
       const apiKey = process.env.OPENWEATHER_API_KEY
-      if (!apiKey) {
-        return res.status(500).json({
-          status: 'error',
-          message: 'Weather API key not configured'
+      
+      // For development/testing, return mock data if no API key
+      if (!apiKey || process.env.NODE_ENV === 'development') {
+        return res.json({
+          status: 'success',
+          data: {
+            forecast: [
+              {
+                date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                temperature: { min: 22, max: 28, avg: 25 },
+                humidity: 65,
+                windSpeed: 5,
+                weatherCondition: 'Partly Cloudy',
+                weatherIcon: '02d',
+                precipitation: 0,
+                uvIndex: 6
+              },
+              {
+                date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                temperature: { min: 20, max: 26, avg: 23 },
+                humidity: 70,
+                windSpeed: 8,
+                weatherCondition: 'Light Rain',
+                weatherIcon: '10d',
+                precipitation: 2,
+                uvIndex: 4
+              }
+            ],
+            location: { lat: finalLat, lng: finalLng },
+            metadata: { source: 'Mock Data', lastUpdated: new Date(), dataQuality: 'development' }
+          }
         })
       }
       
-      // Fetch forecast data
-      const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric&cnt=${days * 8}`
+      // Fetch forecast data from OpenWeather API
+      const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${finalLat}&lon=${finalLng}&appid=${apiKey}&units=metric&cnt=${days * 8}`
       const response = await fetch(forecastUrl)
       const data = await response.json()
       

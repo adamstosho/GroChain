@@ -150,7 +150,6 @@ const farmerProfileSchema = new mongoose.Schema({
 })
 
 // Indexes
-farmerProfileSchema.index({ farmer: 1 })
 farmerProfileSchema.index({ 'farmLocation.state': 1 })
 farmerProfileSchema.index({ primaryCrops: 1 })
 farmerProfileSchema.index({ verificationStatus: 1 })

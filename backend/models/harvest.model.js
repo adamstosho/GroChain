@@ -59,7 +59,6 @@ HarvestSchema.index({ farmer: 1, status: 1 })
 HarvestSchema.index({ 'geoLocation.lat': 1, 'geoLocation.lng': 1 })
 HarvestSchema.index({ cropType: 1, status: 1 })
 HarvestSchema.index({ createdAt: -1 })
-HarvestSchema.index({ batchId: 1 })
 
 module.exports = mongoose.model('Harvest', HarvestSchema)
 

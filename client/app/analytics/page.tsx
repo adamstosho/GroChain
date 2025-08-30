@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { AnalyticsDashboard } from "@/components/agricultural"
 import {
   LineChart,
   Line,
@@ -79,6 +80,11 @@ export default function AnalyticsPage() {
     }
   }
 
+  const handleExport = () => {
+    // Handle export logic
+    console.log("Exporting analytics data")
+  }
+
   const COLORS = ["#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4"]
 
   if (loading) {
@@ -123,287 +129,19 @@ export default function AnalyticsPage() {
                 <SelectItem value="1y">Last year</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export Report
             </Button>
           </div>
         </div>
 
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">₦{analyticsData?.overview.totalRevenue.toLocaleString() || 0}</div>
-              <p
-                className={`text-xs flex items-center ${
-                  (analyticsData?.overview.revenueGrowth || 0) >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {(analyticsData?.overview.revenueGrowth || 0) >= 0 ? (
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 mr-1" />
-                )}
-                {Math.abs(analyticsData?.overview.revenueGrowth || 0)}% from last period
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analyticsData?.overview.totalSales.toLocaleString() || 0}</div>
-              <p
-                className={`text-xs flex items-center ${
-                  (analyticsData?.overview.salesGrowth || 0) >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {(analyticsData?.overview.salesGrowth || 0) >= 0 ? (
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 mr-1" />
-                )}
-                {Math.abs(analyticsData?.overview.salesGrowth || 0)}% from last period
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Harvests</CardTitle>
-              <Leaf className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analyticsData?.overview.totalHarvests.toLocaleString() || 0}</div>
-              <p
-                className={`text-xs flex items-center ${
-                  (analyticsData?.overview.harvestGrowth || 0) >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {(analyticsData?.overview.harvestGrowth || 0) >= 0 ? (
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 mr-1" />
-                )}
-                {Math.abs(analyticsData?.overview.harvestGrowth || 0)}% from last period
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analyticsData?.overview.activeUsers.toLocaleString() || 0}</div>
-              <p
-                className={`text-xs flex items-center ${
-                  (analyticsData?.overview.userGrowth || 0) >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {(analyticsData?.overview.userGrowth || 0) >= 0 ? (
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 mr-1" />
-                )}
-                {Math.abs(analyticsData?.overview.userGrowth || 0)}% from last period
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts */}
-        <Tabs defaultValue="sales" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="sales">Sales & Revenue</TabsTrigger>
-            <TabsTrigger value="harvests">Harvest Analytics</TabsTrigger>
-            <TabsTrigger value="users">User Activity</TabsTrigger>
-            <TabsTrigger value="market">Market Trends</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="sales">
-            <Card>
-              <CardHeader>
-                <CardTitle>Sales & Revenue Trends</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer
-                  config={{
-                    sales: {
-                      label: "Sales",
-                      color: "#10B981",
-                    },
-                    revenue: {
-                      label: "Revenue",
-                      color: "#F59E0B",
-                    },
-                  }}
-                  className="h-[400px]"
-                >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={analyticsData?.salesData || []}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Legend />
-                      <Line type="monotone" dataKey="sales" stroke="#10B981" strokeWidth={2} />
-                      <Line type="monotone" dataKey="revenue" stroke="#F59E0B" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="harvests">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Harvest by Crop Type</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer
-                    config={{
-                      quantity: {
-                        label: "Quantity",
-                        color: "#10B981",
-                      },
-                    }}
-                    className="h-[300px]"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analyticsData?.harvestData || []}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="crop" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="quantity" fill="#10B981" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Harvest Value Distribution</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer
-                    config={{
-                      value: {
-                        label: "Value",
-                        color: "#F59E0B",
-                      },
-                    }}
-                    className="h-[300px]"
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={analyticsData?.harvestData || []}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ crop, percent }) => `${crop} ${(percent * 100).toFixed(0)}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {(analyticsData?.harvestData || []).map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="users">
-            <Card>
-              <CardHeader>
-                <CardTitle>User Activity Over Time</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer
-                  config={{
-                    farmers: {
-                      label: "Farmers",
-                      color: "#10B981",
-                    },
-                    buyers: {
-                      label: "Buyers",
-                      color: "#F59E0B",
-                    },
-                    partners: {
-                      label: "Partners",
-                      color: "#8B5CF6",
-                    },
-                  }}
-                  className="h-[400px]"
-                >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={analyticsData?.userActivity || []}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Legend />
-                      <Line type="monotone" dataKey="farmers" stroke="#10B981" strokeWidth={2} />
-                      <Line type="monotone" dataKey="buyers" stroke="#F59E0B" strokeWidth={2} />
-                      <Line type="monotone" dataKey="partners" stroke="#8B5CF6" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="market">
-            <Card>
-              <CardHeader>
-                <CardTitle>Market Price Trends</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {analyticsData?.marketTrends?.map((trend, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <h4 className="font-semibold">{trend.product}</h4>
-                        <p className="text-2xl font-bold">₦{trend.currentPrice.toLocaleString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-500">Previous: ₦{trend.previousPrice.toLocaleString()}</p>
-                        <p className={`flex items-center ${trend.change >= 0 ? "text-green-600" : "text-red-600"}`}>
-                          {trend.change >= 0 ? (
-                            <TrendingUp className="h-4 w-4 mr-1" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4 mr-1" />
-                          )}
-                          {Math.abs(trend.change)}%
-                        </p>
-                      </div>
-                    </div>
-                  )) || <p className="text-center text-gray-500 py-8">No market data available</p>}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Use our new AnalyticsDashboard component */}
+        <AnalyticsDashboard
+          timeRange={timeRange as "7d" | "30d" | "90d" | "1y"}
+          onTimeRangeChange={setTimeRange}
+          onExport={handleExport}
+        />
       </div>
     </div>
   )

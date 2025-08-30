@@ -1,0 +1,460 @@
+{
+  "summary": {
+    "total": 20,
+    "passed": 15,
+    "failed": 5,
+    "successRate": "75.00",
+    "duration": "10.167s"
+  },
+  "details": [
+    {
+      "endpoint": "/auth/register",
+      "method": "POST",
+      "status": 409,
+      "success": false,
+      "response": {
+        "status": "error",
+        "message": "Email already exists"
+      },
+      "error": "Request failed with status code 409",
+      "timestamp": "2025-08-28T07:02:03.065Z"
+    },
+    {
+      "endpoint": "/auth/login",
+      "method": "POST",
+      "status": 401,
+      "success": false,
+      "response": {
+        "status": "error",
+        "message": "Invalid credentials"
+      },
+      "error": "Request failed with status code 401",
+      "timestamp": "2025-08-28T07:02:03.541Z"
+    },
+    {
+      "endpoint": "/auth/refresh",
+      "method": "POST",
+      "status": 400,
+      "success": false,
+      "response": {
+        "status": "error",
+        "message": "refreshToken required"
+      },
+      "error": "Request failed with status code 400",
+      "timestamp": "2025-08-28T07:02:03.544Z"
+    },
+    {
+      "endpoint": "/auth/forgot-password",
+      "method": "POST",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "message": "If account exists, email sent"
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:03.548Z"
+    },
+    {
+      "endpoint": "/auth/resend-verification",
+      "method": "POST",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "message": "Verification email sent"
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:06.631Z"
+    },
+    {
+      "endpoint": "/health",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "message": "GroChain Backend is running",
+        "timestamp": "2025-08-28T07:02:06.635Z",
+        "environment": "development"
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:06.635Z"
+    },
+    {
+      "endpoint": "/weather/current/Lagos",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "data": {
+          "location": {
+            "lat": 6.5244,
+            "lng": 3.3792,
+            "city": "Lagos",
+            "state": "Lagos",
+            "country": "Nigeria"
+          },
+          "current": {
+            "temperature": 25,
+            "humidity": 65,
+            "windSpeed": 5,
+            "windDirection": "NE",
+            "pressure": 1013,
+            "visibility": 10000,
+            "weatherCondition": "Clear",
+            "weatherIcon": "01d",
+            "feelsLike": 26,
+            "dewPoint": 18,
+            "cloudCover": 20
+          },
+          "forecast": [],
+          "alerts": [],
+          "agricultural": {
+            "recommendation": "Good conditions for farming",
+            "risk": "low"
+          },
+          "metadata": {
+            "source": "Mock Data",
+            "lastUpdated": "2025-08-28T07:02:06.638Z",
+            "dataQuality": "development"
+          }
+        }
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:06.639Z"
+    },
+    {
+      "endpoint": "/weather/forecast/Lagos",
+      "method": "GET",
+      "status": 500,
+      "success": false,
+      "response": {
+        "status": "error",
+        "message": "Failed to fetch forecast data"
+      },
+      "error": "Request failed with status code 500",
+      "timestamp": "2025-08-28T07:02:07.344Z"
+    },
+    {
+      "endpoint": "/analytics/dashboard",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "data": {
+          "totalUsers": 6,
+          "activeUsers": 6,
+          "newRegistrations": 6,
+          "totalHarvests": 2,
+          "approvedHarvests": 0,
+          "totalListings": 0,
+          "totalOrders": 0,
+          "totalRevenue": 0,
+          "averageCreditScore": 0,
+          "approvalRate": 0
+        }
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:08.981Z"
+    },
+    {
+      "endpoint": "/analytics/harvests",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "data": {
+          "totalHarvests": 2,
+          "approvedHarvests": 0,
+          "rejectedHarvests": 0,
+          "pendingHarvests": 2,
+          "approvalRate": 0,
+          "cropTypeBreakdown": [
+            {
+              "_id": "Maize",
+              "count": 2
+            }
+          ],
+          "locationBreakdown": [
+            {
+              "_id": "Lagos",
+              "count": 2
+            }
+          ]
+        }
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:09.873Z"
+    },
+    {
+      "endpoint": "/analytics/marketplace",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "data": {
+          "totalListings": 0,
+          "activeListings": 0,
+          "totalOrders": 0,
+          "completedOrders": 0,
+          "totalRevenue": 0,
+          "completionRate": 0,
+          "topSellingCrops": []
+        }
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:10.770Z"
+    },
+    {
+      "endpoint": "/analytics/financial",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "data": {
+          "totalOrders": 0,
+          "totalRevenue": 0,
+          "averageCreditScore": 0,
+          "riskDistribution": [],
+          "totalCreditScores": 0
+        }
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:11.367Z"
+    },
+    {
+      "endpoint": "/export-import/formats",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "success": true,
+        "message": "Supported formats retrieved successfully",
+        "data": [
+          {
+            "format": "csv",
+            "extensions": [
+              ".csv"
+            ],
+            "description": "Comma-separated values format, widely supported by spreadsheet applications"
+          },
+          {
+            "format": "excel",
+            "extensions": [
+              ".xlsx",
+              ".xls"
+            ],
+            "description": "Microsoft Excel format with advanced formatting and multiple worksheets"
+          },
+          {
+            "format": "json",
+            "extensions": [
+              ".json"
+            ],
+            "description": "JavaScript Object Notation, ideal for data exchange and APIs"
+          }
+        ]
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:11.371Z"
+    },
+    {
+      "endpoint": "/export-import/templates",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "success": true,
+        "message": "Export templates retrieved successfully",
+        "data": {
+          "harvest": {
+            "name": "Harvest Export Template",
+            "description": "Standard template for exporting harvest data",
+            "fields": [
+              "cropType",
+              "quantity",
+              "unit",
+              "quality",
+              "status",
+              "location",
+              "farmerName"
+            ],
+            "required": [
+              "cropType",
+              "quantity",
+              "unit"
+            ],
+            "sample": {
+              "cropType": "Maize",
+              "quantity": 1000,
+              "unit": "kg",
+              "quality": "good",
+              "status": "approved",
+              "location": "Lagos",
+              "farmerName": "John Doe"
+            }
+          },
+          "listing": {
+            "name": "Listing Export Template",
+            "description": "Standard template for exporting product listings",
+            "fields": [
+              "cropName",
+              "price",
+              "currency",
+              "quantity",
+              "unit",
+              "quality",
+              "status"
+            ],
+            "required": [
+              "cropName",
+              "price",
+              "quantity"
+            ],
+            "sample": {
+              "cropName": "Fresh Tomatoes",
+              "price": 5000,
+              "currency": "NGN",
+              "quantity": 100,
+              "unit": "kg",
+              "quality": "excellent",
+              "status": "active"
+            }
+          },
+          "user": {
+            "name": "User Export Template",
+            "description": "Standard template for exporting user data",
+            "fields": [
+              "name",
+              "email",
+              "phone",
+              "role",
+              "location",
+              "status"
+            ],
+            "required": [
+              "name",
+              "email",
+              "role"
+            ],
+            "sample": {
+              "name": "Jane Smith",
+              "email": "jane@example.com",
+              "phone": "+2348012345678",
+              "role": "farmer",
+              "location": "Abuja",
+              "status": "active"
+            }
+          }
+        }
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:11.380Z"
+    },
+    {
+      "endpoint": "/partners",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "data": {
+          "partners": [
+            {
+              "_id": "68af4f6140b08daa185a55f1",
+              "name": "User",
+              "email": "user@example.com",
+              "phone": "+234000000000",
+              "organization": "User Organization",
+              "type": "cooperative",
+              "location": "Nigeria",
+              "status": "active",
+              "commissionRate": 0.05,
+              "farmers": [],
+              "totalFarmers": 0,
+              "totalCommissions": 0,
+              "createdAt": "2025-08-27T18:33:05.873Z",
+              "updatedAt": "2025-08-27T18:33:05.873Z",
+              "__v": 0
+            }
+          ],
+          "pagination": {
+            "currentPage": 1,
+            "totalPages": 1,
+            "totalItems": 1,
+            "itemsPerPage": 10
+          }
+        }
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:11.984Z"
+    },
+    {
+      "endpoint": "/partners/ping",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "message": "Partner routes are working"
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:11.987Z"
+    },
+    {
+      "endpoint": "/partners/simple-test",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "message": "Simple partner test route working",
+        "timestamp": "2025-08-28T07:02:11.989Z"
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:11.989Z"
+    },
+    {
+      "endpoint": "/marketplace/listings",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": [],
+      "error": null,
+      "timestamp": "2025-08-28T07:02:12.132Z"
+    },
+    {
+      "endpoint": "/marketplace/search-suggestions?q=rice",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "data": {
+          "suggestions": []
+        }
+      },
+      "error": null,
+      "timestamp": "2025-08-28T07:02:12.898Z"
+    },
+    {
+      "endpoint": "/harvests/verify/test-batch-123",
+      "method": "GET",
+      "status": 404,
+      "success": false,
+      "response": {
+        "status": "error",
+        "message": "Harvest not found"
+      },
+      "error": "Request failed with status code 404",
+      "timestamp": "2025-08-28T07:02:13.044Z"
+    }
+  ],
+  "timestamp": "2025-08-28T07:02:13.047Z"
+}

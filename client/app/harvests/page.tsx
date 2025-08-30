@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { HarvestCard, type HarvestData } from "@/components/agricultural"
 import { apiService } from "@/lib/api"
 import type { Harvest } from "@/lib/types"
 import Link from "next/link"
@@ -74,6 +75,48 @@ export default function HarvestsPage() {
     }
   }
 
+  // Convert Harvest type to HarvestData type for our component
+  const convertToHarvestData = (harvest: Harvest): HarvestData => {
+    return {
+      id: String((harvest as any)._id || harvest.id),
+      farmerName: (harvest as any).farmerName || (harvest as any).farmer?.name || "Unknown Farmer",
+      cropType: harvest.cropType,
+      variety: (harvest as any).variety || "Standard",
+      harvestDate: new Date((harvest as any).date || (harvest as any).harvestDate || Date.now()),
+      quantity: harvest.quantity,
+      unit: harvest.unit,
+      location: harvest.location,
+      quality: (harvest as any).quality || "good",
+      status: (harvest as any).status || "pending",
+      qrCode: (harvest as any).qrCode || `HARVEST_${Date.now()}`,
+      price: (harvest as any).price || 0,
+      organic: (harvest as any).organic || false,
+      moistureContent: (harvest as any).moistureContent || 15,
+      grade: (harvest as any).grade || "B"
+    }
+  }
+
+  const handleHarvestAction = (action: string, harvestId: string) => {
+    switch (action) {
+      case "view":
+        // Navigate to harvest detail page
+        window.location.href = `/harvests/${harvestId}`
+        break
+      case "edit":
+        // Navigate to edit page
+        window.location.href = `/harvests/${harvestId}/edit`
+        break
+      case "approve":
+        // Handle approval logic
+        console.log("Approving harvest:", harvestId)
+        break
+      case "reject":
+        // Handle rejection logic
+        console.log("Rejecting harvest:", harvestId)
+        break
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50">
       <div className="container mx-auto px-4 py-8">
@@ -135,85 +178,14 @@ export default function HarvestsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {harvests.map((harvest) => (
-              <Card key={harvest.id} className="group hover:shadow-lg transition-shadow">
-                <CardHeader className="p-0 relative">
-                  <div className="relative h-48 overflow-hidden rounded-t-lg">
-                    <Image
-                      src={harvest.images?.[0] || "/placeholder.svg?height=200&width=300&query=agricultural harvest"}
-                      alt={harvest.cropType}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform"
-                    />
-                    <Badge className={`absolute top-2 right-2 ${getStatusColor(harvest.status)}`}>
-                      {harvest.status}
-                    </Badge>
-                    <div className="absolute top-2 left-2 bg-white/90 rounded-lg p-2">
-                      <QrCode className="h-4 w-4" />
-                    </div>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold text-lg">{harvest.cropType}</h3>
-                    <span className="text-sm text-gray-500">#{(harvest as any).batchId || (harvest as any).batchNumber}</span>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Calendar className="h-4 w-4" />
-                      <span>Harvested: {new Date((harvest as any).date || (harvest as any).harvestDate).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <MapPin className="h-4 w-4" />
-                      <span>{harvest.location}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <span className="text-2xl font-bold text-green-600">{harvest.quantity}</span>
-                      <span className="text-sm text-gray-500 ml-1">{harvest.unit}</span>
-                    </div>
-                    <Badge variant="outline">{harvest.qualityGrade || "Grade A"}</Badge>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" asChild className="flex-1 bg-transparent">
-                      <Link href={`/harvests/${(harvest as any).batchId || (harvest as any)._id || (harvest as any).id}`}>
-                        <Eye className="h-3 w-3 mr-1" />
-                        View
-                      </Link>
-                    </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/harvests/${harvest.id}/edit`}>
-                        <Edit className="h-3 w-3" />
-                      </Link>
-                    </Button>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 bg-transparent">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Delete Harvest</DialogTitle>
-                        </DialogHeader>
-                        <p className="text-gray-600 mb-4">
-                          Are you sure you want to delete this harvest? This action cannot be undone.
-                        </p>
-                        <div className="flex gap-2 justify-end">
-                          <Button variant="outline">Cancel</Button>
-                          <Button variant="destructive" onClick={() => handleDeleteHarvest(harvest.id)}>
-                            Delete
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </CardContent>
-              </Card>
+              <HarvestCard
+                key={harvest.id}
+                harvest={convertToHarvestData(harvest)}
+                onView={(id) => handleHarvestAction("view", id)}
+                onEdit={(id) => handleHarvestAction("edit", id)}
+                onApprove={(id) => handleHarvestAction("approve", id)}
+                onReject={(id) => handleHarvestAction("reject", id)}
+              />
             ))}
           </div>
         )}

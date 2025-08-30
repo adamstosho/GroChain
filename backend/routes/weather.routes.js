@@ -4,10 +4,10 @@ const weatherController = require('../controllers/weather.controller')
 const { authenticate } = require('../middlewares/auth.middleware')
 
 // Get current weather data
-router.get('/current', weatherController.getCurrentWeather)
+router.get('/current/:location', weatherController.getCurrentWeather)
 
 // Get weather forecast
-router.get('/forecast', weatherController.getWeatherForecast)
+router.get('/forecast/:location', weatherController.getWeatherForecast)
 
 // Alias: agricultural (docs)
 router.get('/agricultural', weatherController.getAgriculturalInsights)

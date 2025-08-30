@@ -9,6 +9,7 @@ import { StatsCard } from "@/components/dashboard/stats-card"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { WeatherWidget } from "@/components/dashboard/weather-widget"
 import { QuickActions } from "@/components/dashboard/quick-actions"
+import { HarvestCard, type HarvestData } from "@/components/agricultural"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { Leaf, Package, TrendingUp, DollarSign, Plus, Eye, QrCode, BarChart3 } from "lucide-react"
@@ -77,6 +78,44 @@ export function FarmerDashboard() {
       color: "bg-success/10 text-success",
     },
   ]
+
+  // Convert harvest data to our component format
+  const convertToHarvestData = (harvest: any): HarvestData => {
+    return {
+      id: String(harvest._id || harvest.id),
+      farmerName: harvest.farmerName || "You",
+      cropType: harvest.cropType,
+      variety: harvest.variety || "Standard",
+      harvestDate: new Date(harvest.date || harvest.harvestDate || Date.now()),
+      quantity: harvest.quantity,
+      unit: harvest.unit,
+      location: harvest.location,
+      quality: harvest.quality || "good",
+      status: harvest.status || "pending",
+      qrCode: harvest.qrCode || `HARVEST_${Date.now()}`,
+      price: harvest.price || 0,
+      organic: harvest.organic || false,
+      moistureContent: harvest.moistureContent || 15,
+      grade: harvest.qualityGrade || "B"
+    }
+  }
+
+  const handleHarvestAction = (action: string, harvestId: string) => {
+    switch (action) {
+      case "view":
+        window.location.href = `/dashboard/harvests/${harvestId}`
+        break
+      case "edit":
+        window.location.href = `/dashboard/harvests/${harvestId}/edit`
+        break
+      case "approve":
+        console.log("Approving harvest:", harvestId)
+        break
+      case "reject":
+        console.log("Rejecting harvest:", harvestId)
+        break
+    }
+  }
 
   if (isLoading) {
     return (
@@ -149,37 +188,17 @@ export function FarmerDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {recentHarvests.length > 0 ? (
-                  recentHarvests.map((harvest) => (
-                    <div key={harvest._id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Leaf className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{harvest.cropType}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {harvest.quantity} {harvest.unit} • {new Date(harvest.date).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge
-                          variant={
-                            harvest.status === "approved"
-                              ? "default"
-                              : harvest.status === "pending"
-                                ? "secondary"
-                                : "destructive"
-                          }
-                        >
-                          {harvest.status}
-                        </Badge>
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/dashboard/harvests/${harvest._id}`}>View</Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {recentHarvests.slice(0, 4).map((harvest) => (
+                      <HarvestCard
+                        key={harvest._id}
+                        harvest={convertToHarvestData(harvest)}
+                        variant="compact"
+                        onView={(id) => handleHarvestAction("view", id)}
+                        onEdit={(id) => handleHarvestAction("edit", id)}
+                      />
+                    ))}
+                  </div>
                 ) : (
                   <div className="text-center py-8">
                     <Leaf className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -201,27 +220,21 @@ export function FarmerDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Harvest Goal</span>
-                    <span>75%</span>
-                  </div>
-                  <Progress value={75} className="h-2" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Harvest Quality</span>
+                  <span className="text-sm text-muted-foreground">85%</span>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Quality Score</span>
-                    <span>92%</span>
-                  </div>
-                  <Progress value={92} className="h-2" />
+                <Progress value={85} className="h-2" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Market Success</span>
+                  <span className="text-sm text-muted-foreground">72%</span>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Market Presence</span>
-                    <span>68%</span>
-                  </div>
-                  <Progress value={68} className="h-2" />
+                <Progress value={72} className="h-2" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Customer Satisfaction</span>
+                  <span className="text-sm text-muted-foreground">94%</span>
                 </div>
+                <Progress value={94} className="h-2" />
               </div>
             </CardContent>
           </Card>
@@ -229,28 +242,34 @@ export function FarmerDashboard() {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Weather Widget */}
           <WeatherWidget />
+
+          {/* Recent Activity */}
           <RecentActivity />
 
           {/* Credit Score */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Credit Score</CardTitle>
-              <CardDescription>Your farming credit rating</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center space-y-4">
-                <div className="text-3xl font-bold text-primary">{credit?.score ?? 0}</div>
-                <div className="text-sm text-muted-foreground">
-                  {credit?.score >= 750 ? 'Excellent' : credit?.score >= 650 ? 'Good' : credit?.score >= 550 ? 'Fair' : 'Poor'}
+          {credit && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Credit Score</CardTitle>
+                <CardDescription>Your financial standing</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary mb-2">
+                    {credit.score || "N/A"}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {credit.status || "Good standing"}
+                  </p>
+                  <Button variant="outline" size="sm" className="mt-4 w-full">
+                    View Details
+                  </Button>
                 </div>
-                <Progress value={Math.min(100, Math.max(0, ((credit?.score ?? 0) - 300) / (850 - 300) * 100))} className="h-2" />
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/finance/credit-score">View Details</Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

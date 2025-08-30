@@ -196,8 +196,6 @@ const bvnVerificationSchema = new mongoose.Schema({
 })
 
 // Indexes
-bvnVerificationSchema.index({ user: 1 }, { unique: true })
-bvnVerificationSchema.index({ bvn: 1 }, { unique: true })
 bvnVerificationSchema.index({ verificationStatus: 1 })
 bvnVerificationSchema.index({ phoneNumber: 1 })
 bvnVerificationSchema.index({ 'bankAccounts.accountNumber': 1 })

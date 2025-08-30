@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { StatsCard } from "@/components/dashboard/stats-card"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { QuickActions } from "@/components/dashboard/quick-actions"
+import { MarketplaceCard, type MarketplaceProduct } from "@/components/agricultural"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { ShoppingCart, Package, Heart, TrendingUp, Search, QrCode, Eye } from "lucide-react"
@@ -78,6 +79,67 @@ export function BuyerDashboard() {
     },
   ]
 
+  // Convert product data to our component format
+  const convertToMarketplaceProduct = (product: any): MarketplaceProduct => {
+    return {
+      id: String(product._id || product.id),
+      name: product.product?.cropName || "Fresh Produce",
+      cropType: product.product?.cropType || "Agricultural Product",
+      variety: product.product?.variety || "Standard",
+      description: product.description || "Fresh agricultural product from local farmers",
+      price: product.price || 0,
+      unit: product.unit || "kg",
+      quantity: product.quantity || 100,
+      availableQuantity: product.availableQuantity || 100,
+      quality: product.quality || "good",
+      grade: product.qualityGrade || "B",
+      organic: product.organic || false,
+      harvestDate: new Date(product.harvestDate || Date.now()),
+      location: product.location || "Unknown Location",
+      farmer: {
+        id: product.farmerId || "1",
+        name: product.farmerName || "Local Farmer",
+        avatar: product.farmerAvatar || "",
+        rating: product.farmerRating || 4.5,
+        verified: product.farmerVerified || false,
+        location: product.location || "Unknown Location"
+      },
+      images: product.images || ["/placeholder.svg"],
+      certifications: product.certifications || ["ISO 22000"],
+      shipping: {
+        available: product.shippingAvailable || true,
+        cost: product.shippingCost || 500,
+        estimatedDays: product.shippingDays || 3
+      },
+      rating: product.rating || 4.5,
+      reviewCount: product.reviewCount || 0,
+      qrCode: product.qrCode || `PRODUCT_${Date.now()}`,
+      tags: product.tags || [product.product?.cropType, "fresh", "local"]
+    }
+  }
+
+  const handleMarketplaceAction = (action: string, productId: string) => {
+    switch (action) {
+      case "addToCart":
+        console.log("Adding to cart:", productId)
+        // Handle add to cart logic
+        break
+      case "addToWishlist":
+        console.log("Adding to wishlist:", productId)
+        // Handle add to wishlist logic
+        break
+      case "view":
+        window.location.href = `/dashboard/products/${productId}`
+        break
+      case "contact":
+        console.log("Contacting farmer for:", productId)
+        break
+      case "share":
+        console.log("Sharing product:", productId)
+        break
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -104,28 +166,28 @@ export function BuyerDashboard() {
           value={stats?.totalOrders || 0}
           description="All time purchases"
           icon={ShoppingCart}
-          trend={{ value: 5, isPositive: true }}
-        />
-        <StatsCard
-          title="Active Orders"
-          value={stats?.activeOrders || 0}
-          description="In progress"
-          icon={Package}
-          trend={{ value: 2, isPositive: true }}
-        />
-        <StatsCard
-          title="Favorites"
-          value={stats?.totalFavorites || 0}
-          description="Saved products"
-          icon={Heart}
-          trend={{ value: 3, isPositive: true }}
+          trend={{ value: 8, isPositive: true }}
         />
         <StatsCard
           title="Total Spent"
           value={`₦${(stats?.totalSpent || 0).toLocaleString()}`}
-          description="This month"
+          description="Lifetime spending"
           icon={TrendingUp}
           trend={{ value: 12, isPositive: true }}
+        />
+        <StatsCard
+          title="Favorites"
+          value={stats?.favorites || 0}
+          description="Saved products"
+          icon={Heart}
+          trend={{ value: 5, isPositive: true }}
+        />
+        <StatsCard
+          title="This Month"
+          value={`₦${(stats?.monthlySpent || 0).toLocaleString()}`}
+          description="Monthly spending"
+          icon={Package}
+          trend={{ value: 15, isPositive: true }}
         />
       </div>
 
@@ -134,23 +196,6 @@ export function BuyerDashboard() {
         <div className="lg:col-span-2 space-y-6">
           {/* Quick Actions */}
           <QuickActions actions={quickActions} />
-
-          {/* Search Bar */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Find Fresh Produce</CardTitle>
-              <CardDescription>Search for verified agricultural products</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex space-x-2">
-                <Input placeholder="Search for products, farmers, or locations..." className="flex-1" />
-                <Button>
-                  <Search className="h-4 w-4 mr-2" />
-                  Search
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Featured Products */}
           <Card>
@@ -167,33 +212,16 @@ export function BuyerDashboard() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {featuredProducts.length > 0 ? (
                   featuredProducts.map((product) => (
-                    <div key={product._id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="aspect-square bg-muted rounded-lg mb-3 relative overflow-hidden">
-                        {product.images?.[0] ? (
-                          <Image
-                            src={product.images[0] || "/placeholder.svg"}
-                            alt={product.product?.cropName || "Product"}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center h-full">
-                            <Package className="h-8 w-8 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <h3 className="font-medium">{product.product?.cropName || "Fresh Produce"}</h3>
-                        <p className="text-sm text-muted-foreground">{product.location}</p>
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-primary">₦{product.price?.toLocaleString()}</span>
-                          <Badge variant="secondary">{product.qualityGrade}</Badge>
-                        </div>
-                        <Button size="sm" className="w-full" asChild>
-                          <Link href={`/dashboard/products/${product._id}`}>View Details</Link>
-                        </Button>
-                      </div>
-                    </div>
+                    <MarketplaceCard
+                      key={product._id}
+                      product={convertToMarketplaceProduct(product)}
+                      variant="compact"
+                      onAddToCart={(id) => handleMarketplaceAction("addToCart", id)}
+                      onAddToWishlist={(id) => handleMarketplaceAction("addToWishlist", id)}
+                      onView={(id) => handleMarketplaceAction("view", id)}
+                      onContact={(id) => handleMarketplaceAction("contact", id)}
+                      onShare={(id) => handleMarketplaceAction("share", id)}
+                    />
                   ))
                 ) : (
                   <div className="col-span-full text-center py-8">
@@ -299,11 +327,15 @@ export function BuyerDashboard() {
                 </div>
                 <div className="flex items-start space-x-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary mt-2" />
-                  <p>Check farmer ratings and reviews</p>
+                  <p>Check harvest dates for freshness</p>
                 </div>
                 <div className="flex items-start space-x-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary mt-2" />
-                  <p>Look for organic and premium quality grades</p>
+                  <p>Read farmer reviews and ratings</p>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary mt-2" />
+                  <p>Compare prices across different farmers</p>
                 </div>
               </div>
             </CardContent>

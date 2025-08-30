@@ -130,7 +130,6 @@ const referralSchema = new mongoose.Schema({
 
 // Indexes
 referralSchema.index({ farmer: 1, partner: 1 }, { unique: true })
-referralSchema.index({ referralCode: 1 }, { unique: true })
 referralSchema.index({ status: 1 })
 referralSchema.index({ partner: 1 })
 referralSchema.index({ expiresAt: 1 })

@@ -13,9 +13,75 @@ const farmerController = {
         .populate('farmer', 'name email phone region')
       
       if (!profile) {
-        return res.status(404).json({
-          status: 'error',
-          message: 'Farmer profile not found'
+        // Return a default profile structure instead of 404
+        const defaultProfile = {
+          _id: null,
+          farmer: farmerId,
+          farmName: '',
+          farmSize: 0,
+          farmLocation: {
+            address: '',
+            city: '',
+            state: '',
+            coordinates: {
+              latitude: 0,
+              longitude: 0
+            }
+          },
+          primaryCrops: [],
+          farmingExperience: 0,
+          farmingMethod: 'traditional',
+          irrigationType: 'rainfed',
+          annualIncome: 0,
+          bankAccount: {
+            bankName: '',
+            accountNumber: '',
+            accountName: ''
+          },
+          preferences: {
+            language: 'english',
+            notifications: {
+              sms: true,
+              email: true,
+              push: true
+            },
+            marketPreferences: {
+              preferredBuyers: [],
+              preferredPaymentMethods: [],
+              preferredDeliveryMethods: []
+            }
+          },
+          settings: {
+            privacy: {
+              profileVisibility: 'public',
+              dataSharing: true
+            },
+            business: {
+              autoAcceptOrders: false,
+              requireApproval: true
+            }
+          },
+          verificationStatus: 'pending',
+          verificationDocuments: [],
+          referredBy: '',
+          referralDate: new Date(),
+          performanceMetrics: {
+            totalHarvests: 0,
+            averageYield: 0,
+            customerRating: 0,
+            onTimeDelivery: 0,
+            qualityScore: 0
+          },
+          isActive: true,
+          lastActivity: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+        
+        return res.json({
+          status: 'success',
+          data: defaultProfile,
+          message: 'Default profile created'
         })
       }
       

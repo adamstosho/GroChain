@@ -1,6 +1,7 @@
 const router = require('express').Router()
 const { authenticate, authorize } = require('../middlewares/auth.middleware')
 const User = require('../models/user.model')
+const upload = require('../utils/upload')
 
 router.get('/dashboard', authenticate, authorize('admin','partner','farmer','buyer'), async (req, res) => {
   return res.json({ status: 'success', data: { totalHarvests: 0, pendingApprovals: 0, activeListings: 0, monthlyRevenue: 0 } })
@@ -156,6 +157,51 @@ router.patch('/:userId/role', async (req, res) => {
 // Export users (stub)
 router.post('/export', async (req, res) => {
   return res.json({ status: 'success', data: { url: null, message: 'Not yet implemented' } })
+})
+
+// Avatar upload endpoint
+router.post('/upload-avatar', authenticate, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'No file uploaded'
+      })
+    }
+
+    const userId = req.user.id
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`
+
+    // Update user profile with new avatar
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        'profile.avatar': avatarUrl
+      },
+      { new: true }
+    )
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      })
+    }
+
+    res.json({
+      status: 'success',
+      data: {
+        avatarUrl: avatarUrl,
+        message: 'Avatar uploaded successfully'
+      }
+    })
+  } catch (error) {
+    console.error('Avatar upload error:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to upload avatar'
+    })
+  }
 })
 
 module.exports = router

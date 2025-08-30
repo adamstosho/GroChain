@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useAuthStore } from "@/lib/auth"
+import { useBuyerStore } from "@/hooks/use-buyer-store"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -33,55 +34,129 @@ import {
   TrendingUp,
   Shield,
   Database,
+  ChevronDown,
+  ChevronRight,
+  Store,
+  ClipboardList,
+  Heart,
+  ScanLine,
+  Wallet,
+  FileText,
+  BarChart,
+  DollarSign,
 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
+
+interface NavigationItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+}
+
+interface NavigationSection {
+  id: string
+  title: string
+  icon: React.ComponentType<{ className?: string }>
+  items: NavigationItem[]
+}
+
+interface GroupedNavigation {
+  type: "grouped"
+  sections: NavigationSection[]
+}
+
+type NavigationItems = NavigationItem[] | GroupedNavigation
 
 interface DashboardLayoutProps {
   children: React.ReactNode
+  pageTitle?: string
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [expandedSections, setExpandedSections] = useState<string[]>(['marketplace'])
   const { user, logout } = useAuthStore()
+  const { cart } = useBuyerStore()
   const router = useRouter()
+  const pathname = usePathname()
 
   const handleLogout = () => {
     logout()
     router.push("/")
   }
 
-  const getNavigationItems = () => {
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => 
+      prev.includes(section) 
+        ? prev.filter(s => s !== section)
+        : [...prev, section]
+    )
+  }
+
+  const getNavigationItems = (): NavigationItems => {
     const baseItems = [
       { name: "Dashboard", href: "/dashboard", icon: Home },
       { name: "Profile", href: "/dashboard/profile", icon: User },
       { name: "Settings", href: "/dashboard/settings", icon: Settings },
     ]
 
-    switch (user?.role) {
+    // Default to base items if no user or role
+    if (!user || !user.role) {
+      return baseItems
+    }
+
+    switch (user.role) {
       case "farmer":
         return [
           ...baseItems.slice(0, 1),
           { name: "Harvests", href: "/dashboard/harvests", icon: Leaf },
-          { name: "Marketplace", href: "/dashboard/marketplace", icon: ShoppingCart },
+          { name: "Marketplace", href: "/dashboard/marketplace", icon: Package },
           { name: "QR Codes", href: "/dashboard/qr-codes", icon: QrCode },
           { name: "Financial", href: "/dashboard/financial", icon: CreditCard },
           { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
           ...baseItems.slice(1),
         ]
       case "buyer":
-        return [
-          ...baseItems.slice(0, 1),
-          { name: "Browse Products", href: "/dashboard/products", icon: Package },
-          { name: "My Orders", href: "/dashboard/orders", icon: ShoppingCart },
-          { name: "Favorites", href: "/dashboard/favorites", icon: Leaf },
-          { name: "QR Scanner", href: "/dashboard/scanner", icon: QrCode },
-          ...baseItems.slice(1),
-        ]
+        return {
+          type: "grouped",
+          sections: [
+            {
+              id: "marketplace",
+              title: "Marketplace",
+              icon: Store,
+              items: [
+                { name: "Browse Products", href: "/dashboard/products", icon: Package },
+                { name: "Shopping Cart", href: "/dashboard/cart", icon: ShoppingCart },
+              ]
+            },
+            {
+              id: "orders",
+              title: "Orders & Management",
+              icon: ClipboardList,
+              items: [
+                { name: "My Orders", href: "/dashboard/orders", icon: FileText },
+                { name: "Favorites", href: "/dashboard/favorites", icon: Heart },
+              ]
+            },
+            {
+              id: "tools",
+              title: "Tools & Services",
+              icon: ScanLine,
+              items: [
+                { name: "QR Scanner", href: "/dashboard/scanner", icon: QrCode },
+                { name: "Payments", href: "/dashboard/payments", icon: Wallet },
+                { name: "Analytics", href: "/dashboard/analytics", icon: BarChart },
+              ]
+            }
+          ]
+        }
       case "partner":
         return [
           ...baseItems.slice(0, 1),
           { name: "Farmers", href: "/dashboard/farmers", icon: Users },
+          { name: "Referrals", href: "/dashboard/referrals", icon: TrendingUp },
+          { name: "Commissions", href: "/dashboard/commissions", icon: DollarSign },
           { name: "Approvals", href: "/dashboard/approvals", icon: Shield },
           { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
           { name: "Onboarding", href: "/dashboard/onboarding", icon: TrendingUp },
@@ -103,6 +178,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navigationItems = getNavigationItems()
 
+  // Safety check for user object
+  if (!user) {
+    return (
+      <div className="flex h-screen bg-background">
+        <div className="flex flex-1 flex-col items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+            <p className="text-lg font-medium">Loading user data...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const SidebarContent = () => (
     <div className="flex h-full flex-col">
       {/* Logo */}
@@ -119,19 +208,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="border-b p-6">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name} />
+            <AvatarImage src="/placeholder.svg" alt={user?.name || "User"} />
             <AvatarFallback>
               {user?.name
-                ?.split(" ")
-                .map((n) => n[0])
-                .join("")}
+                ? user.name.split(" ").map((n) => n[0]).join("")
+                : "U"}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user?.name}</p>
             <div className="flex items-center space-x-2">
               <Badge variant="secondary" className="text-xs capitalize">
-                {user?.role}
+                {user?.role || "user"}
               </Badge>
               {user?.emailVerified && <div className="h-2 w-2 rounded-full bg-success" />}
             </div>
@@ -140,18 +228,133 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-4">
-        {navigationItems.map((item) => (
-          <Link
-            key={item.name}
-            href={item.href}
-            className="flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <item.icon className="h-4 w-4" />
-            <span>{item.name}</span>
-          </Link>
-        ))}
+      <nav className="flex-1 space-y-1 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+        {user?.role === "buyer" && 'type' in navigationItems && navigationItems.type === "grouped" ? (
+          // Grouped navigation for buyers
+          <>
+            {/* Dashboard link */}
+            <Link
+              href="/dashboard"
+              className={`flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                pathname === "/dashboard"
+                  ? "bg-primary text-primary-foreground shadow-sm" 
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
+              onClick={() => setSidebarOpen(false)}
+            >
+              <Home className="h-4 w-4" />
+              <span>Dashboard</span>
+            </Link>
+
+            {/* Grouped sections */}
+            {navigationItems.sections.map((section) => {
+              const isExpanded = expandedSections.includes(section.id)
+              const hasActiveItem = section.items.some(item => 
+                pathname === item.href || pathname.startsWith(item.href)
+              )
+              
+              return (
+                <div key={section.id} className="space-y-1">
+                  {/* Section header */}
+                  <button
+                    onClick={() => toggleSection(section.id)}
+                    className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground ${
+                      hasActiveItem 
+                        ? "bg-accent/50 text-accent-foreground border-l-2 border-primary" 
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <section.icon className="h-4 w-4" />
+                      <span>{section.title}</span>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+
+                  {/* Section items */}
+                  {isExpanded && (
+                    <div className="ml-6 space-y-1 border-l border-border/30 pl-3">
+                      {section.items.map((item) => {
+                        const isActive = pathname === item.href || pathname.startsWith(item.href)
+                        
+                        return (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            className={`flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                              isActive 
+                                ? "bg-primary text-primary-foreground shadow-sm" 
+                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                            }`}
+                            onClick={() => setSidebarOpen(false)}
+                          >
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.name}</span>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* Profile and Settings */}
+            <div className="pt-4 border-t">
+              <Link
+                href="/dashboard/profile"
+                className={`flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  pathname === "/dashboard/profile"
+                    ? "bg-primary text-primary-foreground shadow-sm" 
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <User className="h-4 w-4" />
+                <span>Profile</span>
+              </Link>
+              
+              <Link
+                href="/dashboard/settings"
+                className={`flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  pathname === "/dashboard/settings"
+                    ? "bg-primary text-primary-foreground shadow-sm" 
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Settings className="h-4 w-4" />
+                <span>Settings</span>
+              </Link>
+            </div>
+          </>
+        ) : (
+          // Regular navigation for other roles
+          (navigationItems as NavigationItem[]).map((item) => {
+            const isActive = pathname === item.href || 
+                            (item.href !== "/dashboard" && pathname.startsWith(item.href))
+            
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  isActive 
+                    ? "bg-primary text-primary-foreground shadow-sm" 
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <item.icon className="h-4 w-4" />
+                <span>{item.name}</span>
+              </Link>
+            )
+          })
+        )}
       </nav>
 
       {/* Footer */}
@@ -167,13 +370,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="flex h-screen bg-background">
       {/* Desktop Sidebar */}
-      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:border-r">
+      <div className="hidden lg:flex lg:w-72 lg:flex-col lg:border-r">
         <SidebarContent />
       </div>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-80 p-0">
           <SidebarContent />
         </SheetContent>
       </Sheet>
@@ -193,31 +396,47 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
             <div>
               <h1 className="text-lg font-semibold">
-                {user?.role === "farmer" && "Farmer Dashboard"}
-                {user?.role === "buyer" && "Buyer Dashboard"}
-                {user?.role === "partner" && "Partner Dashboard"}
-                {user?.role === "admin" && "Admin Dashboard"}
+                {pageTitle || (() => {
+                  if (user && user.role === "farmer") return "Farmer Dashboard"
+                  if (user && user.role === "buyer") return "Buyer Dashboard"
+                  if (user && user.role === "partner") return "Partner Dashboard"
+                  if (user && user.role === "admin") return "Admin Dashboard"
+                  return "Dashboard"
+                })()}
               </h1>
-              <p className="text-sm text-muted-foreground">Welcome back, {user?.name?.split(" ")[0]}</p>
+              <p className="text-sm text-muted-foreground">Welcome back, {user?.name ? user.name.split(" ")[0] : "User"}</p>
             </div>
           </div>
 
           <div className="flex items-center space-x-4">
+            {/* Cart Icon for Buyers */}
+            {user?.role === "buyer" && (
+              <Button variant="ghost" size="icon" className="relative" asChild>
+                <Link href="/dashboard/cart">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cart.length > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-xs text-primary-foreground flex items-center justify-center font-medium">
+                      {cart.length > 99 ? '99+' : cart.length}
+                    </span>
+                  )}
+                </Link>
+              </Button>
+            )}
+
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-destructive text-xs" />
+              <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500" />
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name} />
+                    <AvatarImage src="/placeholder.svg" alt={user?.name || "User"} />
                     <AvatarFallback>
                       {user?.name
-                        ?.split(" ")
-                        .map((n) => n[0])
-                        .join("")}
+                        ? user.name.split(" ").map((n) => n[0]).join("")
+                        : "U"}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -225,8 +444,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user?.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                    <p className="text-sm font-medium leading-none">{user?.name || "User"}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user?.email || "No email"}
+                    </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -252,8 +473,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto bg-gray-50/50">
+          <div className="container mx-auto p-4 lg:p-6">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   )

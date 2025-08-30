@@ -12,6 +12,8 @@ function validate(schema) {
 
 router.post('/register', ctrl.register)
 router.post('/verify-email', ctrl.verifyEmail)
+// GET endpoint for email verification links (better for cross-browser compatibility)
+router.get('/verify-email/:token', ctrl.verifyEmailGet)
 router.post('/login', ctrl.login)
 router.post('/refresh', ctrl.refresh)
 router.post('/logout', ctrl.logout)

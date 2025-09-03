@@ -24,7 +24,15 @@ router.get('/summary', authenticate, ctrl.getAnalyticsSummary)
 // Protected routes (require authentication)
 router.use(authenticate)
 
+// "Me" endpoints for authenticated users to get their own analytics
+router.get('/farmers/me', ctrl.getFarmerAnalytics)
+router.get('/farmers/me/marketplace', ctrl.getFarmerMarketplaceAnalytics)
+router.get('/buyers/me', ctrl.getBuyerAnalytics)
+router.get('/partners/me', ctrl.getPartnerAnalytics)
+
+// Specific user analytics (for admin purposes)
 router.get('/farmers/:farmerId', ctrl.getFarmerAnalytics)
+router.get('/farmers/:farmerId/marketplace', ctrl.getFarmerMarketplaceAnalytics)
 router.get('/partners/:partnerId', ctrl.getPartnerAnalytics)
 router.get('/buyers/:buyerId', ctrl.getBuyerAnalytics)
 router.post('/report', ctrl.generateReport)

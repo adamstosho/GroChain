@@ -39,6 +39,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Paystack Payment Script */}
+        <script src="https://js.paystack.co/v1/inline.js"></script>
+      </head>
       <body className={`font-sans ${dmSans.variable} ${nunito.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           {children}

@@ -149,55 +149,54 @@ export default function FinancialGoalsPage() {
   const fetchGoals = async () => {
     try {
       setLoading(true)
-      // Mock data for now - replace with actual API call
-      const mockGoals: FinancialGoal[] = [
-        {
-          _id: '1',
-          title: 'Emergency Fund',
-          description: 'Build a 6-month emergency fund for unexpected expenses',
-          type: 'emergency_fund',
-          targetAmount: 500000,
-          currentAmount: 300000,
-          currency: 'NGN',
-          startDate: '2024-01-01',
-          targetDate: '2024-12-31',
-          priority: 'high',
-          status: 'active',
-          progress: 60,
-          category: 'short_term'
-        },
-        {
-          _id: '2',
-          title: 'Farm Equipment',
-          description: 'Purchase new irrigation system and farming tools',
-          type: 'equipment_purchase',
-          targetAmount: 800000,
-          currentAmount: 200000,
-          currency: 'NGN',
-          startDate: '2024-01-01',
-          targetDate: '2025-06-30',
-          priority: 'medium',
-          status: 'active',
-          progress: 25,
-          category: 'medium_term'
-        },
-        {
-          _id: '3',
-          title: 'Land Expansion',
-          description: 'Acquire additional 2 hectares for crop diversification',
-          type: 'business_expansion',
-          targetAmount: 2000000,
-          currentAmount: 500000,
-          currency: 'NGN',
-          startDate: '2024-01-01',
-          targetDate: '2026-12-31',
-          priority: 'low',
-          status: 'active',
-          progress: 25,
-          category: 'long_term'
-        }
-      ]
-      setGoals(mockGoals)
+
+      // Fetch real data from backend API
+      const goalsResponse = await apiService.getFinancialGoals()
+
+      if (goalsResponse.status === 'success' && goalsResponse.data) {
+        const goalsData = goalsResponse.data.goals || []
+
+        // Transform backend data to match frontend interface
+        const transformedGoals: FinancialGoal[] = goalsData.map((goal: any) => ({
+          _id: goal._id || goal.id,
+          title: goal.title,
+          description: goal.description || '',
+          type: goal.type || 'savings',
+          targetAmount: goal.targetAmount || 0,
+          currentAmount: goal.currentAmount || 0,
+          currency: goal.currency || 'NGN',
+          startDate: goal.startDate || new Date().toISOString().split('T')[0],
+          targetDate: goal.targetDate || new Date().toISOString().split('T')[0],
+          priority: goal.priority || 'medium',
+          status: goal.status || 'active',
+          progress: goal.targetAmount > 0 ? Math.round((goal.currentAmount / goal.targetAmount) * 100) : 0,
+          category: goal.category || (goal.targetDate ?
+            (new Date(goal.targetDate) - new Date() > 365 * 24 * 60 * 60 * 1000 ? 'long_term' :
+             new Date(goal.targetDate) - new Date() > 90 * 24 * 60 * 60 * 1000 ? 'medium_term' : 'short_term')
+            : 'medium_term')
+        }))
+
+        setGoals(transformedGoals)
+
+        // Calculate statistics
+        const totalGoals = transformedGoals.length
+        const activeGoals = transformedGoals.filter(goal => goal.status === 'active').length
+        const completedGoals = transformedGoals.filter(goal => goal.status === 'completed').length
+        const totalTarget = transformedGoals.reduce((sum, goal) => sum + goal.targetAmount, 0)
+        const totalCurrent = transformedGoals.reduce((sum, goal) => sum + goal.currentAmount, 0)
+        const averageProgress = totalGoals > 0 ? Math.round(transformedGoals.reduce((sum, goal) => sum + goal.progress, 0) / totalGoals) : 0
+
+        setStats({
+          totalGoals,
+          activeGoals,
+          completedGoals,
+          totalTarget,
+          totalCurrent,
+          averageProgress
+        })
+      } else {
+        throw new Error('Failed to fetch financial goals')
+      }
     } catch (error) {
       console.error("Failed to fetch goals:", error)
       toast({

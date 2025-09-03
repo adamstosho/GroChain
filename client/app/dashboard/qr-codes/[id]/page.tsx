@@ -91,11 +91,51 @@ export default function QRCodeDetailPage() {
   const fetchQRCodeDetails = async () => {
     try {
       setLoading(true)
-      const response: any = await apiService.getQRCodes({ id: qrCodeId })
-      const qrData = response.qrCode || response.data?.qrCode || response
-      setQrCode(qrData)
+      console.log('🔄 Fetching QR code details for:', qrCodeId)
+
+      const response = await apiService.getQRCodeById(qrCodeId)
+      console.log('📱 QR code detail response:', response)
+
+      if (response?.status === 'success' && response?.data) {
+        const qrData = response.data
+        console.log('✅ QR code data:', qrData)
+
+        // Format the data to match the interface
+        const formattedQRCode: QRCodeData = {
+          _id: qrData.id,
+          batchId: qrData.batchId,
+          harvestId: qrData.harvestId,
+          cropType: qrData.cropType,
+          variety: qrData.metadata?.variety,
+          quantity: qrData.quantity,
+          unit: qrData.unit || 'kg',
+          generatedAt: qrData.createdAt,
+          lastScanned: qrData.lastScanned,
+          scanCount: qrData.scanCount,
+          status: qrData.status,
+          qrData: qrData.qrData,
+          image: qrData.qrImage,
+          location: qrData.location,
+          farmerName: qrData.metadata?.farmName,
+          metadata: qrData.metadata,
+          scanHistory: qrData.scans?.map((scan: any) => ({
+            id: scan._id,
+            timestamp: scan.scannedAt,
+            location: scan.scannedBy?.location,
+            device: scan.deviceInfo?.userAgent?.substring(0, 50),
+            userAgent: scan.deviceInfo?.userAgent,
+            ipAddress: scan.deviceInfo?.ipAddress,
+            isValid: scan.verificationResult === 'success',
+            verificationResult: scan.verificationResult
+          }))
+        }
+
+        setQrCode(formattedQRCode)
+      } else {
+        throw new Error('QR code not found')
+      }
     } catch (error) {
-      console.error("Failed to fetch QR code details:", error)
+      console.error("❌ Failed to fetch QR code details:", error)
       toast({
         title: "Error",
         description: "Failed to load QR code details. Please try again.",
@@ -109,19 +149,25 @@ export default function QRCodeDetailPage() {
 
   const handleDelete = async () => {
     if (!qrCode) return
-    
+
     try {
       setDeleting(true)
-      // TODO: Implement delete QR code API call
-      console.log("Deleting QR code:", qrCode._id)
-      toast({
-        title: "Success",
-        description: "QR code deleted successfully",
-        variant: "default"
-      })
-      router.push("/dashboard/qr-codes")
+      console.log("🗑️ Deleting QR code:", qrCode._id)
+
+      const deleteResponse = await apiService.deleteQRCode(qrCode._id)
+
+      if (deleteResponse?.status === 'success') {
+        toast({
+          title: "Success",
+          description: "QR code deleted successfully",
+          variant: "default"
+        })
+        router.push("/dashboard/qr-codes")
+      } else {
+        throw new Error('Delete operation failed')
+      }
     } catch (error) {
-      console.error("Failed to delete QR code:", error)
+      console.error("❌ Failed to delete QR code:", error)
       toast({
         title: "Error",
         description: "Failed to delete QR code. Please try again.",
@@ -334,7 +380,7 @@ export default function QRCodeDetailPage() {
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-gray-400" />
                 <span className="text-sm text-gray-600">Location:</span>
-                <span className="font-medium text-gray-900">{qrCode.location}</span>
+                <span className="font-medium text-gray-900">{typeof qrCode.location === 'string' ? qrCode.location : `${qrCode.location?.city || 'Unknown'}, ${qrCode.location?.state || 'Unknown State'}`}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-gray-400" />
@@ -412,7 +458,7 @@ export default function QRCodeDetailPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Location:</span>
-                        <span className="font-medium">{qrCode.location}</span>
+                        <span className="font-medium">{typeof qrCode.location === 'string' ? qrCode.location : `${qrCode.location?.city || 'Unknown'}, ${qrCode.location?.state || 'Unknown State'}`}</span>
                       </div>
                     </div>
                   </div>
@@ -482,7 +528,7 @@ export default function QRCodeDetailPage() {
                               {new Date(scan.timestamp).toLocaleString()}
                             </p>
                             {scan.location && (
-                              <p className="text-xs text-gray-600">{scan.location}</p>
+                              <p className="text-xs text-gray-600">{typeof scan.location === 'string' ? scan.location : `${scan.location?.city || 'Unknown'}, ${scan.location?.state || 'Unknown State'}`}</p>
                             )}
                           </div>
                         </div>

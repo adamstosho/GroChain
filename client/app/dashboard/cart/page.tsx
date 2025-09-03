@@ -9,15 +9,26 @@ import { Input } from "@/components/ui/input"
 import { Minus, Plus, Trash2, ShoppingCart, Package } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export default function CartPage() {
   const { cart, updateCartQuantity, removeFromCart, clearCart } = useBuyerStore()
+  const router = useRouter()
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
   const subtotal = cart.reduce((sum, item) => sum + item.total, 0)
   const shipping = 0 // Free shipping for now
   const tax = subtotal * 0.075 // 7.5% tax
   const total = subtotal + shipping + tax
+
+  const handleProceedToCheckout = () => {
+    if (cart.length === 0) {
+      return
+    }
+
+    // Navigate to checkout page
+    router.push('/marketplace/checkout')
+  }
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -86,7 +97,7 @@ export default function CartPage() {
                             Farmer: {item.farmer}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            Location: {item.location}
+                            Location: {typeof item.location === 'string' ? item.location : `${item.location?.city || 'Unknown'}, ${item.location?.state || 'Unknown State'}`}
                           </p>
                         </div>
                         <div className="text-right">
@@ -197,7 +208,12 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                <Button className="w-full" size="lg">
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handleProceedToCheckout}
+                  disabled={cart.length === 0}
+                >
                   Proceed to Checkout
                 </Button>
 

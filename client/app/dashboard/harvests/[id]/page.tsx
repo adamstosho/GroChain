@@ -4,37 +4,12 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { apiService } from "@/lib/api"
-import { useToast } from "@/hooks/use-toast"
-import { 
-  ArrowLeft, 
-  Leaf, 
-  Edit, 
-  Trash2, 
-  QrCode, 
-  MapPin, 
-  Calendar, 
-  Scale, 
-  DollarSign, 
-  CheckCircle, 
-  Clock, 
-  AlertCircle, 
-  Truck, 
-  Download, 
-  Share2,
-  Eye,
-  BarChart3,
-  Package,
-  Thermometer,
-  Shield,
-  Star
-} from "lucide-react"
+import { ArrowLeft, AlertCircle, QrCode, Download, Share2, Eye, Package, Calendar, MapPin, Scale, CheckCircle2, Navigation } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
+import { apiService } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 import Image from "next/image"
 
 interface HarvestDetail {
@@ -45,22 +20,36 @@ interface HarvestDetail {
   unit: string
   date: string
   location: string
-  geoLocation?: { lat: number; lng: number }
   quality: string
-  qualityGrade: string
+  qualityGrade?: string
   status: string
-  description?: string
+  batchId?: string
+  price?: number
   images?: string[]
-  organic?: boolean
+  qrCode?: string
+  qrCodeData?: any
+    organic?: boolean
+  description?: string
   moistureContent?: number
   price?: number
-  soilType?: string
-  irrigationType?: string
-  pestManagement?: string
-  certification?: string
-  batchId?: string
-  createdAt: string
-  updatedAt: string
+  agriculturalData?: {
+    soilType?: string
+    irrigationMethod?: string
+    pestControl?: string
+  }
+  qualityMetrics?: {
+    moistureContent?: number
+    sizeGrade?: string
+  }
+  sustainability?: {
+    organicCertified?: boolean
+  }
+  geoLocation?: {
+    lat: number
+    lng: number
+  }
+  createdAt?: string
+  updatedAt?: string
 }
 
 export default function HarvestDetailPage() {
@@ -69,8 +58,6 @@ export default function HarvestDetailPage() {
   const harvestId = params.id as string
   const [harvest, setHarvest] = useState<HarvestDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -80,7 +67,7 @@ export default function HarvestDetailPage() {
   const fetchHarvestData = async () => {
     try {
       setLoading(true)
-      const response = await apiService.getHarvests({ id: harvestId })
+      const response = await apiService.getHarvestById(harvestId)
       const harvestData = (response as any)?.harvest || (response as any)?.data?.harvest || response
       setHarvest(harvestData)
     } catch (error) {
@@ -96,62 +83,8 @@ export default function HarvestDetailPage() {
     }
   }
 
-  const handleDelete = async () => {
-    try {
-      setDeleting(true)
-      await apiService.deleteHarvest(harvestId)
-      toast({
-        title: "Harvest deleted",
-        description: "Your harvest has been successfully removed.",
-        variant: "default"
-      })
-      router.push("/dashboard/harvests")
-    } catch (error) {
-      console.error("Failed to delete harvest:", error)
-      toast({
-        title: "Failed to delete harvest",
-        description: "Please try again.",
-        variant: "destructive"
-      })
-    } finally {
-      setDeleting(false)
-      setShowDeleteDialog(false)
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "approved":
-        return "bg-green-100 text-green-800 border-green-200"
-      case "rejected":
-        return "bg-red-100 text-red-800 border-red-200"
-      case "shipped":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
-  }
-
-  const getQualityColor = (quality: string) => {
-    switch (quality) {
-      case "excellent":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200"
-      case "good":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      case "fair":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "poor":
-        return "bg-red-100 text-red-800 border-red-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
-  }
-
   if (loading) {
     return (
-      <DashboardLayout>
         <div className="max-w-4xl mx-auto">
           <Card className="border-0 shadow-lg">
             <CardContent className="p-16">
@@ -165,13 +98,11 @@ export default function HarvestDetailPage() {
             </CardContent>
           </Card>
         </div>
-      </DashboardLayout>
     )
   }
 
   if (!harvest) {
     return (
-      <DashboardLayout>
         <div className="max-w-4xl mx-auto text-center">
           <Card className="border-0 shadow-lg">
             <CardContent className="p-16">
@@ -186,353 +117,365 @@ export default function HarvestDetailPage() {
             </CardContent>
           </Card>
         </div>
-      </DashboardLayout>
     )
   }
 
+  const formatDate = (dateString: string | Date) => {
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) {
+        return 'Date not available'
+      }
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch (error) {
+      console.error('Date formatting error:', error)
+      return 'Date not available'
+    }
+  }
+
+  const getQualityColor = (quality: string) => {
+    switch (quality) {
+      case 'excellent': return 'bg-green-100 text-green-800 border-green-200'
+      case 'good': return 'bg-blue-100 text-blue-800 border-blue-200'
+      case 'fair': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      case 'poor': return 'bg-red-100 text-red-800 border-red-200'
+      default: return 'bg-gray-100 text-gray-800 border-gray-200'
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'verified':
+      case 'approved': return 'bg-green-100 text-green-800 border-green-200'
+      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      case 'rejected': return 'bg-red-100 text-red-800 border-red-200'
+      case 'listed': return 'bg-blue-100 text-blue-800 border-blue-200'
+      default: return 'bg-gray-100 text-gray-800 border-gray-200'
+    }
+  }
+
   return (
-    <DashboardLayout>
-      <div className="space-y-8">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild className="text-primary hover:text-primary/80">
-              <Link href="/dashboard/harvests" className="flex items-center gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Back to Harvests
-              </Link>
-            </Button>
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Leaf className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">{harvest.cropType}</h1>
-                <p className="text-gray-600">Harvest Details & Information</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex gap-3">
-            <Button variant="outline" asChild>
-              <Link href={`/dashboard/harvests/${harvestId}/edit`}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Link>
-            </Button>
-            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-              <DialogTrigger asChild>
-                <Button variant="destructive">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete Harvest</DialogTitle>
-                  <DialogDescription>
-                    Are you sure you want to delete this harvest? This action cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="flex gap-3 justify-end">
-                  <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-                    Cancel
-                  </Button>
-                  <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-                    {deleting ? "Deleting..." : "Delete"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" asChild>
+            <Link href="/dashboard/harvests">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Harvests
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-2xl font-semibold">{harvest.cropType} Harvest</h1>
+            <p className="text-gray-600">Batch ID: {harvest.batchId || 'N/A'}</p>
           </div>
         </div>
 
-        {/* Status Banner */}
-        <Card className={`border-0 shadow-lg ${getStatusColor(harvest.status)}`}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {harvest.status === "pending" && <Clock className="h-5 w-5" />}
-                {harvest.status === "approved" && <CheckCircle className="h-5 w-5" />}
-                {harvest.status === "rejected" && <AlertCircle className="h-5 w-5" />}
-                {harvest.status === "shipped" && <Truck className="h-5 w-5" />}
-                <div>
-                  <h3 className="font-semibold capitalize">Status: {harvest.status}</h3>
-                  <p className="text-sm opacity-80">
-                    {harvest.status === "pending" && "Awaiting verification from our team"}
-                    {harvest.status === "approved" && "Your harvest has been verified and approved"}
-                    {harvest.status === "rejected" && "Please review and update the information"}
-                    {harvest.status === "shipped" && "Your harvest is on its way to market"}
-                  </p>
+        {/* QR Code Button */}
+        {(harvest.qrCode || harvest.qrCodeData) && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <QrCode className="h-4 w-4" />
+                {harvest.qrCode ? 'View QR Code' : 'QR Code Generated'}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <QrCode className="h-5 w-5" />
+                  Harvest QR Code
+                </DialogTitle>
+                <DialogDescription>
+                  Scan this QR code to verify harvest authenticity
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="flex justify-center">
+                  <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
+                    {harvest.qrCode ? (
+                      <Image
+                        src={harvest.qrCode}
+                        alt="Harvest QR Code"
+                        width={200}
+                        height={200}
+                        className="rounded"
+                      />
+                    ) : harvest.qrCodeData ? (
+                      <div className="w-[200px] h-[200px] bg-gray-100 rounded flex items-center justify-center">
+                        <div className="text-center p-4">
+                          <QrCode className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-600">QR Code Generated</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Batch: {harvest.qrCodeData.batchId}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-[200px] h-[200px] bg-gray-100 rounded flex items-center justify-center">
+                        <div className="text-center p-4">
+                          <QrCode className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-600">Generating QR Code...</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    disabled={!harvest.qrCode}
+                    onClick={() => {
+                      if (harvest.qrCode) {
+                        const link = document.createElement('a')
+                        link.href = harvest.qrCode
+                        link.download = `harvest-qr-${harvest.batchId}.png`
+                        link.click()
+                      }
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      const shareData = {
+                        title: 'GroChain Harvest QR Code',
+                        text: `Harvest QR Code for ${harvest.cropType} - Batch ${harvest.batchId}`,
+                        url: harvest.qrCode || window.location.href
+                      }
+
+                      if (navigator.share) {
+                        navigator.share(shareData)
+                      } else {
+                        // Fallback: copy URL to clipboard
+                        navigator.clipboard.writeText(window.location.href)
+                        toast({
+                          title: "Link Copied",
+                          description: "Harvest verification link copied to clipboard",
+                        })
+                      }
+                    }}
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share
+                  </Button>
+                </div>
+                <div className="text-center">
+                  <Button
+                    variant="default"
+                    onClick={() => window.open(`/verify/${harvest.batchId}`, '_blank')}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Test Verification
+                  </Button>
                 </div>
               </div>
-              <Badge variant="outline" className="text-lg px-4 py-2">
-                {harvest.batchId || `HARVEST_${harvest._id.slice(-6)}`}
-              </Badge>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Harvest Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Harvest Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-600">Crop Type</label>
+                <p className="text-lg font-semibold">{harvest.cropType}</p>
+                {harvest.variety && (
+                  <p className="text-sm text-gray-600">Variety: {harvest.variety}</p>
+                )}
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Quantity</label>
+                <p className="text-lg font-semibold">{harvest.quantity} {harvest.unit}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Quality</label>
+                <Badge className={`${getQualityColor(harvest.quality)} font-medium capitalize`}>
+                  {harvest.quality}
+                </Badge>
+                {harvest.qualityGrade && (
+                  <p className="text-sm text-gray-600 mt-1">Grade: {harvest.qualityGrade}</p>
+                )}
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Status</label>
+                <Badge className={`${getStatusColor(harvest.status)} font-medium capitalize`}>
+                  {harvest.status}
+                </Badge>
+              </div>
             </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-600">Harvest Date</label>
+              <p className="flex items-center gap-2 mt-1">
+                <Calendar className="h-4 w-4" />
+                {formatDate(harvest.date)}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-600">Location</label>
+              <p className="flex items-center gap-2 mt-1">
+                <MapPin className="h-4 w-4" />
+                {typeof harvest.location === 'string' ? harvest.location : harvest.location ? `${harvest.location.city || 'Unknown'}, ${harvest.location.state || 'Unknown State'}` : 'Location not specified'}
+              </p>
+            </div>
+
+            {harvest.geoLocation && (
+              <div>
+                <label className="text-sm font-medium text-gray-600">Coordinates</label>
+                <p className="flex items-center gap-2 mt-1 font-mono text-sm">
+                  <Navigation className="h-4 w-4" />
+                  {harvest.geoLocation.lat.toFixed(6)}, {harvest.geoLocation.lng.toFixed(6)}
+                </p>
+              </div>
+            )}
+
+            {harvest.price && (
+              <div>
+                <label className="text-sm font-medium text-gray-600">Price</label>
+                <p className="text-lg font-semibold">₦{harvest.price.toLocaleString()} per {harvest.unit}</p>
+              </div>
+            )}
+
+            {(harvest.moistureContent || harvest.qualityMetrics?.moistureContent) && (
+              <div>
+                <label className="text-sm font-medium text-gray-600">Moisture Content</label>
+                <p className="mt-1">{harvest.moistureContent || harvest.qualityMetrics?.moistureContent}%</p>
+              </div>
+            )}
+
+            {harvest.description && (
+              <div>
+                <label className="text-sm font-medium text-gray-600">Description</label>
+                <p className="mt-1">{harvest.description}</p>
+              </div>
+            )}
+
+            {harvest.organic || harvest.sustainability?.organicCertified ? (
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="font-medium text-green-700">Organic Certified</span>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Main Info */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Basic Information */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-primary" />
-                  Basic Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Crop Type</label>
-                    <p className="font-semibold">{harvest.cropType}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Variety</label>
-                    <p className="font-semibold">{harvest.variety || "Standard"}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Quantity</label>
-                    <p className="font-semibold">{harvest.quantity} {harvest.unit}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Harvest Date</label>
-                    <p className="font-semibold">{new Date(harvest.date).toLocaleDateString()}</p>
-                  </div>
+        {/* Agricultural Data */}
+        {harvest.agriculturalData && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Scale className="h-5 w-5" />
+                Agricultural Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {harvest.agriculturalData.soilType && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Soil Type</label>
+                  <p className="mt-1 capitalize">{harvest.agriculturalData.soilType}</p>
                 </div>
-                
-                <Separator />
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-500">Location</label>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-gray-400" />
-                    <p className="font-semibold">{harvest.location}</p>
-                  </div>
+              )}
+
+              {harvest.agriculturalData.irrigationMethod && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Irrigation Method</label>
+                  <p className="mt-1 capitalize">{harvest.agriculturalData.irrigationMethod}</p>
                 </div>
+              )}
 
-                {harvest.description && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-500">Notes</label>
-                      <p className="text-gray-700">{harvest.description}</p>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Quality & Pricing */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-primary" />
-                  Quality & Pricing
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Quality Grade</label>
-                    <Badge className={getQualityColor(harvest.quality)}>
-                      {harvest.qualityGrade}
-                    </Badge>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Quality Level</label>
-                    <Badge className={getQualityColor(harvest.quality)}>
-                      {harvest.quality.charAt(0).toUpperCase() + harvest.quality.slice(1)}
-                    </Badge>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Price per Unit</label>
-                    <p className="font-semibold text-green-600">
-                      ₦{harvest.price?.toLocaleString() || "Not set"}
-                    </p>
-                  </div>
+              {harvest.agriculturalData.pestControl && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Pest Control</label>
+                  <p className="mt-1 capitalize">{harvest.agriculturalData.pestControl}</p>
                 </div>
-
-                {harvest.moistureContent && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-500">Moisture Content</label>
-                      <div className="flex items-center gap-2">
-                        <Thermometer className="h-4 w-4 text-gray-400" />
-                        <p className="font-semibold">{harvest.moistureContent}%</p>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {harvest.organic && (
-                  <>
-                    <Separator />
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-green-600" />
-                      <span className="text-green-600 font-medium">Certified Organic</span>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Advanced Details */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-primary" />
-                  Advanced Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Soil Type</label>
-                    <p className="font-semibold capitalize">{harvest.soilType || "Not specified"}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Irrigation</label>
-                    <p className="font-semibold capitalize">{harvest.irrigationType || "Not specified"}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-500">Pest Management</label>
-                    <p className="font-semibold capitalize">{harvest.pestManagement || "Not specified"}</p>
-                  </div>
-                </div>
-
-                {harvest.certification && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-500">Certifications</label>
-                      <p className="font-semibold">{harvest.certification}</p>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Images */}
-            {harvest.images && harvest.images.length > 0 && (
-              <Card className="border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Eye className="h-5 w-5 text-primary" />
-                    Harvest Images
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {harvest.images.map((image, index) => (
-                      <div key={index} className="aspect-square rounded-lg overflow-hidden border">
-                        <Image
-                          src={image}
-                          alt={`Harvest ${index + 1}`}
-                          width={200}
-                          height={200}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Right Column - Actions & Timeline */}
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <Card className="border border-gray-200">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-medium">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button className="w-full" asChild>
-                  <Link href={`/dashboard/harvests/${harvestId}/edit`}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Harvest
-                  </Link>
-                </Button>
-                
-                {/* List on Marketplace Button - Only show for approved harvests */}
-                {harvest.status === "approved" && (
-                  <Button variant="outline" className="w-full" asChild>
-                    <Link href={`/dashboard/marketplace/new?harvestId=${harvestId}`}>
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      List on Marketplace
-                    </Link>
-                  </Button>
-                )}
-                
-                <Button variant="outline" className="w-full">
-                  <QrCode className="h-4 w-4 mr-2" />
-                  Generate QR Code
-                </Button>
-                <Button variant="outline" className="w-full">
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Share Details
-                </Button>
-                <Button variant="outline" className="w-full">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export Data
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Timeline */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle>Timeline</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="h-2 w-2 rounded-full bg-green-500 mt-2"></div>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">Harvest Created</p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(harvest.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3">
-                    <div className="h-2 w-2 rounded-full bg-blue-500 mt-2"></div>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">Last Updated</p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(harvest.updatedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Related Actions */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle>Related</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full" asChild>
-                  <Link href="/dashboard/analytics">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    View Analytics
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
-    </DashboardLayout>
+
+      {/* Product Images */}
+      {harvest.images && harvest.images.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Product Images ({harvest.images.length})
+            </CardTitle>
+            <CardDescription>
+              Visual verification of the harvested produce
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {harvest.images.map((image, index) => (
+                <div key={index} className="relative group">
+                  <div className="aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-primary transition-colors">
+                    <Image
+                      src={image}
+                      alt={`Harvest image ${index + 1}`}
+                      fill
+                      className="object-cover cursor-pointer"
+                      onClick={() => {
+                        // Open image in new tab for full view
+                        window.open(image, '_blank')
+                      }}
+                    />
+                  </div>
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center">
+                    <Eye className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Action Buttons */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/harvests/${harvestId}/edit`}>
+                Edit Harvest
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/marketplace/new">
+                List on Marketplace
+              </Link>
+            </Button>
+            <Button variant="default" asChild>
+              <Link href="/dashboard/analytics">
+                View Analytics
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

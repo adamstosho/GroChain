@@ -43,33 +43,14 @@ const weatherController = {
           message: 'lat, lng, city, state, and country are required'
         })
       }
-      
+
       const apiKey = process.env.OPENWEATHER_API_KEY
-      
-      // For development/testing, return mock data if no API key
-      if (!apiKey || process.env.NODE_ENV === 'development') {
-        return res.json({
-          status: 'success',
-          data: {
-            location: { lat: Number(finalLat), lng: Number(finalLng), city: finalCity, state: finalState, country: finalCountry },
-            current: {
-              temperature: 25,
-              humidity: 65,
-              windSpeed: 5,
-              windDirection: 'NE',
-              pressure: 1013,
-              visibility: 10000,
-              weatherCondition: 'Clear',
-              weatherIcon: '01d',
-              feelsLike: 26,
-              dewPoint: 18,
-              cloudCover: 20
-            },
-            forecast: [],
-            alerts: [],
-            agricultural: { recommendation: 'Good conditions for farming', risk: 'low' },
-            metadata: { source: 'Mock Data', lastUpdated: new Date(), dataQuality: 'development' }
-          }
+
+      // Check if API key exists
+      if (!apiKey) {
+        return res.status(500).json({
+          status: 'error',
+          message: 'Weather API key not configured'
         })
       }
       
@@ -138,38 +119,7 @@ const weatherController = {
     } catch (error) {
       console.error('Error fetching current weather:', error)
       
-      // Return mock data for development/testing when there's an error
-      if (process.env.NODE_ENV === 'development') {
-        return res.json({
-          status: 'success',
-          data: {
-            location: { 
-              lat: Number(req.query.lat || 0), 
-              lng: Number(req.query.lng || 0), 
-              city: req.query.city || 'Unknown', 
-              state: req.query.state || 'Unknown', 
-              country: req.query.country || 'Unknown' 
-            },
-            current: {
-              temperature: 25,
-              humidity: 65,
-              windSpeed: 5,
-              windDirection: 'NE',
-              pressure: 1013,
-              visibility: 10000,
-              weatherCondition: 'Clear',
-              weatherIcon: '01d',
-              feelsLike: 26,
-              dewPoint: 18,
-              cloudCover: 20
-            },
-            forecast: [],
-            alerts: [],
-            agricultural: { recommendation: 'Good conditions for farming', risk: 'low' },
-            metadata: { source: 'Mock Data', lastUpdated: new Date(), dataQuality: 'development' }
-          }
-        })
-      }
+      // NO MOCK DATA - Only real weather data is returned
       
       res.status(500).json({
         status: 'error',
@@ -213,35 +163,11 @@ const weatherController = {
       const apiKey = process.env.OPENWEATHER_API_KEY
       
       // For development/testing, return mock data if no API key
-      if (!apiKey || process.env.NODE_ENV === 'development') {
-        return res.json({
-          status: 'success',
-          data: {
-            forecast: [
-              {
-                date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                temperature: { min: 22, max: 28, avg: 25 },
-                humidity: 65,
-                windSpeed: 5,
-                weatherCondition: 'Partly Cloudy',
-                weatherIcon: '02d',
-                precipitation: 0,
-                uvIndex: 6
-              },
-              {
-                date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                temperature: { min: 20, max: 26, avg: 23 },
-                humidity: 70,
-                windSpeed: 8,
-                weatherCondition: 'Light Rain',
-                weatherIcon: '10d',
-                precipitation: 2,
-                uvIndex: 4
-              }
-            ],
-            location: { lat: finalLat, lng: finalLng },
-            metadata: { source: 'Mock Data', lastUpdated: new Date(), dataQuality: 'development' }
-          }
+      if (!apiKey) {
+        console.log('❌ Weather API key not configured')
+        return res.status(500).json({
+          status: 'error',
+          message: 'Weather API key not configured. Please set OPENWEATHER_API_KEY in your environment.'
         })
       }
       
@@ -258,10 +184,19 @@ const weatherController = {
       }
       
       const forecast = this.processForecastData(data)
-      
+
       res.json({
         status: 'success',
-        data: { forecast }
+        data: {
+          forecast,
+          location: { lat: Number(finalLat), lng: Number(finalLng) },
+          metadata: {
+            source: 'OpenWeather',
+            lastUpdated: new Date(),
+            dataQuality: 'high',
+            nextUpdate: new Date(Date.now() + 3600 * 1000)
+          }
+        }
       })
     } catch (error) {
       console.error('Error fetching weather forecast:', error)
@@ -497,6 +432,7 @@ const weatherController = {
     // Calculate growing degree days (simplified)
     const baseTemp = 10 // Base temperature for most crops
     const growingDegreeDays = Math.max(0, temp - baseTemp)
+    const safeGrowingDegreeDays = isNaN(growingDegreeDays) ? 0 : growingDegreeDays
     
     // Determine frost risk
     let frostRisk = 'low'
@@ -510,16 +446,17 @@ const weatherController = {
     
     // Calculate drought index (simplified)
     const droughtIndex = Math.max(0, 100 - humidity - (temp > 30 ? 20 : 0))
+    const safeDroughtIndex = isNaN(droughtIndex) ? 0 : droughtIndex
     
     return {
-      soilMoisture: Math.max(0, 100 - droughtIndex),
+      soilMoisture: Math.max(0, 100 - safeDroughtIndex),
       soilTemperature: temp,
-      growingDegreeDays,
+      growingDegreeDays: safeGrowingDegreeDays,
       frostRisk,
-      droughtIndex,
+      droughtIndex: safeDroughtIndex,
       pestRisk,
       plantingRecommendation: this.getPlantingRecommendation(temp, humidity, cropType),
-      irrigationAdvice: this.getIrrigationAdvice(temp, humidity, droughtIndex)
+      irrigationAdvice: this.getIrrigationAdvice(temp, humidity, safeDroughtIndex)
     }
   },
 

@@ -5,6 +5,28 @@ const User = require('../models/user.model')
 const Harvest = require('../models/harvest.model')
 const Transaction = require('../models/transaction.model')
 
+// Helper function to map crop types to categories
+const getCategoryFromCropType = (cropType) => {
+  if (!cropType || typeof cropType !== 'string') return 'grains'
+
+  try {
+    const crop = cropType.toLowerCase().trim()
+
+    if (['maize', 'rice', 'wheat', 'millet', 'sorghum', 'barley', 'corn'].includes(crop)) return 'grains'
+    if (['cassava', 'yam', 'potato', 'sweet potato', 'cocoyam', 'sweet-potato'].includes(crop)) return 'tubers'
+    if (['tomato', 'pepper', 'onion', 'lettuce', 'cabbage', 'carrot', 'spinach', 'vegetable'].includes(crop)) return 'vegetables'
+    if (['mango', 'orange', 'banana', 'pineapple', 'apple', 'guava', 'fruit'].includes(crop)) return 'fruits'
+    if (['beans', 'groundnut', 'soybean', 'cowpea', 'lentils', 'ground-nut', 'legume'].includes(crop)) return 'legumes'
+    if (['cocoa', 'coffee', 'tea', 'cashew', 'cash-crop'].includes(crop)) return 'cash_crops'
+
+    console.log(`⚠️ Unknown crop type "${crop}", defaulting to "grains"`)
+    return 'grains' // default category
+  } catch (error) {
+    console.warn('⚠️ Error mapping crop type to category:', error.message)
+    return 'grains'
+  }
+}
+
 const marketplaceController = {
   // Get all listings with filters
   async getListings(req, res) {
@@ -28,12 +50,12 @@ const marketplaceController = {
       // Apply filters
       if (category) query.category = category
       if (minPrice || maxPrice) {
-        query.price = {}
-        if (minPrice) query.price.$gte = Number(minPrice)
-        if (maxPrice) query.price.$lte = Number(maxPrice)
+        query.basePrice = {}
+        if (minPrice) query.basePrice.$gte = Number(minPrice)
+        if (maxPrice) query.basePrice.$lte = Number(maxPrice)
       }
       if (location) query.location = new RegExp(location, 'i')
-      if (quality) query.quality = quality
+      if (quality) query.qualityGrade = quality
       if (farmerId) query.farmer = farmerId
       
       // Search functionality
@@ -57,11 +79,36 @@ const marketplaceController = {
           .limit(parseInt(limit)),
         Listing.countDocuments(query)
       ])
-      
+
+      // Parse location strings into objects for each listing
+      const parsedListings = listings.map(listing => {
+        let locationObject = null
+        if (listing.location) {
+          if (typeof listing.location === 'string') {
+            // Parse string location format: "City, State, Country" or "City, State"
+            const locationParts = listing.location.split(',').map(part => part.trim())
+
+            locationObject = {
+              city: locationParts[0] || 'Unknown City',
+              state: locationParts[1] || 'Unknown State',
+              country: locationParts[2] || 'Nigeria' // Default to Nigeria if not specified
+            }
+          } else if (typeof listing.location === 'object') {
+            // Already in object format
+            locationObject = listing.location
+          }
+        }
+
+        return {
+          ...listing.toObject(),
+          location: locationObject
+        }
+      })
+
       res.json({
         status: 'success',
         data: {
-          listings,
+          listings: parsedListings,
           pagination: {
             currentPage: parseInt(page),
             totalPages: Math.ceil(total / parseInt(limit)),
@@ -79,32 +126,82 @@ const marketplaceController = {
     }
   },
 
+  // Debug endpoint to get all listings (for troubleshooting)
+  async getAllListings(req, res) {
+    try {
+      const listings = await Listing.find({})
+        .populate('farmer', 'name location')
+        .populate('harvest', 'batchId cropType quality')
+        .sort({ createdAt: -1 })
+        .limit(20)
+
+      res.json({
+        status: 'success',
+        data: {
+          listings,
+          total: listings.length,
+          message: 'Debug endpoint - shows all listings regardless of status'
+        }
+      })
+    } catch (error) {
+      console.error('Error getting all listings:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to get all listings'
+      })
+    }
+  },
+
   // Get specific listing
   async getListing(req, res) {
     try {
       const { id } = req.params
-      
+
       const listing = await Listing.findById(id)
-        .populate('farmer', 'name location phone email')
+        .populate('farmer', 'name location phone email farmLocation')
         .populate('harvest', 'batchId cropType quality harvestDate geoLocation')
-      
+
       if (!listing) {
         return res.status(404).json({
           status: 'error',
           message: 'Listing not found'
         })
       }
-      
+
       if (listing.status !== 'active') {
         return res.status(404).json({
           status: 'error',
           message: 'Listing is not available'
         })
       }
-      
+
+      // Parse location string into object format expected by frontend
+      let locationObject = null
+      if (listing.location) {
+        if (typeof listing.location === 'string') {
+          // Parse string location format: "City, State, Country" or "City, State"
+          const locationParts = listing.location.split(',').map(part => part.trim())
+
+          locationObject = {
+            city: locationParts[0] || 'Unknown City',
+            state: locationParts[1] || 'Unknown State',
+            country: locationParts[2] || 'Nigeria' // Default to Nigeria if not specified
+          }
+        } else if (typeof listing.location === 'object') {
+          // Already in object format
+          locationObject = listing.location
+        }
+      }
+
+      // Create response data with parsed location
+      const responseData = {
+        ...listing.toObject(),
+        location: locationObject
+      }
+
       res.json({
         status: 'success',
-        data: listing
+        data: responseData
       })
     } catch (error) {
       console.error('Error getting listing:', error)
@@ -156,15 +253,17 @@ const marketplaceController = {
         farmer: req.user.id,
         harvest: harvestId,
         cropName: harvest.cropType,
-        category: harvest.cropType,
-        price: Number(price),
+        category: getCategoryFromCropType(harvest.cropType),
+        basePrice: Number(price),
         description: description || `Fresh ${harvest.cropType} from ${req.user.name}`,
         images: images || harvest.images || [],
-        location: harvest.location,
-        quality: harvest.quality,
+        location: typeof harvest.location === 'string' ? harvest.location : `${harvest.location?.city || 'Unknown'}, ${harvest.location?.state || 'Unknown'}, Nigeria`,
+        qualityGrade: harvest.quality || 'standard',
         quantity: harvest.quantity,
+        availableQuantity: harvest.quantity,
         unit: harvest.unit,
-        status: 'active'
+        status: 'active',
+        tags: harvest.quality ? [harvest.quality] : []
       })
       
       // Update harvest status

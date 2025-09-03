@@ -15,10 +15,3 @@ export type { MarketplaceProduct } from './marketplace-card'
 
 export { AnalyticsDashboard } from './analytics-dashboard'
 
-// Re-export common types
-export type { 
-  HarvestData,
-  HarvestFormData,
-  QRScanResult,
-  MarketplaceProduct
-} from './harvest-card'

@@ -451,7 +451,7 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
                               </div>
                               <div className="flex items-center space-x-2">
                                 <MapPin className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm">{approval.location}</span>
+                                <span className="text-sm">{typeof approval.location === 'string' ? approval.location : `${approval.location?.city || 'Unknown'}, ${approval.location?.state || 'Unknown State'}`}</span>
                               </div>
                               <div className="flex items-center space-x-2">
                                 <Scale className="w-4 h-4 text-muted-foreground" />
@@ -603,7 +603,7 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
                     <p><strong>Name:</strong> {selectedApproval.farmer.name}</p>
                     <p><strong>Email:</strong> {selectedApproval.farmer.email}</p>
                     <p><strong>Phone:</strong> {selectedApproval.farmer.phone}</p>
-                    <p><strong>Location:</strong> {selectedApproval.location}</p>
+                    <p><strong>Location:</strong> {typeof selectedApproval.location === 'string' ? selectedApproval.location : `${selectedApproval.location?.city || 'Unknown'}, ${selectedApproval.location?.state || 'Unknown State'}`}</p>
                   </div>
                 </div>
                 <div>

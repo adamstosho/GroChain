@@ -122,142 +122,120 @@ export default function TransactionsPage() {
   const fetchTransactions = async () => {
     try {
       setLoading(true)
-      
-      // Mock data for now - replace with actual API call
-      const mockTransactions: Transaction[] = [
-        {
-          id: '1',
-          type: 'income',
-          category: 'Marketplace Sale',
-          amount: 125000,
-          currency: 'NGN',
-          description: 'Sale of 500kg Maize to Lagos Market',
-          date: '2024-01-15T10:30:00Z',
-          status: 'completed',
-          reference: 'TXN-001-2024',
-          source: 'marketplace',
-          metadata: {
-            harvestId: 'H001',
-            buyerName: 'Lagos Market Ltd',
-            cropType: 'Maize',
-            quantity: 500,
-            location: 'Lagos'
+
+      // Fetch real data from backend APIs
+      const [transactionHistoryResponse, financialDashboardResponse] = await Promise.all([
+        apiService.getTransactionHistory(),
+        apiService.getFinancialDashboard()
+      ])
+
+      if (transactionHistoryResponse.status === 'success' && transactionHistoryResponse.data) {
+        const transactionsData = transactionHistoryResponse.data.transactions || []
+
+        // Transform transactions data
+        const transformedTransactions: Transaction[] = transactionsData.map((txn: any) => ({
+          id: txn._id || txn.id,
+          type: txn.type === 'payment' || txn.type === 'commission' ? 'income' :
+                txn.type === 'withdrawal' ? 'expense' : txn.type,
+          category: txn.category || txn.type,
+          amount: txn.amount,
+          currency: txn.currency || 'NGN',
+          description: txn.description,
+          date: txn.createdAt || txn.date,
+          status: txn.status,
+          reference: txn.reference,
+          source: txn.source || (txn.type === 'payment' ? 'marketplace' :
+                   txn.type === 'commission' ? 'marketplace' :
+                   txn.type === 'withdrawal' ? 'other' : 'other'),
+          metadata: txn.metadata || {}
+        }))
+
+        setTransactions(transformedTransactions)
+
+        // Calculate stats from real data
+        const incomeTransactions = transformedTransactions.filter(t => t.type === 'income' && t.status === 'completed')
+        const expenseTransactions = transformedTransactions.filter(t => t.type === 'expense' && t.status === 'completed')
+        const pendingTransactions = transformedTransactions.filter(t => t.status === 'pending')
+
+        const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0)
+        const totalExpenses = expenseTransactions.reduce((sum, t) => sum + t.amount, 0)
+        const pendingAmount = pendingTransactions.reduce((sum, t) => sum + t.amount, 0)
+
+        // Group by month for trend analysis
+        const monthlyData = transformedTransactions.reduce((acc: any, txn) => {
+          const date = new Date(txn.date)
+          const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+
+          if (!acc[monthKey]) {
+            acc[monthKey] = { income: 0, expenses: 0, net: 0 }
           }
-        },
-        {
-          id: '2',
-          type: 'expense',
-          category: 'Farming Inputs',
-          amount: 45000,
-          currency: 'NGN',
-          description: 'Purchase of fertilizers and pesticides',
-          date: '2024-01-14T14:20:00Z',
-          status: 'completed',
-          reference: 'TXN-002-2024',
-          source: 'other'
-        },
-        {
-          id: '3',
-          type: 'income',
-          category: 'Marketplace Sale',
-          amount: 89000,
-          currency: 'NGN',
-          description: 'Sale of 300kg Cassava to Regional Hub',
-          date: '2024-01-13T09:15:00Z',
-          status: 'completed',
-          reference: 'TXN-003-2024',
-          source: 'marketplace',
-          metadata: {
-            harvestId: 'H002',
-            buyerName: 'Regional Hub Co.',
-            cropType: 'Cassava',
-            quantity: 300,
-            location: 'Ibadan'
+
+          if (txn.type === 'income' && txn.status === 'completed') {
+            acc[monthKey].income += txn.amount
+          } else if (txn.type === 'expense' && txn.status === 'completed') {
+            acc[monthKey].expenses += txn.amount
           }
-        },
-        {
-          id: '4',
-          type: 'transfer',
-          category: 'Bank Transfer',
-          amount: 75000,
-          currency: 'NGN',
-          description: 'Transfer to savings account',
-          date: '2024-01-12T16:45:00Z',
-          status: 'completed',
-          reference: 'TXN-004-2024',
-          source: 'transfer'
-        },
-        {
-          id: '5',
-          type: 'income',
-          category: 'Loan Disbursement',
-          amount: 200000,
-          currency: 'NGN',
-          description: 'Working capital loan disbursement',
-          date: '2024-01-10T11:00:00Z',
-          status: 'completed',
-          reference: 'TXN-005-2024',
-          source: 'loan'
-        },
-        {
-          id: '6',
-          type: 'expense',
-          category: 'Equipment Maintenance',
-          amount: 35000,
-          currency: 'NGN',
-          description: 'Tractor maintenance and repairs',
-          date: '2024-01-09T13:30:00Z',
-          status: 'pending',
-          reference: 'TXN-006-2024',
-          source: 'other'
-        },
-        {
-          id: '7',
-          type: 'income',
-          category: 'Marketplace Sale',
-          amount: 156000,
-          currency: 'NGN',
-          description: 'Sale of 400kg Tomatoes to Restaurant Chain',
-          date: '2024-01-08T08:45:00Z',
-          status: 'completed',
-          reference: 'TXN-007-2024',
-          source: 'marketplace',
-          metadata: {
-            harvestId: 'H003',
-            buyerName: 'Fresh Foods Restaurant',
-            cropType: 'Tomatoes',
-            quantity: 400,
-            location: 'Abuja'
-          }
-        },
-        {
-          id: '8',
-          type: 'expense',
-          category: 'Insurance Premium',
-          amount: 25000,
-          currency: 'NGN',
-          description: 'Crop insurance premium payment',
-          date: '2024-01-07T15:20:00Z',
-          status: 'completed',
-          reference: 'TXN-008-2024',
-          source: 'insurance'
+
+          acc[monthKey].net = acc[monthKey].income - acc[monthKey].expenses
+
+          return acc
+        }, {})
+
+        const monthlyTrend = Object.entries(monthlyData)
+          .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+          .map(([month, data]: [string, any]) => ({
+            month,
+            income: data.income,
+            expenses: data.expenses,
+            net: data.net
+          }))
+
+        const stats: TransactionStats = {
+          totalIncome,
+          totalExpenses,
+          netAmount: totalIncome - totalExpenses,
+          transactionCount: transformedTransactions.length,
+          pendingAmount,
+          monthlyTrend
         }
-      ]
 
-      const mockStats: TransactionStats = {
-        totalIncome: 645000,
-        totalExpenses: 105000,
-        netAmount: 540000,
-        transactionCount: 8,
-        pendingAmount: 35000,
-        monthlyTrend: [
-          { month: 'Dec 2023', income: 580000, expenses: 95000, net: 485000 },
-          { month: 'Jan 2024', income: 645000, expenses: 105000, net: 540000 }
-        ]
+        setStats(stats)
+      } else {
+        // Fallback to dashboard data if transaction history fails
+        if (financialDashboardResponse.status === 'success' && financialDashboardResponse.data) {
+          const dashboardData = financialDashboardResponse.data
+          const recentTransactions = dashboardData.recentTransactions || []
+
+          const transformedTransactions: Transaction[] = recentTransactions.map((txn: any) => ({
+            id: txn._id,
+            type: txn.type === 'payment' || txn.type === 'commission' ? 'income' :
+                  txn.type === 'withdrawal' ? 'expense' : txn.type,
+            category: txn.type,
+            amount: txn.amount,
+            currency: 'NGN',
+            description: txn.description,
+            date: txn.date,
+            status: txn.status,
+            reference: `TXN-${txn._id}`,
+            source: txn.type === 'payment' ? 'marketplace' : 'other',
+            metadata: {}
+          }))
+
+          setTransactions(transformedTransactions)
+
+          // Basic stats from dashboard
+          const stats: TransactionStats = {
+            totalIncome: dashboardData.overview?.totalEarnings || 0,
+            totalExpenses: 0, // Not available in dashboard
+            netAmount: dashboardData.overview?.totalEarnings || 0,
+            transactionCount: recentTransactions.length,
+            pendingAmount: dashboardData.overview?.pendingPayments || 0,
+            monthlyTrend: []
+          }
+
+          setStats(stats)
+        }
       }
-
-      setTransactions(mockTransactions)
-      setStats(mockStats)
     } catch (error) {
       console.error("Failed to fetch transactions:", error)
       toast({

@@ -85,7 +85,7 @@ export default function GenerateQRCodePage() {
     try {
       const response: any = await apiService.getHarvests({ limit: 100 })
       const harvestData = response.harvests || response.data?.harvests || []
-      const approvedHarvests = harvestData.filter((h: HarvestData) => h.status === 'approved')
+      const approvedHarvests = harvestData.filter((h: HarvestData) => h.status === 'approved' || h.status === 'listed')
       setHarvests(approvedHarvests)
     } catch (error) {
       console.error("Failed to fetch harvests:", error)
@@ -150,7 +150,7 @@ export default function GenerateQRCodePage() {
         }
       }
 
-      const response = await apiService.generateQRCode(payload)
+      const response = await apiService.generateQRCodeForHarvest(selectedHarvest._id, formData.includeMetadata ? formData.metadata : undefined)
       setGeneratedQR(response)
       
       toast({ 
@@ -231,7 +231,7 @@ export default function GenerateQRCodePage() {
               Select Harvest
             </CardTitle>
             <CardDescription>
-              Choose an approved harvest to generate a QR code for
+              Choose an approved or listed harvest to generate a QR code for
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -240,7 +240,7 @@ export default function GenerateQRCodePage() {
                 <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Approved Harvests</h3>
                 <p className="text-gray-600 mb-4">
-                  You need approved harvests to generate QR codes. Please log a harvest first.
+                  You need approved or listed harvests to generate QR codes. Please log a harvest first.
                 </p>
                 <Button asChild>
                   <Link href="/dashboard/harvests/new">
@@ -279,7 +279,7 @@ export default function GenerateQRCodePage() {
                           {new Date(harvest.harvestDate).toLocaleDateString()}
                         </div>
                         <div className="text-sm text-gray-600">
-                          {harvest.location}
+                          {typeof harvest.location === 'string' ? harvest.location : `${harvest.location?.city || 'Unknown'}, ${harvest.location?.state || 'Unknown State'}`}
                         </div>
                       </div>
                     </CardContent>

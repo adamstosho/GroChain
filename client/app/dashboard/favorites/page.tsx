@@ -369,7 +369,7 @@ function FavoriteCard({
               <div className="flex items-center space-x-4 text-sm text-muted-foreground mb-3">
                 <div className="flex items-center space-x-1">
                   <MapPin className="h-3 w-3" />
-                  <span>{product.location.city}, {product.location.state}</span>
+                  <span>{typeof product.location === 'string' ? product.location : `${product.location?.city || 'Unknown'}, ${product.location?.state || 'Unknown State'}`}</span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
@@ -494,7 +494,7 @@ function FavoriteCard({
             <div className="flex items-center space-x-1">
               <MapPin className="h-3 w-3 text-muted-foreground" />
               <span className="text-muted-foreground">
-                {product.location.city}, {product.location.state}
+                {typeof product.location === 'string' ? product.location : `${product.location?.city || 'Unknown'}, ${product.location?.state || 'Unknown State'}`}
               </span>
             </div>
             <div className="flex items-center space-x-1">

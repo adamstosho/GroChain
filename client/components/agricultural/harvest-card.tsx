@@ -6,20 +6,22 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
-import { 
-  Calendar, 
-  MapPin, 
-  Scale, 
-  Leaf, 
-  QrCode, 
-  Eye, 
-  Edit, 
+import {
+  Calendar,
+  MapPin,
+  Scale,
+  Leaf,
+  QrCode,
+  Eye,
+  Edit,
   Truck,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Package
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import Image from "next/image"
 
 export interface HarvestData {
   id: string
@@ -31,12 +33,16 @@ export interface HarvestData {
   unit: string
   location: string
   quality: "excellent" | "good" | "fair" | "poor"
-  status: "pending" | "approved" | "rejected" | "shipped"
+  status: "pending" | "approved" | "rejected" | "shipped" | "verified" | "listed"
   qrCode: string
   price: number
   organic: boolean
   moistureContent: number
   grade: "A" | "B" | "C"
+  images?: string[]
+  batchId?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 interface HarvestCardProps {
@@ -57,17 +63,21 @@ const qualityColors = {
 }
 
 const statusColors = {
-  pending: "bg-muted text-muted-foreground",
-  approved: "bg-success text-success-foreground",
-  rejected: "bg-destructive text-destructive-foreground",
-  shipped: "bg-primary text-primary-foreground"
+  pending: "bg-amber-50 text-amber-700 border-amber-200",
+  approved: "bg-green-50 text-green-700 border-green-200",
+  rejected: "bg-red-50 text-red-700 border-red-200",
+  shipped: "bg-blue-50 text-blue-700 border-blue-200",
+  verified: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  listed: "bg-purple-50 text-purple-700 border-purple-200"
 }
 
 const statusIcons = {
   pending: Clock,
   approved: CheckCircle,
   rejected: AlertCircle,
-  shipped: Truck
+  shipped: Truck,
+  verified: CheckCircle,
+  listed: Package
 }
 
 export function HarvestCard({ 
@@ -150,14 +160,18 @@ export function HarvestCard({
               <Calendar className="h-4 w-4 mr-2" />
               Harvest Date
             </div>
-            <p className="font-semibold">{harvest.harvestDate.toLocaleDateString()}</p>
+            <p className="font-semibold">
+              {harvest.harvestDate instanceof Date && !isNaN(harvest.harvestDate.getTime())
+                ? harvest.harvestDate.toLocaleDateString()
+                : new Date(harvest.harvestDate).toLocaleDateString()}
+            </p>
           </div>
         </div>
 
         {/* Location */}
         <div className="flex items-center text-sm text-muted-foreground">
           <MapPin className="h-4 w-4 mr-2" />
-          {harvest.location}
+          {typeof harvest.location === 'string' ? harvest.location : `${harvest.location?.city || 'Unknown'}, ${harvest.location?.state || 'Unknown State'}`}
         </div>
 
         {/* Quality Metrics */}
@@ -168,6 +182,49 @@ export function HarvestCard({
           </div>
           <Progress value={harvest.moistureContent} className="h-2" />
         </div>
+
+        {/* Harvest Images */}
+        {harvest.images && harvest.images.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                Harvest Photos ({harvest.images.length})
+              </span>
+              {harvest.images.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-6"
+                  onClick={() => onView && onView(harvest.id)}
+                >
+                  View All
+                </Button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {/* Show only the first image in the card */}
+              <div className="relative aspect-video rounded-lg overflow-hidden border">
+                <Image
+                  src={harvest.images[0]}
+                  alt={`Harvest ${harvest.cropType}`}
+                  fill
+                  className="object-cover"
+                  onError={(e) => {
+                    // Fallback to harvest placeholder if image fails to load
+                    const img = e.currentTarget as HTMLImageElement
+                    img.src = '/placeholder-harvest.jpg'
+                  }}
+                />
+                {harvest.images.length > 1 && (
+                  <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                    +{harvest.images.length - 1} more
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Status */}
         <div className="flex items-center justify-between">

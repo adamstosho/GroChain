@@ -21,6 +21,63 @@ app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 app.use(cookieParser())
 
+// Static file serving for uploaded images with CORS headers
+app.use('/uploads', express.static('uploads', {
+  setHeaders: (res, path) => {
+    // Set comprehensive CORS headers for all static files
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range')
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Type')
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+    res.setHeader('Pragma', 'no-cache')
+    res.setHeader('Expires', '0')
+  }
+}))
+
+// Additional route for avatar images with explicit CORS handling
+app.get('/uploads/avatars/*', (req, res) => {
+  const fs = require('fs')
+  const path = require('path')
+  const filePath = path.join(__dirname, req.path)
+
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Avatar not found' })
+  }
+
+  // Set comprehensive CORS headers
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Type')
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+  res.setHeader('Pragma', 'no-cache')
+  res.setHeader('Expires', '0')
+
+  // Send the file
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.error('Error sending avatar file:', err)
+      // Check if headers have already been sent before sending error response
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to serve avatar' })
+      }
+    }
+  })
+})
+
+// Handle OPTIONS requests for avatar images
+app.options('/uploads/avatars/*', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+  res.status(200).end()
+})
+
 // Metrics
 const client = require('prom-client')
 client.collectDefaultMetrics()
@@ -59,8 +116,11 @@ const connectDB = async () => {
       w: 'majority'
     };
 
+    
+
     await mongoose.connect(process.env.MONGODB_URI, options);
     console.log('✅ MongoDB connected successfully');
+    console.log("MONGODB_URI:", process.env.MONGODB_URI);
     
     // Handle connection events
     mongoose.connection.on('error', (err) => {
@@ -103,6 +163,7 @@ const initializeApp = async () => {
     app.use('/api/harvests', require('./routes/harvest.routes'));
     app.use('/api/harvest-approval', require('./routes/harvest-approval.routes'));
     app.use('/api/marketplace', require('./routes/marketplace.routes'));
+    app.use('/api/upload', require('./routes/upload.routes'));
     app.use('/api/fintech', require('./routes/fintech.routes'));
     app.use('/api/weather', require('./routes/weather.routes'));
     app.use('/api/analytics', require('./routes/analytics.routes'));

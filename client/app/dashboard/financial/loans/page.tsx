@@ -102,81 +102,70 @@ export default function LoansPage() {
   const fetchLoansData = async () => {
     try {
       setLoading(true)
-      
-      // Mock data for now - replace with actual API call
-      const mockApplications: LoanApplication[] = [
-        {
-          id: '1',
-          amount: 500000,
-          purpose: 'Equipment Purchase',
-          term: 24,
-          status: 'approved',
-          submittedDate: '2024-01-15',
-          decisionDate: '2024-01-17',
-          monthlyPayment: 25000,
-          interestRate: 15,
-          description: 'Purchase of new irrigation system and farming equipment',
-          collateral: 'Farm equipment',
-          documents: ['ID Card', 'Bank Statement', 'Farm Registration']
-        },
-        {
-          id: '2',
-          amount: 300000,
-          purpose: 'Working Capital',
-          term: 12,
-          status: 'pending',
-          submittedDate: '2024-01-20',
-          monthlyPayment: 30000,
-          interestRate: 15,
-          description: 'Funding for seasonal farming operations and input purchases',
-          documents: ['ID Card', 'Bank Statement']
-        },
-        {
-          id: '3',
-          amount: 750000,
-          purpose: 'Farm Expansion',
-          term: 36,
-          status: 'active',
-          submittedDate: '2023-06-10',
-          decisionDate: '2023-06-12',
-          monthlyPayment: 35000,
-          interestRate: 14,
-          description: 'Expansion of farm land and construction of storage facilities',
-          collateral: 'Land title',
-          documents: ['ID Card', 'Bank Statement', 'Land Title', 'Business Plan']
-        }
-      ]
 
-      const mockActiveLoans: ActiveLoan[] = [
-        {
-          id: '1',
-          applicationId: '3',
-          amount: 750000,
-          remainingBalance: 525000,
-          monthlyPayment: 35000,
-          nextPaymentDate: '2024-02-15',
-          totalPayments: 6,
-          remainingPayments: 30,
-          interestRate: 14,
-          startDate: '2023-07-01',
-          endDate: '2026-06-30',
-          status: 'active'
-        }
-      ]
+      // Fetch real data from backend APIs
+      const [applicationsResponse, financialDashboardResponse] = await Promise.all([
+        apiService.getLoanApplications(),
+        apiService.getFinancialDashboard()
+      ])
 
-      const mockStats: LoanStats = {
-        totalApplications: 3,
-        approvedLoans: 2,
-        totalBorrowed: 1250000,
-        totalRepaid: 210000,
-        activeLoans: 1,
-        averageInterestRate: 14.7,
-        totalMonthlyPayments: 35000
+      if (applicationsResponse.status === 'success' && applicationsResponse.data) {
+        const applicationsData = applicationsResponse.data.applications || []
+
+        // Transform applications data
+        const transformedApplications: LoanApplication[] = applicationsData.map((app: any) => ({
+          id: app._id || app.id,
+          amount: app.amount || app.loanAmount,
+          purpose: app.purpose,
+          term: app.term || app.duration,
+          status: app.status,
+          submittedDate: app.submittedAt || app.createdAt,
+          decisionDate: app.approvedAt,
+          monthlyPayment: app.monthlyPayment || (app.amount && app.term ? Math.round(app.amount / app.term) : 0),
+          interestRate: app.interestRate || 15,
+          description: app.description || '',
+          collateral: app.collateral || '',
+          documents: app.documents || []
+        }))
+
+        setApplications(transformedApplications)
       }
 
-      setApplications(mockApplications)
-      setActiveLoans(mockActiveLoans)
-      setStats(mockStats)
+      if (financialDashboardResponse.status === 'success' && financialDashboardResponse.data) {
+        const dashboardData = financialDashboardResponse.data
+
+        // Transform active loans data
+        const transformedActiveLoans: ActiveLoan[] = (dashboardData.activeLoans || []).map((loan: any) => ({
+          id: loan._id,
+          applicationId: loan.applicationId || loan._id,
+          amount: loan.amount,
+          remainingBalance: loan.remainingBalance,
+          monthlyPayment: loan.monthlyPayment,
+          nextPaymentDate: loan.nextPaymentDate,
+          totalPayments: loan.totalPayments || 0,
+          remainingPayments: loan.remainingPayments || 0,
+          interestRate: loan.interestRate,
+          startDate: loan.startDate || loan.createdAt,
+          endDate: loan.endDate,
+          status: loan.status
+        }))
+
+        // Calculate stats from real data
+        const stats: LoanStats = {
+          totalApplications: applicationsResponse.data?.applications?.length || 0,
+          approvedLoans: applicationsResponse.data?.applications?.filter((app: any) => app.status === 'approved').length || 0,
+          totalBorrowed: transformedActiveLoans.reduce((sum, loan) => sum + loan.amount, 0),
+          totalRepaid: transformedActiveLoans.reduce((sum, loan) => sum + (loan.amount - loan.remainingBalance), 0),
+          activeLoans: transformedActiveLoans.length,
+          averageInterestRate: transformedActiveLoans.length > 0
+            ? transformedActiveLoans.reduce((sum, loan) => sum + loan.interestRate, 0) / transformedActiveLoans.length
+            : 0,
+          totalMonthlyPayments: transformedActiveLoans.reduce((sum, loan) => sum + loan.monthlyPayment, 0)
+        }
+
+        setActiveLoans(transformedActiveLoans)
+        setStats(stats)
+      }
     } catch (error) {
       console.error("Failed to fetch loans data:", error)
       toast({

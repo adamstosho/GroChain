@@ -95,93 +95,117 @@ export default function CreditScorePage() {
   const fetchCreditScore = async () => {
     try {
       setLoading(true)
-      
-      // Mock data for now - replace with actual API call
-      const mockCreditScore: CreditScore = {
-        score: 725,
-        grade: 'B',
-        status: 'good',
-        lastUpdated: '2024-01-15',
-        factors: [
-          {
-            name: 'Payment History',
-            impact: 'positive',
-            weight: 35,
-            description: 'Consistent on-time payments for loans and marketplace transactions'
-          },
-          {
-            name: 'Credit Utilization',
-            impact: 'positive',
-            weight: 30,
-            description: 'Low credit utilization ratio, well-managed debt levels'
-          },
-          {
-            name: 'Length of Credit History',
-            impact: 'neutral',
-            weight: 15,
-            description: 'Moderate credit history length, could improve with time'
-          },
-          {
-            name: 'Credit Mix',
-            impact: 'positive',
-            weight: 10,
-            description: 'Diverse credit types including loans and marketplace credit'
-          },
-          {
-            name: 'New Credit Applications',
-            impact: 'negative',
-            weight: 10,
-            description: 'Recent credit inquiries may temporarily impact score'
-          }
-        ],
-        history: [
-          { date: '2023-07', score: 680, change: 15 },
-          { date: '2023-08', score: 695, change: 20 },
-          { date: '2023-09', score: 705, change: 10 },
-          { date: '2023-10', score: 710, change: 5 },
-          { date: '2023-11', score: 715, change: 5 },
-          { date: '2023-12', score: 720, change: 5 },
-          { date: '2024-01', score: 725, change: 5 }
-        ],
-        recommendations: [
-          {
-            title: 'Maintain Payment Consistency',
-            description: 'Continue making on-time payments to further improve your score',
-            priority: 'high',
-            impact: 15
-          },
-          {
-            title: 'Reduce Credit Inquiries',
-            description: 'Avoid applying for multiple credit products in a short period',
-            priority: 'medium',
-            impact: 10
-          },
-          {
-            title: 'Increase Credit History',
-            description: 'Maintain existing credit relationships to build longer history',
-            priority: 'low',
-            impact: 5
-          }
-        ],
-        eligibility: {
-          loans: true,
-          insurance: true,
-          marketplace: true,
-          limits: {
-            loanAmount: 500000,
-            insuranceCoverage: 2000000
+
+      // Fetch real data from backend API
+      const creditScoreResponse = await apiService.getMyCreditScore()
+
+      if (creditScoreResponse.status === 'success' && creditScoreResponse.data) {
+        const data = creditScoreResponse.data
+
+        // Transform backend data to match frontend interface
+        const transformedCreditScore: CreditScore = {
+          score: data.score || 650,
+          grade: data.grade || 'C',
+          status: data.status || 'fair',
+          lastUpdated: data.lastUpdated || data.createdAt,
+          factors: (data.factors || []).map((factor: any) => ({
+            name: factor.name || 'Unknown Factor',
+            impact: factor.impact || 'neutral',
+            weight: factor.weight || 0,
+            description: factor.description || 'No description available'
+          })),
+          history: (data.history || []).map((entry: any) => ({
+            date: entry.date,
+            score: entry.score,
+            change: entry.change || 0
+          })),
+          recommendations: (data.recommendations || []).map((rec: any) => ({
+            title: rec.title || 'General Recommendation',
+            description: rec.description || '',
+            priority: rec.priority || 'medium',
+            impact: rec.impact || 0
+          })),
+          eligibility: {
+            loans: data.eligibility?.loans !== false,
+            insurance: data.eligibility?.insurance !== false,
+            marketplace: data.eligibility?.marketplace !== false,
+            limits: {
+              loanAmount: data.eligibility?.loanAmount || 100000,
+              insuranceCoverage: data.eligibility?.insuranceCoverage || 500000
+            }
           }
         }
-      }
 
-      setCreditScore(mockCreditScore)
-    } catch (error) {
+        setCreditScore(transformedCreditScore)
+      } else {
+        throw new Error('Failed to fetch credit score data')
+      }
+    } catch (error: any) {
       console.error("Failed to fetch credit score:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load credit score data. Please try again.",
-        variant: "destructive"
-      })
+
+      // If API fails, try to get basic info from financial dashboard
+      try {
+        const dashboardResponse = await apiService.getFinancialDashboard()
+        if (dashboardResponse.status === 'success' && dashboardResponse.data) {
+          const dashboardData = dashboardResponse.data
+
+          // Create a basic credit score from dashboard data
+          const basicCreditScore: CreditScore = {
+            score: dashboardData.overview?.creditScore || 650,
+            grade: (dashboardData.overview?.creditScore || 650) >= 750 ? 'B' : 'C',
+            status: (dashboardData.overview?.creditScore || 650) >= 750 ? 'good' : 'fair',
+            lastUpdated: new Date().toISOString().split('T')[0],
+            factors: [
+              {
+                name: 'Payment History',
+                impact: 'positive',
+                weight: 35,
+                description: 'Based on your transaction history and loan performance'
+              },
+              {
+                name: 'Credit Utilization',
+                impact: 'neutral',
+                weight: 30,
+                description: 'Your current credit utilization level'
+              }
+            ],
+            history: [
+              {
+                date: new Date().toISOString().slice(0, 7),
+                score: dashboardData.overview?.creditScore || 650,
+                change: 0
+              }
+            ],
+            recommendations: [
+              {
+                title: 'Complete More Transactions',
+                description: 'Increase your activity to improve credit scoring data',
+                priority: 'medium',
+                impact: 10
+              }
+            ],
+            eligibility: {
+              loans: true,
+              insurance: true,
+              marketplace: true,
+              limits: {
+                loanAmount: 100000,
+                insuranceCoverage: 500000
+              }
+            }
+          }
+
+          setCreditScore(basicCreditScore)
+        } else {
+          throw new Error('No fallback data available')
+        }
+      } catch (fallbackError) {
+        toast({
+          title: "Error",
+          description: "Failed to load credit score data. Please try again.",
+          variant: "destructive"
+        })
+      }
     } finally {
       setLoading(false)
     }

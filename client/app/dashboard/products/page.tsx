@@ -87,234 +87,192 @@ export default function ProductsPage() {
   const { toast } = useToast()
   const { addToCart, addToFavorites } = useBuyerStore()
 
-  // Mock data for development - replace with API calls
-  const mockProducts: ProductListing[] = [
-    {
-      _id: "1",
-      cropName: "Premium Maize",
-      category: "Grains",
-      description: "High-quality maize harvested from organic farms in Kaduna State. Perfect for processing and direct consumption.",
-      basePrice: 2500,
-      quantity: 1000,
-      unit: "kg",
-      availableQuantity: 800,
-      location: { city: "Kaduna", state: "Kaduna" },
-      images: ["/placeholder.svg"],
-      tags: ["organic", "premium", "fresh"],
-      status: "active",
-      createdAt: "2024-01-15T10:00:00Z",
-      views: 156,
-      orders: 23,
-      rating: 4.8,
-      reviews: 18,
-      farmer: { name: "Ahmed Hassan", rating: 4.9, verified: true },
-      organic: true,
-      qualityGrade: "premium"
-    },
-    {
-      _id: "2",
-      cropName: "Sweet Cassava",
-      category: "Tubers",
-      description: "Fresh sweet cassava from Oyo State farms. Excellent for garri production and direct cooking.",
-      basePrice: 1800,
-      quantity: 500,
-      unit: "kg",
-      availableQuantity: 450,
-      location: { city: "Ibadan", state: "Oyo" },
-      images: ["/placeholder.svg"],
-      tags: ["sweet", "fresh", "local"],
-      status: "active",
-      createdAt: "2024-01-14T14:30:00Z",
-      views: 89,
-      orders: 12,
-      rating: 4.6,
-      reviews: 8,
-      farmer: { name: "Fatima Adebayo", rating: 4.7, verified: true },
-      organic: false,
-      qualityGrade: "standard"
-    },
-    {
-      _id: "3",
-      cropName: "Organic Tomatoes",
-      category: "Vegetables",
-      description: "Fresh organic tomatoes grown without pesticides. Perfect for salads, cooking, and processing.",
-      basePrice: 1200,
-      quantity: 200,
-      unit: "kg",
-      availableQuantity: 180,
-      location: { city: "Kano", state: "Kano" },
-      images: ["/placeholder.svg"],
-      tags: ["organic", "fresh", "pesticide-free"],
-      status: "active",
-      createdAt: "2024-01-13T09:15:00Z",
-      views: 234,
-      orders: 31,
-      rating: 4.9,
-      reviews: 25,
-      farmer: { name: "Yusuf Bello", rating: 4.8, verified: true },
-      organic: true,
-      qualityGrade: "premium"
-    },
-    {
-      _id: "4",
-      cropName: "Quality Rice",
-      category: "Grains",
-      description: "Premium quality rice from Niger State. Clean, well-processed rice suitable for all cooking needs.",
-      basePrice: 3200,
-      quantity: 800,
-      unit: "kg",
-      availableQuantity: 720,
-      location: { city: "Minna", state: "Niger" },
-      images: ["/placeholder.svg"],
-      tags: ["premium", "clean", "well-processed"],
-      status: "active",
-      createdAt: "2024-01-12T16:45:00Z",
-      views: 198,
-      orders: 19,
-      rating: 4.7,
-      reviews: 15,
-      farmer: { name: "Hassan Ibrahim", rating: 4.6, verified: true },
-      organic: false,
-      qualityGrade: "standard"
-    },
-    {
-      _id: "5",
-      cropName: "Fresh Pepper",
-      category: "Vegetables",
-      description: "Hot and fresh pepper varieties from Katsina State. Perfect for seasoning and traditional dishes.",
-      basePrice: 800,
-      quantity: 150,
-      unit: "kg",
-      availableQuantity: 120,
-      location: { city: "Katsina", state: "Katsina" },
-      images: ["/placeholder.svg"],
-      tags: ["hot", "fresh", "seasoning"],
-      status: "active",
-      createdAt: "2024-01-11T11:20:00Z",
-      views: 167,
-      orders: 28,
-      rating: 4.5,
-      reviews: 22,
-      farmer: { name: "Aisha Usman", rating: 4.4, verified: true },
-      organic: false,
-      qualityGrade: "basic"
-    },
-    {
-      _id: "6",
-      cropName: "Organic Beans",
-      category: "Legumes",
-      description: "Organic beans from Plateau State. Rich in protein and nutrients, perfect for healthy meals.",
-      basePrice: 2800,
-      quantity: 300,
-      unit: "kg",
-      availableQuantity: 280,
-      location: { city: "Jos", state: "Plateau" },
-      images: ["/placeholder.svg"],
-      tags: ["organic", "protein-rich", "nutritious"],
-      status: "active",
-      createdAt: "2024-01-10T13:10:00Z",
-      views: 145,
-      orders: 16,
-      rating: 4.8,
-      reviews: 12,
-      farmer: { name: "Daniel Dung", rating: 4.9, verified: true },
-      organic: true,
-      qualityGrade: "premium"
-    }
-  ]
-
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setProducts(mockProducts)
-      setFilteredProducts(mockProducts)
+    fetchProducts()
+  }, [filters, searchQuery])
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true)
+
+      // Map frontend filters to backend parameters
+      const params: any = {
+        page: 1,
+        limit: 50,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      }
+
+      // Add search query
+      if (searchQuery.trim()) {
+        params.search = searchQuery.trim()
+      }
+
+      // Add category filter
+      if (filters.category && filters.category !== "all") {
+        params.category = filters.category.toLowerCase()
+      }
+
+      // Add location filter
+      if (filters.location && filters.location !== "all") {
+        params.location = filters.location
+      }
+
+      // Add price filters
+      if (filters.priceRange && filters.priceRange !== "all") {
+        const [min, max] = filters.priceRange.split('-').map(Number)
+        if (min > 0) params.minPrice = min
+        if (max && max < 100000) params.maxPrice = max
+      }
+
+      // Add quality filter
+      if (filters.quality && filters.quality !== "all") {
+        params.qualityGrade = filters.quality
+      }
+
+      // Add organic filter
+      if (filters.organic) {
+        params.organic = true
+      }
+
+      // Add sorting
+      switch (filters.sortBy) {
+        case 'price-low':
+          params.sortBy = 'basePrice'
+          params.sortOrder = 'asc'
+          break
+        case 'price-high':
+          params.sortBy = 'basePrice'
+          params.sortOrder = 'desc'
+          break
+        case 'rating':
+          params.sortBy = 'rating'
+          params.sortOrder = 'desc'
+          break
+        case 'popular':
+          params.sortBy = 'views'
+          params.sortOrder = 'desc'
+          break
+        case 'newest':
+        default:
+          params.sortBy = 'createdAt'
+          params.sortOrder = 'desc'
+          break
+      }
+
+      console.log('🔄 Fetching products with params:', params)
+
+      const response = await apiService.getMarketplaceListings(params)
+      const listings = response.data?.listings || []
+
+      console.log('📦 Received listings:', listings.length)
+
+      // Convert backend listing format to frontend product format
+      const convertedProducts: ProductListing[] = listings.map((listing: any) => ({
+        _id: listing._id,
+        cropName: listing.cropName,
+        category: listing.category || 'Agricultural Product',
+        description: listing.description || `${listing.cropName} - Fresh agricultural product`,
+        basePrice: listing.basePrice,
+        quantity: listing.quantity,
+        unit: listing.unit || 'kg',
+        availableQuantity: listing.availableQuantity,
+        location: typeof listing.location === 'string' ? listing.location : listing.location,
+        images: listing.images || ["/placeholder.svg"],
+        tags: listing.tags || [],
+        status: listing.status || 'active',
+        createdAt: listing.createdAt,
+        views: listing.views || 0,
+        orders: listing.orders || 0,
+        rating: listing.rating || 4.5,
+        reviews: listing.reviewCount || 0,
+        farmer: {
+          name: listing.farmer?.name || 'Local Farmer',
+          rating: listing.farmer?.rating || 4.5,
+          verified: listing.farmer?.emailVerified || false,
+        },
+        organic: listing.organic || false,
+        qualityGrade: listing.qualityGrade || 'standard'
+      }))
+
+      setProducts(convertedProducts)
+      setFilteredProducts(convertedProducts)
+
+    } catch (error: any) {
+      console.error("❌ Failed to fetch products:", error)
+      toast({
+        title: "Error loading products",
+        description: error.message || "Failed to load products. Please try again.",
+        variant: "destructive",
+      })
+      setProducts([])
+      setFilteredProducts([])
+    } finally {
       setLoading(false)
-    }, 1000)
-  }, [])
-
-  useEffect(() => {
-    filterProducts()
-  }, [searchQuery, filters, products])
-
-  const filterProducts = () => {
-    let filtered = [...products]
-
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter(product =>
-        product.cropName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.category.toLowerCase().includes(searchQuery.toLowerCase())
-      )
     }
-
-    // Category filter
-    if (filters.category && filters.category !== "all") {
-      filtered = filtered.filter(product => product.category === filters.category)
-    }
-
-    // Location filter
-    if (filters.location && filters.location !== "all") {
-      filtered = filtered.filter(product => 
-        product.location.state === filters.location || 
-        product.location.city === filters.location
-      )
-    }
-
-    // Price range filter
-    if (filters.priceRange && filters.priceRange !== "all") {
-      const [min, max] = filters.priceRange.split('-').map(Number)
-      filtered = filtered.filter(product => 
-        product.basePrice >= min && product.basePrice <= max
-      )
-    }
-
-    // Quality filter
-    if (filters.quality && filters.quality !== "all") {
-      filtered = filtered.filter(product => product.qualityGrade === filters.quality)
-    }
-
-    // Organic filter
-    if (filters.organic) {
-      filtered = filtered.filter(product => product.organic)
-    }
-
-    // Sort products
-    switch (filters.sortBy) {
-      case 'price-low':
-        filtered.sort((a, b) => a.basePrice - b.basePrice)
-        break
-      case 'price-high':
-        filtered.sort((a, b) => b.basePrice - a.basePrice)
-        break
-      case 'rating':
-        filtered.sort((a, b) => b.rating - a.rating)
-        break
-      case 'newest':
-        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        break
-      case 'popular':
-        filtered.sort((a, b) => b.views - a.views)
-        break
-    }
-
-    setFilteredProducts(filtered)
   }
+
+  // No client-side filtering needed since we filter on the backend
+  // The filteredProducts are set directly from the API response
 
   const handleAddToCart = (product: ProductListing) => {
-    addToCart(product, 1)
-    toast({
-      title: "Added to cart",
-      description: `${product.cropName} has been added to your cart`,
-    })
+    try {
+      // Validate product data before processing
+      if (!product || !product._id || !product.cropName) {
+        throw new Error('Invalid product data')
+      }
+
+      // Convert ProductListing to the format expected by the buyer store
+      const cartItem = {
+        id: product._id,
+        listingId: product._id,
+        cropName: product.cropName || 'Unknown Product',
+        quantity: 1,
+        unit: product.unit || 'kg',
+        price: product.basePrice || 0,
+        total: product.basePrice || 0,
+        farmer: product.farmer?.name || 'Unknown Farmer',
+        location: typeof product.location === 'string'
+          ? product.location
+          : `${product.location?.city || 'Unknown'}, ${product.location?.state || 'Unknown State'}`,
+        image: (product.images && product.images.length > 0) ? product.images[0] : "/placeholder.svg",
+        availableQuantity: product.availableQuantity || 0
+      }
+
+      // Add to cart through the buyer store
+      addToCart(cartItem, 1)
+
+      toast({
+        title: "Added to cart",
+        description: `${product.cropName} has been added to your cart`,
+      })
+    } catch (error) {
+      console.error('Failed to add to cart:', error)
+      toast({
+        title: "Error",
+        description: "Failed to add product to cart. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleAddToFavorites = (product: ProductListing) => {
-    addToFavorites(product._id)
-    toast({
-      title: "Added to favorites",
-      description: `${product.cropName} has been added to your favorites`,
-    })
+  const handleAddToFavorites = async (product: ProductListing) => {
+    try {
+      // Add to favorites through the buyer store
+      await addToFavorites(product._id)
+
+      toast({
+        title: "Added to favorites",
+        description: `${product.cropName} has been added to your favorites`,
+      })
+    } catch (error: any) {
+      console.error('Failed to add to favorites:', error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add product to favorites. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   const formatPrice = (price: number) => {
@@ -470,14 +428,17 @@ export default function ProductsPage() {
 
               <Button
                 variant="outline"
-                onClick={() => setFilters({
-                  category: "all",
-                  location: "all",
-                  priceRange: "all",
-                  quality: "all",
-                  organic: false,
-                  sortBy: "newest"
-                })}
+                onClick={() => {
+                  setFilters({
+                    category: "all",
+                    location: "all",
+                    priceRange: "all",
+                    quality: "all",
+                    organic: false,
+                    sortBy: "newest"
+                  })
+                  setSearchQuery("")
+                }}
                 className="w-full"
               >
                 <Filter className="h-4 w-4 mr-2" />
@@ -504,7 +465,8 @@ export default function ProductsPage() {
         {/* Results Summary */}
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing {filteredProducts.length} of {products.length} products
+            Showing {filteredProducts.length} products
+            {searchQuery && ` for "${searchQuery}"`}
           </p>
           <div className="flex items-center space-x-2">
             <Badge variant="secondary" className="text-xs">
@@ -515,6 +477,16 @@ export default function ProductsPage() {
                 {filters.category}
               </Badge>
             )}
+            {filters.location && filters.location !== "all" && (
+              <Badge variant="secondary" className="text-xs">
+                {filters.location}
+              </Badge>
+            )}
+            {filters.quality && filters.quality !== "all" && (
+              <Badge variant="secondary" className="text-xs">
+                {filters.quality}
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -523,23 +495,31 @@ export default function ProductsPage() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Package className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No products found</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                {searchQuery || filters.category !== "all" || filters.location !== "all" || filters.quality !== "all" || filters.organic
+                  ? "No products found"
+                  : "No products available"}
+              </h3>
               <p className="text-muted-foreground text-center mb-4">
-                Try adjusting your search criteria or filters to find more products.
+                {searchQuery || filters.category !== "all" || filters.location !== "all" || filters.quality !== "all" || filters.organic
+                  ? "Try adjusting your search criteria or filters to find more products."
+                  : "There are currently no products available in the marketplace."}
               </p>
-              <Button
-                variant="outline"
-                onClick={() => setFilters({
-                  category: "all",
-                  location: "all",
-                  priceRange: "all",
-                  quality: "all",
-                  organic: false,
-                  sortBy: "newest"
-                })}
-              >
-                Clear All Filters
-              </Button>
+              {(searchQuery || filters.category !== "all" || filters.location !== "all" || filters.quality !== "all" || filters.organic) && (
+                <Button
+                  variant="outline"
+                  onClick={() => setFilters({
+                    category: "all",
+                    location: "all",
+                    priceRange: "all",
+                    quality: "all",
+                    organic: false,
+                    sortBy: "newest"
+                  })}
+                >
+                  Clear All Filters
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -628,7 +608,7 @@ function ProductCard({
               <div className="flex items-center space-x-4 text-sm text-muted-foreground mb-3">
                 <div className="flex items-center space-x-1">
                   <MapPin className="h-3 w-3" />
-                  <span>{product.location.city}, {product.location.state}</span>
+                  <span>{typeof product.location === 'string' ? product.location : `${product.location?.city || 'Unknown'}, ${product.location?.state || 'Unknown State'}`}</span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <Calendar className="h-3 w-3" />
@@ -731,7 +711,7 @@ function ProductCard({
             <div className="flex items-center space-x-1">
               <MapPin className="h-3 w-3 text-muted-foreground" />
               <span className="text-muted-foreground">
-                {product.location.city}, {product.location.state}
+                {typeof product.location === 'string' ? product.location : `${product.location?.city || 'Unknown'}, ${product.location?.state || 'Unknown State'}`}
               </span>
             </div>
             <div className="flex items-center space-x-1">

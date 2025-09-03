@@ -39,7 +39,10 @@ export function LoginForm() {
         title: "Welcome back!",
         description: "You have been successfully signed in.",
       })
-      router.push("/dashboard")
+
+      // Check for redirect URL in query parameters
+      const redirectUrl = searchParams.get('redirect') || "/dashboard"
+      router.push(redirectUrl)
     } catch (error: any) {
       const requiresVerification = error?.payload?.requiresVerification || false
       const email = formData.email

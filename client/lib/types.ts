@@ -173,8 +173,9 @@ export interface WeatherData {
 }
 
 export interface ApiResponse<T = any> {
-  success: boolean
-  message: string
+  success?: boolean
+  status?: 'success' | 'error'
+  message?: string
   data?: T
   error?: string
   pagination?: {
@@ -186,13 +187,14 @@ export interface ApiResponse<T = any> {
 }
 
 export interface DashboardStats {
-  totalUsers: number
+  totalUsers?: number
   totalHarvests: number
-  totalOrders: number
-  totalRevenue: number
+  totalOrders?: number
+  totalRevenue?: number
+  monthlyRevenue?: number
   pendingApprovals: number
   activeListings: number
-  recentActivity: Activity[]
+  recentActivity?: Activity[]
 }
 
 export interface Activity {

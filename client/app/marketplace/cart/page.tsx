@@ -5,53 +5,43 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { api } from "@/lib/api"
-import type { CartItem } from "@/lib/types"
+import { useBuyerStore } from "@/hooks/use-buyer-store"
 import Link from "next/link"
 import Image from "next/image"
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const {
+    cart,
+    updateCartQuantity,
+    removeFromCart,
+    clearCart,
+    isLoading
+  } = useBuyerStore()
 
-  useEffect(() => {
-    fetchCart()
-  }, [])
+  const [loading, setLoading] = useState(false)
 
-  const fetchCart = async () => {
-    try {
-      const response = await api.get("/marketplace/cart")
-      setCartItems(response.data.items || [])
-    } catch (error) {
-      console.error("Failed to fetch cart:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const updateQuantity = async (itemId: string, quantity: number) => {
-    try {
-      await api.put(`/marketplace/cart/${itemId}`, { quantity })
-      setCartItems((items) => items.map((item) => (item.id === itemId ? { ...item, quantity } : item)))
-    } catch (error) {
-      console.error("Failed to update quantity:", error)
-    }
-  }
-
-  const removeItem = async (itemId: string) => {
-    try {
-      await api.delete(`/marketplace/cart/${itemId}`)
-      setCartItems((items) => items.filter((item) => item.id !== itemId))
-    } catch (error) {
-      console.error("Failed to remove item:", error)
-    }
-  }
-
-  const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+  // Calculate totals
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
   const shipping = subtotal > 5000 ? 0 : 500
   const total = subtotal + shipping
 
-  if (loading) {
+  const handleUpdateQuantity = (itemId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeFromCart(itemId)
+    } else {
+      updateCartQuantity(itemId, newQuantity)
+    }
+  }
+
+  const handleRemoveItem = (itemId: string) => {
+    removeFromCart(itemId)
+  }
+
+  const handleClearCart = () => {
+    clearCart()
+  }
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50">
         <div className="container mx-auto px-4 py-8">
@@ -82,11 +72,11 @@ export default function CartPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <ShoppingBag className="h-5 w-5" />
-                  Shopping Cart ({cartItems.length} items)
+                  Shopping Cart ({cart.length} items)
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {cartItems.length === 0 ? (
+                {cart.length === 0 ? (
                   <div className="text-center py-8">
                     <ShoppingBag className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">Your cart is empty</h3>
@@ -97,31 +87,32 @@ export default function CartPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {cartItems.map((item) => (
+                    {cart.map((item) => (
                       <div key={item.id} className="flex items-center gap-4 p-4 border rounded-lg">
                         <div className="relative h-16 w-16 rounded overflow-hidden">
                           <Image
                             src={
-                              item.product.images?.[0] ||
+                              item.image ||
                               "/placeholder.svg?height=64&width=64&query=agricultural product"
                             }
-                            alt={item.product.name}
+                            alt={item.cropName}
                             fill
                             className="object-cover"
                           />
                         </div>
 
                         <div className="flex-1">
-                          <h4 className="font-semibold">{item.product.name}</h4>
-                          <p className="text-sm text-gray-600">{item.product.farmer?.name}</p>
-                          <p className="text-sm text-gray-500">{item.product.location}</p>
+                          <h4 className="font-semibold">{item.cropName}</h4>
+                          <p className="text-sm text-gray-600">{item.farmer}</p>
+                          <p className="text-sm text-gray-500">{item.location}</p>
                         </div>
 
                         <div className="flex items-center gap-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                            onClick={() => handleUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                            disabled={item.quantity <= 1}
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
@@ -129,23 +120,24 @@ export default function CartPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                            disabled={item.quantity >= item.availableQuantity}
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
 
                         <div className="text-right">
-                          <p className="font-semibold">₦{(item.product.price * item.quantity).toLocaleString()}</p>
+                          <p className="font-semibold">₦{(item.price * item.quantity).toLocaleString()}</p>
                           <p className="text-sm text-gray-500">
-                            ₦{item.product.price}/{item.product.unit}
+                            ₦{item.price}/{item.unit}
                           </p>
                         </div>
 
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => handleRemoveItem(item.id)}
                           className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -159,7 +151,7 @@ export default function CartPage() {
           </div>
 
           {/* Order Summary */}
-          {cartItems.length > 0 && (
+          {cart.length > 0 && (
             <div>
               <Card>
                 <CardHeader>

@@ -91,8 +91,16 @@ export const useAuthStore = create<AuthState>()(
             throw new Error('Authentication response is missing required fields.')
           }
 
+          // Store token in API service and localStorage
           apiService.setToken(accessToken)
-          // Ensure Next middleware sees cookie on navigation to protected routes
+
+          // Store tokens in localStorage for persistence
+          if (typeof window !== "undefined") {
+            localStorage.setItem("grochain_auth_token", accessToken)
+            localStorage.setItem("grochain_refresh_token", refreshToken)
+          }
+
+          // Also set HTTP-only cookies for middleware compatibility
           setCookie("auth_token", accessToken)
           setCookie("refresh_token", refreshToken, 60 * 60 * 24 * 30)
           set({
@@ -136,11 +144,31 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        // Best-effort call to backend to clear cookie
-        try { apiService.logout() } catch {}
-        apiService.clearToken()
-        clearCookie("auth_token")
-        clearCookie("refresh_token")
+        // Clear all local storage and cookies
+        try { 
+          // Clear API service token
+          apiService.clearToken()
+          
+          // Clear cookies
+          clearCookie("auth_token")
+          clearCookie("refresh_token")
+          
+          // Clear localStorage if it exists
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('grochain-auth')
+            sessionStorage.clear()
+          }
+          
+          // Call backend logout (best effort)
+          apiService.logout().catch(() => {
+            // Ignore backend errors during logout
+          })
+        } catch (error) {
+          // Ensure cleanup happens even if there are errors
+          console.warn('Error during logout cleanup:', error)
+        }
+        
+        // Reset state
         set({
           user: null,
           token: null,
@@ -223,5 +251,36 @@ export const useAuthGuard = (requiredRole?: string) => {
     hasAccess: hasAccess(),
     role: user?.role,
     isHydrated: hasHydrated,
+  }
+}
+
+// Utility function to check if user is authenticated
+export const isAuthenticated = () => {
+  if (typeof window === 'undefined') return false
+  
+  // Check localStorage
+  const authData = localStorage.getItem('grochain-auth')
+  if (!authData) return false
+  
+  try {
+    const parsed = JSON.parse(authData)
+    return !!(parsed.user && parsed.token && parsed.isAuthenticated)
+  } catch {
+    return false
+  }
+}
+
+// Utility function to get current user
+export const getCurrentUser = () => {
+  if (typeof window === 'undefined') return null
+  
+  try {
+    const authData = localStorage.getItem('grochain-auth')
+    if (!authData) return null
+    
+    const parsed = JSON.parse(authData)
+    return parsed.user || null
+  } catch {
+    return null
   }
 }

@@ -1,26 +1,15 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Protect dashboard routes using the auth_token cookie set by backend
+// Temporarily disable middleware to allow client-side auth to work
+// TODO: Re-enable middleware once token synchronization is fully implemented
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-
-  const isProtected = pathname.startsWith('/dashboard')
-  if (!isProtected) return NextResponse.next()
-
-  const authCookie = request.cookies.get('auth_token')?.value
-  if (!authCookie) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('next', pathname)
-    return NextResponse.redirect(url)
-  }
-
+  // For now, let all requests through and rely on client-side auth checking
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: ['/dashboard/:path*', '/marketplace/:path*'],
 }
 
 

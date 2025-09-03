@@ -4,17 +4,246 @@ const User = require('../models/user.model')
 const upload = require('../utils/upload')
 
 router.get('/dashboard', authenticate, authorize('admin','partner','farmer','buyer'), async (req, res) => {
-  return res.json({ status: 'success', data: { totalHarvests: 0, pendingApprovals: 0, activeListings: 0, monthlyRevenue: 0 } })
+  try {
+    const userId = req.user.id
+    const userRole = req.user.role
+    
+    let dashboardData = {
+      totalHarvests: 0,
+      pendingApprovals: 0,
+      activeListings: 0,
+      monthlyRevenue: 0
+    }
+    
+    // Get harvest data for farmers
+    if (userRole === 'farmer') {
+      const Harvest = require('../models/harvest.model')
+      const [totalHarvests, pendingHarvests] = await Promise.all([
+        Harvest.countDocuments({ farmer: userId }),
+        Harvest.countDocuments({ farmer: userId, status: 'pending' })
+      ])
+      
+      dashboardData.totalHarvests = totalHarvests
+      dashboardData.pendingApprovals = pendingHarvests
+      
+      // Get marketplace listings for farmers
+      const Listing = require('../models/listing.model')
+      const activeListings = await Listing.countDocuments({ 
+        farmer: userId, 
+        status: 'active' 
+      })
+      dashboardData.activeListings = activeListings
+      
+      // Get monthly revenue for farmers
+      const Transaction = require('../models/transaction.model')
+      const startOfMonth = new Date()
+      startOfMonth.setDate(1)
+      startOfMonth.setHours(0, 0, 0, 0)
+      
+      const monthlyTransactions = await Transaction.aggregate([
+        {
+          $match: {
+            farmer: userId,
+            status: 'completed',
+            createdAt: { $gte: startOfMonth }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$amount' }
+          }
+        }
+      ])
+      
+      dashboardData.monthlyRevenue = monthlyTransactions[0]?.total || 0
+    }
+    
+    // Get partner data
+    if (userRole === 'partner') {
+      const Partner = require('../models/partner.model')
+      const partner = await Partner.findOne({ user: userId })
+      
+      if (partner) {
+        const Harvest = require('../models/harvest.model')
+        const pendingApprovals = await Harvest.countDocuments({ 
+          partner: partner._id, 
+          status: 'pending' 
+        })
+        
+        dashboardData.pendingApprovals = pendingApprovals
+        dashboardData.totalHarvests = await Harvest.countDocuments({ partner: partner._id })
+      }
+    }
+    
+    // Get buyer data
+    if (userRole === 'buyer') {
+      const Order = require('../models/order.model')
+      const totalOrders = await Order.countDocuments({ buyer: userId })
+      dashboardData.totalHarvests = totalOrders // For buyers, this represents orders
+    }
+    
+    // Get admin data
+    if (userRole === 'admin') {
+      const Harvest = require('../models/harvest.model')
+      const User = require('../models/user.model')
+      const Transaction = require('../models/transaction.model')
+      
+      const startOfMonth = new Date()
+      startOfMonth.setDate(1)
+      startOfMonth.setHours(0, 0, 0, 0)
+      
+      const [totalHarvests, pendingApprovals, totalUsers, monthlyRevenue] = await Promise.all([
+        Harvest.countDocuments(),
+        Harvest.countDocuments({ status: 'pending' }),
+        User.countDocuments(),
+        Transaction.aggregate([
+          {
+            $match: {
+              status: 'completed',
+              createdAt: { $gte: startOfMonth }
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$amount' }
+            }
+          }
+        ])
+      ])
+      
+      dashboardData.totalHarvests = totalHarvests
+      dashboardData.pendingApprovals = pendingApprovals
+      dashboardData.activeListings = totalUsers
+      dashboardData.monthlyRevenue = monthlyRevenue[0]?.total || 0
+    }
+    
+    return res.json({ status: 'success', data: dashboardData })
+  } catch (error) {
+    console.error('Dashboard error:', error)
+    return res.status(500).json({ 
+      status: 'error', 
+      message: 'Failed to load dashboard data' 
+    })
+  }
 })
 
 router.get('/profile/me', authenticate, async (req, res) => {
-  const user = await User.findById(req.user.id)
-  return res.json(user)
+  try {
+    const user = await User.findById(req.user.id).populate('partner').select('-password -resetPasswordToken -resetPasswordExpires -emailVerificationToken -emailVerificationExpires -smsOtpToken -smsOtpExpires')
+
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found' })
+    }
+
+    // Get additional profile data based on user role
+    let profileData = {
+      ...user.toObject(),
+      stats: {
+        totalHarvests: 0,
+        totalListings: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        lastActive: user.stats?.lastActive || user.createdAt
+      }
+    }
+
+    if (user.role === 'farmer') {
+      // Get farmer-specific stats
+      const Harvest = require('../models/harvest.model')
+      const Listing = require('../models/listing.model')
+      const Order = require('../models/order.model')
+      const Transaction = require('../models/transaction.model')
+
+      const [totalHarvests, totalListings, totalOrders, totalRevenue] = await Promise.all([
+        Harvest.countDocuments({ farmer: user._id }),
+        Listing.countDocuments({ farmer: user._id }),
+        Order.countDocuments({ 'items.listing': { $in: await Listing.find({ farmer: user._id }).distinct('_id') } }),
+        Transaction.aggregate([
+          { $match: { userId: user._id, type: { $in: ['payment', 'commission'] }, status: 'completed' } },
+          { $group: { _id: null, total: { $sum: '$amount' } } }
+        ])
+      ])
+
+      profileData.stats = {
+        totalHarvests,
+        totalListings,
+        totalOrders,
+        totalRevenue: totalRevenue[0]?.total || 0,
+        lastActive: user.stats?.lastActive || user.createdAt
+      }
+
+      // Get recent harvests
+      const recentHarvests = await Harvest.find({ farmer: user._id })
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .select('cropType quantity qualityGrade status createdAt')
+
+      profileData.recentHarvests = recentHarvests
+
+    } else if (user.role === 'partner') {
+      // Get partner-specific data
+      const partnerFarmers = await User.countDocuments({ partner: user.partner?._id, role: 'farmer' })
+      const partnerHarvests = await require('../models/harvest.model').countDocuments({
+        farmer: { $in: await User.find({ partner: user.partner?._id, role: 'farmer' }).distinct('_id') }
+      })
+
+      profileData.partnerStats = {
+        totalFarmers: partnerFarmers,
+        totalHarvests: partnerHarvests,
+        partnerInfo: user.partner
+      }
+    }
+
+    return res.json({ status: 'success', data: profileData })
+  } catch (error) {
+    console.error('Error fetching profile:', error)
+    return res.status(500).json({ status: 'error', message: 'Failed to fetch profile' })
+  }
 })
 
 router.put('/profile/me', authenticate, async (req, res) => {
-  const user = await User.findByIdAndUpdate(req.user.id, req.body, { new: true })
-  return res.json(user)
+  try {
+    const updateData = { ...req.body }
+
+    // Remove sensitive fields that shouldn't be updated via profile
+    delete updateData.password
+    delete updateData.role
+    delete updateData.status
+    delete updateData.emailVerified
+    delete updateData.phoneVerified
+    delete updateData.resetPasswordToken
+    delete updateData.resetPasswordExpires
+    delete updateData.emailVerificationToken
+    delete updateData.emailVerificationExpires
+    delete updateData.smsOtpToken
+    delete updateData.smsOtpExpires
+    delete updateData.suspensionReason
+    delete updateData.suspendedAt
+    delete updateData.suspendedBy
+
+    // Update last active timestamp
+    updateData.stats = {
+      ...updateData.stats,
+      lastActive: new Date()
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password -resetPasswordToken -resetPasswordExpires -emailVerificationToken -emailVerificationExpires -smsOtpToken -smsOtpExpires')
+
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found' })
+    }
+
+    return res.json({ status: 'success', data: user })
+  } catch (error) {
+    console.error('Error updating profile:', error)
+    return res.status(500).json({ status: 'error', message: 'Failed to update profile' })
+  }
 })
 
 router.get('/preferences/me', authenticate, async (req, res) => {
@@ -28,15 +257,337 @@ router.put('/preferences/me', authenticate, async (req, res) => {
 })
 
 router.get('/settings/me', authenticate, async (req, res) => {
-  return res.json({})
+  try {
+    const user = await User.findById(req.user.id).select('settings preferences notificationPreferences profile')
+
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found' })
+    }
+
+    // Return structured settings data
+    const settingsData = {
+      general: {
+        language: user.settings?.language || 'en',
+        timezone: user.settings?.timezone || 'Africa/Lagos',
+        currency: user.settings?.currency || 'NGN',
+        theme: user.settings?.theme || 'auto'
+      },
+      notifications: user.notificationPreferences || {},
+      preferences: user.preferences || {},
+      profile: {
+        bio: user.profile?.bio || '',
+        address: user.profile?.address || '',
+        city: user.profile?.city || '',
+        state: user.profile?.state || '',
+        country: user.profile?.country || 'Nigeria',
+        postalCode: user.profile?.postalCode || '',
+        avatar: user.profile?.avatar || null
+      },
+      security: {
+        twoFactorAuth: false, // Will be implemented later
+        loginNotifications: true,
+        sessionTimeout: 60 // minutes
+      }
+    }
+
+    return res.json({ status: 'success', data: settingsData })
+  } catch (error) {
+    console.error('Error fetching settings:', error)
+    return res.status(500).json({ status: 'error', message: 'Failed to fetch settings' })
+  }
 })
 
 router.put('/settings/me', authenticate, async (req, res) => {
-  return res.json({})
+  try {
+    const { general, notifications, preferences, security } = req.body
+
+    // Prepare update data
+    const updateData = {}
+
+    if (general) {
+      updateData.settings = {
+        ...general
+      }
+    }
+
+    if (notifications) {
+      updateData.notificationPreferences = {
+        ...notifications
+      }
+    }
+
+    if (preferences) {
+      updateData.preferences = {
+        ...preferences
+      }
+    }
+
+    // Note: Security settings will be handled separately for now
+    // as they may require additional validation and implementation
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('settings preferences notificationPreferences')
+
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found' })
+    }
+
+    // Return updated settings
+    const settingsData = {
+      general: {
+        language: user.settings?.language || 'en',
+        timezone: user.settings?.timezone || 'Africa/Lagos',
+        currency: user.settings?.currency || 'NGN',
+        theme: user.settings?.theme || 'auto'
+      },
+      notifications: user.notificationPreferences || {},
+      preferences: user.preferences || {},
+      security: {
+        twoFactorAuth: false,
+        loginNotifications: true,
+        sessionTimeout: 60
+      }
+    }
+
+    return res.json({ status: 'success', data: settingsData, message: 'Settings updated successfully' })
+  } catch (error) {
+    console.error('Error updating settings:', error)
+    return res.status(500).json({ status: 'error', message: 'Failed to update settings' })
+  }
+})
+
+router.get('/recent-activities', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.id
+    const userRole = req.user.role
+    const limit = parseInt(req.query.limit) || 10
+
+    let activities = []
+
+    // Get recent harvests for farmers
+    if (userRole === 'farmer') {
+      const Harvest = require('../models/harvest.model')
+      const recentHarvests = await Harvest.find({ farmer: userId })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .populate('farmer', 'name')
+
+      activities = recentHarvests.map(harvest => ({
+        _id: harvest._id,
+        type: 'harvest',
+        description: `New harvest of ${harvest.quantity}${harvest.unit} ${harvest.cropType} submitted`,
+        timestamp: harvest.createdAt,
+        user: harvest.farmer?.name || 'You',
+        metadata: {
+          cropType: harvest.cropType,
+          quantity: harvest.quantity,
+          status: harvest.status
+        }
+      }))
+    }
+
+    // Get recent orders for buyers
+    if (userRole === 'buyer') {
+      const Order = require('../models/order.model')
+      const recentOrders = await Order.find({ buyer: userId })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .populate('buyer', 'name')
+
+      activities = recentOrders.map(order => ({
+        _id: order._id,
+        type: 'order',
+        description: `Order #${order._id.toString().slice(-6)} placed`,
+        timestamp: order.createdAt,
+        user: order.buyer?.name || 'You',
+        metadata: {
+          amount: order.totalAmount,
+          status: order.status
+        }
+      }))
+    }
+
+    // Get recent activities for partners
+    if (userRole === 'partner') {
+      const Partner = require('../models/partner.model')
+      const partner = await Partner.findOne({ user: userId })
+
+      if (partner) {
+        const Harvest = require('../models/harvest.model')
+        const recentHarvests = await Harvest.find({ partner: partner._id })
+          .sort({ createdAt: -1 })
+          .limit(limit)
+          .populate('farmer', 'name')
+
+        activities = recentHarvests.map(harvest => ({
+          _id: harvest._id,
+          type: 'harvest',
+          description: `Harvest from ${harvest.farmer?.name || 'Unknown Farmer'} verified`,
+          timestamp: harvest.updatedAt || harvest.createdAt,
+          user: harvest.farmer?.name || 'Unknown Farmer',
+          metadata: {
+            cropType: harvest.cropType,
+            quantity: harvest.quantity,
+            status: harvest.status
+          }
+        }))
+      }
+    }
+
+    return res.json({ status: 'success', data: activities })
+
+  } catch (error) {
+    console.error('Recent activities error:', error)
+    return res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch recent activities'
+    })
+  }
+})
+
+// Avatar upload endpoint (must be before admin middleware)
+router.post('/upload-avatar', authenticate, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'No file uploaded'
+      })
+    }
+
+    const userId = req.user.id
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`
+
+    // Update user profile with new avatar
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        'profile.avatar': avatarUrl
+      },
+      { new: true }
+    )
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      })
+    }
+
+    res.json({
+      status: 'success',
+      data: {
+        avatarUrl: avatarUrl,
+        message: 'Avatar uploaded successfully'
+      }
+    })
+  } catch (error) {
+    console.error('Avatar upload error:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to upload avatar'
+    })
+  }
+})
+
+// Proxy endpoint for serving avatars (bypasses CORS issues)
+router.get('/avatar/:filename', async (req, res) => {
+  try {
+    console.log('Avatar proxy request received for:', req.params.filename)
+    const fs = require('fs')
+    const path = require('path')
+    const filename = req.params.filename
+    const filePath = path.join(__dirname, '..', 'uploads', 'avatars', filename)
+
+    console.log('Looking for file at:', filePath)
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      console.log('File not found:', filePath)
+      return res.status(404).json({
+        status: 'error',
+        message: 'Avatar not found'
+      })
+    }
+
+    console.log('File exists, sending file...')
+    // Send the file directly (no CORS issues since it's from the same origin)
+    res.sendFile(filePath, (err) => {
+      if (err) {
+        console.error('Error sending file:', err)
+        // Check if headers have already been sent before sending error response
+        if (!res.headersSent) {
+          res.status(500).json({
+            status: 'error',
+            message: 'Failed to serve avatar'
+          })
+        }
+      } else {
+        console.log('File sent successfully')
+      }
+    })
+  } catch (error) {
+    console.error('Avatar proxy error:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to serve avatar'
+    })
+  }
 })
 
 router.post('/change-password', authenticate, async (req, res) => {
-  return res.json({ status: 'success' })
+  try {
+    const { currentPassword, newPassword } = req.body
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Current password and new password are required'
+      })
+    }
+
+    // Validate new password strength
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'New password must be at least 8 characters long'
+      })
+    }
+
+    // Get user with password field
+    const user = await User.findById(req.user.id)
+
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found' })
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await user.comparePassword(currentPassword)
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Current password is incorrect'
+      })
+    }
+
+    // Update password (pre-save middleware will hash it)
+    user.password = newPassword
+    await user.save()
+
+    return res.json({
+      status: 'success',
+      message: 'Password changed successfully'
+    })
+  } catch (error) {
+    console.error('Error changing password:', error)
+    return res.status(500).json({
+      status: 'error',
+      message: 'Failed to change password'
+    })
+  }
 })
 
 // Admin suite
@@ -159,50 +710,7 @@ router.post('/export', async (req, res) => {
   return res.json({ status: 'success', data: { url: null, message: 'Not yet implemented' } })
 })
 
-// Avatar upload endpoint
-router.post('/upload-avatar', authenticate, upload.single('avatar'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'No file uploaded'
-      })
-    }
 
-    const userId = req.user.id
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`
-
-    // Update user profile with new avatar
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      {
-        'profile.avatar': avatarUrl
-      },
-      { new: true }
-    )
-
-    if (!updatedUser) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'User not found'
-      })
-    }
-
-    res.json({
-      status: 'success',
-      data: {
-        avatarUrl: avatarUrl,
-        message: 'Avatar uploaded successfully'
-      }
-    })
-  } catch (error) {
-    console.error('Avatar upload error:', error)
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to upload avatar'
-    })
-  }
-})
 
 module.exports = router
 

@@ -81,9 +81,27 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
 
-  const handleLogout = () => {
-    logout()
-    router.push("/")
+  const handleLogout = async () => {
+    try {
+      // Clear auth state
+      logout()
+      
+      // Clear any other stores that might have user data
+      if (typeof window !== 'undefined') {
+        // Clear any other stores
+        localStorage.clear()
+        sessionStorage.clear()
+      }
+      
+      // Redirect to login page with a small delay to ensure cleanup
+      setTimeout(() => {
+        router.push("/login")
+      }, 100)
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Fallback: force redirect to login
+      router.push("/login")
+    }
   }
 
   const toggleSection = (section: string) => {
@@ -181,11 +199,11 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
   // Safety check for user object
   if (!user) {
     return (
-      <div className="flex h-screen bg-background">
-        <div className="flex flex-1 flex-col items-center justify-center">
-          <div className="text-center space-y-4">
-            <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
-            <p className="text-lg font-medium">Loading user data...</p>
+      <div className="flex min-h-screen max-h-screen bg-background overflow-hidden">
+        <div className="flex flex-1 flex-col items-center justify-center min-h-0">
+          <div className="text-center space-y-4 p-4">
+            <div className="h-12 w-12 sm:h-16 sm:w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+            <p className="text-base sm:text-lg font-medium">Loading user data...</p>
           </div>
         </div>
       </div>
@@ -368,9 +386,9 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
   )
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex min-h-screen max-h-screen bg-background overflow-hidden">
       {/* Desktop Sidebar */}
-      <div className="hidden lg:flex lg:w-72 lg:flex-col lg:border-r">
+      <div className="hidden lg:flex lg:w-72 lg:flex-col lg:border-r lg:overflow-hidden">
         <SidebarContent />
       </div>
 
@@ -382,9 +400,9 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
       </Sheet>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col min-h-0">
         {/* Header */}
-        <header className="flex h-16 items-center justify-between border-b bg-background px-6">
+        <header className="flex h-16 items-center justify-between border-b bg-background px-4 sm:px-6 flex-shrink-0">
           <div className="flex items-center space-x-4">
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
@@ -394,8 +412,8 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
               </SheetTrigger>
             </Sheet>
 
-            <div>
-              <h1 className="text-lg font-semibold">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base sm:text-lg font-semibold truncate">
                 {pageTitle || (() => {
                   if (user && user.role === "farmer") return "Farmer Dashboard"
                   if (user && user.role === "buyer") return "Buyer Dashboard"
@@ -404,7 +422,7 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
                   return "Dashboard"
                 })()}
               </h1>
-              <p className="text-sm text-muted-foreground">Welcome back, {user?.name ? user.name.split(" ")[0] : "User"}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">Welcome back, {user?.name ? user.name.split(" ")[0] : "User"}</p>
             </div>
           </div>
 
@@ -474,8 +492,8 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50/50">
-          <div className="container mx-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50/50 min-h-0">
+          <div className="container mx-auto px-4 py-6 lg:px-6 lg:py-8 max-w-7xl">
             {children}
           </div>
         </main>

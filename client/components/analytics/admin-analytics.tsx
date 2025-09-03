@@ -23,7 +23,7 @@ import {
   Shield,
   Globe
 } from "lucide-react"
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie } from "recharts"
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie, Legend } from "recharts"
 import { cn } from "@/lib/utils"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
@@ -39,6 +39,12 @@ interface AdminAnalyticsData {
   totalRevenue: number
   averageCreditScore: number
   approvalRate: number
+  userDistribution?: {
+    farmers: number;
+    buyers: number;
+    partners: number;
+    admins: number;
+  };
 }
 
 interface ChartData {
@@ -134,6 +140,129 @@ export function AdminAnalytics() {
       notation: 'compact',
       maximumFractionDigits: 1
     }).format(value)
+  }
+
+  // Ensure data is valid before rendering charts
+  const isValidData = (data: any[]) => {
+    return Array.isArray(data) && data.length > 0 && data.every(item => item !== null && item !== undefined)
+  }
+
+  // Safe chart rendering with error boundaries
+  const renderChart = (chartType: string, data: any[], fallback: React.ReactNode) => {
+    if (!isValidData(data)) {
+      return fallback
+    }
+    
+    try {
+      switch (chartType) {
+        case 'line':
+          return (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="users" 
+                  stroke="#3b82f6" 
+                  strokeWidth={2}
+                  name="Users"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="transactions" 
+                  stroke="#10b981" 
+                  strokeWidth={2}
+                  name="Transactions"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )
+        case 'area':
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <AreaChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Area 
+                  type="monotone" 
+                  dataKey="users" 
+                  stackId="1" 
+                  stroke="#3b82f6" 
+                  fill="#3b82f6" 
+                  fillOpacity={0.6}
+                  name="Users"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="transactions" 
+                  stackId="2" 
+                  stroke="#10b981" 
+                  fill="#10b981" 
+                  fillOpacity={0.6}
+                  name="Transactions"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )
+        case 'bar':
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" fill="#3b82f6" name="Count" />
+                <Bar dataKey="amount" fill="#10b981" name="Amount" />
+              </BarChart>
+            </ResponsiveContainer>
+          )
+        case 'pie':
+          return (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Farmers', value: analyticsData?.userDistribution?.farmers || 0, color: '#10b981' },
+                    { name: 'Buyers', value: analyticsData?.userDistribution?.buyers || 0, color: '#3b82f6' },
+                    { name: 'Partners', value: analyticsData?.userDistribution?.partners || 0, color: '#f59e0b' },
+                    { name: 'Admins', value: analyticsData?.userDistribution?.admins || 0, color: '#ef4444' }
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                >
+                  {[
+                    { name: 'Farmers', value: analyticsData?.userDistribution?.farmers || 0, color: '#10b981' },
+                    { name: 'Buyers', value: analyticsData?.userDistribution?.buyers || 0, color: '#3b82f6' },
+                    { name: 'Partners', value: analyticsData?.userDistribution?.partners || 0, color: '#f59e0b' },
+                    { name: 'Admins', value: analyticsData?.userDistribution?.admins || 0, color: '#ef4444' }
+                  ].map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )
+        default:
+          return fallback
+      }
+    } catch (error) {
+      console.error(`Error rendering ${chartType} chart:`, error)
+      return fallback
+    }
   }
 
   if (isLoading) {

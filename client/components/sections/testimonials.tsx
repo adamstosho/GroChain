@@ -79,7 +79,7 @@ export function Testimonials() {
                     <div>
                       <p className="font-semibold text-sm">{testimonial.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {testimonial.role}, {testimonial.location}
+                        {testimonial.role}, {typeof testimonial.location === 'string' ? testimonial.location : `${testimonial.location?.city || 'Unknown'}, ${testimonial.location?.state || 'Unknown State'}`}
                       </p>
                     </div>
                   </div>

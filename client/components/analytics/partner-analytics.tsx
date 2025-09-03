@@ -132,6 +132,129 @@ export function PartnerAnalytics() {
     }).format(value)
   }
 
+  // Ensure data is valid before rendering charts
+  const isValidData = (data: any[]) => {
+    return Array.isArray(data) && data.length > 0 && data.every(item => item !== null && item !== undefined)
+  }
+
+  // Safe chart rendering with error boundaries
+  const renderChart = (chartType: string, data: any[], fallback: React.ReactNode) => {
+    if (!isValidData(data)) {
+      return fallback
+    }
+    
+    try {
+      switch (chartType) {
+        case 'line':
+          return (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="transactions" 
+                  stroke="#3b82f6" 
+                  strokeWidth={2}
+                  name="Transactions"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="volume" 
+                  stroke="#10b981" 
+                  strokeWidth={2}
+                  name="Volume (₦)"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )
+        case 'area':
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <AreaChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Area 
+                  type="monotone" 
+                  dataKey="transactions" 
+                  stackId="1" 
+                  stroke="#3b82f6" 
+                  fill="#3b82f6" 
+                  fillOpacity={0.6}
+                  name="Transactions"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="volume" 
+                  stackId="2" 
+                  stroke="#10b981" 
+                  fill="#10b981" 
+                  fillOpacity={0.6}
+                  name="Volume (₦)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )
+        case 'bar':
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" fill="#3b82f6" name="Transaction Count" />
+                <Bar dataKey="amount" fill="#10b981" name="Total Amount" />
+              </BarChart>
+            </ResponsiveContainer>
+          )
+        case 'pie':
+          return (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Grains', value: analyticsData.cropDistribution.grains, color: '#10b981' },
+                    { name: 'Vegetables', value: analyticsData.cropDistribution.vegetables, color: '#3b82f6' },
+                    { name: 'Tubers', value: analyticsData.cropDistribution.tubers, color: '#f59e0b' },
+                    { name: 'Fruits', value: analyticsData.cropDistribution.fruits, color: '#ef4444' }
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                >
+                  {[
+                    { name: 'Grains', value: analyticsData.cropDistribution.grains, color: '#10b981' },
+                    { name: 'Vegetables', value: analyticsData.cropDistribution.vegetables, color: '#3b82f6' },
+                    { name: 'Tubers', value: analyticsData.cropDistribution.tubers, color: '#f59e0b' },
+                    { name: 'Fruits', value: analyticsData.cropDistribution.fruits, color: '#ef4444' }
+                  ].map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )
+        default:
+          return fallback
+      }
+    } catch (error) {
+      console.error(`Error rendering ${chartType} chart:`, error)
+      return fallback
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -434,7 +557,7 @@ export function PartnerAnalytics() {
                     {mockTopFarmers.map((farmer, index) => (
                       <tr key={farmer.name} className="border-b hover:bg-muted/30">
                         <td className="p-2 font-medium">{farmer.name}</td>
-                        <td className="p-2">{farmer.location}</td>
+                        <td className="p-2">{typeof farmer.location === 'string' ? farmer.location : `${farmer.location?.city || 'Unknown'}, ${farmer.location?.state || 'Unknown State'}`}</td>
                         <td className="p-2">{farmer.harvests}</td>
                         <td className="p-2">{formatCurrency(farmer.revenue)}</td>
                         <td className="p-2 flex items-center gap-1">

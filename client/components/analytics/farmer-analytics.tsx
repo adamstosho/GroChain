@@ -1,16 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Package, 
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Package,
   Leaf,
   Calendar,
   BarChart3,
@@ -20,9 +21,16 @@ import {
   RefreshCw,
   MapPin,
   QrCode,
-  Target
+  Target,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  Users,
+  Zap,
+  FileText,
+  FileSpreadsheet
 } from "lucide-react"
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie } from "recharts"
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie, Legend } from "recharts"
 import { cn } from "@/lib/utils"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
@@ -36,6 +44,33 @@ interface FarmerAnalyticsData {
   totalRevenue: number
   averageHarvestQuantity: number
   creditScore?: number
+  qualityMetrics?: {
+    excellent: number
+    good: number
+    fair: number
+    poor: number
+  }
+  monthlyTrends?: Array<{
+    month: string
+    harvests: number
+    revenue: number
+    quality: number
+  }>
+  cropDistribution?: Array<{
+    name: string
+    value: number
+    color: string
+  }>
+  marketplaceStats?: {
+    activeListings: number
+    totalViews: number
+    conversionRate: number
+    topProducts: Array<{
+      name: string
+      revenue: number
+      orders: number
+    }>
+  }
 }
 
 interface ChartData {
@@ -47,66 +82,127 @@ interface ChartData {
 export function FarmerAnalytics() {
   const [analyticsData, setAnalyticsData] = useState<FarmerAnalyticsData | null>(null)
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "1y">("30d")
+  const [exportFormat, setExportFormat] = useState<"csv" | "xlsx">("csv")
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
-  // Mock data for charts (replace with real API calls)
-  const mockHarvestTrends: ChartData[] = [
-    { name: "Jan", harvests: 12, revenue: 45000, quality: 85 },
-    { name: "Feb", harvests: 15, revenue: 52000, quality: 87 },
-    { name: "Mar", harvests: 18, revenue: 61000, quality: 89 },
-    { name: "Apr", harvests: 22, revenue: 78000, quality: 91 },
-    { name: "May", harvests: 25, revenue: 89000, quality: 93 },
-    { name: "Jun", harvests: 28, revenue: 102000, quality: 94 }
-  ]
+  // Fetch analytics data from backend
+  const fetchAnalytics = useCallback(async (period?: string) => {
+    try {
+      setError(null)
+      if (!period) setIsLoading(true)
 
-  const mockCropDistribution: ChartData[] = [
-    { name: "Maize", value: 40, color: "#22c55e" },
-    { name: "Cassava", value: 25, color: "#f59e0b" },
-    { name: "Vegetables", value: 20, color: "#8b5cf6" },
-    { name: "Rice", value: 10, color: "#ef4444" },
-    { name: "Others", value: 5, color: "#6b7280" }
-  ]
+      const [farmerAnalytics, marketplaceAnalytics, creditScore] = await Promise.all([
+        apiService.getFarmerAnalytics(),
+        apiService.getFarmerAnalytics().catch(() => null), // Optional marketplace data
+        apiService.getMyCreditScore().catch(() => ({ data: { creditScore: 0 } }))
+      ])
 
-  const mockQualityMetrics = {
-    excellent: 45,
-    good: 35,
-    fair: 15,
-    poor: 5
-  }
-
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        setIsLoading(true)
-        // Fetch farmer analytics data
-        const response = await apiService.getFarmerAnalytics()
-        setAnalyticsData(response.data)
-      } catch (error: any) {
-        toast({
-          title: "Error loading analytics",
-          description: error.message,
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoading(false)
+      // Process and combine the data
+      const combinedData: FarmerAnalyticsData = {
+        ...farmerAnalytics.data,
+        creditScore: creditScore.data?.creditScore || 0,
+        qualityMetrics: farmerAnalytics.data.qualityMetrics || {
+          excellent: 0,
+          good: 0,
+          fair: 0,
+          poor: 0
+        },
+        monthlyTrends: farmerAnalytics.data.monthlyTrends || [],
+        cropDistribution: farmerAnalytics.data.cropDistribution || [],
+        marketplaceStats: marketplaceAnalytics?.data || {
+          activeListings: 0,
+          totalViews: 0,
+          conversionRate: 0,
+          topProducts: []
+        }
       }
-    }
 
-    fetchAnalytics()
+      setAnalyticsData(combinedData)
+    } catch (error: any) {
+      console.error('Error fetching analytics:', error)
+      setError(error.message || 'Failed to load analytics data')
+      toast({
+        title: "Error loading analytics",
+        description: error.message || "Failed to load analytics data. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
+    }
   }, [toast])
 
-  const handleRefresh = () => {
-    // Refresh analytics data
-    window.location.reload()
+  useEffect(() => {
+    fetchAnalytics()
+  }, [fetchAnalytics])
+
+  useEffect(() => {
+    if (timeRange) {
+      fetchAnalytics(timeRange)
+    }
+  }, [timeRange, fetchAnalytics])
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await fetchAnalytics(timeRange)
   }
 
-  const handleExport = () => {
-    // Export analytics data
-    toast({
-      title: "Export initiated",
-      description: "Your analytics report is being prepared for download.",
-    })
+  const handleExport = async () => {
+    if (isExporting) return // Prevent multiple export requests
+
+    // Validate that we have data to export
+    if (!analyticsData) {
+      toast({
+        title: "No data available",
+        description: "Please wait for analytics data to load before exporting.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsExporting(true)
+      toast({
+        title: "Export initiated",
+        description: `Preparing your ${exportFormat.toUpperCase()} analytics report for download...`,
+      })
+
+      // Use the export API method - it handles the download automatically
+      await apiService.exportAnalyticsData('user', timeRange, exportFormat)
+
+      toast({
+        title: "Export completed",
+        description: `Your ${exportFormat.toUpperCase()} analytics report has been downloaded successfully.`,
+      })
+    } catch (error: any) {
+      console.error('Export error:', error)
+
+      let errorMessage = "Failed to export analytics data. Please try again."
+
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        errorMessage = "Authentication required. Please log in again."
+      } else if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+        errorMessage = "You don't have permission to export this data."
+      } else if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        errorMessage = "No data found for the selected time period."
+      } else if (error.message?.includes('500') || error.message?.includes('Server Error')) {
+        errorMessage = "Server error occurred. Please try again later."
+      } else if (error.message?.includes('Network') || error.message?.includes('fetch')) {
+        errorMessage = "Network error. Please check your internet connection."
+      }
+
+      toast({
+        title: "Export failed",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   const formatCurrency = (value: number) => {
@@ -125,115 +221,351 @@ export function FarmerAnalytics() {
     }).format(value)
   }
 
-  if (isLoading) {
+  // Ensure data is valid before rendering charts
+  const isValidData = (data: any[]) => {
+    return Array.isArray(data) && data.length > 0 && data.every(item => item !== null && item !== undefined)
+  }
+
+  // Safe chart rendering with error boundaries
+  const renderChart = (chartType: string, data: any[], fallback: React.ReactNode) => {
+    if (!isValidData(data)) {
+      return fallback
+    }
+    
+    try {
+      switch (chartType) {
+        case 'line':
+          return (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="harvests" 
+                  stroke="#3b82f6" 
+                  strokeWidth={2}
+                  name="Harvests"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="#10b981" 
+                  strokeWidth={2}
+                  name="Revenue (₦)"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )
+        case 'area':
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <AreaChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Area 
+                  type="monotone" 
+                  dataKey="harvests" 
+                  stackId="1" 
+                  stroke="#3b82f6" 
+                  fill="#3b82f6" 
+                  fillOpacity={0.6}
+                  name="Harvests"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stackId="2" 
+                  stroke="#10b981" 
+                  fill="#10b981" 
+                  fillOpacity={0.6}
+                  name="Revenue (₦)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )
+        case 'bar':
+          return (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" fill="#3b82f6" name="Harvest Count" />
+                <Bar dataKey="quantity" fill="#10b981" name="Total Quantity" />
+              </BarChart>
+            </ResponsiveContainer>
+          )
+        case 'pie':
+          return (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Excellent', value: analyticsData?.qualityMetrics?.excellent, color: '#10b981' },
+                    { name: 'Good', value: analyticsData?.qualityMetrics?.good, color: '#3b82f6' },
+                    { name: 'Fair', value: analyticsData?.qualityMetrics?.fair, color: '#f59e0b' },
+                    { name: 'Poor', value: analyticsData?.qualityMetrics?.poor, color: '#ef4444' }
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                >
+                  {[
+                    { name: 'Excellent', value: analyticsData?.qualityMetrics?.excellent, color: '#10b981' },
+                    { name: 'Good', value: analyticsData?.qualityMetrics?.good, color: '#3b82f6' },
+                    { name: 'Fair', value: analyticsData?.qualityMetrics?.fair, color: '#f59e0b' },
+                    { name: 'Poor', value: analyticsData?.qualityMetrics?.poor, color: '#ef4444' }
+                  ].map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )
+        default:
+          return fallback
+      }
+    } catch (error) {
+      console.error(`Error rendering ${chartType} chart:`, error)
+      return fallback
+    }
+  }
+
+  // Loading skeleton component
+  const LoadingSkeleton = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="flex gap-3">
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-4" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-20 mb-2" />
+              <Skeleton className="h-3 w-32" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-80 w-full" />
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  // Error state
+  if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="h-8 w-8 animate-spin" />
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <div className="text-center space-y-2">
+          <h3 className="text-lg font-medium">Failed to load analytics</h3>
+          <p className="text-muted-foreground">{error}</p>
+        </div>
+        <Button onClick={handleRefresh} variant="outline">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Try Again
+        </Button>
       </div>
     )
+  }
+
+  if (isLoading) {
+    return <LoadingSkeleton />
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Farmer Analytics</h2>
-          <p className="text-muted-foreground">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">Farmer Analytics</h2>
+          <p className="text-muted-foreground text-sm sm:text-base">
             Monitor your harvest performance, earnings, and farm productivity
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Select value={timeRange} onValueChange={(value: any) => setTimeRange(value)}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
-              <SelectItem value="1y">Last year</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={handleRefresh}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          <div className="flex gap-2">
+            <Select value={timeRange} onValueChange={(value: any) => setTimeRange(value)}>
+              <SelectTrigger className="w-full sm:w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="90d">Last 90 days</SelectItem>
+                <SelectItem value="1y">Last year</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={exportFormat} onValueChange={(value: any) => setExportFormat(value)}>
+              <SelectTrigger className="w-full sm:w-24">
+                <div className="flex items-center gap-2">
+                  {exportFormat === 'csv' ? (
+                    <FileText className="h-4 w-4" />
+                  ) : (
+                    <FileSpreadsheet className="h-4 w-4" />
+                  )}
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="csv">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    CSV
+                  </div>
+                </SelectItem>
+                <SelectItem value="xlsx">
+                  <div className="flex items-center gap-2">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Excel
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex-1 sm:flex-none"
+            >
+              <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={isExporting || !analyticsData}
+              className="flex-1 sm:flex-none"
+              title={`Export analytics data as ${exportFormat.toUpperCase()} for ${timeRange} period`}
+            >
+              <Download className={cn("h-4 w-4 mr-2", isExporting && "animate-pulse")} />
+              <span className="hidden sm:inline">
+                {isExporting ? `Exporting ${exportFormat.toUpperCase()}...` : `Export ${exportFormat.toUpperCase()}`}
+              </span>
+              <span className="sm:hidden">
+                {isExporting ? "..." : exportFormat.toUpperCase()}
+              </span>
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Harvests</CardTitle>
-            <Package className="h-4 w-4 text-blue-600" />
+            <div className="p-2 bg-blue-50 rounded-full">
+              <Package className="h-4 w-4 text-blue-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analyticsData?.totalHarvests || 0}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
+            <div className="text-2xl sm:text-3xl font-bold">{formatNumber(analyticsData?.totalHarvests || 0)}</div>
+            <div className="flex items-center text-xs text-muted-foreground mt-1">
+              <CheckCircle className="h-3 w-3 mr-1 text-green-600" />
               {analyticsData?.approvalRate || 0}% approval rate
             </div>
           </CardContent>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full opacity-20" />
         </Card>
 
-        <Card>
+        <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
+            <div className="p-2 bg-green-50 rounded-full">
+              <DollarSign className="h-4 w-4 text-green-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl sm:text-3xl font-bold">
               {formatCurrency(analyticsData?.totalRevenue || 0)}
             </div>
-            <div className="flex items-center text-xs text-muted-foreground">
+            <div className="flex items-center text-xs text-muted-foreground mt-1">
               <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
-              From {analyticsData?.totalOrders || 0} orders
+              {analyticsData?.totalOrders || 0} orders completed
             </div>
           </CardContent>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-green-50 rounded-bl-full opacity-20" />
         </Card>
 
-        <Card>
+        <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Listings</CardTitle>
-            <Leaf className="h-4 w-4 text-purple-600" />
+            <div className="p-2 bg-purple-50 rounded-full">
+              <Leaf className="h-4 w-4 text-purple-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analyticsData?.totalListings || 0}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <Target className="h-3 w-3 mr-1 text-blue-600" />
-              Marketplace presence
+            <div className="text-2xl sm:text-3xl font-bold">{analyticsData?.marketplaceStats?.activeListings || 0}</div>
+            <div className="flex items-center text-xs text-muted-foreground mt-1">
+              <Users className="h-3 w-3 mr-1 text-blue-600" />
+              {analyticsData?.marketplaceStats?.totalViews || 0} total views
             </div>
           </CardContent>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-bl-full opacity-20" />
         </Card>
 
-        <Card>
+        <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Credit Score</CardTitle>
-            <Activity className="h-4 w-4 text-orange-600" />
+            <div className="p-2 bg-orange-50 rounded-full">
+              <Activity className="h-4 w-4 text-orange-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analyticsData?.creditScore || 0}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
-              Financial health
+            <div className="text-2xl sm:text-3xl font-bold">{analyticsData?.creditScore || 0}</div>
+            <div className="flex items-center text-xs text-muted-foreground mt-1">
+              <Zap className="h-3 w-3 mr-1 text-orange-600" />
+              Financial health indicator
             </div>
           </CardContent>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-orange-50 rounded-bl-full opacity-20" />
         </Card>
       </div>
 
       {/* Charts Section */}
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="harvests">Harvest Analysis</TabsTrigger>
-          <TabsTrigger value="crops">Crop Performance</TabsTrigger>
-          <TabsTrigger value="quality">Quality Metrics</TabsTrigger>
+      <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm py-2 px-2 sm:px-4">Overview</TabsTrigger>
+          <TabsTrigger value="harvests" className="text-xs sm:text-sm py-2 px-2 sm:px-4">Harvests</TabsTrigger>
+          <TabsTrigger value="crops" className="text-xs sm:text-sm py-2 px-2 sm:px-4">Crops</TabsTrigger>
+          <TabsTrigger value="quality" className="text-xs sm:text-sm py-2 px-2 sm:px-4">Quality</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -249,20 +581,37 @@ export function FarmerAnalytics() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <AreaChart data={mockHarvestTrends}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis 
+              <ResponsiveContainer width="100%" height={300} className="sm:h-400">
+                <AreaChart data={analyticsData?.monthlyTrends || []}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis
+                    dataKey="month"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
                     yAxisId="left"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
                     tickFormatter={(value) => formatNumber(value)}
                   />
-                  <YAxis 
-                    yAxisId="right" 
+                  <YAxis
+                    yAxisId="right"
                     orientation="right"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
                     tickFormatter={(value) => formatCurrency(value)}
                   />
-                  <Tooltip 
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    }}
                     formatter={(value: any, name: string) => [
                       name === 'revenue' ? formatCurrency(value) : value,
                       name.charAt(0).toUpperCase() + name.slice(1)
@@ -276,22 +625,27 @@ export function FarmerAnalytics() {
                     fill="#3b82f6"
                     fillOpacity={0.1}
                     name="Harvests"
+                    strokeWidth={2}
                   />
-                  <Line
+                  <Area
                     yAxisId="right"
                     type="monotone"
                     dataKey="revenue"
                     stroke="#22c55e"
-                    strokeWidth={2}
+                    fill="#22c55e"
+                    fillOpacity={0.1}
                     name="Revenue"
+                    strokeWidth={2}
                   />
-                  <Line
+                  <Area
                     yAxisId="left"
                     type="monotone"
                     dataKey="quality"
                     stroke="#8b5cf6"
-                    strokeWidth={2}
+                    fill="#8b5cf6"
+                    fillOpacity={0.1}
                     name="Quality Score"
+                    strokeWidth={2}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -299,52 +653,82 @@ export function FarmerAnalytics() {
           </Card>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <Card className="relative overflow-hidden">
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Best Performing Month</CardTitle>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                  Best Performing Month
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">June</div>
-                <p className="text-xs text-muted-foreground">
-                  28 harvests • ₦102K revenue • 94% quality
+                <div className="text-2xl font-bold text-green-600">
+                  {analyticsData?.monthlyTrends?.length > 0
+                    ? analyticsData.monthlyTrends.reduce((best, current) =>
+                        current.revenue > best.revenue ? current : best
+                      ).month
+                    : 'N/A'
+                  }
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {analyticsData?.monthlyTrends?.length > 0
+                    ? (() => {
+                        const best = analyticsData.monthlyTrends.reduce((best, current) =>
+                          current.revenue > best.revenue ? current : best
+                        )
+                        return `${best.harvests} harvests • ${formatCurrency(best.revenue)} • ${best.quality}% quality`
+                      })()
+                    : 'No data available'
+                  }
                 </p>
               </CardContent>
+              <div className="absolute top-0 right-0 w-12 h-12 bg-green-50 rounded-bl-full opacity-30" />
             </Card>
 
-            <Card>
+            <Card className="relative overflow-hidden">
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Average Harvest Size</CardTitle>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Package className="h-4 w-4 text-blue-600" />
+                  Average Harvest Size
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
                   {formatNumber(analyticsData?.averageHarvestQuantity || 0)}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {analyticsData?.totalHarvests || 0} total harvests
+                <p className="text-xs text-muted-foreground mt-1">
+                  Across {analyticsData?.totalHarvests || 0} total harvests
                 </p>
               </CardContent>
+              <div className="absolute top-0 right-0 w-12 h-12 bg-blue-50 rounded-bl-full opacity-30" />
             </Card>
 
-            <Card>
+            <Card className="relative overflow-hidden sm:col-span-2 lg:col-span-1">
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Market Success Rate</CardTitle>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Target className="h-4 w-4 text-purple-600" />
+                  Market Success Rate
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-purple-600">
-                  {analyticsData?.totalOrders > 0 ? Math.round((analyticsData.totalOrders / analyticsData.totalListings) * 100) : 0}%
+                  {analyticsData?.marketplaceStats?.conversionRate
+                    ? `${Math.round(analyticsData.marketplaceStats.conversionRate)}%`
+                    : '0%'
+                  }
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-1">
                   {analyticsData?.totalOrders || 0} orders from {analyticsData?.totalListings || 0} listings
                 </p>
               </CardContent>
+              <div className="absolute top-0 right-0 w-12 h-12 bg-purple-50 rounded-bl-full opacity-30" />
             </Card>
           </div>
         </TabsContent>
 
         <TabsContent value="harvests" className="space-y-6">
           {/* Harvest Performance */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -356,13 +740,35 @@ export function FarmerAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={mockHarvestTrends}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis tickFormatter={(value) => formatNumber(value)} />
-                    <Tooltip formatter={(value: any) => [formatNumber(value), 'Harvests']} />
-                    <Bar dataKey="harvests" fill="#3b82f6" />
+                <ResponsiveContainer width="100%" height={250} className="sm:h-300">
+                  <BarChart data={analyticsData?.monthlyTrends || []}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis
+                      dataKey="month"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => formatNumber(value)}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      }}
+                      formatter={(value: any) => [formatNumber(value), 'Harvests']}
+                    />
+                    <Bar
+                      dataKey="harvests"
+                      fill="#3b82f6"
+                      radius={[4, 4, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -371,7 +777,7 @@ export function FarmerAnalytics() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <LineChart className="h-5 w-5 text-primary" />
+                  <TrendingUp className="h-5 w-5 text-primary" />
                   Revenue Growth
                 </CardTitle>
                 <CardDescription>
@@ -379,20 +785,129 @@ export function FarmerAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={mockHarvestTrends}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis tickFormatter={(value) => formatCurrency(value)} />
-                    <Tooltip formatter={(value: any) => [formatCurrency(value), 'Revenue']} />
+                <ResponsiveContainer width="100%" height={250} className="sm:h-300">
+                  <LineChart data={analyticsData?.monthlyTrends || []}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis
+                      dataKey="month"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => formatCurrency(value)}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      }}
+                      formatter={(value: any) => [formatCurrency(value), 'Revenue']}
+                    />
                     <Line
                       type="monotone"
                       dataKey="revenue"
                       stroke="#22c55e"
-                      strokeWidth={2}
+                      strokeWidth={3}
+                      dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#22c55e', strokeWidth: 2 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Additional Harvest Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-orange-600" />
+                  Harvest Quality Trend
+                </CardTitle>
+                <CardDescription>
+                  Quality score progression over time
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={analyticsData?.monthlyTrends || []}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis
+                      dataKey="month"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      domain={[0, 100]}
+                      tickFormatter={(value) => `${value}%`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      }}
+                      formatter={(value: any) => [`${value}%`, 'Quality Score']}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="quality"
+                      stroke="#f59e0b"
+                      fill="#f59e0b"
+                      fillOpacity={0.2}
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-purple-600" />
+                  Performance Summary
+                </CardTitle>
+                <CardDescription>
+                  Key harvest performance indicators
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Total Harvests</span>
+                  <Badge variant="secondary">{formatNumber(analyticsData?.totalHarvests || 0)}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Approved Rate</span>
+                  <Badge variant="secondary" className="bg-green-100 text-green-800">
+                    {analyticsData?.approvalRate || 0}%
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Avg Quantity</span>
+                  <Badge variant="secondary">{formatNumber(analyticsData?.averageHarvestQuantity || 0)}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Success Rate</span>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                    {analyticsData?.marketplaceStats?.conversionRate
+                      ? `${Math.round(analyticsData.marketplaceStats.conversionRate)}%`
+                      : '0%'
+                    }
+                  </Badge>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -400,7 +915,7 @@ export function FarmerAnalytics() {
 
         <TabsContent value="crops" className="space-y-6">
           {/* Crop Distribution */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -412,10 +927,10 @@ export function FarmerAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={250} className="sm:h-300">
                   <RechartsPieChart>
                     <Pie
-                      data={mockCropDistribution}
+                      data={analyticsData?.cropDistribution || []}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -424,11 +939,20 @@ export function FarmerAnalytics() {
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {mockCropDistribution.map((entry, index) => (
+                      {(analyticsData?.cropDistribution || []).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: any) => [`${value}%`, 'Market Share']} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      }}
+                      formatter={(value: any) => [`${value}%`, 'Market Share']}
+                    />
+                    <Legend />
                   </RechartsPieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -445,23 +969,81 @@ export function FarmerAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={mockCropDistribution}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis tickFormatter={(value) => `${value}%`} />
-                    <Tooltip formatter={(value: any) => [`${value}%`, 'Market Share']} />
-                    <Bar dataKey="value" fill="#22c55e" />
+                <ResponsiveContainer width="100%" height={250} className="sm:h-300">
+                  <BarChart data={analyticsData?.cropDistribution || []}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis
+                      dataKey="name"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => `${value}%`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      }}
+                      formatter={(value: any) => [`${value}%`, 'Market Share']}
+                    />
+                    <Bar
+                      dataKey="value"
+                      fill="#22c55e"
+                      radius={[4, 4, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
+
+          {/* Top Performing Products */}
+          {analyticsData?.marketplaceStats?.topProducts && analyticsData.marketplaceStats.topProducts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-purple-600" />
+                  Top Performing Products
+                </CardTitle>
+                <CardDescription>
+                  Your best-selling products by revenue
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {analyticsData.marketplaceStats.topProducts.slice(0, 4).map((product, index) => (
+                    <div key={product.name} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-8 h-8 bg-primary/10 text-primary font-semibold rounded-full text-sm">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium">{product.name}</p>
+                          <p className="text-sm text-muted-foreground">{product.orders} orders</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">{formatCurrency(product.revenue)}</p>
+                        <p className="text-sm text-muted-foreground">{product.rating}★</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="quality" className="space-y-6">
           {/* Quality Metrics */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -474,7 +1056,7 @@ export function FarmerAnalytics() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {Object.entries(mockQualityMetrics).map(([quality, percentage]) => (
+                  {analyticsData?.qualityMetrics && Object.entries(analyticsData.qualityMetrics).map(([quality, percentage]) => (
                     <div key={quality} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium capitalize">{quality}</span>
@@ -494,6 +1076,13 @@ export function FarmerAnalytics() {
                       </div>
                     </div>
                   ))}
+                  {(!analyticsData?.qualityMetrics || Object.keys(analyticsData.qualityMetrics).length === 0) && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No quality data available</p>
+                      <p className="text-sm">Quality metrics will appear as you log more harvests</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -501,7 +1090,7 @@ export function FarmerAnalytics() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-primary" />
+                  <TrendingUp className="h-5 w-5 text-primary" />
                   Quality Trends
                 </CardTitle>
                 <CardDescription>
@@ -509,25 +1098,227 @@ export function FarmerAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={mockHarvestTrends}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis tickFormatter={(value) => `${value}%`} />
-                    <Tooltip formatter={(value: any) => [`${value}%`, 'Quality Score']} />
-                    <Line
+                <ResponsiveContainer width="100%" height={250} className="sm:h-300">
+                  <AreaChart data={analyticsData?.monthlyTrends || []}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis
+                      dataKey="month"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      domain={[0, 100]}
+                      tickFormatter={(value) => `${value}%`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      }}
+                      formatter={(value: any) => [`${value}%`, 'Quality Score']}
+                    />
+                    <Area
                       type="monotone"
                       dataKey="quality"
-                      stroke="#22c55e"
+                      stroke="#8b5cf6"
+                      fill="#8b5cf6"
+                      fillOpacity={0.2}
                       strokeWidth={2}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Quality Insights */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-green-700">Average Quality Score</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {analyticsData?.monthlyTrends?.length > 0
+                    ? Math.round(analyticsData.monthlyTrends.reduce((sum, item) => sum + item.quality, 0) / analyticsData.monthlyTrends.length)
+                    : 0}%
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Based on last {analyticsData?.monthlyTrends?.length || 0} months
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-blue-700">Quality Improvement</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {analyticsData?.monthlyTrends?.length >= 2
+                    ? (() => {
+                        const first = analyticsData.monthlyTrends[0].quality
+                        const last = analyticsData.monthlyTrends[analyticsData.monthlyTrends.length - 1].quality
+                        const change = Math.round(((last - first) / first) * 100)
+                        return `${change >= 0 ? '+' : ''}${change}%`
+                      })()
+                    : '0%'
+                  }
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Trend over time
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-purple-700">Top Quality Rating</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">
+                  {analyticsData?.monthlyTrends?.length > 0
+                    ? Math.max(...analyticsData.monthlyTrends.map(item => item.quality))
+                    : 0}%
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Best month performance
+                </p>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Performance Insights Section */}
+      <Card className="mt-6 sm:mt-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-yellow-600" />
+            Performance Insights & Recommendations
+          </CardTitle>
+          <CardDescription>
+            AI-powered insights to help you optimize your farming operations
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {/* Revenue Growth Insight */}
+            <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-green-100 rounded-full">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                </div>
+                <h4 className="font-semibold text-green-800">Revenue Growth</h4>
+              </div>
+              <p className="text-sm text-green-700 mb-2">
+                {analyticsData?.monthlyTrends?.length >= 2
+                  ? (() => {
+                      const first = analyticsData.monthlyTrends[0].revenue
+                      const last = analyticsData.monthlyTrends[analyticsData.monthlyTrends.length - 1].revenue
+                      const growth = Math.round(((last - first) / first) * 100)
+                      return growth >= 0
+                        ? `Your revenue has grown by ${growth}% this period. Keep up the excellent work!`
+                        : `Revenue decreased by ${Math.abs(growth)}%. Consider reviewing your pricing strategy.`
+                    })()
+                  : 'Start logging harvests to see revenue growth insights.'
+                }
+              </p>
+            </div>
+
+            {/* Quality Improvement Insight */}
+            <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-blue-100 rounded-full">
+                  <Activity className="h-4 w-4 text-blue-600" />
+                </div>
+                <h4 className="font-semibold text-blue-800">Quality Focus</h4>
+              </div>
+              <p className="text-sm text-blue-700 mb-2">
+                {analyticsData?.monthlyTrends?.length > 0
+                  ? (() => {
+                      const avgQuality = analyticsData.monthlyTrends.reduce((sum, item) => sum + item.quality, 0) / analyticsData.monthlyTrends.length
+                      if (avgQuality >= 90) return 'Excellent quality standards! Your products are premium grade.'
+                      if (avgQuality >= 75) return 'Good quality performance. Focus on consistent harvesting practices.'
+                      return 'Quality improvement needed. Review harvesting and storage techniques.'
+                    })()
+                  : 'Quality insights will appear as you log more harvests.'
+                }
+              </p>
+            </div>
+
+            {/* Market Performance Insight */}
+            <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-purple-100 rounded-full">
+                  <Target className="h-4 w-4 text-purple-600" />
+                </div>
+                <h4 className="font-semibold text-purple-800">Market Performance</h4>
+              </div>
+              <p className="text-sm text-purple-700 mb-2">
+                {analyticsData?.marketplaceStats?.conversionRate
+                  ? analyticsData.marketplaceStats.conversionRate >= 50
+                    ? `Strong market performance! ${analyticsData.marketplaceStats.conversionRate}% conversion rate.`
+                    : `Market performance could improve. Only ${analyticsData.marketplaceStats.conversionRate}% of views convert to sales.`
+                  : 'Market insights will appear as you create listings and receive views.'
+                }
+              </p>
+            </div>
+          </div>
+
+          {/* Actionable Recommendations */}
+          <div className="mt-6 p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-200">
+            <h4 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Actionable Recommendations
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {analyticsData?.totalHarvests === 0 && (
+                <div className="flex items-start gap-3 p-3 bg-white rounded-md">
+                  <Package className="h-5 w-5 text-orange-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sm">Start Logging Harvests</p>
+                    <p className="text-xs text-muted-foreground">Begin tracking your harvests to unlock detailed analytics and insights.</p>
+                  </div>
+                </div>
+              )}
+              {analyticsData?.totalListings === 0 && (
+                <div className="flex items-start gap-3 p-3 bg-white rounded-md">
+                  <Leaf className="h-5 w-5 text-orange-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sm">Create Marketplace Listings</p>
+                    <p className="text-xs text-muted-foreground">List your products to reach more buyers and increase revenue.</p>
+                  </div>
+                </div>
+              )}
+              {analyticsData?.marketplaceStats?.totalViews && analyticsData.marketplaceStats.totalViews > analyticsData.totalOrders * 2 && (
+                <div className="flex items-start gap-3 p-3 bg-white rounded-md">
+                  <Target className="h-5 w-5 text-orange-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sm">Improve Product Descriptions</p>
+                    <p className="text-xs text-muted-foreground">High views but low conversions. Enhance your product descriptions and photos.</p>
+                  </div>
+                </div>
+              )}
+              {analyticsData?.approvalRate && analyticsData.approvalRate < 80 && (
+                <div className="flex items-start gap-3 p-3 bg-white rounded-md">
+                  <CheckCircle className="h-5 w-5 text-orange-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sm">Focus on Quality Standards</p>
+                    <p className="text-xs text-muted-foreground">Only {analyticsData.approvalRate}% of harvests are approved. Review quality requirements.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

@@ -147,178 +147,153 @@ export default function InsurancePoliciesPage() {
   const fetchPolicies = async () => {
     try {
       setLoading(true)
-      
-      // Mock data for now - replace with actual API call
-      const mockPolicies: InsurancePolicy[] = [
-        {
-          id: '1',
-          policyNumber: 'POL-001-2024',
-          type: 'crop',
-          provider: 'Nigerian Agricultural Insurance Corporation',
+
+      // Fetch real data from backend APIs
+      const [policiesResponse, dashboardResponse] = await Promise.all([
+        apiService.getInsurancePolicies(),
+        apiService.getFinancialDashboard()
+      ])
+
+      if (policiesResponse.status === 'success' && policiesResponse.data) {
+        const policiesData = policiesResponse.data.policies || []
+
+        // Transform backend data to match frontend interface
+        const transformedPolicies: InsurancePolicy[] = policiesData.map((policy: any) => ({
+          id: policy._id || policy.id,
+          policyNumber: policy.policyNumber,
+          type: policy.type,
+          provider: policy.provider,
           coverage: {
-            amount: 2000000,
-            currency: 'NGN',
-            details: 'Comprehensive crop insurance covering drought, flood, pests, and diseases'
+            amount: policy.coverageAmount || policy.coverage?.amount || 0,
+            currency: policy.currency || 'NGN',
+            details: policy.coverageDetails || policy.coverage?.details || 'Insurance coverage'
           },
           premium: {
-            amount: 45000,
-            frequency: 'annually',
-            nextDue: '2025-01-15'
+            amount: policy.premium || policy.premiumAmount || 0,
+            frequency: policy.premiumFrequency || 'annually',
+            nextDue: policy.nextPremiumDue || policy.nextPaymentDate
           },
-          status: 'active',
-          startDate: '2024-01-15',
-          endDate: '2024-12-31',
-          crops: ['Maize', 'Cassava', 'Tomatoes', 'Beans'],
-          riskFactors: [
-            {
-              factor: 'Drought Risk',
-              level: 'medium',
-              description: 'Moderate risk of drought during dry season'
-            },
-            {
-              factor: 'Flood Risk',
-              level: 'low',
-              description: 'Low risk of flooding in current location'
-            },
-            {
-              factor: 'Pest Risk',
-              level: 'high',
-              description: 'High risk of pest infestation during growing season'
-            }
-          ],
-          claims: [
-            {
-              id: 'CLM-001',
-              date: '2024-06-15',
-              amount: 150000,
-              status: 'approved',
-              description: 'Crop damage due to pest infestation'
-            }
-          ],
-          documents: [
-            {
-              name: 'Policy Document',
-              type: 'PDF',
-              url: '/documents/policy-001.pdf',
-              uploadedAt: '2024-01-15'
-            },
-            {
-              name: 'Terms & Conditions',
-              type: 'PDF',
-              url: '/documents/terms-001.pdf',
-              uploadedAt: '2024-01-15'
-            }
-          ]
-        },
-        {
-          id: '2',
-          policyNumber: 'POL-002-2024',
-          type: 'equipment',
-          provider: 'Allianz Insurance Nigeria',
-          coverage: {
-            amount: 1500000,
-            currency: 'NGN',
-            details: 'Equipment insurance covering tractors, harvesters, and irrigation systems'
-          },
-          premium: {
-            amount: 25000,
-            frequency: 'quarterly',
-            nextDue: '2024-04-15'
-          },
-          status: 'active',
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          equipment: ['Tractor', 'Harvester', 'Irrigation System'],
-          riskFactors: [
-            {
-              factor: 'Mechanical Failure',
-              level: 'medium',
-              description: 'Standard risk of mechanical breakdown'
-            },
-            {
-              factor: 'Theft Risk',
-              level: 'low',
-              description: 'Low risk of equipment theft'
-            }
-          ],
-          claims: [],
-          documents: [
-            {
-              name: 'Equipment Policy',
-              type: 'PDF',
-              url: '/documents/equipment-policy.pdf',
-              uploadedAt: '2024-01-01'
-            }
-          ]
-        },
-        {
-          id: '3',
-          policyNumber: 'POL-003-2024',
-          type: 'livestock',
-          provider: 'Leadway Assurance',
-          coverage: {
-            amount: 800000,
-            currency: 'NGN',
-            details: 'Livestock insurance covering cattle, poultry, and other farm animals'
-          },
-          premium: {
-            amount: 18000,
-            frequency: 'annually',
-            nextDue: '2025-01-01'
-          },
-          status: 'active',
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          livestock: ['Cattle', 'Poultry', 'Goats'],
-          riskFactors: [
-            {
-              factor: 'Disease Risk',
-              level: 'high',
-              description: 'High risk of livestock diseases'
-            },
-            {
-              factor: 'Weather Risk',
-              level: 'medium',
-              description: 'Medium risk from extreme weather conditions'
-            }
-          ],
-          claims: [
-            {
-              id: 'CLM-002',
-              date: '2024-05-20',
-              amount: 75000,
-              status: 'pending',
-              description: 'Livestock loss due to disease outbreak'
-            }
-          ],
-          documents: [
-            {
-              name: 'Livestock Policy',
-              type: 'PDF',
-              url: '/documents/livestock-policy.pdf',
-              uploadedAt: '2024-01-01'
-            }
-          ]
+          status: policy.status,
+          startDate: policy.startDate,
+          endDate: policy.endDate,
+          crops: policy.crops || [],
+          livestock: policy.livestock || [],
+          equipment: policy.equipment || [],
+          riskFactors: (policy.riskFactors || []).map((factor: any) => ({
+            factor: factor.name || factor.factor,
+            level: factor.level || 'medium',
+            description: factor.description || ''
+          })),
+          claims: (policy.claims || []).map((claim: any) => ({
+            id: claim._id || claim.id,
+            date: claim.date || claim.createdAt,
+            amount: claim.amount,
+            status: claim.status,
+            description: claim.description || ''
+          })),
+          documents: (policy.documents || []).map((doc: any) => ({
+            name: doc.name,
+            type: doc.type,
+            url: doc.url,
+            uploadedAt: doc.uploadedAt
+          }))
+        }))
+
+        setPolicies(transformedPolicies)
+
+        // Calculate stats from real data
+        const activePolicies = transformedPolicies.filter(p => p.status === 'active')
+        const totalCoverage = activePolicies.reduce((sum, policy) => sum + policy.coverage.amount, 0)
+        const totalPremium = activePolicies.reduce((sum, policy) => sum + policy.premium.amount, 0)
+        const allClaims = transformedPolicies.flatMap(p => p.claims || [])
+        const pendingClaims = allClaims.filter(c => c.status === 'pending').length
+        const claimsValue = allClaims.filter(c => c.status === 'approved').reduce((sum, c) => sum + c.amount, 0)
+
+        // Group by month for trend analysis
+        const monthlyData = transformedPolicies.reduce((acc: any, policy) => {
+          const date = new Date(policy.startDate)
+          const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+
+          if (!acc[monthKey]) {
+            acc[monthKey] = { policies: 0, coverage: 0, premium: 0 }
+          }
+
+          acc[monthKey].policies += 1
+          acc[monthKey].coverage += policy.coverage.amount
+          acc[monthKey].premium += policy.premium.amount
+
+          return acc
+        }, {})
+
+        const monthlyTrend = Object.entries(monthlyData)
+          .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+          .map(([month, data]: [string, any]) => ({
+            month,
+            policies: data.policies,
+            coverage: data.coverage,
+            premium: data.premium
+          }))
+
+        const stats: InsuranceStats = {
+          totalPolicies: transformedPolicies.length,
+          activePolicies: activePolicies.length,
+          totalCoverage,
+          totalPremium,
+          pendingClaims,
+          claimsValue,
+          monthlyTrend
         }
-      ]
 
-      const mockStats: InsuranceStats = {
-        totalPolicies: 3,
-        activePolicies: 3,
-        totalCoverage: 4300000,
-        totalPremium: 88000,
-        pendingClaims: 1,
-        claimsValue: 225000,
-        monthlyTrend: [
-          { month: 'Dec 2023', policies: 2, coverage: 2800000, premium: 60000 },
-          { month: 'Jan 2024', policies: 3, coverage: 4300000, premium: 88000 }
-        ]
+        setStats(stats)
+      } else {
+        // Fallback to dashboard data if insurance policies API fails
+        if (dashboardResponse.status === 'success' && dashboardResponse.data) {
+          const dashboardData = dashboardResponse.data
+          const insurancePolicies = dashboardData.insurancePolicies || []
+
+          const transformedPolicies: InsurancePolicy[] = insurancePolicies.map((policy: any) => ({
+            id: policy._id,
+            policyNumber: policy.policyNumber,
+            type: policy.type,
+            provider: policy.provider,
+            coverage: {
+              amount: policy.coverageAmount,
+              currency: 'NGN',
+              details: 'Insurance coverage from dashboard data'
+            },
+            premium: {
+              amount: policy.premium,
+              frequency: 'annually',
+              nextDue: policy.nextPaymentDate
+            },
+            status: policy.status,
+            startDate: policy.startDate,
+            endDate: policy.endDate,
+            crops: [],
+            livestock: [],
+            equipment: [],
+            riskFactors: [],
+            claims: [],
+            documents: []
+          }))
+
+          setPolicies(transformedPolicies)
+
+          const stats: InsuranceStats = {
+            totalPolicies: insurancePolicies.length,
+            activePolicies: insurancePolicies.filter((p: any) => p.status === 'active').length,
+            totalCoverage: insurancePolicies.reduce((sum: number, p: any) => sum + (p.coverageAmount || 0), 0),
+            totalPremium: insurancePolicies.reduce((sum: number, p: any) => sum + (p.premium || 0), 0),
+            pendingClaims: 0,
+            claimsValue: 0,
+            monthlyTrend: []
+          }
+
+          setStats(stats)
+        }
       }
-
-      setPolicies(mockPolicies)
-      setStats(mockStats)
     } catch (error) {
-      console.error("Failed to fetch policies:", error)
+      console.error("Failed to fetch insurance policies:", error)
       toast({
         title: "Error",
         description: "Failed to load insurance policies. Please try again.",

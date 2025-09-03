@@ -287,7 +287,7 @@ export function QRScanner({
                           </div>
                           <div>
                             <span className="text-muted-foreground">Location:</span>
-                            <span className="ml-2 font-medium">{verificationResult.location}</span>
+                            <span className="ml-2 font-medium">{typeof verificationResult.location === 'string' ? verificationResult.location : `${verificationResult.location?.city || 'Unknown'}, ${verificationResult.location?.state || 'Unknown State'}`}</span>
                           </div>
                         </div>
                       </div>
@@ -419,7 +419,7 @@ export function QRScanner({
                       <div>
                         <span className="text-muted-foreground">Location:</span>
                         <span className="ml-2 font-medium">
-                          {currentResult.harvestData.location}
+                          {typeof currentResult.harvestData.location === 'string' ? currentResult.harvestData.location : `${currentResult.harvestData.location?.city || 'Unknown'}, ${currentResult.harvestData.location?.state || 'Unknown State'}`}
                         </span>
                       </div>
                     </div>

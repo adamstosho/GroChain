@@ -7,7 +7,7 @@ import { HarvestForm, type HarvestFormData } from "@/components/agricultural"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
-import { ArrowLeft, Leaf, CheckCircle, Clock, AlertCircle } from "lucide-react"
+import { ArrowLeft, Leaf } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -75,20 +75,22 @@ export default function NewHarvestPage() {
 
   return (
     <DashboardLayout pageTitle="Log New Harvest">
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 max-w-6xl mx-auto">
         {/* Page Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" asChild className="text-gray-600 hover:text-gray-900">
-                <Link href="/dashboard/harvests" className="flex items-center gap-2">
-                  <ArrowLeft className="h-4 w-4" />
-                  Back to Harvests
-                </Link>
-              </Button>
-            </div>
-            <h1 className="text-2xl font-semibold text-gray-900">Log New Harvest</h1>
-            <p className="text-gray-600">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" asChild className="text-gray-600 hover:text-gray-900">
+              <Link href="/dashboard/harvests" className="flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Back to Harvests</span>
+                <span className="sm:hidden">Back</span>
+              </Link>
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Log New Harvest</h1>
+            <p className="text-sm sm:text-base text-gray-600">
               Record your latest harvest for transparency, traceability, and market access
             </p>
           </div>
@@ -96,78 +98,44 @@ export default function NewHarvestPage() {
 
         {/* Process Steps */}
         <Card className="border border-gray-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-center text-base font-medium">Harvest Logging Process</CardTitle>
-            <CardDescription className="text-center">
+          <CardHeader className="pb-3 px-4 sm:px-6">
+            <CardTitle className="text-center text-sm sm:text-base font-medium">Harvest Logging Process</CardTitle>
+            <CardDescription className="text-center text-sm">
               Follow these steps to ensure your harvest is properly recorded and verified
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="text-center space-y-2">
-                <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center mx-auto">
-                  <span className="text-blue-600 font-bold text-sm">1</span>
+          <CardContent className="px-4 sm:px-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <div className="text-center space-y-2 p-2 sm:p-0">
+                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-blue-50 flex items-center justify-center mx-auto">
+                  <span className="text-blue-600 font-bold text-xs sm:text-sm">1</span>
                 </div>
-                <h3 className="font-medium text-sm text-gray-900">Basic Information</h3>
-                <p className="text-xs text-gray-600">Crop type, quantity, and harvest date</p>
+                <h3 className="font-medium text-xs sm:text-sm text-gray-900">Basic Information</h3>
+                <p className="text-xs text-gray-600 leading-tight">Crop type, quantity, and harvest date</p>
               </div>
               
-              <div className="text-center space-y-2">
-                <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center mx-auto">
-                  <span className="text-blue-600 font-bold text-sm">2</span>
+              <div className="text-center space-y-2 p-2 sm:p-0">
+                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-blue-50 flex items-center justify-center mx-auto">
+                  <span className="text-blue-600 font-bold text-xs sm:text-sm">2</span>
                 </div>
-                <h3 className="font-medium text-sm text-gray-900">Quality Assessment</h3>
-                <p className="text-xs text-gray-600">Grade, moisture content, and organic status</p>
+                <h3 className="font-medium text-xs sm:text-sm text-gray-900">Quality Assessment</h3>
+                <p className="text-xs text-gray-600 leading-tight">Grade, moisture content, and organic status</p>
               </div>
               
-              <div className="text-center space-y-2">
-                <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center mx-auto">
-                  <span className="text-blue-600 font-bold text-sm">3</span>
+              <div className="text-center space-y-2 p-2 sm:p-0">
+                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-blue-50 flex items-center justify-center mx-auto">
+                  <span className="text-blue-600 font-bold text-xs sm:text-sm">3</span>
                 </div>
-                <h3 className="font-medium text-sm text-gray-900">Advanced Details</h3>
-                <p className="text-xs text-gray-600">Soil type, irrigation, and pest management</p>
+                <h3 className="font-medium text-xs sm:text-sm text-gray-900">Advanced Details</h3>
+                <p className="text-xs text-gray-600 leading-tight">Soil type, irrigation, and pest management</p>
               </div>
               
-              <div className="text-center space-y-2">
-                <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center mx-auto">
-                  <span className="text-blue-600 font-bold text-sm">4</span>
+              <div className="text-center space-y-2 p-2 sm:p-0">
+                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-blue-50 flex items-center justify-center mx-auto">
+                  <span className="text-blue-600 font-bold text-xs sm:text-sm">4</span>
                 </div>
-                <h3 className="font-medium text-sm text-gray-900">Verification</h3>
-                <p className="text-xs text-gray-600">Review and submit for approval</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Benefits Card */}
-        <Card className="border border-gray-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-center text-base font-medium">Why Log Your Harvests?</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center space-y-2">
-                <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center mx-auto">
-                  <CheckCircle className="h-5 w-5 text-emerald-600" />
-                </div>
-                <h3 className="font-medium text-sm text-gray-900">Quality Assurance</h3>
-                <p className="text-xs text-gray-600">Build trust with buyers through verified harvest data</p>
-              </div>
-              
-              <div className="text-center space-y-2">
-                <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center mx-auto">
-                  <Clock className="h-5 w-5 text-emerald-600" />
-                </div>
-                <h3 className="font-medium text-sm text-gray-900">Traceability</h3>
-                <p className="text-xs text-gray-600">Track your produce from farm to market</p>
-              </div>
-              
-              <div className="text-center space-y-2">
-                <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center mx-auto">
-                  <AlertCircle className="h-5 w-5 text-emerald-600" />
-                </div>
-                <h3 className="font-medium text-sm text-gray-900">Market Access</h3>
-                <p className="text-xs text-gray-600">List verified products on our marketplace</p>
+                <h3 className="font-medium text-xs sm:text-sm text-gray-900">Verification</h3>
+                <p className="text-xs text-gray-600 leading-tight">Review and submit for approval</p>
               </div>
             </div>
           </CardContent>

@@ -2,15 +2,25 @@ const { verifyAccess } = require('../utils/jwt')
 
 function authenticate(req, res, next) {
   try {
-    const header = req.headers.authorization || ''
-    const token = header.startsWith('Bearer ') ? header.slice(7) : null
-    if (!token) return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+    // Check Authorization header first
+    let header = req.headers.authorization || ''
+    let token = header.startsWith('Bearer ') ? header.slice(7) : null
+    
+    // If no token in header, check cookies
+    if (!token) {
+      token = req.cookies?.auth_token || null
+    }
+    
+    if (!token) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized - No token provided' })
+    }
     
     const decoded = verifyAccess(token)
     
     // Create a basic user object from JWT data
     // This avoids async database calls that might be causing issues
     req.user = { 
+      _id: decoded.id,  // Use _id to match MongoDB convention
       id: decoded.id, 
       role: decoded.role,
       email: decoded.email || 'user@example.com', // Will be overridden by actual user data

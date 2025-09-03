@@ -295,7 +295,7 @@ export default function FarmersPage() {
                         </div>
                         <div className="flex items-center space-x-1">
                           <MapPin className="w-3 h-3" />
-                          <span>{farmer.location}</span>
+                          <span>{typeof farmer.location === 'string' ? farmer.location : `${farmer.location?.city || 'Unknown'}, ${farmer.location?.state || 'Unknown State'}`}</span>
                         </div>
                       </div>
                       <div className="flex items-center space-x-4 text-xs text-muted-foreground">

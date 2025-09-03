@@ -599,7 +599,7 @@ function ProductHistoryCard({ product }: ProductHistoryCardProps) {
               </div>
               <div>
                 <span className="text-muted-foreground">Location: </span>
-                <span>{product.location}</span>
+                <span>{typeof product.location === 'string' ? product.location : `${product.location?.city || 'Unknown'}, ${product.location?.state || 'Unknown State'}`}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Batch: </span>
@@ -694,7 +694,7 @@ function ShipmentHistoryCard({ shipment }: ShipmentHistoryCardProps) {
                     {formatDate(update.timestamp)}
                   </span>
                   <span className="text-muted-foreground">•</span>
-                  <span>{update.location}</span>
+                  <span>{typeof update.location === 'string' ? update.location : `${update.location?.city || 'Unknown'}, ${update.location?.state || 'Unknown State'}`}</span>
                   <span className="text-muted-foreground">•</span>
                   <span>{update.description}</span>
                 </div>

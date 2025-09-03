@@ -227,7 +227,7 @@ export default function PartnersPage() {
                             <p className="text-sm text-gray-500">{farmer.phone}</p>
                           </div>
                         </td>
-                        <td className="py-3 px-4">{farmer.location}</td>
+                        <td className="py-3 px-4">{typeof farmer.location === 'string' ? farmer.location : `${farmer.location?.city || 'Unknown'}, ${farmer.location?.state || 'Unknown State'}`}</td>
                         <td className="py-3 px-4">
                           <Badge
                             variant={

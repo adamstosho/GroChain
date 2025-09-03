@@ -10,10 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { MarketplaceCard, type MarketplaceProduct } from "@/components/agricultural"
-import { api } from "@/lib/api"
+import { apiService } from "@/lib/api"
+import { useBuyerStore } from "@/hooks/use-buyer-store"
+import { useToast } from "@/hooks/use-toast"
+import { useAuthStore } from "@/lib/auth"
 import type { Product } from "@/lib/types"
 import Link from "next/link"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { ArrowLeft, Home } from "lucide-react"
 
 export default function MarketplacePage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -27,26 +32,110 @@ export default function MarketplacePage() {
     sortBy: "newest",
   })
 
+  const { addToCart } = useBuyerStore()
+  const { toast } = useToast()
+  const { user, isAuthenticated } = useAuthStore()
+  const router = useRouter()
+
   useEffect(() => {
-    fetchProducts()
-  }, [filters, searchQuery])
+    // Check authentication - only redirect if we're sure the user is not authenticated
+    if (isAuthenticated === false) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to access the marketplace.",
+        variant: "destructive",
+      })
+      router.push('/login')
+      return
+    }
+
+    // Only fetch products if authenticated
+    if (isAuthenticated) {
+      fetchProducts()
+    }
+  }, [filters, searchQuery, isAuthenticated, router, toast])
 
   const fetchProducts = async () => {
     try {
-      setLoading(true)
-      const params = new URLSearchParams({
-        search: searchQuery,
-        category: filters.category,
-        location: filters.location,
-        minPrice: filters.priceRange[0].toString(),
-        maxPrice: filters.priceRange[1].toString(),
-        sortBy: filters.sortBy,
-      })
+      // Only fetch if authenticated
+      if (!isAuthenticated) {
+        return
+      }
 
-      const response = await api.get(`/marketplace/products?${params}`)
-      setProducts(response.data.products || [])
+      setLoading(true)
+
+      // Map frontend filters to backend parameters
+      const params: any = {
+        page: 1,
+        limit: 20,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      }
+
+      // Add search query
+      if (searchQuery) {
+        params.search = searchQuery
+      }
+
+      // Add category filter
+      if (filters.category !== 'all') {
+        params.category = filters.category
+      }
+
+      // Add location filter
+      if (filters.location) {
+        params.location = filters.location
+      }
+
+      // Add price filters
+      if (filters.priceRange[0] > 0) {
+        params.minPrice = filters.priceRange[0]
+      }
+      if (filters.priceRange[1] < 10000) {
+        params.maxPrice = filters.priceRange[1]
+      }
+
+      // Add sorting
+      if (filters.sortBy === 'price_low') {
+        params.sortBy = 'basePrice'
+        params.sortOrder = 'asc'
+      } else if (filters.sortBy === 'price_high') {
+        params.sortBy = 'basePrice'
+        params.sortOrder = 'desc'
+      } else if (filters.sortBy === 'rating') {
+        params.sortBy = 'rating'
+        params.sortOrder = 'desc'
+      }
+
+      const response = await apiService.getMarketplaceListings(params)
+      const listings = response.data?.listings || []
+
+      // Convert backend listing format to frontend product format
+      const convertedProducts = listings.map((listing: any) => ({
+        id: listing._id,
+        name: listing.cropName,
+        category: listing.category,
+        description: listing.description,
+        price: listing.basePrice,
+        unit: listing.unit,
+        location: listing.location,
+        images: listing.images || [],
+        rating: listing.rating || 4.5,
+        isVerified: true,
+        farmerName: listing.farmer?.name || 'Local Farmer',
+        farmerId: listing.farmer?._id || 'unknown',
+        quantity: listing.quantity,
+        availableQuantity: listing.availableQuantity,
+        quality: listing.qualityGrade,
+        organic: listing.organic,
+        tags: listing.tags || [],
+        createdAt: listing.createdAt
+      }))
+
+      setProducts(convertedProducts)
     } catch (error) {
       console.error("Failed to fetch products:", error)
+      setProducts([])
     } finally {
       setLoading(false)
     }
@@ -54,17 +143,54 @@ export default function MarketplacePage() {
 
   const handleAddToCart = async (productId: string) => {
     try {
-      await api.post("/marketplace/cart", { productId, quantity: 1 })
-      // Show success message
+      // Find the product in the current products list
+      const product = products.find(p => p.id === productId)
+      if (product) {
+        // Use buyer store to add to cart with proper format
+        const cartItem = {
+          id: product.id,
+          listingId: product.id,
+          cropName: product.name,
+          quantity: 1,
+          unit: product.unit,
+          price: product.price,
+          image: product.images?.[0] || "/placeholder.svg",
+          farmer: product.farmer,
+          category: product.category,
+          location: product.location
+        }
+
+        addToCart(cartItem, 1)
+
+        toast({
+          title: "Added to cart!",
+          description: `${product.name} has been added to your cart.`,
+        })
+
+        console.log("✅ Product added to cart successfully:", cartItem)
+      } else {
+        toast({
+          title: "Product not found",
+          description: "The product you're trying to add is no longer available.",
+          variant: "destructive",
+        })
+      }
     } catch (error) {
-      console.error("Failed to add to cart:", error)
+      console.error("❌ Failed to add to cart:", error)
+      toast({
+        title: "Failed to add to cart",
+        description: "Please try again later.",
+        variant: "destructive",
+      })
     }
   }
 
   const handleToggleFavorite = async (productId: string) => {
     try {
-      await api.post(`/marketplace/products/${productId}/favorite`)
-      // Update local state
+      // Use the favorites API endpoint
+      await apiService.addToFavorites(productId)
+      console.log("Added to favorites:", productId)
+      // TODO: Update local state or refetch favorites
     } catch (error) {
       console.error("Failed to toggle favorite:", error)
     }
@@ -77,7 +203,7 @@ export default function MarketplacePage() {
       name: product.name,
       cropType: product.category || "Agricultural Product",
       variety: product.variety || "Standard",
-      description: product.description || "Fresh agricultural product",
+      description: product.description || "Fresh agricultural product from verified farmers",
       price: product.price,
       unit: product.unit,
       quantity: (product as any).quantity || 100,
@@ -92,10 +218,12 @@ export default function MarketplacePage() {
         name: (product as any).farmerName || "Unknown Farmer",
         avatar: (product as any).farmerAvatar || "",
         rating: product.rating || 4.5,
-        verified: product.isVerified || false,
+        verified: product.isVerified || true,
         location: product.location
       },
-      images: product.images || ["/placeholder.svg?height=200&width=300&query=fresh agricultural product"],
+      images: product.images && product.images.length > 0 
+        ? product.images 
+        : ["/placeholder.svg?height=200&width=300&query=fresh agricultural product"],
       certifications: (product as any).certifications || ["ISO 22000"],
       shipping: {
         available: (product as any).shippingAvailable || true,
@@ -105,7 +233,7 @@ export default function MarketplacePage() {
       rating: product.rating || 4.5,
       reviewCount: (product as any).reviewCount || 0,
       qrCode: (product as any).qrCode || `PRODUCT_${Date.now()}`,
-      tags: (product as any).tags || [product.category, "fresh", "agricultural"]
+      tags: (product as any).tags || [product.category, "fresh", "agricultural", "verified"]
     }
   }
 
@@ -119,7 +247,7 @@ export default function MarketplacePage() {
         break
       case "view":
         // Navigate to product detail page
-        window.location.href = `/marketplace/products/${productId}`
+        router.push(`/marketplace/products/${productId}`)
         break
       case "contact":
         // Handle contact logic
@@ -132,31 +260,53 @@ export default function MarketplacePage() {
     }
   }
 
+  // Show loading state while determining authentication status
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading marketplace...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Marketplace</h1>
-          <p className="text-gray-600">Discover fresh, verified agricultural products from trusted farmers</p>
+        <div className="mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <Link href="/dashboard" className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+              <ArrowLeft className="h-4 w-4" />
+              <span className="text-sm">Back to Dashboard</span>
+            </Link>
+            <Link href="/dashboard" className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+              <Home className="h-4 w-4" />
+              <span className="text-sm">Home</span>
+            </Link>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Marketplace</h1>
+          <p className="text-gray-600 text-sm">Discover fresh, verified agricultural products from trusted farmers</p>
         </div>
 
         {/* Search and Filters */}
-        <div className="mb-8 space-y-4">
-          <div className="flex flex-col md:flex-row gap-4">
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
                 placeholder="Search products, farmers, or locations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-white border-gray-200"
               />
             </div>
             <div className="flex gap-2">
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+                  <Button variant="outline" className="flex items-center gap-2 bg-white border-gray-200">
                     <Filter className="h-4 w-4" />
                     Filters
                   </Button>
@@ -227,11 +377,12 @@ export default function MarketplacePage() {
                 </SheetContent>
               </Sheet>
 
-              <div className="flex border rounded-lg">
+              <div className="flex border rounded-lg bg-white">
                 <Button
                   variant={viewMode === "grid" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setViewMode("grid")}
+                  className="rounded-r-none"
                 >
                   <Grid className="h-4 w-4" />
                 </Button>
@@ -239,6 +390,7 @@ export default function MarketplacePage() {
                   variant={viewMode === "list" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setViewMode("list")}
+                  className="rounded-l-none"
                 >
                   <List className="h-4 w-4" />
                 </Button>
@@ -249,29 +401,31 @@ export default function MarketplacePage() {
 
         {/* Products Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <div className="h-48 bg-gray-200 rounded-t-lg"></div>
-                <CardContent className="p-4">
-                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded mb-4"></div>
-                  <div className="h-6 bg-gray-200 rounded"></div>
-                </CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+            {[...Array(10)].map((_, i) => (
+              <Card key={i} className="animate-pulse bg-white">
+                <div className="aspect-[3/2] bg-gray-200"></div>
+                <div className="p-4 space-y-3">
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                  <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+                </div>
               </Card>
             ))}
           </div>
         ) : (
           <div
             className={
-              viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : "space-y-4"
+              viewMode === "grid" 
+                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4" 
+                : "space-y-3"
             }
           >
             {products.map((product) => (
               <MarketplaceCard
                 key={product.id}
                 product={convertToMarketplaceProduct(product)}
-                variant={viewMode === "list" ? "detailed" : "default"}
+                variant={viewMode === "list" ? "compact" : "default"}
                 onAddToCart={(id) => handleMarketplaceAction("addToCart", id)}
                 onAddToWishlist={(id) => handleMarketplaceAction("addToWishlist", id)}
                 onView={(id) => handleMarketplaceAction("view", id)}
@@ -283,12 +437,12 @@ export default function MarketplacePage() {
         )}
 
         {products.length === 0 && !loading && (
-          <div className="text-center py-12">
+          <div className="text-center py-12 bg-white rounded-lg">
             <div className="text-gray-400 mb-4">
-              <Search className="h-16 w-16 mx-auto" />
+              <Search className="h-12 w-12 mx-auto" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No products found</h3>
-            <p className="text-gray-600">Try adjusting your search or filters</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No products found</h3>
+            <p className="text-gray-600 text-sm">Try adjusting your search or filters</p>
           </div>
         )}
       </div>

@@ -9,8 +9,9 @@ interface BuyerState {
   notifications: any[]
   isLoading: boolean
   error: string | null
-  
+
   // Actions
+  initializeCart: () => void
   fetchProfile: () => Promise<void>
   updateProfile: (data: any) => Promise<void>
   fetchFavorites: () => Promise<void>
@@ -20,38 +21,77 @@ interface BuyerState {
   removeFromCart: (productId: string) => void
   updateCartQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
+  clearStoredCart: () => void
+  getCartSummary: () => any
   fetchOrders: () => Promise<void>
-  createOrder: (orderData: any) => Promise<void>
+  createOrder: (orderData: any) => Promise<any>
   fetchNotifications: () => Promise<void>
   markNotificationAsRead: (notificationId: string) => Promise<void>
+  getCurrentUserId: () => string | null
+}
+
+// Cart persistence functions
+const CART_STORAGE_KEY = 'grochain-buyer-cart'
+
+const saveCartToStorage = (cart: any[]) => {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart))
+    } catch (error) {
+      console.warn('Failed to save cart to localStorage:', error)
+    }
+  }
+}
+
+const loadCartFromStorage = (): any[] => {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem(CART_STORAGE_KEY)
+      return stored ? JSON.parse(stored) : []
+    } catch (error) {
+      console.warn('Failed to load cart from localStorage:', error)
+      return []
+    }
+  }
+  return []
 }
 
 export const useBuyerStore = create<BuyerState>((set, get) => ({
   profile: null,
   favorites: [],
-  cart: [],
+  cart: [], // Initialize with empty array to avoid hydration issues
   orders: [],
   notifications: [],
   isLoading: false,
   error: null,
 
+  // Initialize cart from localStorage after hydration
+  initializeCart: () => {
+    if (typeof window !== 'undefined') {
+      const storedCart = loadCartFromStorage()
+      set({ cart: storedCart })
+    }
+  },
+
   fetchProfile: async () => {
     set({ isLoading: true, error: null })
     try {
-      const response = await apiService.getBuyerProfile()
+      const response = await apiService.getProfile()
       set({ profile: response.data, isLoading: false })
     } catch (error: any) {
-      set({ error: error.message, isLoading: false })
+      console.error('Failed to fetch profile:', error)
+      set({ error: error.message || 'Failed to load profile', isLoading: false })
     }
   },
 
   updateProfile: async (data: any) => {
     set({ isLoading: true, error: null })
     try {
-      const response = await apiService.updateBuyerProfile(data)
+      const response = await apiService.updateProfile(data)
       set({ profile: response.data, isLoading: false })
     } catch (error: any) {
-      set({ error: error.message, isLoading: false })
+      console.error('Failed to update profile:', error)
+      set({ error: error.message || 'Failed to update profile', isLoading: false })
     }
   },
 
@@ -59,96 +99,179 @@ export const useBuyerStore = create<BuyerState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const response = await apiService.getFavorites(get().profile?._id)
-      set({ favorites: response.data?.favorites || [], isLoading: false })
+      const favorites = (response.data as any)?.favorites || (response.data as any) || []
+      set({ favorites, isLoading: false })
     } catch (error: any) {
-      set({ error: error.message, isLoading: false })
+      console.error('Failed to fetch favorites:', error)
+      set({ error: error.message || 'Failed to load favorites', isLoading: false })
     }
   },
 
   addToFavorites: async (listingId: string, notes?: string) => {
     try {
       await apiService.addToFavorites(listingId, notes)
-      await get().fetchFavorites()
+      // Refresh favorites after adding
+      const response = await apiService.getFavorites(get().profile?._id)
+      const favorites = (response.data as any)?.favorites || (response.data as any) || []
+      set({ favorites })
     } catch (error: any) {
-      set({ error: error.message })
+      console.error('Failed to add to favorites:', error)
+      set({ error: error.message || 'Failed to add to favorites' })
     }
   },
 
   removeFromFavorites: async (listingId: string) => {
     try {
       await apiService.removeFromFavorites(get().profile?._id, listingId)
-      await get().fetchFavorites()
+      // Refresh favorites after removing
+      const response = await apiService.getFavorites(get().profile?._id)
+      const favorites = (response.data as any)?.favorites || (response.data as any) || []
+      set({ favorites })
     } catch (error: any) {
-      set({ error: error.message })
+      console.error('Failed to remove from favorites:', error)
+      set({ error: error.message || 'Failed to remove from favorites' })
     }
   },
 
-  addToCart: (product: any, quantity: number) => {
-    const existingItem = get().cart.find(item => item.id === product._id)
+  addToCart: (cartItem: any, quantity?: number) => {
+    // Handle both formats: raw product object or pre-formatted cartItem
+    const itemToAdd = cartItem.id ? cartItem : {
+      id: cartItem._id || cartItem.id,
+      listingId: cartItem._id || cartItem.listingId || cartItem.id,
+      cropName: cartItem.cropName || cartItem.name,
+      quantity: quantity || cartItem.quantity || 1,
+      unit: cartItem.unit,
+      price: cartItem.price || cartItem.basePrice,
+      total: (cartItem.price || cartItem.basePrice) * (quantity || cartItem.quantity || 1),
+      farmer: cartItem.farmer || 'Unknown Farmer',
+      location: cartItem.location,
+      image: cartItem.image || "/placeholder.svg",
+      availableQuantity: cartItem.availableQuantity || 0
+    }
+
+    const existingItem = get().cart.find(item => item.id === itemToAdd.id)
     if (existingItem) {
-      get().updateCartQuantity(product._id, existingItem.quantity + quantity)
+      get().updateCartQuantity(itemToAdd.id, existingItem.quantity + itemToAdd.quantity)
     } else {
-      set(state => ({
-        cart: [...state.cart, { 
-          id: product._id,
-          listingId: product._id,
-          cropName: product.cropName,
-          quantity,
-          unit: product.unit,
-          price: product.basePrice,
-          total: product.basePrice * quantity,
-          farmer: product.farmer.name,
-          location: `${product.location.city}, ${product.location.state}`,
-          image: product.images[0],
-          availableQuantity: product.availableQuantity
-        }]
-      }))
+      set(state => {
+        const newCart = [...state.cart, itemToAdd]
+        saveCartToStorage(newCart) // Save to localStorage
+        return { cart: newCart }
+      })
     }
   },
 
-  removeFromCart: (productId: string) => {
-    set(state => ({
-      cart: state.cart.filter(item => item.id !== productId)
-    }))
+    removeFromCart: (productId: string) => {
+    set(state => {
+      const newCart = state.cart.filter(item => item.id !== productId)
+      saveCartToStorage(newCart) // Save to localStorage
+      return { cart: newCart }
+    })
   },
 
   updateCartQuantity: (productId: string, quantity: number) => {
     if (quantity <= 0) {
       get().removeFromCart(productId)
     } else {
-      set(state => ({
-        cart: state.cart.map(item =>
-          item.id === productId 
+      set(state => {
+        const newCart = state.cart.map(item =>
+          item.id === productId
             ? { ...item, quantity, total: item.price * quantity }
             : item
         )
-      }))
+        saveCartToStorage(newCart) // Save to localStorage
+        return { cart: newCart }
+      })
     }
   },
 
   clearCart: () => {
-    set({ cart: [] })
+    const emptyCart: any[] = []
+    saveCartToStorage(emptyCart) // Save to localStorage
+    set({ cart: emptyCart })
+  },
+
+  // Utility function to manually clear cart from localStorage (for debugging)
+  clearStoredCart: () => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(CART_STORAGE_KEY)
+        console.log('🗑️ Cart cleared from localStorage')
+      } catch (error) {
+        console.warn('Failed to clear cart from localStorage:', error)
+      }
+    }
+  },
+
+  // Get cart summary for debugging
+  getCartSummary: () => {
+    const cart = get().cart
+    return {
+      itemCount: cart.length,
+      totalItems: cart.reduce((sum, item) => sum + item.quantity, 0),
+      totalValue: cart.reduce((sum, item) => sum + item.total, 0),
+      items: cart.map(item => ({
+        name: item.cropName,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.total
+      }))
+    }
+  },
+
+  getCurrentUserId: () => {
+    const profile = get().profile
+    return profile?._id || null
   },
 
   fetchOrders: async () => {
     set({ isLoading: true, error: null })
     try {
-      const response = await apiService.getBuyerOrders(get().profile?._id)
-      set({ orders: response.data?.orders || [], isLoading: false })
+      console.log('📦 Fetching orders from backend...')
+      const response = await apiService.getUserOrders()
+      console.log('📋 Orders response:', response)
+
+      let orders = []
+      if ((response as any)?.data?.data?.orders) {
+        orders = (response as any).data.data.orders
+      } else if ((response as any)?.data?.orders) {
+        orders = (response as any).data.orders
+      } else if ((response as any)?.data) {
+        orders = Array.isArray((response as any).data) ? (response as any).data : []
+      }
+
+      console.log('✅ Processed orders:', orders.length, 'orders')
+      set({ orders: Array.isArray(orders) ? orders : [], isLoading: false })
     } catch (error: any) {
-      set({ error: error.message, isLoading: false })
+      console.error('❌ Failed to fetch orders:', error)
+      set({ error: error.message || 'Failed to load orders', isLoading: false })
     }
   },
 
   createOrder: async (orderData: any) => {
     set({ isLoading: true, error: null })
     try {
+      console.log('🛒 Creating order with data:', orderData)
       const response = await apiService.createOrder(orderData)
-      const newOrders = [...get().orders, response.data]
-      set({ orders: newOrders, isLoading: false })
-      get().clearCart() // Clear cart after successful order
+      console.log('✅ Order creation response:', response)
+
+      if (response?.status === 'success' && response?.data) {
+        // Add the new order to the orders list
+        const newOrders = [...get().orders, response.data]
+        set({ orders: newOrders, isLoading: false })
+
+        // Clear cart after successful order
+        get().clearCart()
+
+        console.log('🎉 Order created successfully:', response.data._id)
+        return response.data
+      } else {
+        throw new Error(response?.message || 'Failed to create order')
+      }
     } catch (error: any) {
-      set({ error: error.message, isLoading: false })
+      console.error('❌ Order creation failed:', error)
+      set({ error: error.message || 'Failed to create order', isLoading: false })
+      throw error
     }
   },
 
@@ -156,7 +279,7 @@ export const useBuyerStore = create<BuyerState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const response = await apiService.getUserNotifications()
-      set({ notifications: response.data?.notifications || [], isLoading: false })
+      set({ notifications: (response.data as any)?.notifications || [], isLoading: false })
     } catch (error: any) {
       set({ error: error.message, isLoading: false })
     }

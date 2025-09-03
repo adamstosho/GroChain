@@ -331,7 +331,7 @@ export function AnalyticsDashboard({ className }: AnalyticsDashboardProps) {
                       <div className="space-y-1">
                         <p className="text-sm font-medium">{performer.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {performer.location} • {performer.totalHarvests} harvests
+                          {typeof performer.location === 'string' ? performer.location : `${performer.location?.city || 'Unknown'}, ${performer.location?.state || 'Unknown State'}`} • {performer.totalHarvests} harvests
                         </p>
                       </div>
                       <div className="text-right">

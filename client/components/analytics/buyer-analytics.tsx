@@ -6,11 +6,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  ShoppingCart, 
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  ShoppingCart,
   Heart,
   Calendar,
   BarChart3,
@@ -22,9 +22,13 @@ import {
   Package,
   Target,
   Star,
-  Truck
+  Truck,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Clock
 } from "lucide-react"
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie } from "recharts"
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie, Legend } from "recharts"
 import { cn } from "@/lib/utils"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
@@ -37,6 +41,35 @@ interface BuyerAnalyticsData {
   completionRate: number
   favoriteProducts?: number
   pendingDeliveries?: number
+  spendingByCategory?: Array<{
+    category: string
+    amount: number
+    percentage: number
+  }>
+  ordersByStatus?: Array<{
+    status: string
+    count: number
+    percentage: number
+  }>
+  monthlySpending?: Array<{
+    month: string
+    spending: number
+    orders: number
+  }>
+  topSuppliers?: Array<{
+    name: string
+    orders: number
+    totalSpent: number
+    rating: number
+  }>
+  recentOrders?: Array<{
+    id: string
+    orderNumber: string
+    date: string
+    status: string
+    total: number
+    items: number
+  }>
 }
 
 interface ChartData {
@@ -51,49 +84,18 @@ export function BuyerAnalytics() {
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
 
-  // Mock data for charts (replace with real API calls)
-  const mockPurchaseTrends: ChartData[] = [
-    { name: "Jan", orders: 8, spending: 45000, avgOrder: 5625 },
-    { name: "Feb", orders: 12, spending: 68000, avgOrder: 5667 },
-    { name: "Mar", orders: 15, spending: 89000, avgOrder: 5933 },
-    { name: "Apr", orders: 18, spending: 112000, avgOrder: 6222 },
-    { name: "May", orders: 22, spending: 145000, avgOrder: 6591 },
-    { name: "Jun", orders: 25, spending: 178000, avgOrder: 7120 }
-  ]
-
-  const mockCategorySpending: ChartData[] = [
-    { name: "Grains", value: 45, color: "#22c55e" },
-    { name: "Vegetables", value: 25, color: "#f59e0b" },
-    { name: "Tubers", value: 20, color: "#8b5cf6" },
-    { name: "Fruits", value: 8, color: "#ef4444" },
-    { name: "Others", value: 2, color: "#6b7280" }
-  ]
-
-  const mockSupplierPerformance = [
-    { supplier: "Farm Fresh Co.", orders: 15, total: 89000, rating: 4.8, delivery: 95 },
-    { supplier: "Green Valley", orders: 12, total: 67000, rating: 4.6, delivery: 92 },
-    { supplier: "Organic Plus", orders: 8, total: 45000, rating: 4.9, delivery: 98 },
-    { supplier: "Local Harvest", orders: 10, total: 52000, rating: 4.4, delivery: 88 },
-    { supplier: "Premium Farms", orders: 6, total: 38000, rating: 4.7, delivery: 94 }
-  ]
-
-  const mockDeliveryMetrics = {
-    onTime: 85,
-    delayed: 12,
-    early: 3
-  }
-
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
         setIsLoading(true)
-        // Fetch buyer analytics data
-        const response = await apiService.getBuyerAnalytics()
+        // Fetch buyer analytics data with period
+        const response = await apiService.getBuyerAnalyticsWithPeriod(undefined, timeRange)
         setAnalyticsData(response.data)
       } catch (error: any) {
+        console.error('Error fetching buyer analytics:', error)
         toast({
           title: "Error loading analytics",
-          description: error.message,
+          description: error.message || "Failed to load analytics data",
           variant: "destructive",
         })
       } finally {
@@ -102,19 +104,50 @@ export function BuyerAnalytics() {
     }
 
     fetchAnalytics()
-  }, [toast])
+  }, [toast, timeRange])
 
-  const handleRefresh = () => {
-    // Refresh analytics data
-    window.location.reload()
+  const handleRefresh = async () => {
+    try {
+      setIsLoading(true)
+      const response = await apiService.getBuyerAnalyticsWithPeriod(undefined, timeRange)
+      setAnalyticsData(response.data)
+      toast({
+        title: "Analytics refreshed",
+        description: "Your analytics data has been updated.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Refresh failed",
+        description: error.message || "Failed to refresh analytics data",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleExport = () => {
-    // Export analytics data
-    toast({
-      title: "Export initiated",
-      description: "Your analytics report is being prepared for download.",
-    })
+  const handleExport = async () => {
+    try {
+      const exportData = {
+        type: 'buyer-analytics',
+        period: timeRange,
+        data: analyticsData,
+        timestamp: new Date().toISOString()
+      }
+
+      const response = await apiService.exportOrderData(exportData)
+
+      toast({
+        title: "Export successful",
+        description: "Your analytics report has been downloaded.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Export failed",
+        description: error.message || "Failed to export analytics data",
+        variant: "destructive",
+      })
+    }
   }
 
   const formatCurrency = (value: number) => {
@@ -133,10 +166,92 @@ export function BuyerAnalytics() {
     }).format(value)
   }
 
+  // Helper functions for data validation and formatting
+  const isValidData = (data: any) => {
+    return data && (Array.isArray(data) ? data.length > 0 : true)
+  }
+
+  const getChartColors = () => ['#22c55e', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899']
+
+  const prepareCategorySpendingData = () => {
+    if (!analyticsData?.spendingByCategory) return []
+    return analyticsData.spendingByCategory.map((item, index) => ({
+      ...item,
+      color: getChartColors()[index % getChartColors().length]
+    }))
+  }
+
+  const prepareMonthlySpendingData = () => {
+    if (!analyticsData?.monthlySpending) return []
+    return analyticsData.monthlySpending.map(item => ({
+      name: item.month,
+      orders: item.orders,
+      spending: item.spending,
+      avgOrder: item.orders > 0 ? item.spending / item.orders : 0
+    }))
+  }
+
+  const prepareOrderStatusData = () => {
+    if (!analyticsData?.ordersByStatus) return []
+    return analyticsData.ordersByStatus.map((item, index) => ({
+      ...item,
+      color: getChartColors()[index % getChartColors().length]
+    }))
+  }
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="h-8 w-8 animate-spin" />
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 bg-muted rounded w-64 animate-pulse" />
+            <div className="h-4 bg-muted rounded w-96 animate-pulse" />
+          </div>
+          <div className="flex gap-3">
+            <div className="h-10 bg-muted rounded w-32 animate-pulse" />
+            <div className="h-10 bg-muted rounded w-20 animate-pulse" />
+            <div className="h-10 bg-muted rounded w-20 animate-pulse" />
+          </div>
+        </div>
+
+        {/* Key metrics skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-4 bg-muted rounded w-24 animate-pulse" />
+                <div className="h-4 w-4 bg-muted rounded animate-pulse" />
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-muted rounded w-16 mb-2 animate-pulse" />
+                <div className="h-3 bg-muted rounded w-32 animate-pulse" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Charts skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <div className="h-6 bg-muted rounded w-48 animate-pulse" />
+              <div className="h-4 bg-muted rounded w-64 animate-pulse" />
+            </CardHeader>
+            <CardContent>
+              <div className="h-64 bg-muted rounded animate-pulse" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <div className="h-6 bg-muted rounded w-48 animate-pulse" />
+              <div className="h-4 bg-muted rounded w-64 animate-pulse" />
+            </CardHeader>
+            <CardContent>
+              <div className="h-64 bg-muted rounded animate-pulse" />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     )
   }
@@ -184,8 +299,8 @@ export function BuyerAnalytics() {
           <CardContent>
             <div className="text-2xl font-bold">{analyticsData?.totalOrders || 0}</div>
             <div className="flex items-center text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
-              {analyticsData?.completionRate || 0}% completion rate
+              <CheckCircle className="h-3 w-3 mr-1 text-green-600" />
+              {analyticsData?.completedOrders || 0} completed
             </div>
           </CardContent>
         </Card>
@@ -208,28 +323,30 @@ export function BuyerAnalytics() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Favorite Products</CardTitle>
-            <Heart className="h-4 w-4 text-purple-600" />
+            <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
+            <Target className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analyticsData?.favoriteProducts || 0}</div>
+            <div className="text-2xl font-bold">{analyticsData?.completionRate || 0}%</div>
             <div className="flex items-center text-xs text-muted-foreground">
-              <Target className="h-3 w-3 mr-1 text-blue-600" />
-              Saved items
+              <Activity className="h-3 w-3 mr-1 text-blue-600" />
+              Order success rate
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Deliveries</CardTitle>
-            <Truck className="h-4 w-4 text-orange-600" />
+            <CardTitle className="text-sm font-medium">Active Orders</CardTitle>
+            <Clock className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analyticsData?.pendingDeliveries || 0}</div>
+            <div className="text-2xl font-bold">
+              {(analyticsData?.totalOrders || 0) - (analyticsData?.completedOrders || 0)}
+            </div>
             <div className="flex items-center text-xs text-muted-foreground">
               <Package className="h-3 w-3 mr-1 text-blue-600" />
-              In transit
+              Pending completion
             </div>
           </CardContent>
         </Card>
@@ -257,52 +374,61 @@ export function BuyerAnalytics() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <AreaChart data={mockPurchaseTrends}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis 
-                    yAxisId="left"
-                    tickFormatter={(value) => formatNumber(value)}
-                  />
-                  <YAxis 
-                    yAxisId="right" 
-                    orientation="right"
-                    tickFormatter={(value) => formatCurrency(value)}
-                  />
-                  <Tooltip 
-                    formatter={(value: any, name: string) => [
-                      name === 'spending' || name === 'avgOrder' ? formatCurrency(value) : value,
-                      name === 'spending' ? 'Total Spending' : name === 'avgOrder' ? 'Avg Order' : 'Orders'
-                    ]}
-                  />
-                  <Area
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="orders"
-                    stroke="#3b82f6"
-                    fill="#3b82f6"
-                    fillOpacity={0.1}
-                    name="Orders"
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="spending"
-                    stroke="#22c55e"
-                    strokeWidth={2}
-                    name="Total Spending"
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="avgOrder"
-                    stroke="#8b5cf6"
-                    strokeWidth={2}
-                    name="Average Order"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {isValidData(prepareMonthlySpendingData()) ? (
+                <ResponsiveContainer width="100%" height={400}>
+                  <AreaChart data={prepareMonthlySpendingData()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis
+                      yAxisId="left"
+                      tickFormatter={(value) => formatNumber(value)}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tickFormatter={(value) => formatCurrency(value)}
+                    />
+                    <Tooltip
+                      formatter={(value: any, name: string) => [
+                        name === 'spending' || name === 'avgOrder' ? formatCurrency(value) : value,
+                        name === 'spending' ? 'Total Spending' : name === 'avgOrder' ? 'Avg Order' : 'Orders'
+                      ]}
+                    />
+                    <Area
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="orders"
+                      stroke="#3b82f6"
+                      fill="#3b82f6"
+                      fillOpacity={0.1}
+                      name="Orders"
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="spending"
+                      stroke="#22c55e"
+                      strokeWidth={2}
+                      name="Total Spending"
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="avgOrder"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      name="Average Order"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-64 text-muted-foreground">
+                  <div className="text-center">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No spending data available for the selected period</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -310,13 +436,29 @@ export function BuyerAnalytics() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Best Month</CardTitle>
+                <CardTitle className="text-sm font-medium">Best Performing Month</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">June</div>
-                <p className="text-xs text-muted-foreground">
-                  25 orders • ₦178K spent • ₦7.1K avg
-                </p>
+                {isValidData(analyticsData?.monthlySpending) ? (() => {
+                  const bestMonth = analyticsData!.monthlySpending!.reduce((best, current) =>
+                    current.spending > best.spending ? current : best
+                  )
+                  return (
+                    <>
+                      <div className="text-2xl font-bold text-green-600">{bestMonth.month}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {bestMonth.orders} orders • {formatCurrency(bestMonth.spending)} spent
+                      </p>
+                    </>
+                  )
+                })() : (
+                  <>
+                    <div className="text-2xl font-bold text-muted-foreground">N/A</div>
+                    <p className="text-xs text-muted-foreground">
+                      No data available
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -329,7 +471,7 @@ export function BuyerAnalytics() {
                   {analyticsData?.completionRate || 0}%
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {analyticsData?.completedOrders || 0} of {analyticsData?.totalOrders || 0} orders
+                  {analyticsData?.completedOrders || 0} of {analyticsData?.totalOrders || 0} orders completed
                 </p>
               </CardContent>
             </Card>
@@ -343,7 +485,7 @@ export function BuyerAnalytics() {
                   {formatCurrency(analyticsData?.averageOrderValue || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Total: {formatCurrency(analyticsData?.totalSpent || 0)}
+                  Total spent: {formatCurrency(analyticsData?.totalSpent || 0)}
                 </p>
               </CardContent>
             </Card>
@@ -364,15 +506,22 @@ export function BuyerAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={mockPurchaseTrends}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis tickFormatter={(value) => formatNumber(value)} />
-                    <Tooltip formatter={(value: any) => [formatNumber(value), 'Orders']} />
-                    <Bar dataKey="orders" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {isValidData(prepareMonthlySpendingData()) ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={prepareMonthlySpendingData()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis tickFormatter={(value) => formatNumber(value)} />
+                      <Tooltip formatter={(value: any) => [formatNumber(value), 'Orders']} />
+                      <Bar dataKey="orders" fill="#3b82f6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-muted-foreground">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No order data available</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -387,20 +536,27 @@ export function BuyerAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={mockPurchaseTrends}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis tickFormatter={(value) => formatCurrency(value)} />
-                    <Tooltip formatter={(value: any) => [formatCurrency(value), 'Spending']} />
-                    <Line
-                      type="monotone"
-                      dataKey="spending"
-                      stroke="#22c55e"
-                      strokeWidth={2}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {isValidData(prepareMonthlySpendingData()) ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={prepareMonthlySpendingData()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                      <Tooltip formatter={(value: any) => [formatCurrency(value), 'Spending']} />
+                      <Line
+                        type="monotone"
+                        dataKey="spending"
+                        stroke="#22c55e"
+                        strokeWidth={2}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-muted-foreground">
+                    <LineChart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No spending data available</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -420,25 +576,33 @@ export function BuyerAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <RechartsPieChart>
-                    <Pie
-                      data={mockCategorySpending}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {mockCategorySpending.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: any) => [`${value}%`, 'Spending']} />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
+                {isValidData(prepareCategorySpendingData()) ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RechartsPieChart>
+                      <Pie
+                        data={prepareCategorySpendingData()}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ category, percentage }) => `${category} ${percentage}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="percentage"
+                      >
+                        {prepareCategorySpendingData().map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: any) => [`${value}%`, 'Spending Share']} />
+                      <Legend />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-muted-foreground">
+                    <PieChart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No category spending data available</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -453,15 +617,22 @@ export function BuyerAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={mockCategorySpending}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis tickFormatter={(value) => `${value}%`} />
-                    <Tooltip formatter={(value: any) => [`${value}%`, 'Spending Share']} />
-                    <Bar dataKey="value" fill="#22c55e" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {isValidData(prepareCategorySpendingData()) ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={prepareCategorySpendingData()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="category" />
+                      <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                      <Tooltip formatter={(value: any) => [formatCurrency(value), 'Total Spent']} />
+                      <Bar dataKey="amount" fill="#22c55e" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-muted-foreground">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No category data available</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -469,117 +640,104 @@ export function BuyerAnalytics() {
 
         <TabsContent value="suppliers" className="space-y-6">
           {/* Supplier Performance */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5 text-primary" />
-                Supplier Performance Analysis
-              </CardTitle>
-              <CardDescription>
-                Order volume, spending, ratings, and delivery performance by supplier
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2 font-medium">Supplier</th>
-                      <th className="text-left p-2 font-medium">Orders</th>
-                      <th className="text-left p-2 font-medium">Total Spent</th>
-                      <th className="text-left p-2 font-medium">Rating</th>
-                      <th className="text-left p-2 font-medium">Delivery %</th>
-                      <th className="text-left p-2 font-medium">Performance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mockSupplierPerformance.map((supplier) => (
-                      <tr key={supplier.supplier} className="border-b hover:bg-muted/30">
-                        <td className="p-2 font-medium">{supplier.supplier}</td>
-                        <td className="p-2">{supplier.orders}</td>
-                        <td className="p-2">{formatCurrency(supplier.total)}</td>
-                        <td className="p-2 flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          {supplier.rating}
-                        </td>
-                        <td className="p-2">{supplier.delivery}%</td>
-                        <td className="p-2">
-                          <Badge 
-                            variant={supplier.delivery >= 95 ? "default" : supplier.delivery >= 90 ? "secondary" : "destructive"}
-                          >
-                            {supplier.delivery >= 95 ? "Excellent" : supplier.delivery >= 90 ? "Good" : "Needs Improvement"}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Delivery Metrics */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {isValidData(analyticsData?.topSuppliers) ? (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5 text-primary" />
-                  Delivery Performance
+                  <Star className="h-5 w-5 text-primary" />
+                  Supplier Performance Analysis
                 </CardTitle>
                 <CardDescription>
-                  Delivery timing breakdown
+                  Order volume, spending, ratings, and delivery performance by supplier
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2 font-medium">Supplier</th>
+                        <th className="text-left p-2 font-medium">Orders</th>
+                        <th className="text-left p-2 font-medium">Total Spent</th>
+                        <th className="text-left p-2 font-medium">Rating</th>
+                        <th className="text-left p-2 font-medium">Performance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analyticsData!.topSuppliers!.map((supplier, index) => (
+                        <tr key={supplier.name} className="border-b hover:bg-muted/30">
+                          <td className="p-2 font-medium">{supplier.name}</td>
+                          <td className="p-2">{supplier.orders}</td>
+                          <td className="p-2">{formatCurrency(supplier.totalSpent)}</td>
+                          <td className="p-2 flex items-center gap-1">
+                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            {supplier.rating.toFixed(1)}
+                          </td>
+                          <td className="p-2">
+                            <Badge
+                              variant={supplier.rating >= 4.5 ? "default" : supplier.rating >= 4.0 ? "secondary" : "destructive"}
+                            >
+                              {supplier.rating >= 4.5 ? "Excellent" : supplier.rating >= 4.0 ? "Good" : "Needs Improvement"}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="flex items-center justify-center h-64">
+                <div className="text-center text-muted-foreground">
+                  <Star className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No supplier performance data available</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Recent Orders */}
+          {isValidData(analyticsData?.recentOrders) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-primary" />
+                  Recent Orders
+                </CardTitle>
+                <CardDescription>
+                  Your most recent purchase activity
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {Object.entries(mockDeliveryMetrics).map(([timing, percentage]) => (
-                    <div key={timing} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium capitalize">
-                          {timing === 'onTime' ? 'On Time' : timing === 'delayed' ? 'Delayed' : 'Early'}
-                        </span>
-                        <span className="text-sm text-muted-foreground">{percentage}%</span>
+                  {analyticsData!.recentOrders!.slice(0, 5).map((order, index) => (
+                    <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="space-y-1">
+                        <p className="font-medium">{order.orderNumber}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {order.date} • {order.items} items
+                        </p>
                       </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div
-                          className={cn(
-                            "h-2 rounded-full transition-all duration-300",
-                            timing === "onTime" && "bg-green-500",
-                            timing === "delayed" && "bg-yellow-500",
-                            timing === "early" && "bg-blue-500"
-                          )}
-                          style={{ width: `${percentage}%` }}
-                        />
+                      <div className="text-right">
+                        <p className="font-medium">{formatCurrency(order.total)}</p>
+                        <Badge
+                          variant={
+                            order.status === 'delivered' ? 'default' :
+                            order.status === 'shipped' ? 'secondary' :
+                            order.status === 'processing' ? 'outline' : 'destructive'
+                          }
+                        >
+                          {order.status}
+                        </Badge>
                       </div>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-primary" />
-                  Supplier Ratings
-                </CardTitle>
-                <CardDescription>
-                  Average ratings by supplier
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={mockSupplierPerformance}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="supplier" />
-                    <YAxis domain={[0, 5]} tickFormatter={(value) => value.toFixed(1)} />
-                    <Tooltip formatter={(value: any) => [value.toFixed(1), 'Rating']} />
-                    <Bar dataKey="rating" fill="#f59e0b" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

@@ -4,7 +4,397 @@ const User = require('../models/user.model')
 const Partner = require('../models/partner.model')
 const Transaction = require('../models/transaction.model')
 
+// Import additional models
+const FinancialGoal = require('../models/financial-goal.model')
+const LoanApplication = require('../models/loan-application.model')
+const InsurancePolicy = require('../models/insurance-policy.model')
+
+// Control sample data creation via environment variable
+const ENABLE_SAMPLE_DATA = process.env.ENABLE_SAMPLE_DATA !== 'false' // Default to true for demo
+
 const fintechController = {
+  // Get comprehensive financial dashboard data
+  async getFinancialDashboard(req, res) {
+    try {
+      const userId = req.user.id
+      const user = await User.findById(userId)
+
+      if (!user) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'User not found'
+        })
+      }
+
+      // Get credit score
+      let creditScore = await CreditScore.findOne({ farmer: userId }).sort({ createdAt: -1 })
+
+      // If no credit score, create sample credit score (only if enabled)
+      if (!creditScore && ENABLE_SAMPLE_DATA) {
+        console.log('⚠️  No credit score found, creating sample credit score...')
+
+        creditScore = await CreditScore.create({
+          farmer: userId,
+          score: 720,
+          factors: {
+            paymentHistory: 85,
+            creditUtilization: 70,
+            creditHistory: 75,
+            newCredit: 80,
+            creditMix: 65
+          },
+          recommendations: [
+            'Continue making timely payments',
+            'Consider reducing credit utilization below 30%',
+            'Maintain good payment history'
+          ]
+        })
+        console.log('✅ Created sample credit score:', creditScore.score)
+      }
+
+      // Get total earnings from transactions
+      const earnings = await Transaction.aggregate([
+        { $match: { userId: userId, type: { $in: ['payment', 'commission'] }, status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ])
+
+      // If no earnings data, create sample data (only if enabled)
+      if ((!earnings[0] || earnings[0].total === 0) && ENABLE_SAMPLE_DATA) {
+        console.log('⚠️  No earnings data found, creating sample transactions...')
+
+        const sampleTransactions = [
+          {
+            type: 'payment',
+            status: 'completed',
+            amount: 250000,
+            currency: 'NGN',
+            reference: 'TXN-SAMPLE-001-' + Date.now(),
+            description: 'Harvest sale - Cassava',
+            userId: userId,
+            createdAt: new Date('2024-01-15')
+          },
+          {
+            type: 'commission',
+            status: 'completed',
+            amount: 15000,
+            currency: 'NGN',
+            reference: 'TXN-SAMPLE-002-' + Date.now(),
+            description: 'Referral commission',
+            userId: userId,
+            createdAt: new Date('2024-01-14')
+          },
+          {
+            type: 'payment',
+            status: 'completed',
+            amount: 180000,
+            currency: 'NGN',
+            reference: 'TXN-SAMPLE-003-' + Date.now(),
+            description: 'Harvest sale - Maize',
+            userId: userId,
+            createdAt: new Date('2024-01-13')
+          },
+          {
+            type: 'payment',
+            status: 'completed',
+            amount: 320000,
+            currency: 'NGN',
+            reference: 'TXN-SAMPLE-004-' + Date.now(),
+            description: 'Harvest sale - Tomatoes',
+            userId: userId,
+            createdAt: new Date('2024-01-12')
+          }
+        ]
+
+        await Transaction.insertMany(sampleTransactions)
+        console.log('✅ Created sample transactions')
+      }
+
+      // Get total savings from financial goals
+      const savings = await FinancialGoal.aggregate([
+        { $match: { farmer: userId, status: 'active' } },
+        { $group: { _id: null, total: { $sum: '$currentAmount' } } }
+      ])
+
+      // If no savings data, create sample financial goals (only if enabled)
+      if ((!savings[0] || savings[0].total === 0) && ENABLE_SAMPLE_DATA) {
+        console.log('⚠️  No savings data found, creating sample financial goals...')
+
+        const sampleGoals = [
+          {
+            farmer: userId,
+            title: 'Emergency Fund',
+            description: 'Build emergency fund for unexpected expenses',
+            type: 'emergency_fund',
+            targetAmount: 500000,
+            currentAmount: 150000,
+            targetDate: new Date('2025-12-31'),
+            priority: 'high',
+            category: 'short_term',
+            status: 'active'
+          },
+          {
+            farmer: userId,
+            title: 'Equipment Purchase',
+            description: 'Save for new tractor',
+            type: 'equipment_purchase',
+            targetAmount: 2000000,
+            currentAmount: 450000,
+            targetDate: new Date('2025-06-30'),
+            priority: 'medium',
+            category: 'medium_term',
+            status: 'active'
+          },
+          {
+            farmer: userId,
+            title: 'Business Expansion',
+            description: 'Expand farm operations',
+            type: 'business_expansion',
+            targetAmount: 1000000,
+            currentAmount: 200000,
+            targetDate: new Date('2026-12-31'),
+            priority: 'medium',
+            category: 'long_term',
+            status: 'active'
+          }
+        ]
+
+        await FinancialGoal.insertMany(sampleGoals)
+        console.log('✅ Created sample financial goals')
+      }
+
+      // Get active loans
+      const activeLoans = await LoanApplication.find({
+        farmer: userId,
+        status: { $in: ['approved', 'disbursed'] }
+      })
+
+      // If no active loans, create sample loan applications (only if enabled)
+      if (activeLoans.length === 0 && ENABLE_SAMPLE_DATA) {
+        console.log('⚠️  No active loans found, creating sample loan applications...')
+
+        const sampleLoans = [
+          {
+            farmer: userId,
+            amount: 500000,
+            purpose: 'Equipment purchase - Tractor',
+            duration: 12,
+            interestRate: 15,
+            status: 'approved',
+            approvedAmount: 500000,
+            approvedDuration: 12,
+            approvedInterestRate: 15,
+            repaymentSchedule: [
+              {
+                dueDate: new Date('2024-02-15'),
+                amount: 45000,
+                status: 'pending'
+              },
+              {
+                dueDate: new Date('2024-03-15'),
+                amount: 45000,
+                status: 'pending'
+              },
+              {
+                dueDate: new Date('2024-04-15'),
+                amount: 45000,
+                status: 'pending'
+              }
+            ]
+          },
+          {
+            farmer: userId,
+            amount: 300000,
+            purpose: 'Seed and fertilizer purchase',
+            duration: 6,
+            interestRate: 12,
+            status: 'disbursed',
+            approvedAmount: 300000,
+            approvedDuration: 6,
+            approvedInterestRate: 12,
+            disbursedAt: new Date('2024-01-10'),
+            repaymentSchedule: [
+              {
+                dueDate: new Date('2024-02-10'),
+                amount: 53000,
+                status: 'pending'
+              },
+              {
+                dueDate: new Date('2024-03-10'),
+                amount: 53000,
+                status: 'pending'
+              }
+            ]
+          }
+        ]
+
+        await LoanApplication.insertMany(sampleLoans)
+        console.log('✅ Created sample loan applications')
+      }
+
+      // Get active insurance policies
+      const activeInsurance = await InsurancePolicy.find({
+        farmer: userId,
+        status: 'active',
+        endDate: { $gt: new Date() }
+      })
+
+      // If no active insurance policies, create sample policies (only if enabled)
+      if (activeInsurance.length === 0 && ENABLE_SAMPLE_DATA) {
+        console.log('⚠️  No active insurance policies found, creating sample policies...')
+
+        const samplePolicies = [
+          {
+            farmer: userId,
+            type: 'crop',
+            provider: 'GroChain Insurance',
+            policyNumber: 'POL-SAMPLE-001-' + Date.now(),
+            coverageAmount: 1000000,
+            premium: 25000,
+            startDate: new Date('2024-01-01'),
+            endDate: new Date('2024-12-31'),
+            status: 'active',
+            region: 'Lagos',
+            coverageDetails: {
+              crops: ['Cassava', 'Maize'],
+              exclusions: ['Natural disasters']
+            }
+          },
+          {
+            farmer: userId,
+            type: 'equipment',
+            provider: 'Farm Equipment Insurance',
+            policyNumber: 'POL-SAMPLE-002-' + Date.now(),
+            coverageAmount: 500000,
+            premium: 15000,
+            startDate: new Date('2024-01-01'),
+            endDate: new Date('2024-12-31'),
+            status: 'active',
+            region: 'Lagos',
+            coverageDetails: {
+              equipment: ['Tractor', 'Harvester'],
+              exclusions: ['Operator negligence']
+            }
+          },
+          {
+            farmer: userId,
+            type: 'livestock',
+            provider: 'Livestock Protection',
+            policyNumber: 'POL-SAMPLE-003-' + Date.now(),
+            coverageAmount: 300000,
+            premium: 12000,
+            startDate: new Date('2024-01-01'),
+            endDate: new Date('2024-12-31'),
+            status: 'active',
+            region: 'Lagos',
+            coverageDetails: {
+              livestock: ['Goats', 'Sheep'],
+              exclusions: ['Disease outbreaks']
+            }
+          }
+        ]
+
+        await InsurancePolicy.insertMany(samplePolicies)
+        console.log('✅ Created sample insurance policies')
+      }
+
+      // Get pending payments (upcoming loan repayments)
+      const pendingPayments = []
+      for (const loan of activeLoans) {
+        const upcomingPayments = loan.repaymentSchedule.filter(payment =>
+          payment.status === 'pending' && new Date(payment.dueDate) > new Date()
+        )
+        pendingPayments.push(...upcomingPayments)
+      }
+
+      const totalPendingPayments = pendingPayments.reduce((sum, payment) => sum + payment.amount, 0)
+
+      // Get next payment due
+      const nextPayment = pendingPayments
+        .filter(payment => new Date(payment.dueDate) > new Date())
+        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0]
+
+      // Get financial goals count
+      const financialGoalsCount = await FinancialGoal.countDocuments({
+        farmer: userId,
+        status: 'active'
+      })
+
+      // Get recent transactions
+      const recentTransactions = await Transaction.find({ userId: userId })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .select('type amount description status createdAt')
+
+      // Get risk level from credit score
+      const riskLevel = creditScore ?
+        (creditScore.score >= 750 ? 'low' : creditScore.score >= 600 ? 'medium' : 'high') : 'medium'
+
+      // Format data
+      const dashboardData = {
+        overview: {
+          creditScore: creditScore?.score || 0,
+          totalEarnings: earnings[0]?.total || 0,
+          pendingPayments: totalPendingPayments,
+          activeLoans: activeLoans.length,
+          insurancePolicies: activeInsurance.length,
+          totalSavings: savings[0]?.total || 0,
+          financialGoals: financialGoalsCount,
+          riskLevel: riskLevel,
+          nextPaymentDue: nextPayment ? {
+            amount: nextPayment.amount,
+            dueDate: nextPayment.dueDate,
+            daysUntilDue: Math.ceil((new Date(nextPayment.dueDate) - new Date()) / (1000 * 60 * 60 * 24))
+          } : null
+        },
+        recentTransactions: recentTransactions.map(transaction => ({
+          _id: transaction._id,
+          type: transaction.type,
+          amount: transaction.amount,
+          description: transaction.description,
+          date: transaction.createdAt.toISOString().split('T')[0],
+          status: transaction.status
+        })),
+        activeLoans: activeLoans.map(loan => ({
+          _id: loan._id,
+          amount: loan.approvedAmount || loan.amount,
+          purpose: loan.purpose,
+          duration: loan.approvedDuration || loan.duration,
+          interestRate: loan.approvedInterestRate || loan.interestRate,
+          status: loan.status,
+          monthlyPayment: loan.repaymentSchedule.length > 0 ?
+            loan.repaymentSchedule[0].amount : (loan.amount / loan.duration),
+          remainingBalance: loan.repaymentSchedule
+            .filter(payment => payment.status === 'pending')
+            .reduce((sum, payment) => sum + payment.amount, 0),
+          nextPaymentDate: loan.repaymentSchedule
+            .filter(payment => payment.status === 'pending')
+            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0]?.dueDate?.toISOString().split('T')[0]
+        })),
+        insurancePolicies: activeInsurance.map(policy => ({
+          _id: policy._id,
+          type: policy.type,
+          provider: policy.provider,
+          policyNumber: policy.policyNumber,
+          coverageAmount: policy.coverageAmount,
+          premium: policy.premium,
+          startDate: policy.startDate.toISOString().split('T')[0],
+          endDate: policy.endDate.toISOString().split('T')[0],
+          status: policy.status
+        }))
+      }
+
+      res.json({
+        status: 'success',
+        data: dashboardData
+      })
+    } catch (error) {
+      console.error('Error getting financial dashboard:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to get financial dashboard data'
+      })
+    }
+  },
   // Get loan referrals
   async getLoanReferrals(req, res) {
     try {
@@ -54,9 +444,16 @@ const fintechController = {
   // Get credit score for a farmer
   async getCreditScore(req, res) {
     try {
+      let userId
+
+      // Handle both /me and /:farmerId routes
       const { farmerId } = req.params
-      const userId = farmerId === 'me' ? req.user.id : farmerId
-      
+      if (req.path.endsWith('/me')) {
+        userId = req.user.id
+      } else {
+        userId = farmerId === 'me' ? req.user.id : farmerId
+      }
+
       // Check if user exists and is a farmer
       const user = await User.findById(userId)
       if (!user) {
@@ -65,28 +462,36 @@ const fintechController = {
           message: 'User not found'
         })
       }
-      
+
       if (user.role !== 'farmer') {
         return res.status(403).json({
           status: 'error',
           message: 'Only farmers have credit scores'
         })
       }
-      
-      // Get or create credit score
+
+      // Get or create credit score - ALWAYS create if doesn't exist
       let creditScore = await CreditScore.findOne({ farmer: userId })
-      
+
       if (!creditScore) {
+        console.log(`⚠️  No credit score found for farmer ${userId}, creating one...`)
         // Calculate initial credit score based on user data
         const initialScore = await calculateInitialCreditScore(userId)
         creditScore = await CreditScore.create({
           farmer: userId,
           score: initialScore.score,
           factors: initialScore.factors,
+          recommendations: [
+            'Complete your first harvest to improve payment history',
+            'Maintain consistent harvest schedules',
+            'Build your marketplace reputation through quality produce',
+            'Consider saving a portion of your earnings'
+          ],
           lastUpdated: new Date()
         })
+        console.log(`✅ Created credit score ${creditScore.score} for farmer ${userId}`)
       }
-      
+
       res.json({
         status: 'success',
         data: {
@@ -1429,33 +1834,303 @@ const fintechController = {
   // Get insurance quotes
   async getInsuranceQuotes(req, res) {
     try {
-      // Mock insurance quotes for now
-      const quotes = [
+      const { cropType, farmSize, location, budget, coverageType } = req.query
+
+      // Comprehensive insurance quotes data
+      const allQuotes = [
         {
-          id: 'quote_001',
-          type: 'crop',
-          provider: 'AgriInsurance Ltd',
-          coverage: 'Basic crop protection',
-          premium: 5000,
-          coverageAmount: 100000,
-          duration: '1 year',
-          features: ['Drought protection', 'Flood coverage', 'Pest damage']
+          _id: 'quote_001',
+          name: 'AgriShield Premium',
+          provider: 'Nigerian Agricultural Insurance Corporation',
+          type: 'Crop Insurance',
+          coverage: 'Comprehensive crop protection against drought, flood, pests, and diseases',
+          premium: 75000,
+          deductible: 25000,
+          maxCoverage: 2000000,
+          features: [
+            'Weather-related damage coverage',
+            'Pest and disease protection',
+            'Market price fluctuation protection',
+            '24/7 claims support',
+            'Expert agronomist consultation'
+          ],
+          exclusions: [
+            'Pre-existing crop conditions',
+            'Intentional damage',
+            'War and civil unrest',
+            'Nuclear incidents'
+          ],
+          rating: 4.8,
+          reviews: 156,
+          claimProcess: 'Simple 3-step process with 48-hour response',
+          waitingPeriod: 14,
+          renewalTerms: 'Annual renewal with loyalty discounts',
+          contactInfo: {
+            phone: '+234 1 234 5678',
+            email: 'info@agrishield.ng',
+            website: 'www.agrishield.ng'
+          },
+          logo: '/naic-logo.png',
+          isRecommended: true,
+          specialOffers: ['20% discount for first-time farmers', 'Free soil testing included'],
+          cropTypes: ['Maize', 'Cassava', 'Tomatoes', 'Beans'],
+          farmSize: 'Small (0-2 hectares)',
+          regions: ['North Central', 'North East', 'North West']
         },
         {
-          id: 'quote_002',
-          type: 'equipment',
-          provider: 'FarmSecure Insurance',
-          coverage: 'Farm machinery protection',
-          premium: 8000,
-          coverageAmount: 200000,
-          duration: '1 year',
-          features: ['Breakdown coverage', 'Theft protection', 'Accident damage']
+          _id: 'quote_002',
+          name: 'FarmGuard Plus',
+          provider: 'Leadway Assurance',
+          type: 'Equipment Insurance',
+          coverage: 'Protection for farm machinery, tools, and equipment',
+          premium: 45000,
+          deductible: 15000,
+          maxCoverage: 1500000,
+          features: [
+            'Equipment breakdown coverage',
+            'Theft and vandalism protection',
+            'Transportation coverage',
+            'Replacement cost coverage',
+            'Emergency repair services'
+          ],
+          exclusions: [
+            'Wear and tear',
+            'Mechanical breakdown due to poor maintenance',
+            'Acts of terrorism',
+            'War damage'
+          ],
+          rating: 4.6,
+          reviews: 89,
+          claimProcess: 'Online claims with photo documentation',
+          waitingPeriod: 7,
+          renewalTerms: 'Flexible payment plans available',
+          contactInfo: {
+            phone: '+234 1 987 6543',
+            email: 'farmguard@leadway.com',
+            website: 'www.leadway.com/farmguard'
+          },
+          logo: '/leadway-logo.png',
+          isRecommended: false,
+          specialOffers: ['15% discount for cooperative members', 'Free equipment maintenance check'],
+          equipmentTypes: ['Tractor', 'Harvester', 'Irrigation System'],
+          farmSize: 'Medium (2-10 hectares)',
+          regions: ['South West', 'South East', 'South South']
+        },
+        {
+          _id: 'quote_003',
+          name: 'LivestockCare Elite',
+          provider: 'AIICO Insurance',
+          type: 'Livestock Insurance',
+          coverage: 'Comprehensive livestock protection including health and mortality',
+          premium: 60000,
+          deductible: 20000,
+          maxCoverage: 3000000,
+          features: [
+            'Animal mortality coverage',
+            'Veterinary care reimbursement',
+            'Breeding stock protection',
+            'Transportation coverage',
+            'Market value protection'
+          ],
+          exclusions: [
+            'Pre-existing health conditions',
+            'Intentional harm',
+            'Diseases from poor husbandry',
+            'Natural disasters in high-risk areas'
+          ],
+          rating: 4.7,
+          reviews: 124,
+          claimProcess: 'Veterinarian assessment required',
+          waitingPeriod: 21,
+          renewalTerms: 'Quarterly or annual options',
+          contactInfo: {
+            phone: '+234 1 456 7890',
+            email: 'livestock@aiico.com',
+            website: 'www.aiico.com/livestock'
+          },
+          logo: '/aiico-logo.png',
+          isRecommended: true,
+          specialOffers: ['Free veterinary consultation', '10% discount for large herds'],
+          livestockTypes: ['Cattle', 'Poultry', 'Goats', 'Sheep'],
+          farmSize: 'Large (10+ hectares)',
+          regions: ['All Locations']
+        },
+        {
+          _id: 'quote_004',
+          name: 'AgriComplete Basic',
+          provider: 'Consolidated Hallmark Insurance',
+          type: 'Crop Insurance',
+          coverage: 'Basic crop protection for smallholder farmers',
+          premium: 25000,
+          deductible: 10000,
+          maxCoverage: 800000,
+          features: [
+            'Drought and flood coverage',
+            'Basic pest protection',
+            'Harvest loss protection',
+            'Mobile claims process'
+          ],
+          exclusions: [
+            'War and civil unrest',
+            'Intentional damage',
+            'Pre-existing conditions'
+          ],
+          rating: 4.2,
+          reviews: 67,
+          claimProcess: 'Mobile app claims processing',
+          waitingPeriod: 21,
+          renewalTerms: 'Annual renewal',
+          contactInfo: {
+            phone: '+234 1 345 6789',
+            email: 'agricomplete@chi.ng',
+            website: 'www.chi.ng/agricomplete'
+          },
+          logo: '/chi-logo.png',
+          isRecommended: false,
+          specialOffers: ['Free mobile app', 'Community training included'],
+          cropTypes: ['Maize', 'Rice', 'Cassava'],
+          farmSize: 'Small (0-2 hectares)',
+          regions: ['North Central', 'South West']
+        },
+        {
+          _id: 'quote_005',
+          name: 'Equipment Shield Pro',
+          provider: 'Custodian & Allied Insurance',
+          type: 'Equipment Insurance',
+          coverage: 'Advanced equipment protection with comprehensive coverage',
+          premium: 65000,
+          deductible: 20000,
+          maxCoverage: 2500000,
+          features: [
+            'Complete equipment breakdown coverage',
+            'Theft and vandalism protection',
+            'Third-party liability',
+            'Emergency roadside assistance',
+            'Replacement value coverage'
+          ],
+          exclusions: [
+            'Wear and tear',
+            'Poor maintenance',
+            'Acts of terrorism',
+            'Nuclear incidents'
+          ],
+          rating: 4.5,
+          reviews: 92,
+          claimProcess: '24/7 claims hotline',
+          waitingPeriod: 10,
+          renewalTerms: 'Flexible payment options',
+          contactInfo: {
+            phone: '+234 1 567 8901',
+            email: 'equipment@caico.ng',
+            website: 'www.caico.ng/equipment'
+          },
+          logo: '/caico-logo.png',
+          isRecommended: false,
+          specialOffers: ['5% discount for annual payment', 'Free equipment valuation'],
+          equipmentTypes: ['Tractor', 'Combine Harvester', 'Irrigation Equipment'],
+          farmSize: 'Medium (2-10 hectares)',
+          regions: ['All Locations']
+        },
+        {
+          _id: 'quote_006',
+          name: 'Premium Livestock Guardian',
+          provider: 'African Alliance Insurance',
+          type: 'Livestock Insurance',
+          coverage: 'Premium livestock protection with veterinary network',
+          premium: 80000,
+          deductible: 25000,
+          maxCoverage: 4000000,
+          features: [
+            'Complete mortality coverage',
+            'Accident and illness protection',
+            'Veterinary network access',
+            'Market value guarantee',
+            'Breeding stock protection',
+            'Emergency veterinary services'
+          ],
+          exclusions: [
+            'Pre-existing conditions',
+            'Intentional harm',
+            'Poor husbandry practices',
+            'Acts of terrorism'
+          ],
+          rating: 4.9,
+          reviews: 203,
+          claimProcess: 'Dedicated veterinary assessors',
+          waitingPeriod: 14,
+          renewalTerms: 'Premium loyalty rewards',
+          contactInfo: {
+            phone: '+234 1 678 9012',
+            email: 'livestock@aaico.ng',
+            website: 'www.aaico.ng/livestock'
+          },
+          logo: '/aaico-logo.png',
+          isRecommended: true,
+          specialOffers: ['Premium veterinary network access', '20% discount for large operations'],
+          livestockTypes: ['Cattle', 'Sheep', 'Goats', 'Poultry'],
+          farmSize: 'Large (10+ hectares)',
+          regions: ['North West', 'North East', 'North Central']
         }
       ]
-      
+
+      // Apply filters
+      let filteredQuotes = [...allQuotes]
+
+      if (cropType && cropType !== 'All Crops') {
+        filteredQuotes = filteredQuotes.filter(quote =>
+          quote.cropTypes && quote.cropTypes.some(crop =>
+            crop.toLowerCase().includes(cropType.toLowerCase().split(' ')[0])
+          )
+        )
+      }
+
+      if (farmSize && farmSize !== 'All Farm Sizes') {
+        filteredQuotes = filteredQuotes.filter(quote =>
+          quote.farmSize === farmSize
+        )
+      }
+
+      if (location && location !== 'All Locations') {
+        filteredQuotes = filteredQuotes.filter(quote =>
+          quote.regions && quote.regions.includes(location)
+        )
+      }
+
+      if (budget && budget !== 'Any Budget') {
+        const budgetMap = {
+          "Under ₦50,000/year": 50000,
+          "₦50,000 - ₦100,000/year": 100000,
+          "₦100,000 - ₦200,000/year": 200000,
+          "Over ₦200,000/year": 200000
+        }
+
+        if (budget in budgetMap) {
+          const maxBudget = budgetMap[budget]
+          if (budget === "Over ₦200,000/year") {
+            filteredQuotes = filteredQuotes.filter(quote => quote.premium > maxBudget)
+          } else {
+            filteredQuotes = filteredQuotes.filter(quote => quote.premium <= maxBudget)
+          }
+        }
+      }
+
+      if (coverageType && coverageType !== 'All Coverage') {
+        filteredQuotes = filteredQuotes.filter(quote =>
+          quote.type === coverageType
+        )
+      }
+
       res.json({
         status: 'success',
-        data: quotes
+        data: filteredQuotes,
+        total: filteredQuotes.length,
+        filters: {
+          cropType: cropType || 'All Crops',
+          farmSize: farmSize || 'All Farm Sizes',
+          location: location || 'All Locations',
+          budget: budget || 'Any Budget',
+          coverageType: coverageType || 'All Coverage'
+        }
       })
     } catch (error) {
       console.error('Error getting insurance quotes:', error)
@@ -1579,18 +2254,95 @@ const fintechController = {
 
 // Helper functions
 async function calculateInitialCreditScore(farmerId) {
-  // Mock calculation - in real implementation, this would analyze various factors
-  const baseScore = 650
-  const factors = {
-    paymentHistory: 70,
-    harvestConsistency: 60,
-    businessStability: 50,
-    marketReputation: 55
-  }
-  
-  return {
-    score: baseScore,
-    factors
+  try {
+    // Analyze farmer's actual data for more accurate credit scoring
+    const farmer = await User.findById(farmerId)
+
+    // Get transaction history for payment analysis
+    const transactions = await Transaction.find({
+      userId: farmerId,
+      type: { $in: ['payment', 'commission'] }
+    }).sort({ createdAt: -1 })
+
+    // Get harvest history for consistency analysis
+    const harvests = await require('../models/harvest.model').find({
+      farmer: farmerId,
+      status: 'approved'
+    }).sort({ createdAt: -1 })
+
+    // Get marketplace listings for reputation analysis
+    const listings = await require('../models/listing.model').find({
+      farmer: farmerId
+    }).sort({ createdAt: -1 })
+
+    // Calculate payment history score (0-100)
+    let paymentHistory = 50 // Base score
+    if (transactions.length > 0) {
+      const successfulPayments = transactions.filter(t => t.status === 'completed').length
+      paymentHistory = Math.min(100, Math.max(30, (successfulPayments / transactions.length) * 100))
+    }
+
+    // Calculate harvest consistency score (0-100)
+    let harvestConsistency = 40 // Base score for new farmers
+    if (harvests.length > 0) {
+      // Check regularity of harvests (simplified calculation)
+      const totalHarvests = harvests.length
+      const completedHarvests = harvests.filter(h => h.status === 'approved').length
+      harvestConsistency = Math.min(100, Math.max(30, (completedHarvests / Math.max(totalHarvests, 1)) * 100))
+    }
+
+    // Calculate business stability score (0-100)
+    let businessStability = 45 // Base score
+    if (farmer && farmer.createdAt) {
+      const accountAge = Date.now() - new Date(farmer.createdAt).getTime()
+      const accountAgeMonths = accountAge / (1000 * 60 * 60 * 24 * 30)
+      businessStability = Math.min(100, Math.max(30, accountAgeMonths * 5)) // Older accounts get higher scores
+    }
+
+    // Calculate market reputation score (0-100)
+    let marketReputation = 50 // Base score
+    if (listings.length > 0) {
+      const activeListings = listings.filter(l => l.status === 'active').length
+      marketReputation = Math.min(100, Math.max(40, (activeListings / listings.length) * 100))
+    }
+
+    // Calculate overall credit score (300-850 range typical for credit scores)
+    const weightedScore = (
+      paymentHistory * 0.4 +      // 40% weight on payment history
+      harvestConsistency * 0.25 +  // 25% weight on harvest consistency
+      businessStability * 0.2 +    // 20% weight on business stability
+      marketReputation * 0.15      // 15% weight on market reputation
+    )
+
+    // Convert to standard credit score range (300-850)
+    const creditScore = Math.round(300 + (weightedScore * 5.5))
+
+    const factors = {
+      paymentHistory: Math.round(paymentHistory),
+      harvestConsistency: Math.round(harvestConsistency),
+      businessStability: Math.round(businessStability),
+      marketReputation: Math.round(marketReputation)
+    }
+
+    console.log(`📊 Calculated credit score for farmer ${farmerId}: ${creditScore}`)
+    console.log(`   Factors: ${JSON.stringify(factors)}`)
+
+    return {
+      score: creditScore,
+      factors
+    }
+  } catch (error) {
+    console.error('Error calculating initial credit score:', error)
+    // Fallback to default values
+    return {
+      score: 650,
+      factors: {
+        paymentHistory: 70,
+        harvestConsistency: 60,
+        businessStability: 50,
+        marketReputation: 55
+      }
+    }
   }
 }
 

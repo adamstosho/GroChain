@@ -74,6 +74,10 @@ interface AnalyticsData {
     percentage: number
     revenue: number
   }>
+  recommendedActions: Array<{
+    title: string
+    description: string
+  }>
 }
 
 const timePeriods = [
@@ -98,87 +102,83 @@ export default function MarketplaceAnalyticsPage() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true)
-      
-      // Mock data for now - replace with actual API call
-      const mockAnalytics: AnalyticsData = {
-        period: selectedPeriod,
-        revenue: {
-          total: 1250000,
-          change: 12.5,
-          trend: 'up'
-        },
-        orders: {
-          total: 156,
-          change: 8.3,
-          trend: 'up'
-        },
-        customers: {
-          total: 89,
-          change: -2.1,
-          trend: 'down'
-        },
-        views: {
-          total: 2340,
-          change: 15.7,
-          trend: 'up'
-        },
-        topProducts: [
-          {
-            name: 'Fresh Maize',
-            revenue: 450000,
-            orders: 45,
-            views: 890,
-            rating: 4.8
-          },
-          {
-            name: 'Cassava Tubers',
-            revenue: 320000,
-            orders: 38,
-            views: 650,
-            rating: 4.6
-          },
-          {
-            name: 'Tomatoes',
-            revenue: 280000,
-            orders: 42,
-            views: 720,
-            rating: 4.9
-          },
-          {
-            name: 'Rice Grains',
-            revenue: 200000,
-            orders: 31,
-            views: 480,
-            rating: 4.5
-          }
-        ],
-        topCategories: [
-          { name: 'Grains', revenue: 650000, percentage: 52 },
-          { name: 'Tubers', revenue: 320000, percentage: 25.6 },
-          { name: 'Vegetables', revenue: 280000, percentage: 22.4 }
-        ],
-        monthlyData: [
-          { month: 'Jan', revenue: 180000, orders: 23, customers: 15 },
-          { month: 'Feb', revenue: 220000, orders: 28, customers: 19 },
-          { month: 'Mar', revenue: 195000, orders: 25, customers: 17 },
-          { month: 'Apr', revenue: 240000, orders: 31, customers: 21 },
-          { month: 'May', revenue: 210000, orders: 27, customers: 18 },
-          { month: 'Jun', revenue: 235000, orders: 30, customers: 20 }
-        ],
-        customerSegments: [
-          { segment: 'New Customers', count: 23, percentage: 25.8, revenue: 280000 },
-          { segment: 'Returning Customers', count: 45, percentage: 50.6, revenue: 650000 },
-          { segment: 'Loyal Customers', count: 21, percentage: 23.6, revenue: 320000 }
-        ]
-      }
 
-      setAnalytics(mockAnalytics)
+      // Fetch real data from backend with period parameter
+      const response = await apiService.getMarketplaceAnalytics(`?period=${selectedPeriod}`)
+      if (response.status === 'success' && response.data) {
+        const data = response.data
+
+        // Format the data to match frontend expectations
+        const analyticsData: AnalyticsData = {
+          period: data.period || selectedPeriod,
+          revenue: data.revenue || { total: 0, change: 0, trend: 'up' },
+          orders: data.orders || { total: 0, change: 0, trend: 'up' },
+          customers: data.customers || { total: 0, change: 0, trend: 'up' },
+          views: data.views || { total: 0, change: 0, trend: 'up' },
+          topProducts: data.topProducts?.slice(0, 4).map((product: any) => ({
+            name: product.name || product.cropName || 'Unknown Product',
+            revenue: product.revenue || 0,
+            orders: product.orders || 0,
+            views: product.views || 0,
+            rating: product.rating || 4.0
+          })) || [],
+          topCategories: data.revenueByCategory?.map((category: any) => ({
+            name: category.category,
+            revenue: category.revenue,
+            percentage: category.percentage
+          })) || [],
+          monthlyData: data.monthlyTrends?.map((trend: any) => ({
+            month: trend.month,
+            revenue: trend.revenue,
+            orders: trend.orders,
+            customers: trend.customers
+          })) || [],
+          customerSegments: [
+            {
+              segment: 'New Customers',
+              count: data.customerInsights?.newCustomers?.count || 0,
+              percentage: data.customerInsights?.newCustomers?.percentage || 0,
+              revenue: data.customerInsights?.newCustomers?.revenue || 0
+            },
+            {
+              segment: 'Returning Customers',
+              count: data.customerInsights?.returningCustomers?.count || 0,
+              percentage: data.customerInsights?.returningCustomers?.percentage || 0,
+              revenue: data.customerInsights?.returningCustomers?.revenue || 0
+            },
+            {
+              segment: 'Loyal Customers',
+              count: data.customerInsights?.loyalCustomers?.count || 0,
+              percentage: data.customerInsights?.loyalCustomers?.percentage || 0,
+              revenue: data.customerInsights?.loyalCustomers?.revenue || 0
+            }
+          ],
+          recommendedActions: data.recommendedActions || []
+        }
+
+        setAnalytics(analyticsData)
+      } else {
+        throw new Error('Failed to fetch analytics data')
+      }
     } catch (error) {
-      console.error("Failed to fetch analytics:", error)
+      console.error('Error fetching analytics:', error)
       toast({
         title: "Error",
-        description: "Failed to load analytics data. Please try again.",
-        variant: "destructive"
+        description: "Failed to load marketplace analytics. Please try again.",
+        variant: "destructive",
+      })
+      // Set empty data on error
+      setAnalytics({
+        period: selectedPeriod,
+        revenue: { total: 0, change: 0, trend: 'up' },
+        orders: { total: 0, change: 0, trend: 'up' },
+        customers: { total: 0, change: 0, trend: 'up' },
+        views: { total: 0, change: 0, trend: 'up' },
+        topProducts: [],
+        topCategories: [],
+        monthlyData: [],
+        customerSegments: [],
+        recommendedActions: []
       })
     } finally {
       setLoading(false)
@@ -206,6 +206,7 @@ export default function MarketplaceAnalyticsPage() {
     return `₦${amount.toLocaleString()}`
   }
 
+  // Loading state
   if (loading) {
     return (
       <DashboardLayout pageTitle="Marketplace Analytics">
@@ -228,6 +229,7 @@ export default function MarketplaceAnalyticsPage() {
     )
   }
 
+  // No analytics data state
   if (!analytics) {
     return (
       <DashboardLayout pageTitle="Marketplace Analytics">
@@ -293,11 +295,11 @@ export default function MarketplaceAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-gray-900">
-                {formatCurrency(analytics.revenue.total)}
+                {formatCurrency(analytics?.revenue?.total || 0)}
               </div>
-              <div className={`flex items-center gap-1 text-sm ${getTrendColor(analytics.revenue.trend)}`}>
-                {getTrendIcon(analytics.revenue.trend)}
-                <span>{analytics.revenue.change}%</span>
+              <div className={`flex items-center gap-1 text-sm ${getTrendColor(analytics?.revenue?.trend || 'up')}`}>
+                {getTrendIcon(analytics?.revenue?.trend || 'up')}
+                <span>{analytics?.revenue?.change || 0}%</span>
                 <span>vs last period</span>
               </div>
             </CardContent>
@@ -311,10 +313,10 @@ export default function MarketplaceAnalyticsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{analytics.orders.total}</div>
-              <div className={`flex items-center gap-1 text-sm ${getTrendColor(analytics.orders.trend)}`}>
-                {getTrendIcon(analytics.orders.trend)}
-                <span>{analytics.orders.change}%</span>
+              <div className="text-2xl font-bold text-gray-900">{analytics?.orders?.total || 0}</div>
+              <div className={`flex items-center gap-1 text-sm ${getTrendColor(analytics?.orders?.trend || 'up')}`}>
+                {getTrendIcon(analytics?.orders?.trend || 'up')}
+                <span>{analytics?.orders?.change || 0}%</span>
                 <span>vs last period</span>
               </div>
             </CardContent>
@@ -328,10 +330,10 @@ export default function MarketplaceAnalyticsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{analytics.customers.total}</div>
-              <div className={`flex items-center gap-1 text-sm ${getTrendColor(analytics.customers.trend)}`}>
-                {getTrendIcon(analytics.customers.trend)}
-                <span>{analytics.customers.change}%</span>
+              <div className="text-2xl font-bold text-gray-900">{analytics?.customers?.total || 0}</div>
+              <div className={`flex items-center gap-1 text-sm ${getTrendColor(analytics?.customers?.trend || 'up')}`}>
+                {getTrendIcon(analytics?.customers?.trend || 'up')}
+                <span>{analytics?.customers?.change || 0}%</span>
                 <span>vs last period</span>
               </div>
             </CardContent>
@@ -345,10 +347,10 @@ export default function MarketplaceAnalyticsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{analytics.views.total.toLocaleString()}</div>
-              <div className={`flex items-center gap-1 text-sm ${getTrendColor(analytics.views.trend)}`}>
-                {getTrendIcon(analytics.views.trend)}
-                <span>{analytics.views.change}%</span>
+              <div className="text-2xl font-bold text-gray-900">{(analytics?.views?.total || 0).toLocaleString()}</div>
+              <div className={`flex items-center gap-1 text-sm ${getTrendColor(analytics?.views?.trend || 'up')}`}>
+                {getTrendIcon(analytics?.views?.trend || 'up')}
+                <span>{analytics?.views?.change || 0}%</span>
                 <span>vs last period</span>
               </div>
             </CardContent>
@@ -368,26 +370,26 @@ export default function MarketplaceAnalyticsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {analytics.topProducts.map((product, index) => (
+                              <div className="space-y-4">
+                  {(analytics?.topProducts || []).map((product, index) => (
                   <div key={index} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-sm font-medium text-blue-600">
                         {index + 1}
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{product.name}</div>
+                        <div className="font-medium text-gray-900">{product?.name || 'Unknown Product'}</div>
                         <div className="text-sm text-gray-500">
-                          {product.orders} orders • ⭐ {product.rating}
+                          {product?.orders || 0} orders • ⭐ {product?.rating || 0}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="font-medium text-gray-900">
-                        {formatCurrency(product.revenue)}
+                        {formatCurrency(product?.revenue || 0)}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {product.views} views
+                        {product?.views || 0} views
                       </div>
                     </div>
                   </div>
@@ -408,23 +410,23 @@ export default function MarketplaceAnalyticsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {analytics.topCategories.map((category, index) => (
+                              <div className="space-y-4">
+                  {(analytics?.topCategories || []).map((category, index) => (
                   <div key={index} className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-900">{category.name}</span>
+                      <span className="text-sm font-medium text-gray-900">{category?.name || 'Unknown'}</span>
                       <span className="text-sm text-gray-600">
-                        {formatCurrency(category.revenue)}
+                        {formatCurrency(category?.revenue || 0)}
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-green-500 h-2 rounded-full"
-                        style={{ width: `${category.percentage}%` }}
+                        style={{ width: `${category?.percentage || 0}%` }}
                       ></div>
                     </div>
                     <div className="text-xs text-gray-500 text-right">
-                      {category.percentage}% of total revenue
+                      {category?.percentage || 0}% of total revenue
                     </div>
                   </div>
                 ))}
@@ -455,13 +457,13 @@ export default function MarketplaceAnalyticsPage() {
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Customers</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {analytics.monthlyData.map((month, index) => (
+                                  <tbody>
+                    {(analytics?.monthlyData || []).map((month, index) => (
                     <tr key={index} className="border-b border-gray-100">
-                      <td className="py-3 px-4 font-medium text-gray-900">{month.month}</td>
-                      <td className="py-3 px-4 text-gray-900">{formatCurrency(month.revenue)}</td>
-                      <td className="py-3 px-4 text-gray-600">{month.orders}</td>
-                      <td className="py-3 px-4 text-gray-600">{month.customers}</td>
+                      <td className="py-3 px-4 font-medium text-gray-900">{month?.month || 'Unknown'}</td>
+                      <td className="py-3 px-4 text-gray-900">{formatCurrency(month?.revenue || 0)}</td>
+                      <td className="py-3 px-4 text-gray-600">{month?.orders || 0}</td>
+                      <td className="py-3 px-4 text-gray-600">{month?.customers || 0}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -482,20 +484,20 @@ export default function MarketplaceAnalyticsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {analytics.customerSegments.map((segment, index) => (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {(analytics?.customerSegments || []).map((segment, index) => (
                 <div key={index} className="text-center p-4 border border-gray-200 rounded-lg">
                   <div className="text-2xl font-bold text-gray-900 mb-1">
-                    {segment.count}
+                    {segment?.count || 0}
                   </div>
                   <div className="text-sm font-medium text-gray-700 mb-2">
-                    {segment.segment}
+                    {segment?.segment || 'Unknown Segment'}
                   </div>
                   <div className="text-xs text-gray-500 mb-3">
-                    {segment.percentage}% of total customers
+                    {segment?.percentage || 0}% of total customers
                   </div>
                   <div className="text-lg font-semibold text-emerald-600">
-                    {formatCurrency(segment.revenue)}
+                    {formatCurrency(segment?.revenue || 0)}
                   </div>
                   <div className="text-xs text-gray-500">
                     Total revenue from this segment

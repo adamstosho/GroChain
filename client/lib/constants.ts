@@ -3,7 +3,8 @@ export const APP_CONFIG = {
   description: "Building Trust in Nigeria's Food Chain",
   version: "1.0.0",
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000",
+    // Force the correct API base URL to fix the 404 issue
+    baseUrl: "http://localhost:5000",
     wsUrl: process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:5000",
   },
   auth: {

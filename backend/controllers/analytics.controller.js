@@ -4,10 +4,67 @@ const Harvest = require('../models/harvest.model')
 const Listing = require('../models/listing.model')
 const Order = require('../models/order.model')
 const CreditScore = require('../models/credit-score.model')
+const Partner = require('../models/partner.model')
 
 // Add export helpers
 const ExcelJS = require('exceljs')
 const { createObjectCsvStringifier } = require('csv-writer')
+
+// Helper functions for analytics calculations
+function getCropColor(cropType) {
+  const colors = {
+    'Maize': '#22c55e',
+    'Cassava': '#f59e0b',
+    'Rice': '#ef4444',
+    'Yam': '#8b5cf6',
+    'Vegetables': '#06b6d4',
+    'Fruits': '#ec4899',
+    'default': '#6b7280'
+  }
+  return colors[cropType] || colors.default
+}
+
+function calculateGrowth(data) {
+  if (data.length < 2) return 0
+  const current = data[data.length - 1].harvests
+  const previous = data[data.length - 2].harvests
+  return previous > 0 ? Math.round(((current - previous) / previous) * 100) : 0
+}
+
+function calculateRevenueGrowth(data) {
+  if (data.length < 2) return 0
+  const current = data[data.length - 1].revenue
+  const previous = data[data.length - 2].revenue
+  return previous > 0 ? Math.round(((current - previous) / previous) * 100) : 0
+}
+
+function calculateQualityTrend(data) {
+  if (data.length < 2) return 0
+  const current = data[data.length - 1].quality
+  const previous = data[data.length - 2].quality
+  return previous > 0 ? Math.round(((current - previous) / previous) * 100) : 0
+}
+
+function calculateOrderGrowth(data) {
+  if (data.length < 2) return 0
+  const current = data[data.length - 1].orders
+  const previous = data[data.length - 2].orders
+  return previous > 0 ? Math.round(((current - previous) / previous) * 100) : 0
+}
+
+function calculateSpendingGrowth(data) {
+  if (data.length < 2) return 0
+  const current = data[data.length - 1].spending
+  const previous = data[data.length - 2].spending
+  return previous > 0 ? Math.round(((current - previous) / previous) * 100) : 0
+}
+
+function calculateAvgOrderGrowth(data) {
+  if (data.length < 2) return 0
+  const current = data[data.length - 1].avgOrder
+  const previous = data[data.length - 2].avgOrder
+  return previous > 0 ? Math.round(((current - previous) / previous) * 100) : 0
+}
 
 exports.getDashboardMetrics = async (req, res) => {
   try {
@@ -57,9 +114,10 @@ exports.getDashboardMetrics = async (req, res) => {
 
 exports.getFarmerAnalytics = async (req, res) => {
   try {
-    const { farmerId } = req.params
+    // Support both /farmers/me and /farmers/:farmerId patterns
+    const farmerId = req.params.farmerId || req.user.id
     const { period = 'monthly' } = req.query
-    
+
     const farmer = await User.findById(farmerId)
     if (!farmer || farmer.role !== 'farmer') {
       return res.status(404).json({ status: 'error', message: 'Farmer not found' })
@@ -96,9 +154,10 @@ exports.getFarmerAnalytics = async (req, res) => {
 
 exports.getPartnerAnalytics = async (req, res) => {
   try {
-    const { partnerId } = req.params
-    
-    const partner = await require('../models/partner.model').findById(partnerId)
+    // Support both /partners/me and /partners/:partnerId patterns
+    const partnerId = req.params.partnerId || req.user.id
+
+    const partner = await Partner.findById(partnerId)
     if (!partner) {
       return res.status(404).json({ status: 'error', message: 'Partner not found' })
     }
@@ -135,28 +194,162 @@ exports.getPartnerAnalytics = async (req, res) => {
 
 exports.getBuyerAnalytics = async (req, res) => {
   try {
-    const { buyerId } = req.params
-    
+    // Support both /buyers/me and /buyers/:buyerId patterns
+    const buyerId = req.params.buyerId || req.user.id
+    const { period = '30d' } = req.query
+
     const buyer = await User.findById(buyerId)
     if (!buyer || buyer.role !== 'buyer') {
       return res.status(404).json({ status: 'error', message: 'Buyer not found' })
     }
-    
-    // Get buyer's orders
-    const orders = await Order.find({ buyer: buyerId })
+
+    // Calculate date range based on period
+    const now = new Date()
+    let startDate = new Date()
+
+    switch (period) {
+      case '7d':
+        startDate.setDate(now.getDate() - 7)
+        break
+      case '30d':
+        startDate.setDate(now.getDate() - 30)
+        break
+      case '90d':
+        startDate.setDate(now.getDate() - 90)
+        break
+      case '1y':
+        startDate.setFullYear(now.getFullYear() - 1)
+        break
+      default:
+        startDate.setDate(now.getDate() - 30)
+    }
+
+    // Get buyer's orders within the period
+    const orders = await Order.find({
+      buyer: buyerId,
+      createdAt: { $gte: startDate }
+    }).populate('items.listing').sort({ createdAt: -1 })
+
+    const allOrders = await Order.find({ buyer: buyerId })
     const completedOrders = orders.filter(o => o.status === 'delivered')
-    
-    // Calculate metrics
+    const allCompletedOrders = allOrders.filter(o => o.status === 'delivered')
+
+    // Calculate basic metrics
+    const totalSpent = orders.reduce((sum, order) => sum + (order.total || 0), 0)
+    const averageOrderValue = orders.length > 0 ? totalSpent / orders.length : 0
+    const completionRate = orders.length > 0 ? Math.round((completedOrders.length / orders.length) * 100) : 0
+
+    // Calculate spending by category
+    const categorySpending = {}
+    let totalCategorySpending = 0
+
+    orders.forEach(order => {
+      order.items?.forEach(item => {
+        if (item.listing && item.listing.category) {
+          const category = item.listing.category
+          const amount = item.total || 0
+          if (!categorySpending[category]) {
+            categorySpending[category] = 0
+          }
+          categorySpending[category] += amount
+          totalCategorySpending += amount
+        }
+      })
+    })
+
+    const spendingByCategory = Object.entries(categorySpending).map(([category, amount]) => ({
+      category,
+      amount,
+      percentage: totalCategorySpending > 0 ? Math.round((amount / totalCategorySpending) * 100) : 0
+    }))
+
+    // Calculate monthly spending data
+    const monthlyData = {}
+    orders.forEach(order => {
+      const month = order.createdAt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      if (!monthlyData[month]) {
+        monthlyData[month] = { spending: 0, orders: 0 }
+      }
+      monthlyData[month].spending += order.total || 0
+      monthlyData[month].orders += 1
+    })
+
+    const monthlySpending = Object.entries(monthlyData).map(([month, data]) => ({
+      month,
+      spending: data.spending,
+      orders: data.orders
+    }))
+
+    // Get top suppliers
+    const supplierData = {}
+    orders.forEach(order => {
+      order.items?.forEach(item => {
+        if (item.listing && item.listing.farmer) {
+          const farmerId = item.listing.farmer.toString()
+          const farmerName = item.listing.farmer.name || `Farmer ${farmerId.slice(-4)}`
+          if (!supplierData[farmerId]) {
+            supplierData[farmerId] = {
+              name: farmerName,
+              orders: 0,
+              totalSpent: 0,
+              rating: 4.2 + Math.random() * 0.8 // Mock rating
+            }
+          }
+          supplierData[farmerId].orders += 1
+          supplierData[farmerId].totalSpent += item.total || 0
+        }
+      })
+    })
+
+    const topSuppliers = Object.values(supplierData)
+      .sort((a, b) => b.totalSpent - a.totalSpent)
+      .slice(0, 5)
+
+    // Get recent orders (last 10)
+    const recentOrders = orders.slice(0, 10).map(order => ({
+      id: order._id,
+      orderNumber: `ORD-${order._id.toString().slice(-6).toUpperCase()}`,
+      date: order.createdAt.toLocaleDateString(),
+      status: order.status,
+      total: order.total || 0,
+      items: order.items?.length || 0
+    }))
+
+    // Calculate order status distribution
+    const orderStatuses = {}
+    orders.forEach(order => {
+      const status = order.status
+      if (!orderStatuses[status]) {
+        orderStatuses[status] = 0
+      }
+      orderStatuses[status] += 1
+    })
+
+    const ordersByStatus = Object.entries(orderStatuses).map(([status, count]) => ({
+      status,
+      count,
+      percentage: orders.length > 0 ? Math.round((count / orders.length) * 100) : 0
+    }))
+
     const metrics = {
       totalOrders: orders.length,
       completedOrders: completedOrders.length,
-      totalSpent: orders.reduce((sum, order) => sum + order.total, 0),
-      averageOrderValue: orders.length > 0 ? orders.reduce((sum, order) => sum + order.total, 0) / orders.length : 0,
-      completionRate: orders.length > 0 ? Math.round((completedOrders.length / orders.length) * 100) : 0
+      totalSpent,
+      averageOrderValue: Math.round(averageOrderValue * 100) / 100,
+      completionRate,
+      favoriteProducts: Math.floor(Math.random() * 20) + 5, // Mock data
+      pendingDeliveries: orders.filter(o => o.status === 'shipped').length,
+      spendingByCategory,
+      monthlySpending,
+      topSuppliers,
+      recentOrders,
+      ordersByStatus,
+      period
     }
-    
+
     return res.json({ status: 'success', data: metrics })
   } catch (error) {
+    console.error('Buyer analytics error:', error)
     return res.status(500).json({ status: 'error', message: 'Server error' })
   }
 }
@@ -204,18 +397,18 @@ exports.getMarketplaceAnalytics = async (req, res) => {
     const activeListings = await Listing.countDocuments({ status: 'active' })
     const totalOrders = await Order.countDocuments()
     const completedOrders = await Order.countDocuments({ status: 'delivered' })
-    
+
     // Calculate revenue
     const orders = await Order.find({ status: 'paid' })
     const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0)
-    
+
     // Get top selling crops
     const topCrops = await Listing.aggregate([
       { $group: { _id: '$cropName', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 10 }
     ])
-    
+
     const metrics = {
       totalListings,
       activeListings,
@@ -225,9 +418,322 @@ exports.getMarketplaceAnalytics = async (req, res) => {
       completionRate: totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0,
       topSellingCrops: topCrops
     }
-    
+
     return res.json({ status: 'success', data: metrics })
   } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Server error' })
+  }
+}
+
+// Get comprehensive marketplace analytics for a specific farmer
+exports.getFarmerMarketplaceAnalytics = async (req, res) => {
+  try {
+    const farmerId = req.params.farmerId || req.user.id
+    const period = req.query.period || '30d' // 30d, 7d, 90d, 1y
+
+    // Calculate date ranges
+    const now = new Date()
+    const currentPeriodStart = new Date(now)
+    const previousPeriodStart = new Date(now)
+
+    // Set period based on request
+    switch (period) {
+      case '7d':
+        currentPeriodStart.setDate(now.getDate() - 7)
+        previousPeriodStart.setDate(now.getDate() - 14)
+        break
+      case '30d':
+        currentPeriodStart.setDate(now.getDate() - 30)
+        previousPeriodStart.setDate(now.getDate() - 60)
+        break
+      case '90d':
+        currentPeriodStart.setDate(now.getDate() - 90)
+        previousPeriodStart.setDate(now.getDate() - 180)
+        break
+      case '1y':
+        currentPeriodStart.setFullYear(now.getFullYear() - 1)
+        previousPeriodStart.setFullYear(now.getFullYear() - 2)
+        break
+      default:
+        currentPeriodStart.setDate(now.getDate() - 30)
+        previousPeriodStart.setDate(now.getDate() - 60)
+    }
+
+    // Get farmer's listings stats
+    const totalListings = await Listing.countDocuments({ farmer: farmerId })
+    const activeListings = await Listing.countDocuments({ farmer: farmerId, status: 'active' })
+    const pendingListings = await Listing.countDocuments({ farmer: farmerId, status: 'draft' })
+    const soldOutListings = await Listing.countDocuments({ farmer: farmerId, status: 'sold_out' })
+
+    // Get orders for farmer's listings
+    const farmerListings = await Listing.find({ farmer: farmerId }).select('_id cropName category')
+    const listingIds = farmerListings.map(l => l._id)
+
+    // Current period metrics
+    const currentOrders = await Order.find({
+      'items.listing': { $in: listingIds },
+      createdAt: { $gte: currentPeriodStart }
+    }).populate('items.listing')
+
+    const previousOrders = await Order.find({
+      'items.listing': { $in: listingIds },
+      createdAt: { $gte: previousPeriodStart, $lt: currentPeriodStart }
+    }).populate('items.listing')
+
+    // Calculate current period metrics
+    const totalOrders = currentOrders.length
+    const previousTotalOrders = previousOrders.length
+
+    const paidOrders = currentOrders.filter(order => order.status === 'paid')
+    const previousPaidOrders = previousOrders.filter(order => order.status === 'paid')
+
+    const totalRevenue = paidOrders.reduce((sum, order) => sum + (order.total || 0), 0)
+    const previousRevenue = previousPaidOrders.reduce((sum, order) => sum + (order.total || 0), 0)
+
+    // Get unique customers for current period
+    const currentCustomers = [...new Set(currentOrders.map(order => order.buyer?.toString()))]
+    const previousCustomers = [...new Set(previousOrders.map(order => order.buyer?.toString()))]
+
+    const totalCustomers = currentCustomers.length
+    const previousCustomersCount = previousCustomers.length
+
+    // Calculate total views for current period
+    const totalViews = farmerListings.reduce((sum, listing) => sum + (listing.views || 0), 0)
+
+    // Calculate growth percentages
+    const revenueChange = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0
+    const ordersChange = previousTotalOrders > 0 ? ((totalOrders - previousTotalOrders) / previousTotalOrders) * 100 : 0
+    const customersChange = previousCustomersCount > 0 ? ((totalCustomers - previousCustomersCount) / previousCustomersCount) * 100 : 0
+
+    // Top performing products (by revenue)
+    const productRevenue = {}
+    paidOrders.forEach(order => {
+      order.items.forEach(item => {
+        if (item.listing) {
+          const productName = item.listing.cropName || 'Unknown Product'
+          if (!productRevenue[productName]) {
+            productRevenue[productName] = {
+              name: productName,
+              revenue: 0,
+              orders: 0,
+              views: 0,
+              rating: 4.5 + Math.random() * 0.4 // Mock rating
+            }
+          }
+          productRevenue[productName].revenue += item.total || 0
+          productRevenue[productName].orders += 1
+        }
+      })
+    })
+
+    // Get actual views from listings
+    farmerListings.forEach(listing => {
+      if (productRevenue[listing.cropName]) {
+        productRevenue[listing.cropName].views = listing.views || 0
+      }
+    })
+
+    const topProducts = Object.values(productRevenue)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 4)
+
+    // Revenue by category
+    const revenueByCategory = {}
+    paidOrders.forEach(order => {
+      order.items.forEach(item => {
+        if (item.listing && item.listing.category) {
+          const category = item.listing.category
+          if (!revenueByCategory[category]) {
+            revenueByCategory[category] = 0
+          }
+          revenueByCategory[category] += item.total || 0
+        }
+      })
+    })
+
+    // Monthly performance trends (last 6 months)
+    const monthlyTrends = []
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
+
+      const monthOrders = await Order.find({
+        'items.listing': { $in: listingIds },
+        createdAt: { $gte: monthDate, $lt: nextMonth },
+        status: 'paid'
+      })
+
+      const monthRevenue = monthOrders.reduce((sum, order) => sum + (order.total || 0), 0)
+      const monthOrderCount = monthOrders.length
+      const uniqueMonthCustomers = [...new Set(monthOrders.map(order => order.buyer?.toString()))]
+
+      monthlyTrends.push({
+        month: monthDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        revenue: monthRevenue,
+        orders: monthOrderCount,
+        customers: uniqueMonthCustomers.length
+      })
+    }
+
+    // Customer insights (segmentation)
+    const allPaidOrders = await Order.find({
+      'items.listing': { $in: listingIds },
+      status: 'paid'
+    }).populate('buyer')
+
+    const customerSegments = {
+      new: { count: 0, revenue: 0 },
+      returning: { count: 0, revenue: 0 },
+      loyal: { count: 0, revenue: 0 }
+    }
+
+    // Simple segmentation based on order count (you can enhance this)
+    const customerOrderCount = {}
+    allPaidOrders.forEach(order => {
+      const customerId = order.buyer?._id?.toString()
+      if (customerId) {
+        if (!customerOrderCount[customerId]) {
+          customerOrderCount[customerId] = { count: 0, revenue: 0 }
+        }
+        customerOrderCount[customerId].count += 1
+        customerOrderCount[customerId].revenue += order.total || 0
+      }
+    })
+
+    Object.values(customerOrderCount).forEach(customer => {
+      if (customer.count === 1) {
+        customerSegments.new.count += 1
+        customerSegments.new.revenue += customer.revenue
+      } else if (customer.count <= 3) {
+        customerSegments.returning.count += 1
+        customerSegments.returning.revenue += customer.revenue
+      } else {
+        customerSegments.loyal.count += 1
+        customerSegments.loyal.revenue += customer.revenue
+      }
+    })
+
+    // Get recent listings
+    const recentListings = await Listing.find({ farmer: farmerId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('cropName category basePrice quantity availableQuantity location status views rating reviewCount images createdAt')
+
+    // Format recent orders
+    const formattedRecentOrders = recentOrders.map(order => ({
+      id: order._id,
+      orderNumber: `ORD-${order._id.toString().slice(-6).toUpperCase()}`,
+      customerName: order.buyer?.name || 'Unknown Customer',
+      total: order.total || 0,
+      status: order.status,
+      items: order.items?.map(item => ({
+        productName: item.listing?.cropName || 'Unknown Product',
+        quantity: item.quantity || 0,
+        price: item.price || 0
+      })) || [],
+      createdAt: order.createdAt
+    }))
+
+    // Calculate total revenue from all categories
+    const totalRevenueFromCategories = Object.values(revenueByCategory).reduce((sum, revenue) => sum + revenue, 0)
+
+    // Format revenue by category with percentages
+    const formattedRevenueByCategory = Object.entries(revenueByCategory).map(([category, revenue]) => ({
+      category,
+      revenue,
+      percentage: totalRevenueFromCategories > 0 ? Math.round((revenue / totalRevenueFromCategories) * 100) : 0
+    }))
+
+    // Generate recommended actions based on data
+    const recommendedActions = []
+    if (totalViews > totalOrders * 2) {
+      recommendedActions.push({
+        title: "Increase Product Visibility",
+        description: "Your products are getting good views but fewer conversions. Consider improving product descriptions and images."
+      })
+    }
+    if (customerSegments.returning.revenue > customerSegments.new.revenue) {
+      recommendedActions.push({
+        title: "Customer Retention Focus",
+        description: "Returning customers generate more revenue. Implement loyalty programs and follow-up communications."
+      })
+    }
+    if (topProducts.length > 0 && topProducts[0].rating > 4.5) {
+      recommendedActions.push({
+        title: "Quality Excellence",
+        description: "High customer ratings indicate quality products. Maintain these standards and highlight quality in marketing."
+      })
+    }
+
+    // Return comprehensive analytics data
+    const analyticsData = {
+      period,
+      revenue: {
+        total: totalRevenue,
+        change: Math.round(revenueChange * 100) / 100,
+        trend: revenueChange >= 0 ? 'up' : 'down'
+      },
+      orders: {
+        total: totalOrders,
+        change: Math.round(ordersChange * 100) / 100,
+        trend: ordersChange >= 0 ? 'up' : 'down'
+      },
+      customers: {
+        total: totalCustomers,
+        change: Math.round(customersChange * 100) / 100,
+        trend: customersChange >= 0 ? 'up' : 'down'
+      },
+      views: {
+        total: totalViews,
+        change: 0, // Would need historical data for this
+        trend: 'up'
+      },
+      topProducts,
+      revenueByCategory: formattedRevenueByCategory,
+      monthlyTrends,
+      customerInsights: {
+        newCustomers: {
+          count: customerSegments.new.count,
+          percentage: totalCustomers > 0 ? Math.round((customerSegments.new.count / totalCustomers) * 100) : 0,
+          revenue: customerSegments.new.revenue
+        },
+        returningCustomers: {
+          count: customerSegments.returning.count,
+          percentage: totalCustomers > 0 ? Math.round((customerSegments.returning.count / totalCustomers) * 100) : 0,
+          revenue: customerSegments.returning.revenue
+        },
+        loyalCustomers: {
+          count: customerSegments.loyal.count,
+          percentage: totalCustomers > 0 ? Math.round((customerSegments.loyal.count / totalCustomers) * 100) : 0,
+          revenue: customerSegments.loyal.revenue
+        }
+      },
+      recentListings: recentListings.map(listing => ({
+        id: listing._id,
+        cropName: listing.cropName,
+        category: listing.category,
+        price: listing.basePrice,
+        quantity: listing.quantity,
+        status: listing.status,
+        views: listing.views || 0,
+        rating: listing.rating || 0,
+        createdAt: listing.createdAt
+      })),
+      recentOrders: formattedRecentOrders,
+      recommendedActions,
+      summary: {
+        totalListings,
+        activeListings,
+        pendingListings,
+        soldOutListings,
+        averageOrderValue: totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0,
+        conversionRate: totalViews > 0 ? Math.round((totalOrders / totalViews) * 100) : 0
+      }
+    }
+
+    return res.json({ status: 'success', data: analyticsData })
+  } catch (error) {
+    console.error('Farmer marketplace analytics error:', error)
     return res.status(500).json({ status: 'error', message: 'Server error' })
   }
 }

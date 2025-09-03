@@ -29,8 +29,14 @@ interface FarmerData {
   name: string
   email: string
   phone: string
-  location: string
-  [key: string]: string
+  location: string | {
+    city: string
+    state: string
+  }
+  [key: string]: string | {
+    city: string
+    state: string
+  }
 }
 
 interface ValidationResult {
@@ -78,7 +84,7 @@ export default function BulkUploadPage() {
       
       const data: FarmerData[] = lines.slice(1).map((line, index) => {
         const values = line.split(',')
-        const row: FarmerData = {}
+        const row = {} as FarmerData
         headers.forEach((header, i) => {
           row[header] = values[i]?.trim() || ''
         })
@@ -132,7 +138,7 @@ export default function BulkUploadPage() {
         return
       }
 
-      if (!row.location || row.location.trim() === '') {
+      if (!row.location || (typeof row.location === 'string' ? row.location.trim() === '' : false)) {
         errors.push(`Row ${rowNumber}: Location is required`)
         return
       }
@@ -447,7 +453,7 @@ Mike Johnson,mike@farmer.com,+2348012345680,Kano`
                       <div key={index} className="p-2 border rounded text-sm">
                         <div className="font-medium">{row.name}</div>
                         <div className="text-muted-foreground">
-                          {row.email} • {row.phone} • {row.location}
+                          {row.email} • {row.phone} • {typeof row.location === 'string' ? row.location : `${row.location?.city || 'Unknown'}, ${row.location?.state || 'Unknown State'}`}
                         </div>
                       </div>
                     ))}

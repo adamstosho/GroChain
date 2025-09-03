@@ -333,6 +333,23 @@ exports.login = async (req, res) => {
     const accessToken = signAccess({ id: String(user._id), role: user.role })
     const refreshToken = signRefresh({ id: String(user._id), role: user.role })
     
+    // Set HTTP-only cookies for authentication
+    res.cookie('auth_token', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 1000, // 1 hour
+      path: '/'
+    })
+    
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      path: '/'
+    })
+    
     return res.json({ 
       status: 'success', 
       message: 'Login successful',
@@ -405,7 +422,39 @@ exports.refresh = async (req, res) => {
 }
 
 exports.logout = async (req, res) => {
-  return res.json({ status: 'success', message: 'Logged out' })
+  try {
+    // Clear the auth token cookie
+    res.clearCookie('auth_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    })
+    
+    // Clear the refresh token cookie
+    res.clearCookie('refresh_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    })
+    
+    return res.json({ 
+      status: 'success', 
+      message: 'Logged out successfully',
+      data: { loggedOut: true }
+    })
+  } catch (error) {
+    console.error('Logout error:', error)
+    // Even if there's an error, we should still clear cookies
+    res.clearCookie('auth_token')
+    res.clearCookie('refresh_token')
+    return res.json({ 
+      status: 'success', 
+      message: 'Logged out successfully',
+      data: { loggedOut: true }
+    })
+  }
 }
 
 exports.forgotPassword = async (req, res) => {

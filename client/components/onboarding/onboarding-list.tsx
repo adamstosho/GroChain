@@ -175,7 +175,7 @@ export function OnboardingList() {
                           <div className="flex items-center space-x-2">
                             <MapPin className="w-4 h-4 text-muted-foreground" />
                             <span className="text-sm">
-                              {onboarding.farmer.location}, {onboarding.farmer.state}
+                              {typeof onboarding.farmer.location === 'string' ? onboarding.farmer.location : `${onboarding.farmer.location?.city || 'Unknown'}, ${onboarding.farmer.location?.state || 'Unknown State'}`}
                             </span>
                           </div>
                           <div className="flex items-center space-x-2">

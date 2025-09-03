@@ -101,125 +101,89 @@ export default function FinancialServicesPage() {
     try {
       setLoading(true)
       
-      // Mock data for now - replace with actual API calls
-      const mockOverview: FinancialOverview = {
-        creditScore: 720,
-        totalEarnings: 2500000,
-        pendingPayments: 150000,
-        activeLoans: 2,
-        insurancePolicies: 3,
-        totalSavings: 800000,
-        financialGoals: 4,
-        riskLevel: 'medium'
+      // Fetch real data from backend
+      const response = await apiService.getFinancialDashboard()
+      if (response.status === 'success' && response.data) {
+        const data = response.data
+
+        // Transform the data to match frontend interface
+        const overviewData: FinancialOverview = {
+          creditScore: data.overview?.creditScore || 0,
+          totalEarnings: data.overview?.totalEarnings || 0,
+          pendingPayments: data.overview?.pendingPayments || 0,
+          activeLoans: data.overview?.activeLoans || 0,
+          insurancePolicies: data.overview?.insurancePolicies || 0,
+          totalSavings: data.overview?.totalSavings || 0,
+          financialGoals: data.overview?.financialGoals || 0,
+          riskLevel: data.overview?.riskLevel || 'medium'
+        }
+
+        // Transform transactions
+        const transactionsData: RecentTransaction[] = (data.recentTransactions || []).map((transaction: any) => ({
+          _id: transaction._id,
+          type: transaction.type === 'payment' || transaction.type === 'commission' ? 'income' :
+                transaction.type === 'withdrawal' ? 'expense' : transaction.type,
+          amount: transaction.amount,
+          description: transaction.description,
+          date: transaction.date,
+          status: transaction.status
+        }))
+
+        // Transform active loans
+        const loansData: ActiveLoan[] = (data.activeLoans || []).map((loan: any) => ({
+          _id: loan._id,
+          amount: loan.amount,
+          purpose: loan.purpose,
+          duration: loan.duration,
+          interestRate: loan.interestRate,
+          status: loan.status,
+          monthlyPayment: loan.monthlyPayment,
+          remainingBalance: loan.remainingBalance,
+          nextPaymentDate: loan.nextPaymentDate
+        }))
+
+        // Transform insurance policies
+        const policiesData: InsurancePolicy[] = (data.insurancePolicies || []).map((policy: any) => ({
+          _id: policy._id,
+          type: policy.type,
+          provider: policy.provider,
+          policyNumber: policy.policyNumber,
+          coverageAmount: policy.coverageAmount,
+          premium: policy.premium,
+          startDate: policy.startDate,
+          endDate: policy.endDate,
+          status: policy.status
+        }))
+
+        setOverview(overviewData)
+        setRecentTransactions(transactionsData)
+        setActiveLoans(loansData)
+        setInsurancePolicies(policiesData)
+      } else {
+        throw new Error('Failed to fetch financial data')
       }
-
-      const mockTransactions: RecentTransaction[] = [
-        {
-          _id: '1',
-          type: 'income',
-          amount: 150000,
-          description: 'Harvest sale - Cassava',
-          date: '2024-01-15',
-          status: 'completed'
-        },
-        {
-          _id: '2',
-          type: 'expense',
-          amount: 25000,
-          description: 'Fertilizer purchase',
-          date: '2024-01-14',
-          status: 'completed'
-        },
-        {
-          _id: '3',
-          type: 'loan',
-          amount: 500000,
-          description: 'Equipment loan disbursement',
-          date: '2024-01-10',
-          status: 'completed'
-        },
-        {
-          _id: '4',
-          type: 'insurance',
-          amount: 45000,
-          description: 'Crop insurance premium',
-          date: '2024-01-08',
-          status: 'completed'
-        }
-      ]
-
-      const mockLoans: ActiveLoan[] = [
-        {
-          _id: '1',
-          amount: 500000,
-          purpose: 'Equipment Purchase',
-          duration: 24,
-          interestRate: 15,
-          status: 'active',
-          monthlyPayment: 25000,
-          remainingBalance: 350000,
-          nextPaymentDate: '2024-02-15'
-        },
-        {
-          _id: '2',
-          amount: 300000,
-          purpose: 'Working Capital',
-          duration: 12,
-          interestRate: 18,
-          status: 'active',
-          monthlyPayment: 30000,
-          remainingBalance: 180000,
-          nextPaymentDate: '2024-02-20'
-        }
-      ]
-
-      const mockInsurance: InsurancePolicy[] = [
-        {
-          _id: '1',
-          type: 'Crop Insurance',
-          provider: 'NAIC',
-          policyNumber: 'POL-2024-001',
-          coverageAmount: 2000000,
-          premium: 75000,
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          status: 'active'
-        },
-        {
-          _id: '2',
-          type: 'Equipment Insurance',
-          provider: 'Leadway',
-          policyNumber: 'POL-2024-002',
-          coverageAmount: 1500000,
-          premium: 45000,
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          status: 'active'
-        },
-        {
-          _id: '3',
-          type: 'Livestock Insurance',
-          provider: 'AIICO',
-          policyNumber: 'POL-2024-003',
-          coverageAmount: 3000000,
-          premium: 60000,
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          status: 'active'
-        }
-      ]
-
-      setOverview(mockOverview)
-      setRecentTransactions(mockTransactions)
-      setActiveLoans(mockLoans)
-      setInsurancePolicies(mockInsurance)
-    } catch (error) {
-      console.error("Failed to fetch financial data:", error)
+    } catch (error: any) {
+      console.error('Error fetching financial data:', error)
       toast({
-        title: "Error",
-        description: "Failed to load financial data. Please try again.",
-        variant: "destructive"
+        title: "Error loading financial data",
+        description: error.message || "Failed to load financial dashboard data",
+        variant: "destructive",
       })
+
+      // Set empty data on error
+      setOverview({
+        creditScore: 0,
+        totalEarnings: 0,
+        pendingPayments: 0,
+        activeLoans: 0,
+        insurancePolicies: 0,
+        totalSavings: 0,
+        financialGoals: 0,
+        riskLevel: 'medium'
+      })
+      setRecentTransactions([])
+      setActiveLoans([])
+      setInsurancePolicies([])
     } finally {
       setLoading(false)
     }

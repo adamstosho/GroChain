@@ -4,10 +4,26 @@ const weatherController = require('../controllers/weather.controller')
 const { authenticate } = require('../middlewares/auth.middleware')
 
 // Get current weather data
-router.get('/current/:location', weatherController.getCurrentWeather)
+router.get('/current/:location', (req, res) => {
+  // Handle coordinate-based location (lat,lng format)
+  if (req.params.location.includes(',')) {
+    const [lat, lng] = req.params.location.split(',')
+    req.query.lat = lat
+    req.query.lng = lng
+  }
+  return weatherController.getCurrentWeather(req, res)
+})
 
 // Get weather forecast
-router.get('/forecast/:location', weatherController.getWeatherForecast)
+router.get('/forecast/:location', (req, res) => {
+  // Handle coordinate-based location (lat,lng format)
+  if (req.params.location.includes(',')) {
+    const [lat, lng] = req.params.location.split(',')
+    req.query.lat = lat
+    req.query.lng = lng
+  }
+  return weatherController.getWeatherForecast(req, res)
+})
 
 // Alias: agricultural (docs)
 router.get('/agricultural', weatherController.getAgriculturalInsights)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -16,19 +16,57 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { 
-  CalendarIcon, 
-  Leaf, 
-  MapPin, 
-  Scale, 
-  Thermometer, 
+import { Progress } from "@/components/ui/progress"
+import {
+  CalendarIcon,
+  Leaf,
+  MapPin,
+  Scale,
+  Thermometer,
   Camera,
   Upload,
   Save,
-  X
+  X,
+  Navigation,
+  Loader2,
+  AlertCircle,
+  CheckCircle2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import { useGeolocation } from "@/hooks/useGeolocation"
+import { useToast } from "@/hooks/use-toast"
+
+interface HarvestFormProps {
+  initialData?: Partial<HarvestFormData>
+  onSubmit: (data: HarvestFormData & { images: string[] }) => void
+  onCancel?: () => void
+  onFormChange?: () => void
+  isLoading?: boolean
+  mode?: "create" | "edit"
+}
+
+interface HarvestFormData {
+  cropType: string
+  variety: string
+  harvestDate: Date
+  quantity: number
+  unit: string
+  location: string
+  coordinates?: {
+    latitude: number
+    longitude: number
+  }
+  quality: string
+  grade: string
+  organic: boolean
+  moistureContent: number
+  price: number
+  notes: string
+  soilType: string
+  irrigationType: string
+  pestManagement: string
+}
 
 const harvestSchema = z.object({
   cropType: z.string().min(1, "Crop type is required"),
@@ -40,8 +78,8 @@ const harvestSchema = z.object({
   unit: z.enum(["kg", "tons", "bags", "pieces", "liters"]),
   location: z.string().min(1, "Location is required"),
   coordinates: z.object({
-    latitude: z.number().optional(),
-    longitude: z.number().optional(),
+    latitude: z.number(),
+    longitude: z.number(),
   }).optional(),
   quality: z.enum(["excellent", "good", "fair", "poor"]),
   grade: z.enum(["A", "B", "C"]),
@@ -94,16 +132,23 @@ const pestManagementTypes = [
   { value: "integrated", label: "Integrated", description: "Combined approach" }
 ]
 
-export function HarvestForm({ 
-  initialData, 
-  onSubmit, 
-  onCancel, 
+export function HarvestForm({
+  initialData,
+  onSubmit,
+  onCancel,
+  onFormChange,
   isLoading = false,
-  mode = "create" 
+  mode = "create"
 }: HarvestFormProps) {
   const [images, setImages] = useState<string[]>(initialData?.images || [])
+  const [uploadingImages, setUploadingImages] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'detecting' | 'success' | 'error'>('idle')
 
+  const { location: geoLocation, loading: geoLoading, error: geoError, requestLocation } = useGeolocation()
+  const { toast } = useToast()
+
+  // Initialize form BEFORE any useEffect that uses it
   const form = useForm<HarvestFormData>({
     resolver: zodResolver(harvestSchema),
     defaultValues: {
@@ -125,19 +170,258 @@ export function HarvestForm({
     },
   })
 
-  const handleSubmit = (data: HarvestFormData) => {
-    onSubmit({
-      ...data,
-      images,
-    })
+  // Auto-populate location and coordinates when geolocation is available
+  useEffect(() => {
+    if (geoLocation && !geoLoading && !geoError) {
+      setLocationStatus('success')
+      form.setValue('coordinates', {
+        latitude: geoLocation.lat,
+        longitude: geoLocation.lng
+      })
+
+      // Set location string if not already set
+      if (!form.getValues('location')) {
+        const locationString = `${geoLocation.city || 'Current Location'}, ${geoLocation.state || 'Unknown State'}`
+        form.setValue('location', locationString)
+
+        toast({
+          title: "Location Detected",
+          description: `Automatically set location to ${locationString}`,
+        })
+      }
+    } else if (geoError) {
+      setLocationStatus('error')
+    } else if (geoLoading) {
+      setLocationStatus('detecting')
+    }
+  }, [geoLocation, geoLoading, geoError, form, toast])
+
+  // Notify parent component about form changes
+  useEffect(() => {
+    if (onFormChange) {
+      const subscription = form.watch(() => {
+        onFormChange()
+      })
+      return () => subscription.unsubscribe()
+    }
+  }, [form, onFormChange])
+
+  const handleGetLocation = async () => {
+    setLocationStatus('detecting')
+    try {
+      await requestLocation()
+    } catch (error) {
+      setLocationStatus('error')
+      toast({
+        title: "Location Error",
+        description: "Unable to get your current location. Please enter manually.",
+        variant: "destructive"
+      })
+    }
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSubmit = async (data: HarvestFormData) => {
+    try {
+      // Validate required fields
+      if (!data.cropType || !data.variety || !data.location) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all required fields.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Ensure coordinates are set if location is provided
+      let finalData = { ...data }
+      if (data.location && !data.coordinates) {
+        // Try to get coordinates from geolocation if available
+        if (geoLocation) {
+          finalData.coordinates = {
+            latitude: geoLocation.lat,
+            longitude: geoLocation.lng
+          }
+        }
+      }
+
+      // Filter out blob URLs and only include successfully uploaded images
+      const validImages = images.filter(url => url && !url.startsWith('blob:'))
+
+      await onSubmit({
+        ...finalData,
+        images: validImages,
+      })
+
+      toast({
+        title: "Success",
+        description: mode === "edit"
+          ? "Harvest updated successfully!"
+          : "Harvest created successfully!",
+        variant: "default"
+      })
+    } catch (error) {
+      console.error("Form submission error:", error)
+      toast({
+        title: "Error",
+        description: "Failed to save harvest. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (files) {
-      // In a real app, you'd upload to cloud storage and get URLs
-      const newImages = Array.from(files).map(file => URL.createObjectURL(file))
-      setImages(prev => [...prev, ...newImages])
+    if (!files || files.length === 0) return
+
+    const maxFileSize = 5 * 1024 * 1024 // 5MB
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    const maxImages = 10
+
+    // Check total image count
+    if (images.length + files.length > maxImages) {
+      toast({
+        title: "Too Many Images",
+        description: `You can only upload up to ${maxImages} images total.`,
+        variant: "destructive"
+      })
+      return
+    }
+
+    const validFiles: File[] = []
+
+    // Validate all files first
+    for (const file of Array.from(files)) {
+      if (file.size > maxFileSize) {
+        toast({
+          title: "File Too Large",
+          description: `${file.name} is larger than 5MB. Please choose a smaller file.`,
+          variant: "destructive"
+        })
+        continue
+      }
+
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid File Type",
+          description: `${file.name} is not a supported image format. Please use JPEG, PNG, GIF, or WebP.`,
+          variant: "destructive"
+        })
+        continue
+      }
+
+      validFiles.push(file)
+    }
+
+    if (validFiles.length === 0) return
+
+    try {
+      setUploadingImages(true)
+
+      const uploadedUrls: string[] = []
+
+      // Upload each image to backend/cloud storage
+      for (const file of validFiles) {
+        try {
+          console.log('🔄 Starting upload for:', file.name)
+
+          // Upload via our backend API endpoint using ApiService
+          const formData = new FormData()
+          formData.append('file', file)
+
+          // Make direct request to backend (since ApiService expects JSON)
+          const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'
+          const uploadUrl = `${backendUrl}/api/upload/image`
+
+          console.log('📤 Upload URL:', uploadUrl)
+
+          const response = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              // Include auth token if available
+              ...(localStorage.getItem('grochain_auth_token') && {
+                'Authorization': `Bearer ${localStorage.getItem('grochain_auth_token')}`
+              })
+            }
+          })
+
+          console.log('📊 Upload response status:', response.status)
+
+          if (response.ok) {
+            const data = await response.json()
+            console.log('✅ Upload successful for:', file.name, 'Response:', data)
+
+            if (data.status === 'success' && data.url) {
+              uploadedUrls.push(data.url)
+              console.log('✅ Added URL to uploaded list:', data.url)
+            } else {
+              console.error('❌ Invalid response format:', data)
+              toast({
+                title: "Upload Failed",
+                description: `Invalid response from server for ${file.name}`,
+                variant: "destructive"
+              })
+              return
+            }
+          } else {
+            let errorMessage = `Failed to upload ${file.name}`
+            try {
+              const errorData = await response.json()
+              errorMessage = errorData.message || errorMessage
+              console.error('❌ Upload failed with JSON error:', errorData)
+            } catch {
+              const errorText = await response.text()
+              console.error('❌ Upload failed with text error:', errorText)
+              errorMessage = `Server error (${response.status}) for ${file.name}`
+            }
+
+            toast({
+              title: "Upload Failed",
+              description: errorMessage,
+              variant: "destructive"
+            })
+            return
+          }
+        } catch (uploadError) {
+          console.error('❌ Upload error for:', file.name, uploadError)
+          toast({
+            title: "Upload Error",
+            description: `Network error uploading ${file.name}. Please check your connection.`,
+            variant: "destructive"
+          })
+          return
+        }
+      }
+
+      // Only add successfully uploaded URLs (filter out any that failed)
+      const successfulUploads = uploadedUrls.filter(url => url && !url.startsWith('blob:'))
+
+      if (successfulUploads.length > 0) {
+        setImages(prev => [...prev, ...successfulUploads])
+        toast({
+          title: "Images Uploaded",
+          description: `${successfulUploads.length} image(s) uploaded successfully to cloud storage`,
+        })
+      }
+
+      // Show warning if some uploads failed
+      const failedCount = uploadedUrls.length - successfulUploads.length
+      if (failedCount > 0) {
+        toast({
+          title: "Some Uploads Failed",
+          description: `${failedCount} image(s) failed to upload. Only successfully uploaded images will be saved.`,
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Image processing error:', error)
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload images. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setUploadingImages(false)
     }
   }
 
@@ -146,25 +430,25 @@ export function HarvestForm({
   }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Leaf className="h-6 w-6 text-primary" />
+    <Card className="w-full max-w-6xl mx-auto shadow-sm">
+      <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+        <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+          <Leaf className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
           {mode === "create" ? "Log New Harvest" : "Edit Harvest"}
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm sm:text-base">
           Record your harvest details for transparency and traceability
         </CardDescription>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="px-4 sm:px-6 py-4 sm:py-6 max-h-[calc(100vh-12rem)] overflow-y-auto">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
             {/* Basic Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">Basic Information</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h3 className="text-base sm:text-lg font-semibold text-foreground">Basic Information</h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <FormField
                   control={form.control}
                   name="cropType"
@@ -205,7 +489,7 @@ export function HarvestForm({
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <FormField
                   control={form.control}
                   name="harvestDate"
@@ -299,19 +583,48 @@ export function HarvestForm({
                 name="location"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Location *</FormLabel>
+                    <FormLabel className="flex items-center gap-2 text-sm sm:text-base">
+                      Location *
+                      {locationStatus === 'success' && <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />}
+                      {locationStatus === 'detecting' && <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin text-blue-500" />}
+                      {locationStatus === 'error' && <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />}
+                    </FormLabel>
                     <FormControl>
                       <div className="relative">
                         <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                         <Input
                           placeholder="Farm location, village, or coordinates"
-                          className="pl-10"
+                          className="pl-10 pr-20 sm:pr-24 text-sm sm:text-base"
                           {...field}
                         />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="absolute right-1 top-1 h-8 px-2 sm:px-3"
+                          onClick={handleGetLocation}
+                          disabled={locationStatus === 'detecting'}
+                        >
+                          {locationStatus === 'detecting' ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Navigation className="h-3 w-3" />
+                          )}
+                          <span className="ml-1 hidden sm:inline">
+                            {locationStatus === 'success' ? 'Updated' :
+                             locationStatus === 'detecting' ? 'Detecting...' :
+                             'Auto-detect'}
+                          </span>
+                        </Button>
                       </div>
                     </FormControl>
-                    <FormDescription>
-                      Enter the specific location where the harvest took place
+                    <FormDescription className="flex items-center justify-between">
+                      <span>Enter the specific location where the harvest took place</span>
+                      {locationStatus === 'success' && geoLocation && (
+                        <Badge variant="secondary" className="text-xs">
+                          📍 {geoLocation.lat.toFixed(4)}, {geoLocation.lng.toFixed(4)}
+                        </Badge>
+                      )}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -323,9 +636,9 @@ export function HarvestForm({
 
             {/* Quality & Pricing */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">Quality & Pricing</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-foreground">Quality & Pricing</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <FormField
                   control={form.control}
                   name="quality"
@@ -580,8 +893,8 @@ export function HarvestForm({
                         </Button>
                       </div>
                     ))}
-                    <label className="w-full h-24 border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-muted-foreground/50 transition-colors">
-                      <Upload className="h-6 w-6 text-muted-foreground mb-2" />
+                    <label className="w-full h-20 sm:h-24 border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-muted-foreground/50 transition-colors">
+                      <Upload className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground mb-1 sm:mb-2" />
                       <span className="text-xs text-muted-foreground">Add Image</span>
                       <input
                         type="file"
@@ -615,20 +928,20 @@ export function HarvestForm({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-end space-x-4 pt-6">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-4 pt-4 sm:pt-6">
               {onCancel && (
-                <Button type="button" variant="outline" onClick={onCancel}>
+                <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">
                   Cancel
                 </Button>
               )}
-              <Button type="submit" disabled={isLoading} className="min-w-[120px]">
+              <Button type="submit" disabled={isLoading} className="w-full sm:w-auto min-w-[120px]">
                 {isLoading ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center gap-2">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                     Saving...
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center gap-2">
                     <Save className="h-4 w-4" />
                     {mode === "create" ? "Log Harvest" : "Update Harvest"}
                   </div>

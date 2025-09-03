@@ -168,7 +168,7 @@ export default function HarvestDetailPage() {
                   <div className="flex items-center gap-3">
                     <MapPin className="h-5 w-5 text-red-600" />
                     <div>
-                      <p className="font-semibold">{harvest?.location}</p>
+                      <p className="font-semibold">{typeof harvest?.location === 'string' ? harvest.location : harvest?.location ? `${harvest.location.city || 'Unknown'}, ${harvest.location.state || 'Unknown State'}` : 'Location not specified'}</p>
                       <p className="text-sm text-gray-500">Location</p>
                     </div>
                   </div>

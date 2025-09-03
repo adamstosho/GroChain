@@ -25,21 +25,55 @@ export function BuyerDashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [dashboardResponse, ordersResponse, listingsResponse] = await Promise.all([
-          apiService.getDashboard(),
-          apiService.getOrders(),
-          apiService.getListings({ limit: 6, featured: true }),
+        // Fetch dashboard data in parallel for better performance
+        const [dashboardResponse, ordersResponse, listingsResponse, marketplaceStats] = await Promise.all([
+          apiService.getDashboardMetrics(),
+          apiService.getUserOrders(),
+          apiService.getMarketplaceListings({ limit: 6, featured: true }),
+          apiService.getMarketplaceStats()
         ])
 
-        setStats(dashboardResponse.data)
-        setRecentOrders(ordersResponse.data?.slice(0, 5) || [])
-        setFeaturedProducts(listingsResponse.data || [])
+        // Process dashboard stats
+        const dashboardData = dashboardResponse?.data || dashboardResponse || {}
+        setStats({
+          totalOrders: (dashboardData as any)?.totalOrders || 0,
+          totalSpent: (dashboardData as any)?.totalSpent || 0,
+          pendingDeliveries: (dashboardData as any)?.pendingDeliveries || 0,
+          activeOrders: (dashboardData as any)?.activeOrders || 0,
+          favoriteProducts: (dashboardData as any)?.favoriteProducts || 0,
+          monthlySpent: (dashboardData as any)?.monthlySpent || 0,
+          lastOrderDate: (dashboardData as any)?.lastOrderDate
+        })
+
+        // Process recent orders
+        const ordersData = ordersResponse?.data || ordersResponse || []
+        setRecentOrders(Array.isArray(ordersData) ? ordersData.slice(0, 5) : [])
+
+        // Process featured products
+        const listingsData = (listingsResponse as any)?.data?.listings ||
+                            (listingsResponse as any)?.listings ||
+                            listingsResponse || []
+        setFeaturedProducts(Array.isArray(listingsData) ? listingsData : [])
+
       } catch (error: any) {
+        console.error('Dashboard data fetch error:', error)
         toast({
           title: "Error loading dashboard",
-          description: error.message,
+          description: error.message || "Failed to load dashboard data. Please try again.",
           variant: "destructive",
         })
+
+        // Set default empty states on error
+        setStats({
+          totalOrders: 0,
+          totalSpent: 0,
+          pendingDeliveries: 0,
+          activeOrders: 0,
+          favoriteProducts: 0,
+          monthlySpent: 0
+        })
+        setRecentOrders([])
+        setFeaturedProducts([])
       } finally {
         setIsLoading(false)
       }
@@ -83,38 +117,38 @@ export function BuyerDashboard() {
   const convertToMarketplaceProduct = (product: any): MarketplaceProduct => {
     return {
       id: String(product._id || product.id),
-      name: product.product?.cropName || "Fresh Produce",
-      cropType: product.product?.cropType || "Agricultural Product",
-      variety: product.product?.variety || "Standard",
+      name: product.cropName || product.name || "Fresh Produce",
+      cropType: product.cropType || product.category || "Agricultural Product",
+      variety: product.variety || "Standard",
       description: product.description || "Fresh agricultural product from local farmers",
-      price: product.price || 0,
+      price: product.basePrice || product.price || 0,
       unit: product.unit || "kg",
       quantity: product.quantity || 100,
-      availableQuantity: product.availableQuantity || 100,
-      quality: product.quality || "good",
+      availableQuantity: product.availableQuantity || product.quantity || 100,
+      quality: product.qualityGrade || product.quality || "good",
       grade: product.qualityGrade || "B",
       organic: product.organic || false,
-      harvestDate: new Date(product.harvestDate || Date.now()),
+      harvestDate: product.createdAt ? new Date(product.createdAt) : new Date(),
       location: product.location || "Unknown Location",
       farmer: {
-        id: product.farmerId || "1",
-        name: product.farmerName || "Local Farmer",
-        avatar: product.farmerAvatar || "",
-        rating: product.farmerRating || 4.5,
-        verified: product.farmerVerified || false,
-        location: product.location || "Unknown Location"
+        id: product.farmer?._id || product.farmerId || "1",
+        name: product.farmer?.name || product.farmerName || "Local Farmer",
+        avatar: product.farmer?.profile?.avatar || "",
+        rating: product.farmer?.rating || product.rating || 4.5,
+        verified: product.farmer?.emailVerified || false,
+        location: product.farmer?.location || product.location || "Unknown Location"
       },
       images: product.images || ["/placeholder.svg"],
-      certifications: product.certifications || ["ISO 22000"],
+      certifications: product.certifications || [],
       shipping: {
-        available: product.shippingAvailable || true,
-        cost: product.shippingCost || 500,
-        estimatedDays: product.shippingDays || 3
+        available: true,
+        cost: 500,
+        estimatedDays: 3
       },
       rating: product.rating || 4.5,
       reviewCount: product.reviewCount || 0,
-      qrCode: product.qrCode || `PRODUCT_${Date.now()}`,
-      tags: product.tags || [product.product?.cropType, "fresh", "local"]
+      qrCode: product.qrCode || `PRODUCT_${product._id || Date.now()}`,
+      tags: product.tags || [product.cropType || product.category, "fresh", "local"]
     }
   }
 
@@ -209,9 +243,9 @@ export function BuyerDashboard() {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {featuredProducts.length > 0 ? (
-                  featuredProducts.map((product) => (
+                  featuredProducts.slice(0, 6).map((product) => (
                     <MarketplaceCard
                       key={product._id}
                       product={convertToMarketplaceProduct(product)}
@@ -248,15 +282,15 @@ export function BuyerDashboard() {
               <div className="space-y-4">
                 {recentOrders.length > 0 ? (
                   recentOrders.map((order) => (
-                    <div key={order._id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={order._id || order.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center space-x-4">
                         <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                           <ShoppingCart className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">Order #{order._id.slice(-6)}</p>
+                          <p className="font-medium">Order #{order.orderNumber || order._id?.slice(-6) || 'N/A'}</p>
                           <p className="text-sm text-muted-foreground">
-                            ₦{order.totalAmount?.toLocaleString()} • {new Date(order.createdAt).toLocaleDateString()}
+                            ₦{order.total?.toLocaleString() || order.totalAmount?.toLocaleString() || '0'} • {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
                           </p>
                         </div>
                       </div>
@@ -265,15 +299,17 @@ export function BuyerDashboard() {
                           variant={
                             order.status === "delivered"
                               ? "default"
-                              : order.status === "pending"
+                              : order.status === "pending" || order.status === "confirmed"
                                 ? "secondary"
-                                : "outline"
+                                : order.status === "shipped"
+                                  ? "outline"
+                                  : "destructive"
                           }
                         >
-                          {order.status}
+                          {order.status || 'Unknown'}
                         </Badge>
                         <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/dashboard/orders/${order._id}`}>View</Link>
+                          <Link href={`/dashboard/orders/${order._id || order.id}`}>View</Link>
                         </Button>
                       </div>
                     </div>

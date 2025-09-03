@@ -123,128 +123,56 @@ export default function InsuranceComparisonPage() {
 
   useEffect(() => {
     fetchInsurancePolicies()
-  }, [])
-
-  useEffect(() => {
-    applyFilters()
-  }, [filters, policies])
+  }, [filters])
 
   const fetchInsurancePolicies = async () => {
     try {
       setLoading(true)
-      // Mock data for now - replace with actual API call
-      const mockPolicies: InsurancePolicy[] = [
-        {
-          _id: '1',
-          name: 'AgriShield Premium',
-          provider: 'Nigerian Agricultural Insurance Corporation',
-          type: 'Crop Insurance',
-          coverage: 'Comprehensive crop protection against drought, flood, pests, and diseases',
-          premium: 75000,
-          deductible: 25000,
-          maxCoverage: 2000000,
-          features: [
-            'Weather-related damage coverage',
-            'Pest and disease protection',
-            'Market price fluctuation protection',
-            '24/7 claims support',
-            'Expert agronomist consultation'
-          ],
-          exclusions: [
-            'Pre-existing crop conditions',
-            'Intentional damage',
-            'War and civil unrest',
-            'Nuclear incidents'
-          ],
-          rating: 4.8,
-          reviews: 156,
-          claimProcess: 'Simple 3-step process with 48-hour response',
-          waitingPeriod: 14,
-          renewalTerms: 'Annual renewal with loyalty discounts',
-          contactInfo: {
-            phone: '+234 1 234 5678',
-            email: 'info@agrishield.ng',
-            website: 'www.agrishield.ng'
+
+      // Fetch real data from backend API
+      const response = await apiService.getInsuranceQuotes({
+        cropType: filters.cropType,
+        farmSize: filters.farmSize,
+        location: filters.location,
+        budget: filters.budget,
+        coverageType: filters.coverageType
+      })
+
+      if (response.status === 'success' && response.data) {
+        const policiesData = response.data
+
+        // Transform backend data to match frontend interface
+        const transformedPolicies: InsurancePolicy[] = policiesData.map((policy: any) => ({
+          _id: policy._id || policy.id,
+          name: policy.name,
+          provider: policy.provider,
+          type: policy.type,
+          coverage: policy.coverage,
+          premium: policy.premium,
+          deductible: policy.deductible,
+          maxCoverage: policy.maxCoverage,
+          features: policy.features || [],
+          exclusions: policy.exclusions || [],
+          rating: policy.rating || 4.0,
+          reviews: policy.reviews || 0,
+          claimProcess: policy.claimProcess || 'Standard claims process',
+          waitingPeriod: policy.waitingPeriod || 14,
+          renewalTerms: policy.renewalTerms || 'Annual renewal',
+          contactInfo: policy.contactInfo || {
+            phone: '',
+            email: '',
+            website: ''
           },
-          logo: '/naic-logo.png',
-          isRecommended: true,
-          specialOffers: ['20% discount for first-time farmers', 'Free soil testing included']
-        },
-        {
-          _id: '2',
-          name: 'FarmGuard Plus',
-          provider: 'Leadway Assurance',
-          type: 'Equipment Insurance',
-          coverage: 'Protection for farm machinery, tools, and equipment',
-          premium: 45000,
-          deductible: 15000,
-          maxCoverage: 1500000,
-          features: [
-            'Equipment breakdown coverage',
-            'Theft and vandalism protection',
-            'Transportation coverage',
-            'Replacement cost coverage',
-            'Emergency repair services'
-          ],
-          exclusions: [
-            'Wear and tear',
-            'Mechanical breakdown due to poor maintenance',
-            'Acts of terrorism',
-            'War damage'
-          ],
-          rating: 4.6,
-          reviews: 89,
-          claimProcess: 'Online claims with photo documentation',
-          waitingPeriod: 7,
-          renewalTerms: 'Flexible payment plans available',
-          contactInfo: {
-            phone: '+234 1 987 6543',
-            email: 'farmguard@leadway.com',
-            website: 'www.leadway.com/farmguard'
-          },
-          logo: '/leadway-logo.png',
-          isRecommended: false,
-          specialOffers: ['15% discount for cooperative members', 'Free equipment maintenance check']
-        },
-        {
-          _id: '3',
-          name: 'LivestockCare Elite',
-          provider: 'AIICO Insurance',
-          type: 'Livestock Insurance',
-          coverage: 'Comprehensive livestock protection including health and mortality',
-          premium: 60000,
-          deductible: 20000,
-          maxCoverage: 3000000,
-          features: [
-            'Animal mortality coverage',
-            'Veterinary care reimbursement',
-            'Breeding stock protection',
-            'Transportation coverage',
-            'Market value protection'
-          ],
-          exclusions: [
-            'Pre-existing health conditions',
-            'Intentional harm',
-            'Diseases from poor husbandry',
-            'Natural disasters in high-risk areas'
-          ],
-          rating: 4.7,
-          reviews: 124,
-          claimProcess: 'Veterinarian assessment required',
-          waitingPeriod: 21,
-          renewalTerms: 'Quarterly or annual options',
-          contactInfo: {
-            phone: '+234 1 456 7890',
-            email: 'livestock@aiico.com',
-            website: 'www.aiico.com/livestock'
-          },
-          logo: '/aiico-logo.png',
-          isRecommended: true,
-          specialOffers: ['Free veterinary consultation', '10% discount for large herds']
-        }
-      ]
-      setPolicies(mockPolicies)
-      setFilteredPolicies(mockPolicies)
+          logo: policy.logo || '/insurance-logo.png',
+          isRecommended: policy.isRecommended || false,
+          specialOffers: policy.specialOffers || []
+        }))
+
+        setPolicies(transformedPolicies)
+        setFilteredPolicies(transformedPolicies)
+      } else {
+        throw new Error('Failed to fetch insurance policies')
+      }
     } catch (error) {
       console.error("Failed to fetch insurance policies:", error)
       toast({
@@ -257,49 +185,10 @@ export default function InsuranceComparisonPage() {
     }
   }
 
+  // Backend handles filtering now, so we just use the fetched data
   const applyFilters = () => {
-    let filtered = [...policies]
-
-    if (filters.cropType !== "All Crops") {
-      filtered = filtered.filter(policy => 
-        policy.coverage.toLowerCase().includes(filters.cropType.toLowerCase().split(' ')[0])
-      )
-    }
-
-    if (filters.location !== "All Locations") {
-      // Mock location filtering - replace with actual logic
-      filtered = filtered.filter(policy => 
-        policy.provider.includes("Nigerian") || 
-        policy.provider.includes("Leadway") || 
-        policy.provider.includes("AIICO")
-      )
-    }
-
-    if (filters.budget !== "Any Budget") {
-      const budgetMap: { [key: string]: number } = {
-        "Under ₦50,000/year": 50000,
-        "₦50,000 - ₦100,000/year": 100000,
-        "₦100,000 - ₦200,000/year": 200000,
-        "Over ₦200,000/year": 200000
-      }
-      
-      if (filters.budget in budgetMap) {
-        const maxBudget = budgetMap[filters.budget]
-        if (filters.budget === "Over ₦200,000/year") {
-          filtered = filtered.filter(policy => policy.premium > maxBudget)
-        } else {
-          filtered = filtered.filter(policy => policy.premium <= maxBudget)
-        }
-      }
-    }
-
-    if (filters.coverageType !== "All Coverage") {
-      filtered = filtered.filter(policy => 
-        policy.type === filters.coverageType
-      )
-    }
-
-    setFilteredPolicies(filtered)
+    // Since backend handles filtering, we just set filtered policies to all policies
+    setFilteredPolicies(policies)
   }
 
   const handlePolicySelection = (policyId: string) => {
@@ -492,7 +381,7 @@ export default function InsuranceComparisonPage() {
         {/* Results Summary */}
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-600">
-            Showing {filteredPolicies.length} of {policies.length} policies
+            Showing {filteredPolicies.length} policies
           </div>
           {selectedPolicies.length > 0 && (
             <Button variant="outline" size="sm">
@@ -696,13 +585,16 @@ export default function InsuranceComparisonPage() {
             <p className="text-gray-600 mb-4">
               Try adjusting your filters to find insurance policies that match your criteria.
             </p>
-            <Button onClick={() => setFilters({
-              cropType: "All Crops",
-              farmSize: "Small (0-2 hectares)",
-              location: "All Locations",
-              budget: "Any Budget",
-              coverageType: "All Coverage"
-            })}>
+            <Button onClick={() => {
+              const defaultFilters = {
+                cropType: "All Crops",
+                farmSize: "Small (0-2 hectares)",
+                location: "All Locations",
+                budget: "Any Budget",
+                coverageType: "All Coverage"
+              }
+              setFilters(defaultFilters)
+            }}>
               Reset Filters
             </Button>
           </Card>

@@ -134,17 +134,17 @@ export function MarketplaceCard({
 
   if (variant === "compact") {
     return (
-      <Card className={cn("hover:shadow-md transition-shadow cursor-pointer", className)}>
-        <CardContent className="p-4">
+      <Card className={cn("hover:shadow-md transition-shadow cursor-pointer overflow-hidden", className)}>
+        <CardContent className="p-3">
           <div className="flex items-center space-x-3">
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               <img
                 src={product.images[0]}
                 alt={product.name}
-                className="w-16 h-16 object-cover rounded-lg"
+                className="w-12 h-12 object-cover rounded-lg"
               />
               {product.organic && (
-                <Badge className="absolute -top-1 -right-1 text-xs px-1 py-0">
+                <Badge className="absolute -top-1 -right-1 text-xs px-1 py-0 bg-green-600 text-white">
                   Organic
                 </Badge>
               )}
@@ -152,17 +152,17 @@ export function MarketplaceCard({
             <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-sm truncate">{product.name}</h4>
               <p className="text-xs text-muted-foreground truncate">
-                {product.farmer.name} • {product.location}
+                {product.farmer.name} • {typeof product.location === 'string' ? product.location.split(',')[0] : product.location?.city || 'Unknown'}
               </p>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline" className={cn("text-xs", qualityColors[product.quality])}>
+              <div className="flex items-center justify-between mt-1">
+                <Badge variant="outline" className={cn("text-xs px-1 py-0", gradeColors[product.grade])}>
                   Grade {product.grade}
                 </Badge>
-                <span className="text-sm font-medium">₦{product.price.toLocaleString()}</span>
+                <span className="text-sm font-bold text-green-600">₦{product.price.toLocaleString()}</span>
               </div>
             </div>
-            <Button size="sm" onClick={handleAddToCart}>
-              <ShoppingCart className="h-4 w-4" />
+            <Button size="sm" className="flex-shrink-0 h-8 w-8 p-0" onClick={handleAddToCart}>
+              <ShoppingCart className="h-3 w-3" />
             </Button>
           </div>
         </CardContent>
@@ -171,9 +171,9 @@ export function MarketplaceCard({
   }
 
   return (
-    <Card className={cn("hover:shadow-lg transition-all duration-200 group", className)}>
+    <Card className={cn("hover:shadow-md transition-all duration-200 group overflow-hidden", className)}>
       {/* Product Image */}
-      <div className="relative aspect-[4/3] overflow-hidden rounded-t-lg">
+      <div className="relative aspect-[3/2] overflow-hidden">
         <img
           src={product.images[0]}
           alt={product.name}
@@ -181,199 +181,111 @@ export function MarketplaceCard({
         />
         
         {/* Overlay Badges */}
-        <div className="absolute top-3 left-3 space-y-2">
+        <div className="absolute top-2 left-2 space-y-1">
+          <Badge className={cn("text-xs px-2 py-1", gradeColors[product.grade])}>
+            Grade {product.grade}
+          </Badge>
           {product.organic && (
-            <Badge className="bg-green-600 text-white text-xs">
+            <Badge className="bg-green-600 text-white text-xs px-2 py-1">
               <Leaf className="h-3 w-3 mr-1" />
               Organic
             </Badge>
           )}
-          <Badge className={cn("text-xs", qualityColors[product.quality])}>
-            Grade {product.grade}
-          </Badge>
         </div>
 
         {/* Action Buttons */}
-        <div className="absolute top-3 right-3 space-y-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button
             variant="secondary"
             size="sm"
-            className="h-8 w-8 p-0"
+            className="h-7 w-7 p-0 bg-white/90 hover:bg-white"
             onClick={handleWishlist}
           >
-            <Heart className={cn("h-4 w-4", isWishlisted && "fill-red-500 text-red-500")} />
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => setShowQR(!showQR)}
-          >
-            <QrCode className="h-4 w-4" />
+            <Heart className={cn("h-3 w-3", isWishlisted && "fill-red-500 text-red-500")} />
           </Button>
         </div>
-
-        {/* Discount Badge */}
-        {discount > 0 && (
-          <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-            -{discount}%
-          </div>
-        )}
       </div>
 
-      <CardHeader className="pb-3">
-        <div className="space-y-2">
-          <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
-          <CardDescription className="line-clamp-2">
-            {product.description}
-          </CardDescription>
+      <div className="p-4 space-y-3">
+        {/* Product Info */}
+        <div className="space-y-1">
+          <h3 className="font-semibold text-sm line-clamp-1">{product.name}</h3>
+          <p className="text-xs text-muted-foreground line-clamp-2">{product.description}</p>
         </div>
 
-        {/* Price Section */}
-        <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold text-primary">
-            ₦{product.price.toLocaleString()}
-          </span>
-          {product.originalPrice && (
-            <span className="text-lg text-muted-foreground line-through">
-              ₦{product.originalPrice.toLocaleString()}
-            </span>
-          )}
-          <span className="text-sm text-muted-foreground">per {product.unit}</span>
-        </div>
-
-        {/* Rating */}
-        <div className="flex items-center gap-2">
+        {/* Price */}
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                className={cn(
-                  "h-4 w-4",
-                  i < Math.floor(product.rating)
-                    ? "fill-yellow-400 text-yellow-400"
-                    : "text-muted-foreground"
-                )}
-              />
-            ))}
+            <span className="text-lg font-bold text-green-600">
+              ₦{product.price.toLocaleString()}
+            </span>
+            <span className="text-xs text-muted-foreground">/{product.unit}</span>
           </div>
-          <span className="text-sm text-muted-foreground">
-            ({product.rating.toFixed(1)} • {product.reviewCount} reviews)
-          </span>
+          <div className="flex items-center gap-1">
+            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+            <span className="text-xs text-muted-foreground">{product.rating.toFixed(1)}</span>
+          </div>
         </div>
-      </CardHeader>
 
-      <CardContent className="space-y-4">
         {/* Key Details */}
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <Scale className="h-4 w-4 text-muted-foreground" />
-            <span>{product.availableQuantity} {product.unit} available</span>
+        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <Scale className="h-3 w-3" />
+            <span className="truncate">{product.availableQuantity} {product.unit}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span>Harvested {product.harvestDate.toLocaleDateString()}</span>
+          <div className="flex items-center gap-1">
+            <MapPin className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{typeof product.location === 'string' ? product.location : `${product.location?.city || 'Unknown'}`}</span>
           </div>
         </div>
 
-        {/* Location */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-4 w-4" />
-          <span>{product.location}</span>
-        </div>
-
-        {/* Farmer Information */}
-        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={product.farmer.avatar} />
-              <AvatarFallback className="bg-primary/10 text-primary">
+        {/* Farmer Info */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback className="bg-green-100 text-green-700 text-xs">
                 {product.farmer.name.charAt(0)}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-sm">{product.farmer.name}</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-medium truncate">{product.farmer.name}</span>
                 {product.farmer.verified && (
-                  <Shield className="h-4 w-4 text-primary" />
+                  <Shield className="h-3 w-3 text-green-600 flex-shrink-0" />
                 )}
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                <span>{product.farmer.rating.toFixed(1)}</span>
-                <span>•</span>
-                <span>{product.farmer.location}</span>
               </div>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleContact}>
-            <MessageCircle className="h-4 w-4 mr-2" />
+          <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={handleContact}>
             Contact
           </Button>
         </div>
 
-        {/* Certifications */}
-        {product.certifications.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {product.certifications.map((cert) => (
-              <Badge key={cert} variant="outline" className="text-xs">
-                {cert}
-              </Badge>
-            ))}
-          </div>
-        )}
-
-        {/* Shipping Info */}
+        {/* Shipping */}
         {product.shipping.available && (
-          <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Truck className="h-4 w-4 text-blue-600" />
-              <span className="text-sm text-blue-600 dark:text-blue-400">
-                Shipping available
-              </span>
+          <div className="flex items-center justify-between p-2 bg-blue-50 rounded text-xs">
+            <div className="flex items-center gap-1 text-blue-600">
+              <Truck className="h-3 w-3" />
+              <span>Shipping</span>
             </div>
-            <span className="text-sm font-medium">
-              ₦{product.shipping.cost.toLocaleString()} • {product.shipping.estimatedDays} days
+            <span className="text-blue-600 font-medium">
+              ₦{product.shipping.cost} • {product.shipping.estimatedDays}d
             </span>
           </div>
         )}
 
-        {/* QR Code Display */}
-        {showQR && (
-          <div className="p-4 border rounded-lg bg-muted/30">
-            <div className="text-center">
-              <div className="inline-block p-4 bg-white rounded-lg border">
-                <div className="w-32 h-32 bg-muted rounded flex items-center justify-center">
-                  <QrCode className="h-16 w-16 text-muted-foreground" />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Scan to verify product authenticity
-              </p>
-            </div>
-          </div>
-        )}
-      </CardContent>
-
-      <Separator />
-
-      <CardFooter className="flex items-center justify-between pt-4">
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" onClick={handleView}>
-            <Eye className="h-4 w-4 mr-2" />
-            View Details
+        {/* Actions */}
+        <div className="flex gap-2 pt-2 border-t">
+          <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={handleView}>
+            <Eye className="h-3 w-3 mr-1" />
+            View
           </Button>
-          <Button variant="outline" size="sm" onClick={handleShare}>
-            <Share2 className="h-4 w-4 mr-2" />
-            Share
+          <Button size="sm" className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700" onClick={handleAddToCart}>
+            <ShoppingCart className="h-3 w-3 mr-1" />
+            Add to Cart
           </Button>
         </div>
-
-        <Button onClick={handleAddToCart} className="flex-1 max-w-[200px]">
-          <ShoppingCart className="h-4 w-4 mr-2" />
-          Add to Cart
-        </Button>
-      </CardFooter>
+      </div>
     </Card>
   )
 }

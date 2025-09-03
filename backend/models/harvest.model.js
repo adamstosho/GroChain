@@ -3,30 +3,32 @@ const mongoose = require('mongoose')
 const HarvestSchema = new mongoose.Schema({
   farmer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   cropType: { type: String, required: true },
+  variety: { type: String },
   quantity: { type: Number, required: true, default: 0 },
   date: { type: Date, default: () => new Date() },
-  geoLocation: { 
+  geoLocation: {
     lat: { type: Number, required: true },
     lng: { type: Number, required: true }
   },
-  batchId: { 
-    type: String, 
-    unique: true, 
-    default: () => `BATCH-${Math.random().toString(36).slice(2, 10).toUpperCase()}` 
+  batchId: {
+    type: String,
+    unique: true,
+    default: () => `BATCH-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
   },
-  qrData: { type: String, default: '' },
-  status: { 
-    type: String, 
-    enum: ['pending', 'verified', 'rejected', 'approved', 'listed'], 
-    default: 'pending' 
+  qrCode: { type: String }, // QR code image data URL
+  qrCodeData: { type: mongoose.Schema.Types.Mixed }, // Structured QR code data
+  status: {
+    type: String,
+    enum: ['pending', 'verified', 'rejected', 'approved', 'listed'],
+    default: 'pending'
   },
   verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   verifiedAt: { type: Date },
   rejectionReason: { type: String },
-  quality: { 
-    type: String, 
-    enum: ['excellent', 'good', 'fair', 'poor'], 
-    default: 'good' 
+  quality: {
+    type: String,
+    enum: ['excellent', 'good', 'fair', 'poor'],
+    default: 'good'
   },
   description: String,
   unit: { type: String, default: 'kg' },
@@ -51,7 +53,9 @@ const HarvestSchema = new mongoose.Schema({
     fairTrade: { type: Boolean, default: false },
     carbonFootprint: Number,
     waterUsage: Number
-  }
+  },
+  price: { type: Number }, // Price per unit
+  certification: { type: String } // Certification details
 }, { timestamps: true })
 
 // Indexes for efficient querying

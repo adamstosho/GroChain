@@ -15,41 +15,12 @@ const ListingSchema = new mongoose.Schema({
   qualityGrade: { type: String, enum: ['premium', 'standard', 'basic'], default: 'standard' },
   organic: { type: Boolean, default: false },
   certifications: [{ type: String }],
-  storageLife: { type: Number }, // in days
-  nutritionalValue: {
-    calories: { type: Number },
-    protein: { type: Number },
-    carbs: { type: Number },
-    fiber: { type: Number },
-    vitamins: [{ type: String }]
-  },
-  farmingPractices: [{ type: String }],
-  pestResistance: [{ type: String }],
-  diseaseResistance: [{ type: String }],
-  yieldPotential: { type: Number },
-  maturityDays: { type: Number },
-  waterRequirement: { type: String, enum: ['low', 'medium', 'high'] },
-  soilType: [{ type: String }],
-  climateZone: [{ type: String }],
-  marketDemand: { type: String, enum: ['high', 'medium', 'low'], default: 'medium' },
-  exportPotential: { type: Boolean, default: false },
-  processingRequirements: [{ type: String }],
-  packagingOptions: [{ type: String }],
-  transportationRequirements: [{ type: String }],
   images: [{ type: String }],
-  location: {
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    country: { type: String, default: 'Nigeria' },
-    coordinates: {
-      lat: { type: Number },
-      lng: { type: Number }
-    }
-  },
-  status: { 
-    type: String, 
-    enum: ['draft', 'active', 'inactive', 'sold_out', 'expired'], 
-    default: 'draft' 
+  location: { type: String, required: true }, // Simple string to avoid geospatial issues
+  status: {
+    type: String,
+    enum: ['draft', 'active', 'inactive', 'sold_out', 'expired'],
+    default: 'active'
   },
   featured: { type: Boolean, default: false },
   views: { type: Number, default: 0 },
@@ -60,19 +31,12 @@ const ListingSchema = new mongoose.Schema({
   metadata: { type: Object }
 }, { timestamps: true })
 
+// Simple indexes (no geospatial)
 ListingSchema.index({ farmer: 1 })
 ListingSchema.index({ cropName: 1 })
 ListingSchema.index({ category: 1 })
 ListingSchema.index({ status: 1 })
-ListingSchema.index({ location: '2dsphere' })
 ListingSchema.index({ featured: 1 })
 ListingSchema.index({ createdAt: -1 })
-
-// Text search index
-ListingSchema.index({ 
-  cropName: 'text', 
-  description: 'text', 
-  tags: 'text' 
-})
 
 module.exports = mongoose.model('Listing', ListingSchema)

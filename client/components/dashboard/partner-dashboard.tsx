@@ -217,7 +217,7 @@ export function PartnerDashboard() {
                         <div>
                           <p className="font-medium">{farmer.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {farmer.location} • Joined {new Date(farmer.joinedAt).toLocaleDateString()}
+                            {typeof farmer.location === 'string' ? farmer.location : `${farmer.location?.city || 'Unknown'}, ${farmer.location?.state || 'Unknown State'}`} • Joined {new Date(farmer.joinedAt).toLocaleDateString()}
                           </p>
                         </div>
                       </div>

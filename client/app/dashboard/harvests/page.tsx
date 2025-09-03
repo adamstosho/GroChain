@@ -18,17 +18,18 @@ import {
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Calendar, 
-  MapPin, 
-  Leaf, 
-  TrendingUp, 
-  Package, 
-  CheckCircle, 
-  Clock, 
+import { HarvestAnalytics } from "@/components/agricultural/harvest-analytics"
+import {
+  Plus,
+  Search,
+  Filter,
+  Calendar,
+  MapPin,
+  Leaf,
+  TrendingUp,
+  Package,
+  CheckCircle,
+  Clock,
   AlertCircle,
   Download,
   QrCode,
@@ -50,12 +51,13 @@ import Link from "next/link"
 import Image from "next/image"
 
 interface HarvestData {
+  id: string
   _id: string
   cropType: string
   variety?: string
   quantity: number
   unit: string
-  harvestDate: string
+  harvestDate: Date
   location: string
   quality: string
   qualityGrade: string
@@ -80,7 +82,13 @@ export default function FarmerHarvestsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [cropFilter, setCropFilter] = useState("all")
+  const [qualityFilter, setQualityFilter] = useState("all")
+  const [organicFilter, setOrganicFilter] = useState("all")
+  const [dateRange, setDateRange] = useState<{from?: Date, to?: Date}>({})
+  const [sortBy, setSortBy] = useState("newest")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [selectedHarvests, setSelectedHarvests] = useState<string[]>([])
+  const [showBulkActions, setShowBulkActions] = useState(false)
   const [selectedHarvest, setSelectedHarvest] = useState<HarvestData | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -92,6 +100,7 @@ export default function FarmerHarvestsPage() {
     totalQuantity: 0,
     totalValue: 0
   })
+  const [statsLoading, setStatsLoading] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -99,12 +108,81 @@ export default function FarmerHarvestsPage() {
     fetchStats()
   }, [])
 
+  // Refetch when filters change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (!loading) {
+        fetchHarvests()
+      }
+    }, 300) // Debounce search
+
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery, statusFilter, cropFilter, qualityFilter, organicFilter, sortBy, dateRange])
+
   const fetchHarvests = async () => {
     try {
       setLoading(true)
-      const response: any = await apiService.getHarvests({ limit: 50 })
-      const harvestData = response.harvests || response.data?.harvests || []
+
+      // Build filter parameters
+      const filters: any = {
+        limit: 50,
+        search: searchQuery || undefined,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        cropType: cropFilter !== "all" ? cropFilter : undefined,
+        quality: qualityFilter !== "all" ? qualityFilter : undefined,
+        organic: organicFilter !== "all" ? organicFilter : undefined,
+        sortBy: sortBy || "newest"
+      }
+
+      if (dateRange.from) {
+        filters.fromDate = dateRange.from.toISOString().split('T')[0]
+      }
+      if (dateRange.to) {
+        filters.toDate = dateRange.to.toISOString().split('T')[0]
+      }
+
+      // Remove undefined values
+      Object.keys(filters).forEach(key => {
+        if (filters[key] === undefined) delete filters[key]
+      })
+
+      console.log("Fetching harvests with filters:", filters)
+      const response: any = await apiService.getHarvests(filters)
+      const rawHarvests = response.harvests || response.data?.harvests || []
+
+      // Map the data to match the harvest card component expectations
+      const harvestData = rawHarvests.map((harvest: any) => ({
+        id: harvest._id,
+        _id: harvest._id, // Also include _id for consistency
+        farmerName: 'You', // Since this is the farmer's own harvests
+        cropType: harvest.cropType,
+        variety: harvest.variety || 'Standard',
+        harvestDate: new Date(harvest.date),
+        quantity: harvest.quantity,
+        unit: harvest.unit,
+        location: harvest.location,
+        quality: harvest.quality,
+        grade: harvest.qualityGrade || 'B',
+        status: harvest.status,
+        qrCode: harvest.qrData || '',
+        price: harvest.price || 0,
+        organic: harvest.organic || false,
+        moistureContent: harvest.moistureContent || 15,
+        images: harvest.images || [],
+        batchId: harvest.batchId,
+        createdAt: harvest.createdAt,
+        updatedAt: harvest.updatedAt
+      }))
+
       setHarvests(harvestData)
+
+      // Update stats after fetching harvests
+      await fetchStats()
+
+      // Update pagination if available
+      if (response.pagination) {
+        // Handle pagination data
+      }
     } catch (error) {
       console.error("Failed to fetch harvests:", error)
       toast({
@@ -119,47 +197,193 @@ export default function FarmerHarvestsPage() {
 
   const fetchStats = async () => {
     try {
-      const response: any = await apiService.getHarvests({ summary: true })
-      const data = response.data || response
-      setStats({
-        total: data.totalHarvests || 0,
-        pending: data.pendingHarvests || 0,
-        approved: data.approvedHarvests || 0,
-        rejected: data.rejectedHarvests || 0,
-        totalQuantity: data.totalQuantity || 0,
-        totalValue: data.totalValue || 0
-      })
+      setStatsLoading(true)
+      console.log("🔄 Fetching harvest stats...")
+
+      const response: any = await apiService.getHarvestStats()
+      console.log("📊 Raw Stats API Response:", response)
+
+      // Handle nested data structure: response.data
+      let statsData
+      if (response?.status === 'success' && response?.data) {
+        statsData = response.data
+        console.log("✅ Found stats in response.data")
+      } else if (response?.data) {
+        statsData = response.data
+        console.log("✅ Found stats in response.data (direct)")
+      } else {
+        statsData = response
+        console.log("⚠️ Using response directly as stats data")
+      }
+
+      console.log("🔍 Parsed stats data:", statsData)
+      console.log("📈 Individual values:",
+        "total:", statsData?.totalHarvests,
+        "pending:", statsData?.pendingHarvests,
+        "approved:", statsData?.approvedHarvests,
+        "rejected:", statsData?.rejectedHarvests,
+        "quantity:", statsData?.totalQuantity,
+        "value:", statsData?.totalValue
+      )
+
+      const newStats = {
+        total: statsData?.totalHarvests || 0,
+        pending: statsData?.pendingHarvests || 0,
+        approved: statsData?.approvedHarvests || 0,
+        rejected: statsData?.rejectedHarvests || 0,
+        totalQuantity: statsData?.totalQuantity || 0,
+        totalValue: statsData?.totalValue || 0
+      }
+
+      console.log("💾 Setting new stats state:", newStats)
+      setStats(newStats)
+
+      // Force a re-render by updating state again after a delay
+      setTimeout(() => {
+        console.log("🔄 Forcing stats re-render")
+        setStats(prev => ({ ...prev }))
+      }, 100)
+
     } catch (error) {
-      console.error("Failed to fetch stats:", error)
+      console.error("❌ Failed to fetch stats:", error)
+      console.error("❌ Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
+
+      // Try to get more details about the error
+      if (error.response) {
+        console.error("❌ Response error:", error.response.status, error.response.data)
+      }
+
+      // Set default values if API fails
+      setStats({
+        total: 0,
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+        totalQuantity: 0,
+        totalValue: 0
+      })
+    } finally {
+      setStatsLoading(false)
     }
   }
 
   const handleDelete = async () => {
     if (!selectedHarvest) return
-    
+
     try {
       setDeleting(true)
-      // TODO: Implement delete harvest API call
-      console.log("Deleting harvest:", selectedHarvest._id)
+      await apiService.deleteHarvest(selectedHarvest._id)
       toast({
         title: "Success",
         description: "Harvest deleted successfully",
         variant: "default"
       })
-      fetchHarvests()
-      fetchStats()
+      // Refresh both harvests and stats
+      await Promise.all([fetchHarvests(), fetchStats()])
       setShowDeleteDialog(false)
       setSelectedHarvest(null)
     } catch (error) {
-      console.error("Failed to delete harvest:", error)
       toast({
         title: "Error",
-        description: "Failed to delete harvest. Please try again.",
+        description: "Failed to delete harvest",
         variant: "destructive"
       })
     } finally {
       setDeleting(false)
     }
+  }
+
+  const handleSelectHarvest = (harvestId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedHarvests(prev => [...prev, harvestId])
+    } else {
+      setSelectedHarvests(prev => prev.filter(id => id !== harvestId))
+    }
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedHarvests(harvests.map(h => h._id))
+    } else {
+      setSelectedHarvests([])
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedHarvests.length === 0) return
+
+    try {
+      setDeleting(true)
+      // Delete all selected harvests
+      await Promise.all(selectedHarvests.map(id => apiService.deleteHarvest(id)))
+
+      toast({
+        title: "Success",
+        description: `Deleted ${selectedHarvests.length} harvest${selectedHarvests.length > 1 ? 's' : ''} successfully`,
+        variant: "default"
+      })
+
+      setSelectedHarvests([])
+      fetchHarvests()
+      fetchStats()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete selected harvests",
+        variant: "destructive"
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleBulkExport = async () => {
+    try {
+      const exportData = harvests.filter(h => selectedHarvests.includes(h._id))
+      const csvContent = convertToCSV(exportData)
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `harvests-export-${new Date().toISOString().split('T')[0]}.csv`
+      link.click()
+
+      toast({
+        title: "Success",
+        description: "Harvest data exported successfully",
+        variant: "default"
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export harvest data",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const convertToCSV = (data: HarvestData[]) => {
+    const headers = ['Crop Type', 'Variety', 'Quantity', 'Unit', 'Harvest Date', 'Location', 'Quality', 'Status', 'Organic', 'Price']
+    const csvRows = [
+      headers.join(','),
+      ...data.map(harvest => [
+        harvest.cropType,
+        harvest.variety || '',
+        harvest.quantity,
+        harvest.unit,
+        harvest.harvestDate,
+        `"${typeof harvest.location === 'string' ? harvest.location : `${harvest.location?.city || 'Unknown'}, ${harvest.location?.state || 'Unknown State'}`}"`,
+        harvest.quality,
+        harvest.status,
+        harvest.organic ? 'Yes' : 'No',
+        harvest.price || 0
+      ].join(','))
+    ]
+    return csvRows.join('\n')
   }
 
   const getStatusColor = (status: string) => {
@@ -266,7 +490,7 @@ export default function FarmerHarvestsPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <MapPin className="h-3 w-3 text-gray-400" />
-              <span className="text-sm text-gray-600">{harvest.location}</span>
+              <span className="text-sm text-gray-600">{typeof harvest.location === 'string' ? harvest.location : `${harvest.location?.city || 'Unknown'}, ${harvest.location?.state || 'Unknown State'}`}</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -391,7 +615,9 @@ export default function FarmerHarvestsPage() {
                 Log New Harvest
               </Link>
             </Button>
-            <Button variant="outline" onClick={fetchHarvests}>
+            <Button variant="outline" onClick={async () => {
+              await Promise.all([fetchHarvests(), fetchStats()])
+            }}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
@@ -399,7 +625,7 @@ export default function FarmerHarvestsPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <Card className="border border-gray-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
@@ -408,7 +634,14 @@ export default function FarmerHarvestsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+              {statsLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  <span className="text-sm text-gray-500">Loading...</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+              )}
               <p className="text-xs text-gray-500">All time harvests</p>
             </CardContent>
           </Card>
@@ -421,7 +654,14 @@ export default function FarmerHarvestsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{stats.pending}</div>
+              {statsLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  <span className="text-sm text-gray-500">Loading...</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-gray-900">{stats.pending}</div>
+              )}
               <p className="text-xs text-gray-500">Awaiting verification</p>
             </CardContent>
           </Card>
@@ -434,8 +674,35 @@ export default function FarmerHarvestsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{stats.approved}</div>
+              {statsLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  <span className="text-sm text-gray-500">Loading...</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-gray-900">{stats.approved}</div>
+              )}
               <p className="text-xs text-gray-500">Verified harvests</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-gray-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                Rejected
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  <span className="text-sm text-gray-500">Loading...</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-gray-900">{stats.rejected}</div>
+              )}
+              <p className="text-xs text-gray-500">Rejected harvests</p>
             </CardContent>
           </Card>
 
@@ -447,11 +714,21 @@ export default function FarmerHarvestsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">₦{stats.totalValue.toLocaleString()}</div>
+              {statsLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  <span className="text-sm text-gray-500">Loading...</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-gray-900">₦{(stats.totalValue || 0).toLocaleString()}</div>
+              )}
               <p className="text-xs text-gray-500">Estimated value</p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Harvest Analytics */}
+        <HarvestAnalytics />
 
         {/* Filters and Search */}
         <Card className="border border-gray-200">
@@ -525,7 +802,7 @@ export default function FarmerHarvestsPage() {
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="all" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
-              All ({harvests.length})
+              All ({stats.total})
             </TabsTrigger>
             <TabsTrigger value="pending" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
@@ -560,7 +837,7 @@ export default function FarmerHarvestsPage() {
               <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3"}>
                 {filteredHarvests.map((harvest) => (
                   <HarvestCard
-                    key={harvest._id}
+                    key={harvest.id}
                     harvest={harvest}
                     variant={viewMode === "list" ? "detailed" : "default"}
                   />
@@ -641,7 +918,29 @@ export default function FarmerHarvestsPage() {
                 <QrCode className="h-4 w-4 mr-2" />
                 Generate QR Codes
               </Button>
-              <Button variant="outline" className="w-full">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={async () => {
+                  try {
+                    await apiService.exportHarvests({
+                      format: 'json',
+                      status: statusFilter !== 'all' ? statusFilter : undefined,
+                      cropType: cropFilter !== 'all' ? cropFilter : undefined
+                    })
+                    toast({
+                      title: "Export Started",
+                      description: "Your harvest data export has been downloaded",
+                    })
+                  } catch (error) {
+                    toast({
+                      title: "Export Failed",
+                      description: "Failed to export harvest data",
+                      variant: "destructive"
+                    })
+                  }
+                }}
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Export Data
               </Button>

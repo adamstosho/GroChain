@@ -24,7 +24,8 @@ import {
   Star,
   Filter,
   Search,
-  MoreHorizontal
+  MoreHorizontal,
+  RefreshCw
 } from "lucide-react"
 import Link from "next/link"
 
@@ -48,10 +49,7 @@ interface ProductListing {
   quantity: number
   unit: string
   availableQuantity: number
-  location: {
-    city: string
-    state: string
-  }
+  location: string
   images: string[]
   tags: string[]
   status: 'draft' | 'active' | 'inactive' | 'sold_out'
@@ -102,6 +100,7 @@ export default function MarketplacePage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
+  const [refreshing, setRefreshing] = useState(false)
 
   const { toast } = useToast()
 
@@ -112,140 +111,207 @@ export default function MarketplacePage() {
   const fetchMarketplaceData = async () => {
     try {
       setLoading(true)
-      
-      // Mock data for now - replace with actual API calls
-      const mockStats: MarketplaceStats = {
-        totalListings: 12,
-        activeListings: 8,
-        totalOrders: 45,
-        pendingOrders: 7,
-        totalRevenue: 1250000,
-        monthlyRevenue: 180000,
-        totalCustomers: 23,
-        averageRating: 4.6
+
+      // Fetch real marketplace data from backend
+      console.log("🔄 Fetching marketplace data...")
+
+      // Fetch marketplace stats and analytics
+      const [statsResponse, listingsResponse, ordersResponse] = await Promise.all([
+        apiService.getMarketplaceAnalytics(), // Get farmer-specific analytics
+        apiService.getListings(), // Get all listings
+        apiService.getOrders() // Get farmer's orders
+      ])
+
+      console.log("📊 Stats Response:", statsResponse)
+      console.log("📦 Listings Response:", listingsResponse)
+      console.log("📋 Orders Response:", ordersResponse)
+
+      // Process stats data
+      if (statsResponse?.status === 'success' && statsResponse?.data) {
+        const statsData = statsResponse.data
+
+        // Handle different response structures
+        let processedStats: MarketplaceStats
+        if (statsData.totalListings !== undefined) {
+          // Farmer-specific analytics response
+          processedStats = {
+            totalListings: statsData.totalListings || 0,
+            activeListings: statsData.activeListings || 0,
+            totalOrders: statsData.totalOrders || 0,
+            pendingOrders: statsData.pendingOrders || 0,
+            totalRevenue: statsData.totalRevenue || 0,
+            monthlyRevenue: statsData.monthlyRevenue || 0,
+            totalCustomers: statsData.totalCustomers || 0,
+            averageRating: statsData.averageRating || 0
+          }
+
+          // Use recent data from farmer analytics
+          if (statsData.recentListings) {
+            setListings(statsData.recentListings.map((listing: any) => ({
+              _id: listing._id,
+              cropName: listing.cropName,
+              category: listing.category,
+              description: listing.description || `${listing.cropName} - Fresh produce`,
+              basePrice: listing.basePrice,
+              quantity: listing.quantity,
+              unit: listing.unit || 'kg',
+              availableQuantity: listing.availableQuantity,
+              location: listing.location,
+              images: listing.images || [],
+              tags: listing.tags || [],
+              status: listing.status,
+              createdAt: listing.createdAt,
+              views: listing.views || 0,
+              orders: listing.orders || 0,
+              rating: listing.rating || 0,
+              reviews: listing.reviewCount || 0
+            })))
+          }
+
+          if (statsData.recentOrders) {
+            setOrders(statsData.recentOrders.map((order: any) => ({
+              _id: order._id,
+              orderNumber: order.orderNumber,
+              customer: order.customer,
+              products: order.products,
+              totalAmount: order.totalAmount,
+              status: order.status,
+              orderDate: order.orderDate,
+              expectedDelivery: order.expectedDelivery || '',
+              paymentStatus: order.paymentStatus
+            })))
+          }
+        } else {
+          // Global marketplace analytics response
+          processedStats = {
+            totalListings: statsData.totalListings || 0,
+            activeListings: statsData.activeListings || 0,
+            totalOrders: statsData.totalOrders || 0,
+            pendingOrders: 0, // Not available in global stats
+            totalRevenue: statsData.totalRevenue || 0,
+            monthlyRevenue: 0, // Not available in global stats
+            totalCustomers: 0, // Not available in global stats
+            averageRating: 0 // Not available in global stats
+          }
+        }
+
+        setStats(processedStats)
+        console.log("✅ Stats set:", processedStats)
+      } else {
+        console.warn("⚠️ Stats response not in expected format:", statsResponse)
+        // Set default stats
+        setStats({
+          totalListings: 0,
+          activeListings: 0,
+          totalOrders: 0,
+          pendingOrders: 0,
+          totalRevenue: 0,
+          monthlyRevenue: 0,
+          totalCustomers: 0,
+          averageRating: 0
+        })
       }
 
-      const mockListings: ProductListing[] = [
-        {
-          _id: '1',
-          cropName: 'Fresh Maize',
-          category: 'grains',
-          description: 'High-quality maize harvested this season, perfect for consumption and processing',
-          basePrice: 250,
-          quantity: 500,
-          unit: 'kg',
-          availableQuantity: 350,
-          location: { city: 'Ibadan', state: 'Oyo' },
-          images: ['/maize-1.jpg', '/maize-2.jpg'],
-          tags: ['organic', 'fresh', 'local'],
-          status: 'active',
-          createdAt: '2024-01-15',
-          views: 156,
-          orders: 12,
-          rating: 4.8,
-          reviews: 8
-        },
-        {
-          _id: '2',
-          cropName: 'Cassava Tubers',
-          category: 'tubers',
-          description: 'Fresh cassava tubers, excellent for garri production and direct consumption',
-          basePrice: 180,
-          quantity: 300,
-          unit: 'kg',
-          availableQuantity: 200,
-          location: { city: 'Ibadan', state: 'Oyo' },
-          images: ['/cassava-1.jpg'],
-          tags: ['fresh', 'local', 'high-yield'],
-          status: 'active',
-          createdAt: '2024-01-12',
-          views: 89,
-          orders: 6,
-          rating: 4.5,
-          reviews: 5
-        },
-        {
-          _id: '3',
-          cropName: 'Tomatoes',
-          category: 'vegetables',
-          description: 'Ripe, red tomatoes perfect for cooking and fresh consumption',
-          basePrice: 400,
-          quantity: 100,
-          unit: 'kg',
-          availableQuantity: 0,
-          location: { city: 'Ibadan', state: 'Oyo' },
-          images: ['/tomato-1.jpg', '/tomato-2.jpg'],
-          tags: ['ripe', 'fresh', 'local'],
-          status: 'sold_out',
-          createdAt: '2024-01-10',
-          views: 234,
-          orders: 18,
-          rating: 4.9,
-          reviews: 15
-        }
-      ]
+      // Process listings data
+      if (listingsResponse?.status === 'success' && listingsResponse?.data?.listings && Array.isArray(listingsResponse.data.listings)) {
+        const listingsData = listingsResponse.data.listings
+        const processedListings = listingsData.slice(0, 10).map((listing: any) => ({
+          _id: listing._id,
+          cropName: listing.cropName,
+          category: listing.category,
+          description: listing.description || `${listing.cropName} - Fresh produce`,
+          basePrice: listing.basePrice,
+          quantity: listing.quantity,
+          unit: listing.unit || 'kg',
+          availableQuantity: listing.availableQuantity,
+          location: listing.location,
+          images: listing.images || [],
+          tags: listing.tags || [],
+          status: listing.status,
+          createdAt: listing.createdAt,
+          views: listing.views || 0,
+          orders: listing.orders || 0,
+          rating: listing.rating || 0,
+          reviews: listing.reviewCount || 0
+        }))
 
-      const mockOrders: Order[] = [
-        {
-          _id: '1',
-          orderNumber: 'ORD-2024-001',
-          customer: {
-            name: 'Adebayo Johnson',
-            email: 'adebayo@example.com',
-            phone: '+2348012345678'
-          },
-          products: [
-            {
-              listingId: '1',
-              cropName: 'Fresh Maize',
-              quantity: 50,
-              unit: 'kg',
-              price: 250
-            }
-          ],
-          totalAmount: 12500,
-          status: 'pending',
-          orderDate: '2024-01-20',
-          expectedDelivery: '2024-01-25',
-          paymentStatus: 'pending'
-        },
-        {
-          _id: '2',
-          orderNumber: 'ORD-2024-002',
-          customer: {
-            name: 'Fatima Ahmed',
-            email: 'fatima@example.com',
-            phone: '+2348098765432'
-          },
-          products: [
-            {
-              listingId: '2',
-              cropName: 'Cassava Tubers',
-              quantity: 100,
-              unit: 'kg',
-              price: 180
-            }
-          ],
-          totalAmount: 18000,
-          status: 'confirmed',
-          orderDate: '2024-01-19',
-          expectedDelivery: '2024-01-24',
-          paymentStatus: 'paid'
+        // Only set listings if we didn't get them from farmer analytics
+        if (listings.length === 0) {
+          setListings(processedListings)
         }
-      ]
+        console.log("✅ Listings set:", processedListings.length)
+      }
 
-      setStats(mockStats)
-      setListings(mockListings)
-      setOrders(mockOrders)
+      // Process orders data
+      if (ordersResponse?.status === 'success' && ordersResponse?.data?.orders && Array.isArray(ordersResponse.data.orders)) {
+        const ordersData = ordersResponse.data.orders
+        const processedOrders = ordersData.slice(0, 10).map((order: any) => ({
+          _id: order._id,
+          orderNumber: order.orderNumber || `ORD-${order._id.toString().slice(-6).toUpperCase()}`,
+          customer: {
+            name: order.buyer?.name || order.customer?.name || 'Unknown',
+            email: order.buyer?.email || order.customer?.email || '',
+            phone: order.buyer?.phone || order.customer?.phone || ''
+          },
+          products: order.items?.map((item: any) => ({
+            listingId: item.listing,
+            cropName: item.listing?.cropName || 'Unknown Product',
+            quantity: item.quantity,
+            unit: item.unit,
+            price: item.price
+          })) || [],
+          totalAmount: order.total,
+          status: order.status,
+          orderDate: order.createdAt,
+          expectedDelivery: order.estimatedDelivery || '',
+          paymentStatus: order.paymentStatus
+        }))
+
+        // Only set orders if we didn't get them from farmer analytics
+        if (orders.length === 0) {
+          setOrders(processedOrders)
+        }
+        console.log("✅ Orders set:", processedOrders.length)
+      }
+
     } catch (error) {
-      console.error("Failed to fetch marketplace data:", error)
+      console.error("❌ Failed to fetch marketplace data:", error)
       toast({
         title: "Error",
         description: "Failed to load marketplace data. Please try again.",
         variant: "destructive"
       })
+
+      // Set fallback data
+      setStats({
+        totalListings: 0,
+        activeListings: 0,
+        totalOrders: 0,
+        pendingOrders: 0,
+        totalRevenue: 0,
+        monthlyRevenue: 0,
+        totalCustomers: 0,
+        averageRating: 0
+      })
+      setListings([])
+      setOrders([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true)
+      await fetchMarketplaceData()
+      toast({
+        title: "Refreshed",
+        description: "Marketplace data has been updated",
+      })
+    } catch (error) {
+      console.error("Refresh failed:", error)
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -288,6 +354,62 @@ export default function MarketplacePage() {
       case 'legumes': return '🫘'
       case 'cash_crops': return '☕'
       default: return '🌱'
+    }
+  }
+
+  const handleViewListing = (listingId: string) => {
+    // Navigate to listing details page
+    console.log("Viewing listing:", listingId)
+    // You can implement navigation to listing details page
+  }
+
+  const handleEditListing = (listingId: string) => {
+    // Navigate to edit listing page
+    console.log("Editing listing:", listingId)
+    // You can implement navigation to edit listing page
+  }
+
+  const handleViewOrder = (orderId: string) => {
+    // Navigate to order details page
+    console.log("Viewing order:", orderId)
+    // You can implement navigation to order details page
+  }
+
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      await apiService.updateOrderStatus(orderId, newStatus)
+      toast({
+        title: "Success",
+        description: `Order status updated to ${newStatus}`,
+      })
+      // Refresh data
+      fetchMarketplaceData()
+    } catch (error) {
+      console.error("Failed to update order status:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update order status",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleUpdateListingStatus = async (listingId: string, newStatus: string) => {
+    try {
+      await apiService.updateListingStatus(listingId, newStatus)
+      toast({
+        title: "Success",
+        description: `Listing status updated to ${newStatus}`,
+      })
+      // Refresh data
+      fetchMarketplaceData()
+    } catch (error) {
+      console.error("Failed to update listing status:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update listing status",
+        variant: "destructive"
+      })
     }
   }
 
@@ -335,6 +457,14 @@ export default function MarketplacePage() {
           </div>
           
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={loading || refreshing}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
             <Button variant="outline" asChild>
               <Link href="/dashboard/marketplace/analytics">
                 <TrendingUp className="h-4 w-4 mr-2" />
@@ -619,7 +749,7 @@ export default function MarketplacePage() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Location:</span>
-                        <span className="font-medium">{listing.location.city}, {listing.location.state}</span>
+                        <span className="font-medium">{typeof listing.location === 'string' ? listing.location : `${listing.location?.city || 'Unknown'}, ${listing.location?.state || 'Unknown State'}`}</span>
                       </div>
                     </div>
 
@@ -639,11 +769,21 @@ export default function MarketplacePage() {
                     </div>
 
                     <div className="flex gap-2 pt-2">
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleViewListing(listing._id)}
+                      >
                         <Eye className="h-4 w-4 mr-1" />
                         View
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleEditListing(listing._id)}
+                      >
                         <Edit className="h-4 w-4 mr-1" />
                         Edit
                       </Button>
@@ -732,20 +872,40 @@ export default function MarketplacePage() {
                       </div>
 
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewOrder(order._id)}
+                        >
                           <Eye className="h-4 w-4 mr-1" />
                           View Details
                         </Button>
                         {order.status === 'pending' && (
-                          <Button size="sm">
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdateOrderStatus(order._id, 'confirmed')}
+                          >
                             <Package className="h-4 w-4 mr-1" />
                             Confirm Order
                           </Button>
                         )}
                         {order.status === 'confirmed' && (
-                          <Button size="sm">
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdateOrderStatus(order._id, 'shipped')}
+                          >
                             <Package className="h-4 w-4 mr-1" />
                             Mark Shipped
+                          </Button>
+                        )}
+                        {order.status === 'shipped' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleUpdateOrderStatus(order._id, 'delivered')}
+                          >
+                            <Package className="h-4 w-4 mr-1" />
+                            Mark Delivered
                           </Button>
                         )}
                       </div>

@@ -8,17 +8,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { api } from "@/lib/api"
+import { apiService } from "@/lib/api"
+import { useBuyerStore } from "@/hooks/use-buyer-store"
+import { useToast } from "@/hooks/use-toast"
 import type { Product, Review } from "@/lib/types"
 import Link from "next/link"
 import Image from "next/image"
 
 export default function ProductDetailPage() {
   const params = useParams()
+  const { addToCart } = useBuyerStore()
+  const { toast } = useToast()
   const [product, setProduct] = useState<Product | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
+  const [addingToCart, setAddingToCart] = useState(false)
 
   useEffect(() => {
     if (params.id) {
@@ -29,7 +34,7 @@ export default function ProductDetailPage() {
 
   const fetchProduct = async () => {
     try {
-      const response = await api.get(`/marketplace/products/${params.id}`)
+      const response = await apiService.request(`/api/marketplace/listings/${params.id}`)
       setProduct(response.data)
     } catch (error) {
       console.error("Failed to fetch product:", error)
@@ -40,7 +45,7 @@ export default function ProductDetailPage() {
 
   const fetchReviews = async () => {
     try {
-      const response = await api.get(`/marketplace/products/${params.id}/reviews`)
+      const response = await apiService.request(`/api/marketplace/listings/${params.id}/reviews`)
       setReviews(response.data.reviews || [])
     } catch (error) {
       console.error("Failed to fetch reviews:", error)
@@ -48,14 +53,49 @@ export default function ProductDetailPage() {
   }
 
   const handleAddToCart = async () => {
-    try {
-      await api.post("/marketplace/cart", {
-        productId: params.id,
-        quantity,
+    if (!product) {
+      toast({
+        title: "Error",
+        description: "Product information not available",
+        variant: "destructive"
       })
-      // Show success message
+      return
+    }
+
+    try {
+      setAddingToCart(true)
+
+      // Prepare cart item data with proper structure
+      const cartItem = {
+        id: product._id,
+        listingId: product._id, // Ensure listingId is set correctly
+        cropName: product.cropName,
+        quantity: quantity,
+        unit: product.unit,
+        price: product.basePrice,
+        total: product.basePrice * quantity,
+        farmer: product.farmer?.name || 'Unknown Farmer',
+        location: product.location,
+        image: product.images?.[0] || "/placeholder.svg",
+        availableQuantity: product.availableQuantity || product.quantity || 0
+      }
+
+      // Add to cart using buyer store
+      addToCart(cartItem, quantity)
+
+      toast({
+        title: "Added to Cart",
+        description: `${product.cropName} has been added to your cart`,
+      })
     } catch (error) {
       console.error("Failed to add to cart:", error)
+      toast({
+        title: "Error",
+        description: "Failed to add item to cart. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setAddingToCart(false)
     }
   }
 
@@ -203,9 +243,22 @@ export default function ProductDetailPage() {
                   </Button>
                 </div>
 
-                <Button className="flex-1" onClick={handleAddToCart}>
-                  <ShoppingCart className="h-4 w-4 mr-2" />
-                  Add to Cart - ₦{(product.price * quantity).toLocaleString()}
+                <Button
+                  className="flex-1"
+                  onClick={handleAddToCart}
+                  disabled={addingToCart || !product}
+                >
+                  {addingToCart ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                      Add to Cart - ₦{(product?.basePrice * quantity).toLocaleString()}
+                    </>
+                  )}
                 </Button>
 
                 <Button variant="outline">

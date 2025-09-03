@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
 import { 
   CreditCard, 
   Banknote, 
@@ -33,169 +34,186 @@ import {
   ArrowDownRight,
   CreditCard as CreditCardIcon,
   Building2,
-  Phone
+  Phone,
+  RefreshCw
 } from "lucide-react"
 import { useBuyerStore } from "@/hooks/use-buyer-store"
+import { apiService } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 
 export default function PaymentsPage() {
-  const [activeTab, setActiveTab] = useState("methods")
+  const [activeTab, setActiveTab] = useState("transactions")
   const { profile } = useBuyerStore()
+  const { toast } = useToast()
 
-  // Mock data for payment methods
-  const paymentMethods = [
-    {
-      _id: "1",
-      name: "Visa ending in 4242",
-      type: "card",
-      isDefault: true,
-      security: { isVerified: true, lastUsed: "2024-01-15" },
-      details: { last4: "4242", expiry: "12/26", brand: "Visa" }
-    },
-    {
-      _id: "2",
-      name: "GT Bank Account",
-      type: "bank_account",
-      isDefault: false,
-      security: { isVerified: true, lastUsed: "2024-01-10" },
-      details: { bankName: "GT Bank", accountNumber: "0123456789", accountType: "Savings" }
-    },
-    {
-      _id: "3",
-      name: "MTN Mobile Money",
-      type: "mobile_money",
-      isDefault: false,
-      security: { isVerified: false, lastUsed: "2024-01-05" },
-      details: { phoneNumber: "+2348012345678", provider: "MTN" }
-    }
-  ]
+  // State for API data
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [orders, setOrders] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock data for transactions
-  const transactions = [
-    {
-      _id: "1",
-      reference: "TXN_001",
-      amount: 25000,
-      type: "purchase",
-      status: "successful",
-      method: "card",
-      description: "Maize purchase from Farmer John",
-      date: "2024-01-15T10:30:00Z",
-      orderId: "ORD_001"
-    },
-    {
-      _id: "2",
-      reference: "TXN_002",
-      amount: 15000,
-      type: "purchase",
-      status: "pending",
-      method: "bank_transfer",
-      description: "Cassava purchase from Green Farms",
-      date: "2024-01-14T14:20:00Z",
-      orderId: "ORD_002"
-    },
-    {
-      _id: "3",
-      reference: "TXN_003",
-      amount: 8000,
-      type: "refund",
-      status: "successful",
-      method: "card",
-      description: "Refund for damaged vegetables",
-      date: "2024-01-13T09:15:00Z",
-      orderId: "ORD_003"
-    },
-    {
-      _id: "4",
-      reference: "TXN_004",
-      amount: 30000,
-      type: "purchase",
-      status: "failed",
-      method: "mobile_money",
-      description: "Rice purchase from Rice Valley",
-      date: "2024-01-12T16:45:00Z",
-      orderId: "ORD_004"
-    }
-  ]
+  // State for payment methods
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([])
+  const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(false)
 
-  // Mock data for billing
-  const billingHistory = [
-    {
-      _id: "1",
-      invoiceNumber: "INV_001",
-      orderNumber: "ORD_001",
-      amount: 25000,
-      status: "paid",
-      dueDate: "2024-01-20",
-      issuedDate: "2024-01-15",
-      items: [
-        { name: "Maize", quantity: "100kg", price: 250, total: 25000 }
-      ]
-    },
-    {
-      _id: "2",
-      invoiceNumber: "INV_002",
-      orderNumber: "ORD_002",
-      amount: 15000,
-      status: "pending",
-      dueDate: "2024-01-25",
-      issuedDate: "2024-01-14",
-      items: [
-        { name: "Cassava", quantity: "50kg", price: 300, total: 15000 }
-      ]
-    },
-    {
-      _id: "3",
-      invoiceNumber: "INV_003",
-      orderNumber: "ORD_003",
-      amount: 8000,
-      status: "refunded",
-      dueDate: "2024-01-18",
-      issuedDate: "2024-01-10",
-      items: [
-        { name: "Vegetables", quantity: "20kg", price: 400, total: 8000 }
-      ]
-    }
-  ]
+  // Fetch data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
 
-  // Mock data for refunds
-  const refunds = [
-    {
-      _id: "1",
-      refundNumber: "REF_001",
-      orderNumber: "ORD_003",
-      amount: 8000,
-      reason: "Product quality issues",
-      status: "approved",
-      requestedDate: "2024-01-12",
-      processedDate: "2024-01-13",
-      method: "card",
-      description: "Damaged vegetables received"
-    },
-    {
-      _id: "2",
-      refundNumber: "REF_002",
-      orderNumber: "ORD_004",
-      amount: 30000,
-      reason: "Payment failure",
-      status: "pending",
-      requestedDate: "2024-01-12",
-      processedDate: null,
-      method: "mobile_money",
-      description: "Payment failed during processing"
-    },
-    {
-      _id: "3",
-      refundNumber: "REF_003",
-      orderNumber: "ORD_005",
-      amount: 12000,
-      reason: "Order cancellation",
-      status: "approved",
-      requestedDate: "2024-01-10",
-      processedDate: "2024-01-11",
-      method: "bank_transfer",
-      description: "Order cancelled before shipping"
+        // Fetch transaction history
+        console.log('📊 Fetching transaction history...')
+        const transactionResponse = await apiService.getTransactionHistory()
+        console.log('✅ Transaction response:', transactionResponse)
+
+        if (transactionResponse?.status === 'success' && transactionResponse?.data?.transactions) {
+          setTransactions(transactionResponse.data.transactions)
+        } else if (transactionResponse?.data?.transactions) {
+          // Handle direct data structure
+          setTransactions(transactionResponse.data.transactions)
+        } else {
+          console.warn('⚠️ No transaction data found in response:', transactionResponse)
+          setTransactions([])
+        }
+
+        // Fetch orders for billing
+        console.log('📦 Fetching orders...')
+        const ordersResponse = await apiService.getUserOrders()
+        console.log('✅ Orders response:', ordersResponse)
+
+        if (ordersResponse?.status === 'success' && ordersResponse?.data) {
+          // Handle the structured response from backend
+          const ordersData = ordersResponse.data.orders || []
+          setOrders(ordersData)
+        } else if (Array.isArray(ordersResponse)) {
+          // Handle direct array response
+          setOrders(ordersResponse)
+        } else {
+          console.warn('⚠️ No orders data found in response:', ordersResponse)
+          setOrders([])
+        }
+
+        // Fetch payment methods
+        console.log('💳 Fetching payment methods...')
+        setPaymentMethodsLoading(true)
+        const paymentMethodsResponse = await apiService.getPaymentMethods()
+        console.log('✅ Payment methods response:', paymentMethodsResponse)
+
+        if (paymentMethodsResponse?.status === 'success' && paymentMethodsResponse?.data) {
+          setPaymentMethods(paymentMethodsResponse.data)
+        } else if (Array.isArray(paymentMethodsResponse)) {
+          // Handle direct array response
+          setPaymentMethods(paymentMethodsResponse)
+        } else {
+          console.warn('⚠️ No payment methods data found in response:', paymentMethodsResponse)
+          setPaymentMethods([])
+        }
+        setPaymentMethodsLoading(false)
+
+      } catch (err: any) {
+        console.error('❌ Error fetching payment data:', err)
+        setError(err.message || 'Failed to load payment data')
+        toast({
+          title: "Error loading data",
+          description: err.message || "Failed to load payment information",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
+
+    fetchData()
+  }, [toast])
+
+  // Refresh data function
+  const refreshData = async () => {
+    try {
+      setLoading(true)
+      setPaymentMethodsLoading(true)
+      setError(null)
+
+      const [transactionResponse, ordersResponse, paymentMethodsResponse] = await Promise.all([
+        apiService.getTransactionHistory(),
+        apiService.getUserOrders(),
+        apiService.getPaymentMethods()
+      ])
+
+      if (transactionResponse?.success && transactionResponse?.data?.transactions) {
+        setTransactions(transactionResponse.data.transactions)
+      }
+
+      if (ordersResponse?.success && ordersResponse?.data) {
+        let ordersData = []
+        if (ordersResponse.data?.data?.orders) {
+          ordersData = ordersResponse.data.data.orders
+        } else if (ordersResponse.data?.orders) {
+          ordersData = ordersResponse.data.orders
+        } else if (Array.isArray(ordersResponse.data)) {
+          ordersData = ordersResponse.data
+        }
+        setOrders(ordersData)
+      }
+
+      if (paymentMethodsResponse?.success && paymentMethodsResponse?.data) {
+        setPaymentMethods(paymentMethodsResponse.data)
+      }
+
+      toast({
+        title: "Data refreshed",
+        description: "Payment information has been updated",
+      })
+    } catch (err: any) {
+      console.error('❌ Error refreshing data:', err)
+      setError(err.message || 'Failed to refresh data')
+      toast({
+        title: "Refresh failed",
+        description: err.message || "Failed to refresh payment data",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+      setPaymentMethodsLoading(false)
+    }
+  }
+
+  // Convert orders to billing format
+  const billingHistory = orders.map((order, index) => ({
+    _id: order._id || `order_${index}`,
+    invoiceNumber: `INV_${order.orderNumber || order._id?.slice(-6) || index}`,
+    orderNumber: order.orderNumber || order._id?.slice(-6) || `ORD_${index}`,
+    amount: order.total || order.amount || 0,
+    status: order.paymentStatus === 'paid' ? 'paid' :
+            order.paymentStatus === 'pending' ? 'pending' :
+            order.status === 'completed' ? 'paid' : 'pending',
+    dueDate: order.createdAt ? new Date(Date.parse(order.createdAt) + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null,
+    issuedDate: order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : null,
+    items: order.items?.map((item: any) => ({
+      name: item.listing?.cropName || item.product?.cropName || item.cropName || 'Product',
+      quantity: `${item.quantity || 0}${item.unit || 'kg'}`,
+      price: item.price || 0,
+      total: (item.quantity || 0) * (item.price || 0)
+    })) || []
+  }))
+
+  // Convert refund transactions to refund format
+  const refunds = transactions
+    .filter(t => t.type === 'refund')
+    .map((transaction, index) => ({
+      _id: transaction._id || `refund_${index}`,
+      refundNumber: `REF_${transaction.reference || transaction._id?.slice(-6) || index}`,
+      orderNumber: transaction.orderId || `ORD_${index}`,
+      amount: transaction.amount || 0,
+      reason: transaction.description || 'Refund request',
+      status: transaction.status === 'successful' ? 'approved' :
+              transaction.status === 'pending' ? 'pending' : 'approved',
+      requestedDate: transaction.createdAt || transaction.date,
+      processedDate: transaction.status === 'successful' ? transaction.createdAt : null,
+      method: transaction.method || 'card',
+      description: transaction.description || 'Refund processed'
+    }))
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -262,10 +280,12 @@ export default function PaymentsPage() {
 
   const calculateStats = () => {
     const totalTransactions = transactions.length
-    const successfulTransactions = transactions.filter(t => t.status === "successful").length
+    const successfulTransactions = transactions.filter(t => t.status === "successful" || t.status === "completed" || t.status === "paid").length
     const pendingTransactions = transactions.filter(t => t.status === "pending").length
     const failedTransactions = transactions.filter(t => t.status === "failed").length
-    const totalAmount = transactions.filter(t => t.status === "successful").reduce((sum, t) => sum + t.amount, 0)
+    const totalAmount = transactions
+      .filter(t => t.status === "successful" || t.status === "completed" || t.status === "paid")
+      .reduce((sum, t) => sum + (t.amount || 0), 0)
 
     return {
       total: totalTransactions,
@@ -288,11 +308,22 @@ export default function PaymentsPage() {
             <p className="text-muted-foreground">
               Manage your payment methods, view transactions, and handle billing
             </p>
+            {error && (
+              <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded">
+                ⚠️ {error}
+              </div>
+            )}
           </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={refreshData} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
           <Button>
             <Plus className="h-4 w-4 mr-2" />
             Add Payment Method
           </Button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -307,7 +338,40 @@ export default function PaymentsPage() {
           {/* Payment Methods Tab */}
           <TabsContent value="methods" className="mt-6">
             <div className="space-y-4">
-              {paymentMethods.map((method) => (
+              {paymentMethodsLoading ? (
+                // Loading skeletons for payment methods
+                Array.from({ length: 3 }).map((_, index) => (
+                  <Card key={index} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <Skeleton className="h-10 w-10 rounded-lg" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-48" />
+                            <Skeleton className="h-3 w-32" />
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Skeleton className="h-5 w-16" />
+                          <Skeleton className="h-5 w-14" />
+                          <Skeleton className="h-8 w-8" />
+                          <Skeleton className="h-8 w-8" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : paymentMethods.length === 0 ? (
+                <div className="text-center py-8">
+                  <CreditCardIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No payment methods found</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Add your first payment method to start making purchases.
+                  </p>
+                  <Button><Plus className="h-4 w-4 mr-2" />Add Payment Method</Button>
+                </div>
+              ) : (
+                paymentMethods.map((method) => (
                 <Card key={method._id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -317,22 +381,30 @@ export default function PaymentsPage() {
                           <h4 className="font-semibold text-foreground">{method.name}</h4>
                           <p className="text-sm text-muted-foreground">
                             {method.type === 'card' ? `**** **** **** ${method.details.last4}` : 
-                             method.type === 'bank_account' ? `Bank: ${method.details.bankName} - ${method.details.accountNumber}` : 
+                               method.type === 'bank_account' ? `Bank: ${method.details.bankName} - ****${method.details.accountNumber?.slice(-4)}` :
                              method.type === 'mobile_money' ? `Phone: ${method.details.phoneNumber}` : ''}
                           </p>
-                        </div>
+                            {method.lastUsed && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Last used: {formatDate(method.lastUsed)}
+                              </p>
+                            )}
+                          </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         {method.isDefault && <Badge variant="secondary" className="text-xs">Default</Badge>}
-                        {method.security.isVerified && <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">Verified</Badge>}
+                          {method.isVerified && <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">Verified</Badge>}
                         <Button variant="ghost" size="sm"><Edit className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                ))
+              )}
+              {paymentMethods.length > 0 && (
               <Button className="w-full"><Plus className="h-4 w-4 mr-2" />Add New Method</Button>
+              )}
             </div>
           </TabsContent>
 
@@ -346,7 +418,11 @@ export default function PaymentsPage() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Total</span>
                   </div>
+                  {loading ? (
+                    <Skeleton className="h-8 w-16 mt-2" />
+                  ) : (
                   <p className="text-2xl font-bold">{stats.total}</p>
+                  )}
                 </CardContent>
               </Card>
               <Card>
@@ -355,7 +431,11 @@ export default function PaymentsPage() {
                     <TrendingUp className="h-4 w-4 text-green-600" />
                     <span className="text-sm font-medium">Successful</span>
                   </div>
+                  {loading ? (
+                    <Skeleton className="h-8 w-16 mt-2" />
+                  ) : (
                   <p className="text-2xl font-bold text-green-600">{stats.successful}</p>
+                  )}
                 </CardContent>
               </Card>
               <Card>
@@ -364,7 +444,11 @@ export default function PaymentsPage() {
                     <Clock className="h-4 w-4 text-yellow-600" />
                     <span className="text-sm font-medium">Pending</span>
                   </div>
+                  {loading ? (
+                    <Skeleton className="h-8 w-16 mt-2" />
+                  ) : (
                   <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+                  )}
                 </CardContent>
               </Card>
               <Card>
@@ -373,7 +457,11 @@ export default function PaymentsPage() {
                     <TrendingDown className="h-4 w-4 text-red-600" />
                     <span className="text-sm font-medium">Failed</span>
                   </div>
+                  {loading ? (
+                    <Skeleton className="h-8 w-16 mt-2" />
+                  ) : (
                   <p className="text-2xl font-bold text-red-600">{stats.failed}</p>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -410,8 +498,38 @@ export default function PaymentsPage() {
 
             {/* Transactions List */}
             <div className="space-y-4">
-              {transactions.map((transaction) => (
-                <Card key={transaction._id} className="hover:shadow-md transition-shadow">
+              {loading ? (
+                // Loading skeletons
+                Array.from({ length: 3 }).map((_, index) => (
+                  <Card key={index} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <Skeleton className="h-10 w-10 rounded-lg" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-48" />
+                            <Skeleton className="h-3 w-32" />
+                          </div>
+                        </div>
+                        <div className="text-right space-y-2">
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-5 w-16" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : transactions.length === 0 ? (
+                <div className="text-center py-8">
+                  <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No transactions found</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Your transaction history will appear here once you make purchases.
+                  </p>
+                </div>
+              ) : (
+                transactions.map((transaction) => (
+                  <Card key={transaction._id || transaction.reference || `txn-${Math.random()}`} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
@@ -419,22 +537,27 @@ export default function PaymentsPage() {
                           {getStatusIcon(transaction.status)}
                         </div>
                         <div>
-                          <h4 className="font-semibold text-foreground">{transaction.description}</h4>
+                            <h4 className="font-semibold text-foreground">
+                              {transaction.description || `Transaction ${transaction.reference || ''}`}
+                            </h4>
                           <p className="text-sm text-muted-foreground">
-                            {transaction.reference} • {formatDate(transaction.date)}
+                              {transaction.reference || transaction._id} • {transaction.createdAt ? formatDate(transaction.createdAt) : 'N/A'}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-foreground">{formatPrice(transaction.amount)}</p>
-                        <Badge className={getStatusColor(transaction.status)}>
-                          {transaction.status}
+                          <p className="font-semibold text-foreground">
+                            {formatPrice(transaction.amount || 0)}
+                          </p>
+                          <Badge className={getStatusColor(transaction.status || 'pending')}>
+                            {transaction.status || 'pending'}
                         </Badge>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                ))
+              )}
             </div>
           </TabsContent>
 
@@ -446,9 +569,13 @@ export default function PaymentsPage() {
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-2">
                     <Receipt className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Total Invoices</span>
+                    <span className="text-sm font-medium">Total Orders</span>
                   </div>
+                  {loading ? (
+                    <Skeleton className="h-8 w-16 mt-2" />
+                  ) : (
                   <p className="text-2xl font-bold">{billingHistory.length}</p>
+                  )}
                 </CardContent>
               </Card>
               <Card>
@@ -457,9 +584,13 @@ export default function PaymentsPage() {
                     <CheckCircle className="h-4 w-4 text-green-600" />
                     <span className="text-sm font-medium">Paid</span>
                   </div>
+                  {loading ? (
+                    <Skeleton className="h-8 w-16 mt-2" />
+                  ) : (
                   <p className="text-2xl font-bold text-green-600">
                     {billingHistory.filter(b => b.status === 'paid').length}
                   </p>
+                  )}
                 </CardContent>
               </Card>
               <Card>
@@ -468,23 +599,62 @@ export default function PaymentsPage() {
                     <Clock className="h-4 w-4 text-yellow-600" />
                     <span className="text-sm font-medium">Pending</span>
                   </div>
+                  {loading ? (
+                    <Skeleton className="h-8 w-16 mt-2" />
+                  ) : (
                   <p className="text-2xl font-bold text-yellow-600">
                     {billingHistory.filter(b => b.status === 'pending').length}
                   </p>
+                  )}
                 </CardContent>
               </Card>
             </div>
 
             {/* Billing History */}
             <div className="space-y-4">
-              {billingHistory.map((invoice) => (
+              {loading ? (
+                // Loading skeletons for billing
+                Array.from({ length: 2 }).map((_, index) => (
+                  <Card key={index} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="space-y-2">
+                          <Skeleton className="h-5 w-32" />
+                          <Skeleton className="h-4 w-48" />
+                        </div>
+                        <div className="text-right space-y-2">
+                          <Skeleton className="h-7 w-24" />
+                          <Skeleton className="h-5 w-16" />
+                        </div>
+                      </div>
+                      <div className="border-t pt-4 space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                      </div>
+                      <div className="flex items-center space-x-2 pt-4 border-t">
+                        <Skeleton className="h-8 w-24" />
+                        <Skeleton className="h-8 w-28" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : billingHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No orders found</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Your order history will appear here once you make purchases.
+                  </p>
+                </div>
+              ) : (
+                billingHistory.map((invoice) => (
                 <Card key={invoice._id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h4 className="font-semibold text-foreground">Invoice #{invoice.invoiceNumber}</h4>
+                          <h4 className="font-semibold text-foreground">Order #{invoice.orderNumber}</h4>
                         <p className="text-sm text-muted-foreground">
-                          Order: {invoice.orderNumber} • Due: {formatDate(invoice.dueDate)}
+                            Invoice: {invoice.invoiceNumber} • {invoice.issuedDate ? `Issued: ${formatDate(invoice.issuedDate)}` : ''}
                         </p>
                       </div>
                       <div className="text-right">
@@ -495,25 +665,29 @@ export default function PaymentsPage() {
                       </div>
                     </div>
                     
-                    {/* Invoice Items */}
+                      {/* Order Items */}
                     <div className="border-t pt-4">
-                      {invoice.items.map((item, index) => (
+                        {invoice.items && invoice.items.length > 0 ? (
+                          invoice.items.map((item: any, index: number) => (
                         <div key={index} className="flex justify-between items-center py-2">
-                          <span className="text-sm">{item.name} ({item.quantity})</span>
-                          <span className="text-sm font-medium">{formatPrice(item.total)}</span>
+                              <span className="text-sm">{item.name || 'Product'} ({item.quantity || 0})</span>
+                              <span className="text-sm font-medium">{formatPrice(item.total || item.price || 0)}</span>
                         </div>
-                      ))}
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground py-2">No items details available</p>
+                        )}
                     </div>
 
                     {/* Actions */}
                     <div className="flex items-center space-x-2 pt-4 border-t">
                       <Button variant="outline" size="sm">
                         <Eye className="h-4 w-4 mr-2" />
-                        View Invoice
+                          View Details
                       </Button>
                       <Button variant="outline" size="sm">
                         <Download className="h-4 w-4 mr-2" />
-                        Download PDF
+                          Download Receipt
                       </Button>
                       {invoice.status === 'pending' && (
                         <Button size="sm">
@@ -524,7 +698,8 @@ export default function PaymentsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                ))
+              )}
             </div>
           </TabsContent>
 
@@ -538,7 +713,11 @@ export default function PaymentsPage() {
                     <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Total Refunds</span>
                   </div>
+                  {loading ? (
+                    <Skeleton className="h-8 w-16 mt-2" />
+                  ) : (
                   <p className="text-2xl font-bold">{refunds.length}</p>
+                  )}
                 </CardContent>
               </Card>
               <Card>
@@ -547,9 +726,13 @@ export default function PaymentsPage() {
                     <CheckCircle className="h-4 w-4 text-green-600" />
                     <span className="text-sm font-medium">Approved</span>
                   </div>
+                  {loading ? (
+                    <Skeleton className="h-8 w-16 mt-2" />
+                  ) : (
                   <p className="text-2xl font-bold text-green-600">
                     {refunds.filter(r => r.status === 'approved').length}
                   </p>
+                  )}
                 </CardContent>
               </Card>
               <Card>
@@ -558,23 +741,63 @@ export default function PaymentsPage() {
                     <Clock className="h-4 w-4 text-yellow-600" />
                     <span className="text-sm font-medium">Pending</span>
                   </div>
+                  {loading ? (
+                    <Skeleton className="h-8 w-16 mt-2" />
+                  ) : (
                   <p className="text-2xl font-bold text-yellow-600">
                     {refunds.filter(r => r.status === 'pending').length}
                   </p>
+                  )}
                 </CardContent>
               </Card>
             </div>
 
             {/* Refunds List */}
             <div className="space-y-4">
-              {refunds.map((refund) => (
+              {loading ? (
+                // Loading skeletons for refunds
+                Array.from({ length: 2 }).map((_, index) => (
+                  <Card key={index} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="space-y-2">
+                          <Skeleton className="h-5 w-32" />
+                          <Skeleton className="h-4 w-48" />
+                        </div>
+                        <div className="text-right space-y-2">
+                          <Skeleton className="h-7 w-24" />
+                          <Skeleton className="h-5 w-16" />
+                        </div>
+                      </div>
+                      <div className="mb-4 space-y-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                      </div>
+                      <div className="flex items-center space-x-2 pt-4 border-t">
+                        <Skeleton className="h-8 w-24" />
+                        <Skeleton className="h-8 w-32" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : refunds.length === 0 ? (
+                <div className="text-center py-8">
+                  <ArrowDownRight className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No refunds found</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Your refund history will appear here when refunds are processed.
+                  </p>
+                </div>
+              ) : (
+                refunds.map((refund) => (
                 <Card key={refund._id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <h4 className="font-semibold text-foreground">Refund #{refund.refundNumber}</h4>
                         <p className="text-sm text-muted-foreground">
-                          Order: {refund.orderNumber} • Requested: {formatDate(refund.requestedDate)}
+                            Order: {refund.orderNumber} • Requested: {refund.requestedDate ? formatDate(refund.requestedDate) : 'N/A'}
                         </p>
                       </div>
                       <div className="text-right">
@@ -610,7 +833,8 @@ export default function PaymentsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                ))
+              )}
             </div>
           </TabsContent>
         </Tabs>

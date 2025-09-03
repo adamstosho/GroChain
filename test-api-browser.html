@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GroChain API Connection Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 400px;
+            font-size: 12px;
+        }
+        .product-link {
+            background-color: #28a745;
+            color: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .product-link:hover { background-color: #218838; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 GroChain API Connection Test</h1>
+        <p>This page tests the connection between the frontend and backend APIs.</p>
+
+        <button onclick="testListings()">📦 Test Listings API</button>
+        <button onclick="testProductDetail()">🔍 Test Product Detail API</button>
+        <button onclick="testAll()">🚀 Test All APIs</button>
+        <button onclick="clearResults()">🗑️ Clear Results</button>
+
+        <div id="results"></div>
+
+        <div id="productLink" style="display: none;">
+            <h3>🎯 Test Product Detail Page</h3>
+            <a id="productDetailLink" class="product-link" target="_blank">
+                🛒 Open Product Detail Page
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000/api'
+        let currentProductId = null
+
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results')
+            const div = document.createElement('div')
+            div.className = `status ${type}`
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`
+            results.appendChild(div)
+            results.scrollTop = results.scrollHeight
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = ''
+            document.getElementById('productLink').style.display = 'none'
+        }
+
+        async function testListings() {
+            try {
+                addResult('🔗 Testing Listings API connection...', 'warning')
+
+                const response = await fetch(`${API_BASE_URL}/marketplace/listings?page=1&limit=1`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    mode: 'cors',
+                    credentials: 'include'
+                })
+
+                if (response.ok) {
+                    const data = await response.json()
+                    addResult('✅ Listings API connected successfully!', 'success')
+
+                    const listings = data.data?.listings || data.listings || []
+                    if (listings.length > 0) {
+                        currentProductId = listings[0]._id
+                        addResult(`📦 Found ${listings.length} product(s). First product ID: ${currentProductId}`, 'success')
+
+                        // Show product link
+                        const linkElement = document.getElementById('productDetailLink')
+                        linkElement.href = `http://localhost:3000/dashboard/products/${currentProductId}`
+                        linkElement.textContent = `🛒 Open Product Detail Page (${currentProductId})`
+                        document.getElementById('productLink').style.display = 'block'
+
+                        addResult('📊 Sample Product Data:<br><pre>' + JSON.stringify(listings[0], null, 2) + '</pre>', 'success')
+                    } else {
+                        addResult('❌ No products found in listings', 'error')
+                    }
+                } else {
+                    addResult(`❌ Listings API failed: ${response.status} ${response.statusText}`, 'error')
+                }
+            } catch (error) {
+                addResult(`❌ Network Error: ${error.message}`, 'error')
+                addResult('💡 Troubleshooting: Ensure backend server is running on http://localhost:5000', 'warning')
+            }
+        }
+
+        async function testProductDetail() {
+            if (!currentProductId) {
+                addResult('❌ No product ID available. Please test Listings API first.', 'error')
+                return
+            }
+
+            try {
+                addResult(`🔍 Testing Product Detail API for ID: ${currentProductId}...`, 'warning')
+
+                const response = await fetch(`${API_BASE_URL}/marketplace/listings/${currentProductId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    mode: 'cors',
+                    credentials: 'include'
+                })
+
+                if (response.ok) {
+                    const data = await response.json()
+                    addResult('✅ Product Detail API connected successfully!', 'success')
+
+                    const product = data.data || data
+                    addResult(`📋 Product: ${product.cropName || product.name || 'Unknown Product'}`, 'success')
+                    addResult(`💰 Price: ₦${product.basePrice || 'N/A'} per ${product.unit || 'unit'}`, 'success')
+                    addResult(`📦 Available: ${product.availableQuantity || 0} ${product.unit || 'units'}`, 'success')
+
+                    addResult('📊 Full Product Data:<br><pre>' + JSON.stringify(product, null, 2) + '</pre>', 'success')
+                } else {
+                    addResult(`❌ Product Detail API failed: ${response.status} ${response.statusText}`, 'error')
+                    const errorText = await response.text()
+                    addResult(`Error details: ${errorText}`, 'error')
+                }
+            } catch (error) {
+                addResult(`❌ Network Error: ${error.message}`, 'error')
+            }
+        }
+
+        async function testAll() {
+            clearResults()
+            await testListings()
+            if (currentProductId) {
+                await testProductDetail()
+            }
+        }
+
+        // Auto-run on page load
+        window.onload = function() {
+            addResult('🎯 API Connection Test Ready', 'success')
+            addResult('Click "Test All APIs" to begin testing', 'warning')
+        }
+    </script>
+</body>
+</html>
+

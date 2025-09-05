@@ -42,8 +42,7 @@ const QRCodeSchema = new mongoose.Schema({
   // Unique QR code identifier
   code: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
 
   // Batch information

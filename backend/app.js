@@ -175,6 +175,7 @@ const initializeApp = async () => {
     app.use('/api/commissions', require('./routes/commission.routes'));
     app.use('/api/shipments', require('./routes/shipment.routes'));
     app.use('/api/export-import', require('./routes/exportImport.routes'));
+    app.use('/api/auth/google', require('./routes/googleAuth.routes'));
     
     // Health check endpoint
     app.get('/api/health', (req, res) => {

@@ -98,8 +98,33 @@ export const useBuyerStore = create<BuyerState>((set, get) => ({
   fetchFavorites: async () => {
     set({ isLoading: true, error: null })
     try {
-      const response = await apiService.getFavorites(get().profile?._id)
+      // First try to get user ID from profile
+      let userId = get().profile?._id
+      
+      // If no profile, try to get from getCurrentUserId method
+      if (!userId) {
+        userId = get().getCurrentUserId()
+      }
+      
+      // If still no userId, try to fetch profile first
+      if (!userId) {
+        console.log('No user ID found, attempting to fetch profile first...')
+        try {
+          await get().fetchProfile()
+          userId = get().profile?._id
+        } catch (profileError) {
+          console.error('Failed to fetch profile:', profileError)
+        }
+      }
+      
+      console.log('Fetching favorites for user:', userId || 'current user')
+      
+      // Always use the current user endpoint to avoid authentication issues
+      const response = await apiService.getFavorites()
+      console.log('Favorites API response:', response)
+      
       const favorites = (response.data as any)?.favorites || (response.data as any) || []
+      console.log('Parsed favorites:', favorites)
       set({ favorites, isLoading: false })
     } catch (error: any) {
       console.error('Failed to fetch favorites:', error)
@@ -109,22 +134,34 @@ export const useBuyerStore = create<BuyerState>((set, get) => ({
 
   addToFavorites: async (listingId: string, notes?: string) => {
     try {
-      await apiService.addToFavorites(listingId, notes)
+      console.log('Adding to favorites:', { listingId, notes })
+      const response = await apiService.addToFavorites(listingId, notes)
+      console.log('Add to favorites response:', response)
+      
       // Refresh favorites after adding
-      const response = await apiService.getFavorites(get().profile?._id)
-      const favorites = (response.data as any)?.favorites || (response.data as any) || []
-      set({ favorites })
+      const userId = get().profile?._id || get().getCurrentUserId()
+      if (userId) {
+        const favoritesResponse = await apiService.getFavorites(userId)
+        const favorites = (favoritesResponse.data as any)?.favorites || (favoritesResponse.data as any) || []
+        set({ favorites })
+      }
     } catch (error: any) {
       console.error('Failed to add to favorites:', error)
       set({ error: error.message || 'Failed to add to favorites' })
+      throw error // Re-throw to let the calling component handle it
     }
   },
 
   removeFromFavorites: async (listingId: string) => {
     try {
-      await apiService.removeFromFavorites(get().profile?._id, listingId)
+      const userId = get().profile?._id || get().getCurrentUserId()
+      if (!userId) {
+        throw new Error('User not authenticated')
+      }
+      
+      await apiService.removeFromFavorites(userId, listingId)
       // Refresh favorites after removing
-      const response = await apiService.getFavorites(get().profile?._id)
+      const response = await apiService.getFavorites(userId)
       const favorites = (response.data as any)?.favorites || (response.data as any) || []
       set({ favorites })
     } catch (error: any) {

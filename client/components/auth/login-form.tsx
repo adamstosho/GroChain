@@ -65,11 +65,16 @@ export function LoginForm() {
   }
 
   const handleGoogleLogin = () => {
-    // Implement Google OAuth login
-    toast({
-      title: "Coming soon",
-      description: "Google sign-in will be available soon.",
-    })
+    // Redirect to Google OAuth
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+      `client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}&` +
+      `redirect_uri=${encodeURIComponent(process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI!)}&` +
+      `response_type=code&` +
+      `scope=openid email profile&` +
+      `access_type=offline&` +
+      `prompt=consent`
+    
+    window.location.href = googleAuthUrl
   }
 
   const handleTwitterLogin = () => {

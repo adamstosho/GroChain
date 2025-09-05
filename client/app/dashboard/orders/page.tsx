@@ -144,6 +144,36 @@ interface OrderFilters {
   searchQuery: string
 }
 
+// Helper function to calculate stats from orders data
+const calculateStatsFromOrders = (orders: Order[]): OrderStats => {
+  const stats = {
+    total: orders.length,
+    pending: 0,
+    confirmed: 0,
+    shipped: 0,
+    delivered: 0,
+    cancelled: 0,
+    totalSpent: 0
+  }
+
+  orders.forEach(order => {
+    // Count by status
+    if (order.status === 'pending') stats.pending++
+    else if (order.status === 'confirmed') stats.confirmed++
+    else if (order.status === 'shipped') stats.shipped++
+    else if (order.status === 'delivered') stats.delivered++
+    else if (order.status === 'cancelled') stats.cancelled++
+    
+    // Count confirmed orders by payment status (paid orders)
+    if (order.paymentStatus === 'paid') {
+      stats.confirmed++
+      stats.totalSpent += order.total
+    }
+  })
+
+  return stats
+}
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [stats, setStats] = useState<OrderStats>({
@@ -200,7 +230,7 @@ export default function OrdersPage() {
       if (response?.status === 'success' && response?.data) {
         // Handle the structured response from backend
         const ordersData = response.data.orders || []
-        const statsData = response.data.stats || {
+        let statsData = response.data.stats || {
           total: 0,
           pending: 0,
           confirmed: 0,
@@ -209,6 +239,13 @@ export default function OrdersPage() {
           cancelled: 0,
           totalSpent: 0
         }
+        
+        // If backend stats are not available or all zeros, calculate from orders data
+        if (!response.data.stats || (statsData.confirmed === 0 && statsData.totalSpent === 0 && ordersData.length > 0)) {
+          console.log('📊 Calculating stats from orders data...')
+          statsData = calculateStatsFromOrders(ordersData)
+        }
+        
         const paginationData = response.data.pagination || {
           page: 1,
           limit: 20,
@@ -237,12 +274,39 @@ export default function OrdersPage() {
       }
     } catch (error) {
       console.error('❌ Failed to fetch orders:', error)
-      toast({
-        title: "Error Loading Orders",
-        description: "Failed to load your orders. Please try again.",
-        variant: "destructive",
-      })
-      setOrders([])
+      
+      // Try to get orders from a different endpoint or use mock data
+      try {
+        console.log('🔄 Attempting to fetch orders from alternative endpoint...')
+        const fallbackResponse = await apiService.getUserOrders({ page: '1', limit: '100' })
+        if (fallbackResponse?.data?.orders) {
+          const ordersData = fallbackResponse.data.orders
+          const statsData = calculateStatsFromOrders(ordersData)
+          setOrders(ordersData)
+          setStats(statsData)
+          console.log('✅ Fallback orders loaded:', ordersData.length, 'orders')
+          console.log('📊 Fallback stats:', statsData)
+        } else {
+          throw new Error('No orders data available')
+        }
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError)
+        toast({
+          title: "Error Loading Orders",
+          description: "Failed to load your orders. Please try again.",
+          variant: "destructive",
+        })
+        setOrders([])
+        setStats({
+          total: 0,
+          pending: 0,
+          confirmed: 0,
+          shipped: 0,
+          delivered: 0,
+          cancelled: 0,
+          totalSpent: 0
+        })
+      }
     } finally {
       setLoading(false)
     }

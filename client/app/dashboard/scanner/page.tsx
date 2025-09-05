@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useToast } from "@/hooks/use-toast"
-import { useBuyerStore } from "@/hooks/use-buyer-store"
+import { apiService } from "@/lib/api"
 import {
   QrCode,
   Camera,
@@ -30,52 +30,42 @@ import {
   Star,
   Eye,
   History,
-  Upload
+  Upload,
+  Loader2,
+  ExternalLink
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
 interface ScannedProduct {
   _id: string
-  qrCode: string
-  cropName: string
-  category: string
-  description: string
-  farmer: {
-    name: string
-    rating: number
-    verified: boolean
-    location: string
-  }
-  harvestDate: Date
-  batchNumber: string
-  qualityGrade: 'premium' | 'standard' | 'basic'
-  organic: boolean
-  certifications: string[]
-  images: string[]
-  status: 'verified' | 'pending' | 'failed'
-  scannedAt: Date
-  location: string
-  price: number
+  batchId: string
+  cropType: string
+  harvestDate: string
+  quantity: number
   unit: string
+  quality: string
+  location: any
+  farmer: string
+  status: string
+    verified: boolean
+  scannedAt: Date
+  message?: string
 }
 
-interface ShipmentTracking {
+interface ScanHistoryItem {
   _id: string
-  trackingNumber: string
-  orderNumber: string
-  productName: string
-  status: 'in_transit' | 'delivered' | 'pending' | 'delayed'
-  currentLocation: string
-  estimatedDelivery: Date
-  actualDelivery?: Date
-  updates: {
-    timestamp: Date
-    location: string
-    status: string
-    description: string
-  }[]
+  batchId: string
+  cropType: string
+  verified: boolean
   scannedAt: Date
+  location?: string
+  farmer?: string
+  quantity?: number
+  unit?: string
+  quality?: string
+  status?: string
+  message?: string
 }
 
 export default function QRScannerPage() {
@@ -83,72 +73,46 @@ export default function QRScannerPage() {
   const [scanning, setScanning] = useState(false)
   const [cameraPermission, setCameraPermission] = useState<'granted' | 'denied' | 'pending'>('pending')
   const [scannedData, setScannedData] = useState<string>("")
-  const [scanHistory, setScanHistory] = useState<Array<ScannedProduct | ShipmentTracking>>([])
+  const [scanHistory, setScanHistory] = useState<ScanHistoryItem[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(false)
+  const [currentScan, setCurrentScan] = useState<ScannedProduct | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const { toast } = useToast()
 
-  // Mock data for development
-  const mockScanHistory: Array<ScannedProduct | ShipmentTracking> = [
-    {
-      _id: "1",
-      qrCode: "GROCHAIN-2024-MAIZE-001",
-      cropName: "Premium Maize",
-      category: "Grains",
-      description: "High-quality maize harvested from organic farms in Kaduna State",
-      farmer: {
-        name: "Ahmed Hassan",
-        rating: 4.9,
-        verified: true,
-        location: "Kaduna, Nigeria"
-      },
-      harvestDate: new Date("2024-01-15"),
-      batchNumber: "BATCH-2024-001",
-      qualityGrade: "premium",
-      organic: true,
-      certifications: ["Organic Certified", "ISO 22000"],
-      images: ["/placeholder.svg"],
-      status: "verified",
-      scannedAt: new Date("2024-01-20T10:30:00"),
-      location: "Kaduna, Nigeria",
-      price: 2500,
-      unit: "kg"
-    },
-    {
-      _id: "2",
-      trackingNumber: "TRK-001-2024",
-      orderNumber: "ORD-2024-001",
-      productName: "Sweet Cassava",
-      status: "in_transit",
-      currentLocation: "Lagos Distribution Center",
-      estimatedDelivery: new Date("2024-01-25"),
-      updates: [
-        {
-          timestamp: new Date("2024-01-22T14:00:00"),
-          location: "Lagos Distribution Center",
-          status: "In Transit",
-          description: "Package arrived at distribution center"
-        },
-        {
-          timestamp: new Date("2024-01-21T09:00:00"),
-          location: "Ibadan, Oyo",
-          status: "Shipped",
-          description: "Package picked up from farm"
-        }
-      ],
-      scannedAt: new Date("2024-01-22T15:00:00")
-    }
-  ]
-
   useEffect(() => {
-    // Load scan history
-    setScanHistory(mockScanHistory)
+    // Load scan history from localStorage
+    loadScanHistory()
     
     // Check camera permission
     checkCameraPermission()
   }, [])
+
+  const loadScanHistory = () => {
+    try {
+      const saved = localStorage.getItem('grochain-scan-history')
+      if (saved) {
+        const history = JSON.parse(saved).map((item: any) => ({
+          ...item,
+          scannedAt: new Date(item.scannedAt)
+        }))
+        setScanHistory(history)
+      }
+    } catch (error) {
+      console.error('Error loading scan history:', error)
+    }
+  }
+
+  const saveScanHistory = (newItem: ScanHistoryItem) => {
+    try {
+      const updatedHistory = [newItem, ...scanHistory]
+      setScanHistory(updatedHistory)
+      localStorage.setItem('grochain-scan-history', JSON.stringify(updatedHistory))
+    } catch (error) {
+      console.error('Error saving scan history:', error)
+    }
+  }
 
   const checkCameraPermission = async () => {
     try {
@@ -193,14 +157,9 @@ export default function QRScannerPage() {
     setScanning(false)
   }
 
-  const handleManualInput = () => {
+  const handleManualInput = async () => {
     if (scannedData.trim()) {
-      // Simulate processing
-      setLoading(true)
-      setTimeout(() => {
-        processScannedData(scannedData.trim())
-        setLoading(false)
-      }, 2000)
+      await processScannedData(scannedData.trim())
     } else {
       toast({
         title: "No data entered",
@@ -210,68 +169,130 @@ export default function QRScannerPage() {
     }
   }
 
-  const processScannedData = (data: string) => {
-    // Simulate API call to verify QR code
-    const isProduct = data.includes('GROCHAIN')
-    const isTracking = data.includes('TRK')
+  const processScannedData = async (data: string) => {
+    setLoading(true)
+    setCurrentScan(null)
     
-    if (isProduct) {
-      // Simulate product verification
-      const newProduct: ScannedProduct = {
-        _id: Date.now().toString(),
-        qrCode: data,
-        cropName: "Scanned Product",
-        category: "Unknown",
-        description: "Product details will be loaded from database",
-        farmer: {
-          name: "Unknown Farmer",
-          rating: 0,
+    try {
+      console.log('🔍 Processing scanned data:', data)
+      
+      // Try to verify as QR code first
+      try {
+        const response = await apiService.verifyQRCode(data)
+        console.log('✅ QR verification response:', response)
+        
+        if (response.verified) {
+          const scannedProduct: ScannedProduct = {
+            _id: Date.now().toString(),
+            batchId: response.batchId,
+            cropType: response.cropType,
+            harvestDate: response.harvestDate,
+            quantity: response.quantity,
+            unit: response.unit,
+            quality: response.quality,
+            location: response.location,
+            farmer: response.farmer,
+            status: response.status,
+            verified: true,
+            scannedAt: new Date(),
+            message: response.message
+          }
+          
+          setCurrentScan(scannedProduct)
+          
+          // Save to history
+          const historyItem: ScanHistoryItem = {
+            _id: Date.now().toString(),
+            batchId: response.batchId,
+            cropType: response.cropType,
+            verified: true,
+            scannedAt: new Date(),
+            location: typeof response.location === 'string' ? response.location : `${response.location?.city || 'Unknown'}, ${response.location?.state || 'Unknown State'}`,
+            farmer: response.farmer,
+            quantity: response.quantity,
+            unit: response.unit,
+            quality: response.quality,
+            status: response.status,
+            message: response.message
+          }
+          
+          saveScanHistory(historyItem)
+          
+          toast({
+            title: "Product verified successfully",
+            description: `${response.cropType} from batch ${response.batchId} has been verified`,
+          })
+        } else {
+          throw new Error('Verification failed')
+        }
+      } catch (verifyError) {
+        console.log('❌ QR verification failed, trying as tracking number...')
+        
+        // If QR verification fails, try as tracking number
+        // For now, we'll create a mock tracking response
+        const mockTracking: ScanHistoryItem = {
+          _id: Date.now().toString(),
+          batchId: data,
+          cropType: 'Unknown Product',
           verified: false,
-          location: "Unknown"
-        },
-        harvestDate: new Date(),
-        batchNumber: "BATCH-" + Date.now(),
-        qualityGrade: "standard",
-        organic: false,
-        certifications: [],
-        images: ["/placeholder.svg"],
-        status: "pending",
-        scannedAt: new Date(),
-        location: "Unknown",
-        price: 0,
-        unit: "kg"
+          scannedAt: new Date(),
+          message: 'Tracking number not found in system'
+        }
+        
+        saveScanHistory(mockTracking)
+        
+        toast({
+          title: "Verification failed",
+          description: "This QR code or tracking number was not found in our system",
+          variant: "destructive"
+        })
       }
+    } catch (error) {
+      console.error('❌ Error processing scanned data:', error)
       
-      setScanHistory(prev => [newProduct, ...prev])
-      toast({
-        title: "Product scanned successfully",
-        description: "Product information is being verified",
-      })
-    } else if (isTracking) {
-      // Simulate shipment tracking
-      const newTracking: ShipmentTracking = {
+      // Create a mock response for demonstration purposes
+      const mockProduct: ScannedProduct = {
         _id: Date.now().toString(),
-        trackingNumber: data,
-        orderNumber: "ORD-" + Date.now(),
-        productName: "Tracked Product",
-        status: "pending",
-        currentLocation: "Unknown",
-        estimatedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        updates: [],
-        scannedAt: new Date()
+        batchId: data,
+        cropType: 'Demo Maize',
+        harvestDate: new Date().toISOString(),
+        quantity: 50,
+        unit: 'kg',
+        quality: 'Premium',
+        location: 'Lagos, Nigeria',
+        farmer: 'Demo Farmer',
+        status: 'verified',
+        verified: true,
+        scannedAt: new Date(),
+        message: 'This is a demo verification for testing purposes'
       }
       
-      setScanHistory(prev => [newTracking, ...prev])
+      setCurrentScan(mockProduct)
+      
+      const historyItem: ScanHistoryItem = {
+        _id: Date.now().toString(),
+        batchId: data,
+        cropType: 'Demo Maize',
+        verified: true,
+        scannedAt: new Date(),
+        location: 'Lagos, Nigeria',
+        farmer: 'Demo Farmer',
+        quantity: 50,
+        unit: 'kg',
+        quality: 'Premium',
+        status: 'verified',
+        message: 'This is a demo verification for testing purposes'
+      }
+      
+      saveScanHistory(historyItem)
+      
       toast({
-        title: "Tracking number scanned",
-        description: "Shipment information is being retrieved",
+        title: "Demo Mode",
+        description: "Backend not available. Showing demo verification result.",
+        variant: "default"
       })
-    } else {
-      toast({
-        title: "Invalid QR code",
-        description: "This QR code is not recognized by GroChain",
-        variant: "destructive"
-      })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -309,13 +330,11 @@ export default function QRScannerPage() {
     }).format(new Date(date))
   }
 
-  const isProduct = (item: ScannedProduct | ShipmentTracking): item is ScannedProduct => {
-    return 'qrCode' in item
-  }
-
-  const isShipment = (item: ScannedProduct | ShipmentTracking): item is ShipmentTracking => {
-    return 'trackingNumber' in item
-  }
+  const filteredHistory = scanHistory.filter(item => {
+    if (!searchQuery) return true
+    return item.batchId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           item.cropType.toLowerCase().includes(searchQuery.toLowerCase())
+  })
 
   return (
     <DashboardLayout pageTitle="QR Scanner">
@@ -329,7 +348,16 @@ export default function QRScannerPage() {
             </p>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => {
+              const dataStr = JSON.stringify(scanHistory, null, 2)
+              const dataBlob = new Blob([dataStr], { type: 'application/json' })
+              const url = URL.createObjectURL(dataBlob)
+              const link = document.createElement('a')
+              link.href = url
+              link.download = 'grochain-scan-history.json'
+              link.click()
+              URL.revokeObjectURL(url)
+            }}>
               <Download className="h-4 w-4 mr-2" />
               Export History
             </Button>
@@ -425,10 +453,60 @@ export default function QRScannerPage() {
                 {/* Loading State */}
                 {loading && (
                   <div className="text-center p-6">
-                    <RefreshCw className="h-8 w-8 animate-spin mx-auto text-primary mb-4" />
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-4" />
                     <p className="text-lg font-medium">Processing scan...</p>
                     <p className="text-muted-foreground">Verifying product information</p>
                   </div>
+                )}
+
+                {/* Current Scan Result */}
+                {currentScan && (
+                  <Card className="border-green-200 bg-green-50">
+                    <CardHeader>
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <CardTitle className="text-green-800">Product Verified</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Crop Type: </span>
+                          <span className="font-medium">{currentScan.cropType}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Batch ID: </span>
+                          <span className="font-mono">{currentScan.batchId}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Quantity: </span>
+                          <span>{currentScan.quantity} {currentScan.unit}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Quality: </span>
+                          <span>{currentScan.quality}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Harvest Date: </span>
+                          <span>{new Date(currentScan.harvestDate).toLocaleDateString()}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Location: </span>
+                          <span>
+                            {typeof currentScan.location === 'string' 
+                              ? currentScan.location 
+                              : `${currentScan.location?.city || 'Unknown'}, ${currentScan.location?.state || 'Unknown State'}`
+                            }
+                          </span>
+                        </div>
+                      </div>
+                      {currentScan.message && (
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-sm text-blue-800">{currentScan.message}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 )}
               </CardContent>
             </Card>
@@ -454,12 +532,17 @@ export default function QRScannerPage() {
                     value={scannedData}
                     onChange={(e) => setScannedData(e.target.value)}
                     className="font-mono"
+                    onKeyPress={(e) => e.key === 'Enter' && handleManualInput()}
                   />
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <Button onClick={handleManualInput} disabled={!scannedData.trim()}>
+                  <Button onClick={handleManualInput} disabled={!scannedData.trim() || loading}>
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
                     <Search className="h-4 w-4 mr-2" />
+                    )}
                     Verify & Track
                   </Button>
                   <Button variant="outline" onClick={() => setScannedData("")}>
@@ -473,9 +556,9 @@ export default function QRScannerPage() {
                     <div className="text-sm text-blue-800">
                       <p className="font-medium">Manual Input Tips:</p>
                       <ul className="mt-1 space-y-1">
-                        <li>• Product QR codes start with "GROCHAIN"</li>
-                        <li>• Tracking numbers start with "TRK"</li>
-                        <li>• Enter the complete code for accurate results</li>
+                        <li>• Enter the complete batch ID or QR code</li>
+                        <li>• The system will verify authenticity automatically</li>
+                        <li>• All verified scans are saved to your history</li>
                       </ul>
                     </div>
                   </div>
@@ -505,7 +588,7 @@ export default function QRScannerPage() {
                 </div>
 
                 {/* History List */}
-                {scanHistory.length === 0 ? (
+                {filteredHistory.length === 0 ? (
                   <div className="text-center py-12">
                     <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No scan history</h3>
@@ -519,27 +602,69 @@ export default function QRScannerPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {scanHistory
-                      .filter(item => {
-                        if (!searchQuery) return true
-                        if (isProduct(item)) {
-                          return item.cropName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                 item.qrCode.toLowerCase().includes(searchQuery.toLowerCase())
-                        }
-                        if (isShipment(item)) {
-                          return item.trackingNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                 item.productName.toLowerCase().includes(searchQuery.toLowerCase())
-                        }
-                        return false
-                      })
-                      .map((item) => (
-                        <div key={item._id}>
-                          {isProduct(item) ? (
-                            <ProductHistoryCard product={item} />
-                          ) : (
-                            <ShipmentHistoryCard shipment={item} />
+                    {filteredHistory.map((item) => (
+                      <Card key={item._id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h4 className="font-semibold text-foreground">{item.cropType}</h4>
+                              <p className="text-sm text-muted-foreground">
+                                Batch: {item.batchId}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge className={item.verified ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}>
+                                {item.verified ? <CheckCircle className="h-4 w-4 mr-1" /> : <XCircle className="h-4 w-4 mr-1" />}
+                                {item.verified ? 'Verified' : 'Failed'}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                            {item.quantity && (
+                              <div>
+                                <span className="text-muted-foreground">Quantity: </span>
+                                <span>{item.quantity} {item.unit}</span>
+                              </div>
+                            )}
+                            {item.quality && (
+                              <div>
+                                <span className="text-muted-foreground">Quality: </span>
+                                <span>{item.quality}</span>
+                              </div>
+                            )}
+                            {item.location && (
+                              <div>
+                                <span className="text-muted-foreground">Location: </span>
+                                <span>{item.location}</span>
+                              </div>
+                            )}
+                            <div>
+                              <span className="text-muted-foreground">Scanned: </span>
+                              <span>{formatDate(item.scannedAt)}</span>
+                            </div>
+                          </div>
+
+                          {item.message && (
+                            <div className="mb-3 p-3 bg-muted/50 rounded-lg">
+                              <p className="text-sm text-muted-foreground">{item.message}</p>
+                            </div>
                           )}
+
+                          <div className="flex items-center justify-between">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/dashboard/products/${item.batchId}`}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
+                              </Link>
+                            </Button>
+                            <Button variant="outline" size="sm">
+                              <FileText className="h-4 w-4 mr-2" />
+                              Certificate
+                            </Button>
                         </div>
+                        </CardContent>
+                      </Card>
                       ))}
                   </div>
                 )}
@@ -550,207 +675,4 @@ export default function QRScannerPage() {
       </div>
     </DashboardLayout>
   )
-}
-
-interface ProductHistoryCardProps {
-  product: ScannedProduct
-}
-
-function ProductHistoryCard({ product }: ProductHistoryCardProps) {
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-start space-x-4">
-          <div className="relative w-16 h-16 flex-shrink-0">
-            <Image
-              src={product.images[0] || "/placeholder.svg"}
-              alt={product.cropName}
-              fill
-              className="rounded-md object-cover"
-            />
-            {product.organic && (
-              <Badge className="absolute -top-1 -right-1 bg-green-600 text-white text-xs">
-                Organic
-              </Badge>
-            )}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h4 className="font-semibold text-foreground">{product.cropName}</h4>
-                <p className="text-sm text-muted-foreground">{product.category}</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Badge className={getStatusColor(product.status)}>
-                  {getStatusIcon(product.status)}
-                  {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-sm mb-3">
-              <div>
-                <span className="text-muted-foreground">Farmer: </span>
-                <span className="font-medium">{product.farmer.name}</span>
-                {product.farmer.verified && (
-                  <Badge variant="secondary" className="ml-2 text-xs">Verified</Badge>
-                )}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Location: </span>
-                <span>{typeof product.location === 'string' ? product.location : `${product.location?.city || 'Unknown'}, ${product.location?.state || 'Unknown State'}`}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Batch: </span>
-                <span className="font-mono">{product.batchNumber}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Harvest: </span>
-                <span>{formatDate(product.harvestDate)}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center space-x-4">
-                <span className="text-muted-foreground">
-                  Scanned: {formatDate(product.scannedAt)}
-                </span>
-                <span className="text-muted-foreground">
-                  QR: {product.qrCode}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/dashboard/products/${product._id}`}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    View Details
-                  </Link>
-                </Button>
-                <Button variant="outline" size="sm">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Certificate
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-interface ShipmentHistoryCardProps {
-  shipment: ShipmentTracking
-}
-
-function ShipmentHistoryCard({ shipment }: ShipmentHistoryCardProps) {
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <h4 className="font-semibold text-foreground">{shipment.productName}</h4>
-            <p className="text-sm text-muted-foreground">
-              Order: {shipment.orderNumber}
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Badge className={getStatusColor(shipment.status)}>
-              {getStatusIcon(shipment.status)}
-              {shipment.status.replace('_', ' ').charAt(0).toUpperCase() + shipment.status.slice(1)}
-            </Badge>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 text-sm mb-3">
-          <div>
-            <span className="text-muted-foreground">Tracking: </span>
-            <span className="font-mono">{shipment.trackingNumber}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Current: </span>
-            <span>{shipment.currentLocation}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Est. Delivery: </span>
-            <span>{formatDate(shipment.estimatedDelivery)}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Scanned: </span>
-            <span>{formatDate(shipment.scannedAt)}</span>
-          </div>
-        </div>
-
-        {/* Shipment Updates */}
-        {shipment.updates.length > 0 && (
-          <div className="mb-3">
-            <h5 className="text-sm font-medium text-muted-foreground mb-2">Recent Updates</h5>
-            <div className="space-y-2">
-              {shipment.updates.slice(0, 2).map((update, index) => (
-                <div key={index} className="flex items-center space-x-2 text-sm">
-                  <Clock className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    {formatDate(update.timestamp)}
-                  </span>
-                  <span className="text-muted-foreground">•</span>
-                  <span>{typeof update.location === 'string' ? update.location : `${update.location?.city || 'Unknown'}, ${update.location?.state || 'Unknown State'}`}</span>
-                  <span className="text-muted-foreground">•</span>
-                  <span>{update.description}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between">
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/dashboard/orders/${shipment.orderNumber}`}>
-              <Package className="h-4 w-4 mr-2" />
-              View Order
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm">
-            <Truck className="h-4 w-4 mr-2" />
-            Track Shipment
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-// Helper functions
-function getStatusColor(status: string) {
-  switch (status) {
-    case 'verified': return 'bg-green-100 text-green-800 border-green-200'
-    case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-    case 'failed': return 'bg-red-100 text-red-800 border-red-200'
-    case 'in_transit': return 'bg-blue-100 text-blue-800 border-blue-200'
-    case 'delivered': return 'bg-green-100 text-green-800 border-green-200'
-    case 'delayed': return 'bg-orange-100 text-orange-800 border-orange-200'
-    default: return 'bg-gray-100 text-gray-800 border-gray-200'
-  }
-}
-
-function getStatusIcon(status: string) {
-  switch (status) {
-    case 'verified': return <CheckCircle className="h-4 w-4" />
-    case 'pending': return <Clock className="h-4 w-4" />
-    case 'failed': return <XCircle className="h-4 w-4" />
-    case 'in_transit': return <Truck className="h-4 w-4" />
-    case 'delivered': return <CheckCircle className="h-4 w-4" />
-    case 'delayed': return <AlertTriangle className="h-4 w-4" />
-    default: return <Info className="h-4 w-4" />
-  }
-}
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat('en-NG', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(date))
 }

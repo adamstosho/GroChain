@@ -28,6 +28,8 @@ interface AuthState {
   refreshAuth: () => Promise<void>
   updateUser: (userData: Partial<User>) => void
   setLoading: (loading: boolean) => void
+  setToken: (token: string) => void
+  setUser: (user: User) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -215,6 +217,16 @@ export const useAuthStore = create<AuthState>()(
       setLoading: (loading: boolean) => {
         set({ isLoading: loading })
       },
+      
+      setToken: (token: string) => {
+        set({ token, isAuthenticated: true })
+        apiService.setToken(token)
+        setCookie('auth_token', token)
+      },
+      
+      setUser: (user: User) => {
+        set({ user, isAuthenticated: true })
+      },
     }),
     {
       name: "grochain-auth",
@@ -227,8 +239,26 @@ export const useAuthStore = create<AuthState>()(
       onRehydrateStorage: () => (state) => {
         // Called after state is rehydrated from storage
         try {
+          console.log('🔄 Auth rehydration starting...', {
+            hasState: !!state,
+            hasToken: !!state?.token,
+            hasUser: !!state?.user,
+            isAuthenticated: state?.isAuthenticated
+          })
+
+          // Ensure API service has the token after rehydration
+          if (state?.token) {
+            apiService.setToken(state.token)
+            console.log('✅ API service token set after rehydration')
+          } else {
+            console.log('⚠️ No token found in rehydrated state')
+          }
+
           state?.setHasHydrated(true)
-        } catch {}
+          console.log('✅ Auth rehydration completed successfully')
+        } catch (error) {
+          console.error('❌ Auth rehydration error:', error)
+        }
       },
     },
   ),

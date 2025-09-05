@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useToast } from "@/hooks/use-toast"
 import { useBuyerStore } from "@/hooks/use-buyer-store"
+import { useAuthStore } from "@/lib/auth"
 import {
   Heart,
   Search,
@@ -22,38 +23,45 @@ import {
   Grid3X3,
   List,
   Plus,
-  Download
+  Download,
+  AlertCircle,
+  Users,
+  Package,
+  Leaf
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
 interface FavoriteProduct {
   _id: string
-  listingId: string
-  cropName: string
-  category: string
-  description: string
-  basePrice: number
-  currentPrice: number
-  unit: string
-  availableQuantity: number
-  location: {
-    city: string
-    state: string
+  listing: {
+    _id: string
+    cropName: string
+    category: string
+    description: string
+    price: number
+    unit: string
+    quantity: number
+    location: {
+      city: string
+      state: string
+    }
+    images: string[]
+    quality: string
+    organic: boolean
+    farmer: {
+      _id: string
+      name: string
+      location: string
+    }
+    harvest?: {
+      batchId: string
+      cropType: string
+      quality: string
+    }
   }
-  images: string[]
-  rating: number
-  reviews: number
-  farmer: {
-    name: string
-    rating: number
-    verified: boolean
-  }
-  organic: boolean
-  qualityGrade: 'premium' | 'standard' | 'basic'
-  notes: string
-  priceAlert: number | null
-  addedToFavorites: Date
+  addedAt: string
+  notes?: string
 }
 
 export default function FavoritesPage() {
@@ -62,78 +70,191 @@ export default function FavoritesPage() {
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState("")
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
-  const { addToCart, removeFromFavorites } = useBuyerStore()
+  const { addToCart, removeFromFavorites, fetchFavorites, addToFavorites, profile } = useBuyerStore()
+  const { user } = useAuthStore()
 
-  // Mock data for development
-  const mockFavorites: FavoriteProduct[] = [
-    {
-      _id: "1",
-      listingId: "listing1",
-      cropName: "Premium Maize",
-      category: "Grains",
-      description: "High-quality maize harvested from organic farms in Kaduna State.",
-      basePrice: 2500,
-      currentPrice: 2500,
-      unit: "kg",
-      availableQuantity: 800,
-      location: { city: "Kaduna", state: "Kaduna" },
-      images: ["/placeholder.svg"],
-      rating: 4.8,
-      reviews: 18,
-      farmer: { name: "Ahmed Hassan", rating: 4.9, verified: true },
-      organic: true,
-      qualityGrade: "premium",
-      notes: "Best quality maize for processing",
-      priceAlert: 2200,
-      addedToFavorites: new Date("2024-01-10")
-    },
-    {
-      _id: "2",
-      listingId: "listing2",
-      cropName: "Sweet Cassava",
-      category: "Tubers",
-      description: "Fresh sweet cassava from Oyo State farms.",
-      basePrice: 1800,
-      currentPrice: 1600,
-      unit: "kg",
-      availableQuantity: 450,
-      location: { city: "Ibadan", state: "Oyo" },
-      images: ["/placeholder.svg"],
-      rating: 4.6,
-      reviews: 8,
-      farmer: { name: "Fatima Adebayo", rating: 4.7, verified: true },
-      organic: false,
-      qualityGrade: "standard",
-      notes: "Good for garri production",
-      priceAlert: null,
-      addedToFavorites: new Date("2024-01-12")
-    }
-  ]
-
+  // Fetch favorites from backend
   useEffect(() => {
-    setTimeout(() => {
-      setFavorites(mockFavorites)
-      setFilteredFavorites(mockFavorites)
-      setLoading(false)
-    }, 1000)
-  }, [])
+    const loadFavorites = async () => {
+      console.log('🔍 Favorites useEffect triggered')
+      console.log('User:', user)
+      console.log('Profile:', profile)
+      
+      // Check authentication token
+      const token = localStorage.getItem('grochain_auth_token')
+      console.log('Auth token available:', !!token)
+      
+      if (!user) {
+        console.log('No user found, skipping favorites load')
+        setLoading(false)
+        return
+      }
 
-  const handleAddToCart = (product: FavoriteProduct) => {
-    addToCart(product, 1)
-    toast({
-      title: "Added to cart",
-      description: `${product.cropName} has been added to your cart`,
-    })
+      // Add a small delay to ensure auth state is fully loaded
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      try {
+        setLoading(true)
+        setError(null)
+        console.log('🔍 Loading favorites for user:', user._id)
+        
+        await fetchFavorites()
+        
+        // Get favorites from the store after fetching
+        const storeFavorites = useBuyerStore.getState().favorites
+        console.log('📋 Store favorites:', storeFavorites)
+        
+        if (Array.isArray(storeFavorites)) {
+          setFavorites(storeFavorites)
+          setFilteredFavorites(storeFavorites)
+        } else {
+          console.warn('⚠️ Favorites data is not an array:', storeFavorites)
+          setFavorites([])
+          setFilteredFavorites([])
+        }
+      } catch (error: any) {
+        console.error('❌ Error loading favorites:', error)
+        // Don't show error toast for authentication issues, just log them
+        if (error.message === 'User not authenticated') {
+          console.log('User not authenticated, showing empty state')
+          setFavorites([])
+          setFilteredFavorites([])
+        } else {
+          setError(error.message || 'Failed to load favorites')
+          toast({
+            title: "Error",
+            description: "Failed to load your favorites. Please try again.",
+            variant: "destructive"
+          })
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadFavorites()
+  }, [user, fetchFavorites, toast])
+
+  // Update filtered favorites when search query changes
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredFavorites(favorites)
+    } else {
+      const filtered = favorites.filter(favorite => {
+        const product = favorite.listing
+        const searchLower = searchQuery.toLowerCase()
+        return (
+          product.cropName.toLowerCase().includes(searchLower) ||
+          product.category.toLowerCase().includes(searchLower) ||
+          product.description.toLowerCase().includes(searchLower) ||
+          product.farmer.name.toLowerCase().includes(searchLower) ||
+          product.location.city.toLowerCase().includes(searchLower) ||
+          product.location.state.toLowerCase().includes(searchLower)
+        )
+      })
+      setFilteredFavorites(filtered)
+    }
+  }, [searchQuery, favorites])
+
+  const handleAddToCart = async (product: FavoriteProduct) => {
+    try {
+      // Convert favorite product to cart format
+      const cartProduct = {
+        _id: product.listing._id,
+        listingId: product.listing._id,
+        cropName: product.listing.cropName,
+        price: product.listing.basePrice,
+        unit: product.listing.unit,
+        availableQuantity: product.listing.availableQuantity || product.listing.quantity,
+        farmer: product.listing.farmer.name,
+        location: typeof product.listing.location === 'string' 
+          ? product.listing.location 
+          : `${product.listing.location?.city || 'Unknown'}, ${product.listing.location?.state || 'Unknown State'}`,
+        image: product.listing.images[0] || "/placeholder.svg"
+      }
+      
+      addToCart(cartProduct, 1)
+      toast({
+        title: "Added to cart",
+        description: `${product.listing.cropName} has been added to your cart`,
+      })
+    } catch (error: any) {
+      console.error('Error adding to cart:', error)
+      toast({
+        title: "Error",
+        description: "Failed to add item to cart. Please try again.",
+        variant: "destructive"
+      })
+    }
   }
 
-  const handleRemoveFromFavorites = (productId: string) => {
-    removeFromFavorites(productId)
-    setFavorites(prev => prev.filter(p => p._id !== productId))
-    toast({
-      title: "Removed from favorites",
-      description: "Product has been removed from your favorites",
-    })
+  const handleAddToFavorites = async (listingId: string, notes?: string) => {
+    try {
+      console.log('Adding to favorites from favorites page:', { listingId, notes })
+      await addToFavorites(listingId, notes)
+      toast({
+        title: "Added to favorites",
+        description: "Product has been added to your favorites",
+      })
+    } catch (error: any) {
+      console.error('Error adding to favorites:', error)
+      toast({
+        title: "Error",
+        description: "Failed to add to favorites. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleRemoveFromFavorites = async (favoriteId: string, listingId: string) => {
+    try {
+      await removeFromFavorites(listingId)
+      setFavorites(prev => prev.filter(fav => fav._id !== favoriteId))
+      setFilteredFavorites(prev => prev.filter(fav => fav._id !== favoriteId))
+      toast({
+        title: "Removed from favorites",
+        description: "Product has been removed from your favorites",
+      })
+    } catch (error: any) {
+      console.error('Error removing from favorites:', error)
+      toast({
+        title: "Error",
+        description: "Failed to remove from favorites. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleRefresh = async () => {
+    if (!user) return
+    
+    try {
+      setLoading(true)
+      setError(null)
+      await fetchFavorites()
+      
+      const storeFavorites = useBuyerStore.getState().favorites
+      if (Array.isArray(storeFavorites)) {
+        setFavorites(storeFavorites)
+        setFilteredFavorites(storeFavorites)
+      }
+      
+      toast({
+        title: "Refreshed",
+        description: "Your favorites have been updated",
+      })
+    } catch (error: any) {
+      console.error('Error refreshing favorites:', error)
+      toast({
+        title: "Error",
+        description: "Failed to refresh favorites. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const formatPrice = (price: number) => {
@@ -145,6 +266,22 @@ export default function FavoritesPage() {
     }).format(price)
   }
 
+  const getQualityGrade = (quality: string) => {
+    switch (quality?.toLowerCase()) {
+      case 'excellent':
+      case 'premium':
+        return 'premium'
+      case 'good':
+      case 'standard':
+        return 'standard'
+      case 'fair':
+      case 'basic':
+        return 'basic'
+      default:
+        return 'standard'
+    }
+  }
+
   if (loading) {
     return (
       <DashboardLayout pageTitle="My Favorites">
@@ -152,6 +289,27 @@ export default function FavoritesPage() {
           <div className="text-center space-y-4">
             <RefreshCw className="h-8 w-8 animate-spin mx-auto text-primary" />
             <p className="text-lg font-medium">Loading favorites...</p>
+            <p className="text-sm text-muted-foreground">
+              {!user ? 'Waiting for authentication...' : 'Fetching your favorites...'}
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout pageTitle="My Favorites">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-4">
+            <AlertCircle className="h-12 w-12 mx-auto text-destructive" />
+            <h3 className="text-lg font-semibold">Error Loading Favorites</h3>
+            <p className="text-muted-foreground">{error}</p>
+            <Button onClick={handleRefresh} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
           </div>
         </div>
       </DashboardLayout>
@@ -161,65 +319,107 @@ export default function FavoritesPage() {
   return (
     <DashboardLayout pageTitle="My Favorites">
       <div className="space-y-6">
+        {/* Debug Info - Remove in production */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
+            <h3 className="font-semibold text-yellow-800 mb-2">Debug Info:</h3>
+            <p><strong>User:</strong> {user ? `${user.name} (${user._id})` : 'Not authenticated'}</p>
+            <p><strong>Profile:</strong> {profile ? 'Loaded' : 'Not loaded'}</p>
+            <p><strong>Token:</strong> {localStorage.getItem('grochain_auth_token') ? 'Available' : 'Missing'}</p>
+            <p><strong>Favorites Count:</strong> {favorites.length}</p>
+          </div>
+        )}
+
         {/* Header Section */}
         <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Favorites</h1>
-            <p className="text-muted-foreground">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Favorites</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
               Manage your saved products, set price alerts, and track price changes
             </p>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export List
+          <div className="flex flex-wrap items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              disabled={loading}
+              className="flex-shrink-0"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
-            <Button size="sm" asChild>
+            <Button variant="outline" size="sm" className="flex-shrink-0">
+              <Download className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+            <Button size="sm" asChild className="flex-shrink-0">
               <Link href="/dashboard/products">
                 <Plus className="h-4 w-4 mr-2" />
-                Browse Products
+                <span className="hidden sm:inline">Browse Products</span>
+                <span className="sm:hidden">Browse</span>
               </Link>
             </Button>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Stats Cards - Using Design System */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <Heart className="h-5 w-5 text-red-500" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Favorites</p>
-                  <p className="text-2xl font-bold">{favorites.length}</p>
-                </div>
-              </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Favorites</CardTitle>
+              <Heart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{favorites.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Products in your favorites
+              </p>
             </CardContent>
           </Card>
+
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Price Drops</p>
-                  <p className="text-2xl font-bold">
-                    {favorites.filter(p => p.currentPrice < p.basePrice).length}
-                  </p>
-                </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Unique Farmers</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {new Set(favorites.map(fav => fav.listing?.farmer?._id || fav.listing?.farmer?.id)).size}
               </div>
+              <p className="text-xs text-muted-foreground">
+                Different farmers
+              </p>
             </CardContent>
           </Card>
+
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <Bell className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Price Alerts</p>
-                  <p className="text-2xl font-bold">
-                    {favorites.filter(p => p.priceAlert !== null).length}
-                  </p>
-                </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Organic Products</CardTitle>
+              <Leaf className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {favorites.filter(fav => fav.listing?.organic).length}
               </div>
+              <p className="text-xs text-muted-foreground">
+                Certified organic items
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Categories</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {new Set(favorites.map(fav => fav.listing?.category)).size}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Different categories
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -227,37 +427,63 @@ export default function FavoritesPage() {
         {/* Favorites List */}
         <Card>
           <CardHeader>
-            <CardTitle>Favorites Management</CardTitle>
-            <CardDescription>
-              Organize and manage your favorite products
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Favorites Management</CardTitle>
+                <CardDescription>
+                  Organize and manage your favorite products
+                </CardDescription>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {filteredFavorites.length} of {favorites.length} items
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {/* Search and View Mode */}
-            <div className="flex flex-col lg:flex-row gap-4 mb-6">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search favorites, products, or farmers..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="max-w-md"
-                />
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="flex-1 min-w-0">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search favorites, products, or farmers..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 w-full sm:max-w-md"
+                  />
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                >
-                  <Grid3X3 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
+              <div className="flex items-center justify-between sm:justify-end space-x-2">
+                <div className="text-sm text-muted-foreground sm:hidden">
+                  {filteredFavorites.length} item{filteredFavorites.length !== 1 ? 's' : ''}
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    className="h-8 px-3"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Refresh
+                  </Button>
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Grid3X3 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                    className="h-8 w-8 p-0"
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -265,18 +491,36 @@ export default function FavoritesPage() {
             {filteredFavorites.length === 0 ? (
               <div className="text-center py-12">
                 <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No favorites found</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  {searchQuery ? 'No matching favorites found' : 'No favorites found'}
+                </h3>
                 <p className="text-muted-foreground mb-4">
-                  You haven't added any products to your favorites yet.
+                  {searchQuery 
+                    ? 'Try adjusting your search terms or clear the search to see all favorites.'
+                    : 'You haven\'t added any products to your favorites yet.'
+                  }
                 </p>
-                <Button asChild>
-                  <Link href="/dashboard/products">
-                    Browse Products
-                  </Link>
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                  {searchQuery && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setSearchQuery('')}
+                    >
+                      Clear Search
+                    </Button>
+                  )}
+                  <Button asChild>
+                    <Link href="/dashboard/products">
+                      Browse Products
+                    </Link>
+                  </Button>
+                </div>
               </div>
             ) : (
-              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
+              <div className={viewMode === 'grid' 
+                ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3' 
+                : 'space-y-4'
+              }>
                 {filteredFavorites.map((product) => (
                   <FavoriteCard
                     key={product._id}
@@ -285,6 +529,7 @@ export default function FavoritesPage() {
                     onAddToCart={handleAddToCart}
                     onRemoveFromFavorites={handleRemoveFromFavorites}
                     formatPrice={formatPrice}
+                    getQualityGrade={getQualityGrade}
                   />
                 ))}
               </div>
@@ -300,8 +545,9 @@ interface FavoriteCardProps {
   product: FavoriteProduct
   viewMode: 'grid' | 'list'
   onAddToCart: (product: FavoriteProduct) => void
-  onRemoveFromFavorites: (productId: string) => void
+  onRemoveFromFavorites: (favoriteId: string, listingId: string) => void
   formatPrice: (price: number) => string
+  getQualityGrade: (quality: string) => string
 }
 
 function FavoriteCard({
@@ -309,31 +555,33 @@ function FavoriteCard({
   viewMode,
   onAddToCart,
   onRemoveFromFavorites,
-  formatPrice
+  formatPrice,
+  getQualityGrade
 }: FavoriteCardProps) {
-  const priceChange = product.currentPrice < product.basePrice
+  const listing = product.listing
+  const qualityGrade = getQualityGrade(listing.qualityGrade || listing.quality)
 
   if (viewMode === 'list') {
     return (
       <Card className="hover:shadow-md transition-shadow">
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <div className="flex space-x-4">
             {/* Product Image */}
-            <div className="relative w-24 h-24 flex-shrink-0">
+            <div className="relative w-20 h-20 flex-shrink-0">
               <Image
-                src={product.images[0] || "/placeholder.svg"}
-                alt={product.cropName}
+                src={listing.images[0] || "/placeholder.svg"}
+                alt={listing.cropName}
                 fill
                 className="rounded-lg object-cover"
               />
-              {product.organic && (
-                <Badge className="absolute top-2 left-2 bg-green-600 text-white text-xs">
+              {listing.organic && (
+                <Badge className="absolute top-1 left-1 bg-green-600 text-white text-[10px] px-1 py-0.5">
                   Organic
                 </Badge>
               )}
-              {priceChange && (
-                <Badge className="absolute top-2 right-2 bg-green-600 text-white text-xs">
-                  Price Drop
+              {qualityGrade === 'premium' && (
+                <Badge className="absolute top-1 right-1 bg-yellow-600 text-white text-[10px] px-1 py-0.5">
+                  Premium
                 </Badge>
               )}
             </div>
@@ -342,101 +590,67 @@ function FavoriteCard({
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-foreground mb-1">
-                    {product.cropName}
+                  <h3 className="text-base font-semibold text-foreground mb-1">
+                    {listing.cropName}
                   </h3>
-                  <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                    {product.description}
+                  <p className="text-xs text-muted-foreground mb-1">
+                    by {listing.farmer?.name || 'Unknown'}
                   </p>
                   {product.notes && (
-                    <p className="text-sm text-blue-600 italic mb-2">
+                    <p className="text-xs text-blue-600 italic mb-1">
                       Note: {product.notes}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center space-x-2 ml-4">
+                  <div className="text-right">
+                    <div className="text-base font-bold text-foreground">
+                      {formatPrice(listing.basePrice)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      per {listing.unit}
+                    </div>
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onRemoveFromFavorites(product._id)}
-                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                    onClick={() => onRemoveFromFavorites(product._id, listing._id)}
+                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-4 text-sm text-muted-foreground mb-3">
+              <div className="flex items-center space-x-4 text-xs text-muted-foreground mb-2">
                 <div className="flex items-center space-x-1">
                   <MapPin className="h-3 w-3" />
-                  <span>{typeof product.location === 'string' ? product.location : `${product.location?.city || 'Unknown'}, ${product.location?.state || 'Unknown State'}`}</span>
+                  <span>{typeof listing.location === 'string' ? listing.location : `${listing.location?.city || 'Unknown'}, ${listing.location?.state || 'Unknown State'}`}</span>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                  <span>{product.rating} ({product.reviews})</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Farmer: </span>
-                  <span className="font-medium">{product.farmer.name}</span>
-                  {product.farmer.verified && (
-                    <Badge variant="secondary" className="ml-2 text-xs">
-                      Verified
-                    </Badge>
-                  )}
+                <div className="text-xs">
+                  {listing.availableQuantity || listing.quantity} {listing.unit} available
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="flex items-center space-x-2 mb-1">
-                  {priceChange ? (
-                    <span className="text-lg font-bold text-green-600">
-                      {formatPrice(product.currentPrice)}
-                    </span>
-                  ) : (
-                    <span className="text-lg font-bold text-foreground">
-                      {formatPrice(product.currentPrice)}
-                    </span>
-                  )}
-                  {priceChange && (
-                    <span className="text-sm text-muted-foreground line-through">
-                      {formatPrice(product.basePrice)}
-                    </span>
-                  )}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  per {product.unit} • {product.availableQuantity} {product.unit} available
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-3 mt-4">
+              <div className="flex items-center space-x-2">
                 <Button
                   onClick={() => onAddToCart(product)}
-                  className="flex-1"
+                  className="h-7 text-xs"
                   size="sm"
                 >
-                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  <ShoppingCart className="h-3 w-3 mr-1.5" />
                   Add to Cart
                 </Button>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/dashboard/products/${product.listingId}`}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    View Details
+                <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+                  <Link href={`/dashboard/products/${listing._id}`}>
+                    <Eye className="h-3 w-3 mr-1" />
+                    View
                   </Link>
                 </Button>
-                {product.priceAlert ? (
-                  <Button variant="outline" size="sm" className="text-blue-600">
-                    <Bell className="h-4 w-4 mr-2" />
-                    Alert Set
-                  </Button>
-                ) : (
-                  <Button variant="outline" size="sm">
-                    <Bell className="h-4 w-4 mr-2" />
-                    Set Alert
-                  </Button>
-                )}
+                <Button variant="outline" size="sm" className="h-7 text-xs">
+                  <Bell className="h-3 w-3 mr-1" />
+                  Alert
+                </Button>
               </div>
             </div>
           </div>
@@ -445,129 +659,107 @@ function FavoriteCard({
     )
   }
 
-  // Grid view - Fixed styling with all buttons contained within the card
+  // Grid view - Compact and beautiful design
   return (
-    <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1 h-full flex flex-col">
-      <CardHeader className="p-4 pb-2">
-        <div className="relative">
-          <div className="aspect-square w-full overflow-hidden rounded-lg">
-            <Image
-              src={product.images[0] || "/placeholder.svg"}
-              alt={product.cropName}
-              width={300}
-              height={300}
-              className="h-full w-full object-cover"
-            />
+    <Card className="group hover:shadow-lg transition-shadow h-full">
+      <CardHeader className="p-0">
+        <div className="relative h-40 overflow-hidden rounded-t-lg">
+          <Image
+            src={listing.images[0] || "/placeholder.svg"}
+            alt={listing.cropName}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-200"
+          />
+          
+          {/* Badges */}
+          <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
+            {listing.organic && (
+              <Badge className="bg-green-600 text-white text-[10px] px-1.5 py-0.5">
+                Organic
+              </Badge>
+            )}
+            {qualityGrade === 'premium' && (
+              <Badge className="bg-yellow-600 text-white text-[10px] px-1.5 py-0.5">
+                Premium
+              </Badge>
+            )}
           </div>
-          
-          {product.organic && (
-            <Badge className="absolute top-2 left-2 bg-green-600 text-white text-xs">
-              Organic
-            </Badge>
-          )}
-          
-          {priceChange && (
-            <Badge className="absolute top-2 right-2 bg-green-600 text-white text-xs">
-              Price Drop
-            </Badge>
-          )}
+
+          {/* Remove button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onRemoveFromFavorites(product._id, listing._id)}
+            className="absolute top-1.5 right-1.5 h-6 w-6 p-0 bg-white/90 hover:bg-white text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+
+          {/* Price overlay */}
+          <div className="absolute bottom-1.5 right-1.5 bg-white/95 backdrop-blur-sm rounded-md px-1.5 py-1">
+            <div className="text-sm font-bold text-gray-900">
+              {formatPrice(listing.basePrice)}
+            </div>
+            <div className="text-[10px] text-gray-600 text-center leading-none">
+              per {listing.unit}
+            </div>
+          </div>
         </div>
       </CardHeader>
       
-      <CardContent className="p-4 pt-0 flex-1 flex flex-col">
-        <div className="space-y-3 flex-1">
+      <CardContent className="p-3 flex-1 flex flex-col">
+        <div className="space-y-1.5 flex-1">
+          {/* Title */}
           <div>
-            <h3 className="font-semibold text-foreground line-clamp-1">
-              {product.cropName}
+            <h3 className="font-semibold text-sm line-clamp-1">
+              {listing.cropName}
             </h3>
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {product.description}
+            <p className="text-xs text-muted-foreground">
+              by {listing.farmer?.name || 'Unknown'}
             </p>
             {product.notes && (
-              <p className="text-sm text-blue-600 italic line-clamp-1">
-                Note: {product.notes}
+              <p className="text-xs text-blue-600 italic line-clamp-1">
+                "{product.notes}"
               </p>
             )}
           </div>
 
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center space-x-1">
-              <MapPin className="h-3 w-3 text-muted-foreground" />
-              <span className="text-muted-foreground">
-                {typeof product.location === 'string' ? product.location : `${product.location?.city || 'Unknown'}, ${product.location?.state || 'Unknown State'}`}
-              </span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-              <span className="font-medium">{product.rating}</span>
-              <span className="text-muted-foreground">({product.reviews})</span>
-            </div>
+          {/* Location */}
+          <div className="flex items-center text-xs text-muted-foreground">
+            <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+            <span className="truncate">
+              {typeof listing.location === 'string' ? listing.location : `${listing.location?.city || 'Unknown'}, ${listing.location?.state || 'Unknown State'}`}
+            </span>
           </div>
 
-          <div className="text-center">
-            <div className="flex items-center justify-center space-x-2 mb-1">
-              {priceChange ? (
-                <span className="text-xl font-bold text-green-600">
-                  {formatPrice(product.currentPrice)}
-                </span>
-              ) : (
-                <span className="text-xl font-bold text-foreground">
-                  {formatPrice(product.currentPrice)}
-                </span>
-              )}
-              {priceChange && (
-                <span className="text-sm text-muted-foreground line-through">
-                  {formatPrice(product.basePrice)}
-                </span>
-              )}
-            </div>
-            <div className="text-sm text-muted-foreground mb-3">
-              per {product.unit} • {product.availableQuantity} {product.unit} available
-            </div>
+          {/* Availability */}
+          <div className="text-xs text-muted-foreground">
+            {listing.availableQuantity || listing.quantity} {listing.unit} available
           </div>
+        </div>
 
-          {/* Action Buttons - All contained within the card */}
-          <div className="space-y-2 mt-auto">
-            {/* Primary Actions */}
-            <div className="flex items-center space-x-2">
-              <Button
-                onClick={() => onAddToCart(product)}
-                className="flex-1"
-                size="sm"
-              >
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Add to Cart
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onRemoveFromFavorites(product._id)}
-                className="text-red-500 hover:text-red-700"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+        {/* Actions */}
+        <div className="space-y-1.5 mt-3">
+          <Button
+            onClick={() => onAddToCart(product)}
+            className="w-full h-7 text-xs"
+            size="sm"
+          >
+            <ShoppingCart className="h-3 w-3 mr-1.5" />
+            Add to Cart
+          </Button>
 
-            {/* Secondary Actions */}
-            <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="sm" className="flex-1" asChild>
-                <Link href={`/dashboard/products/${product.listingId}`}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Details
-                </Link>
-              </Button>
-              {product.priceAlert ? (
-                <Button variant="outline" size="sm" className="flex-1 text-blue-600">
-                  <Bell className="h-4 w-4 mr-2" />
-                  Alert Set
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Bell className="h-4 w-4 mr-2" />
-                  Set Alert
-                </Button>
-              )}
-            </div>
+          <div className="grid grid-cols-2 gap-1">
+            <Button variant="outline" size="sm" className="h-6 text-xs" asChild>
+              <Link href={`/dashboard/products/${listing._id}`}>
+                <Eye className="h-3 w-3 mr-1" />
+                View
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" className="h-6 text-xs">
+              <Bell className="h-3 w-3 mr-1" />
+              Alert
+            </Button>
           </div>
         </div>
       </CardContent>

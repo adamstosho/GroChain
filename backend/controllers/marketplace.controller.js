@@ -410,12 +410,14 @@ const marketplaceController = {
   async getUserOrders(req, res) {
     try {
       const { page = 1, limit = 10, status } = req.query
-      const query = { buyer: req.user.id }
+      const userId = req.user.id
+      const query = { buyer: userId }
       
       if (status) query.status = status
       
       const skip = (parseInt(page) - 1) * parseInt(limit)
       
+      // Get orders and total count
       const [orders, total] = await Promise.all([
         Order.find(query)
           .populate('items.listing', 'cropName images price')
@@ -424,11 +426,50 @@ const marketplaceController = {
           .limit(parseInt(limit)),
         Order.countDocuments(query)
       ])
+
+      // Calculate comprehensive stats
+      const statsPipeline = [
+        { $match: { buyer: userId } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+            confirmed: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, 1, 0] } },
+            shipped: { $sum: { $cond: [{ $eq: ['$status', 'shipped'] }, 1, 0] } },
+            delivered: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
+            cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },
+            totalSpent: { 
+              $sum: { 
+                $cond: [
+                  { $eq: ['$paymentStatus', 'paid'] }, 
+                  '$total', 
+                  0
+                ] 
+              } 
+            }
+          }
+        }
+      ]
+
+      const [statsResult] = await Order.aggregate(statsPipeline)
+      const stats = statsResult || {
+        total: 0,
+        pending: 0,
+        confirmed: 0,
+        shipped: 0,
+        delivered: 0,
+        cancelled: 0,
+        totalSpent: 0
+      }
+
+      console.log('📊 Orders stats calculated:', stats)
       
       res.json({
         status: 'success',
         data: {
           orders,
+          stats,
           pagination: {
             currentPage: parseInt(page),
             totalPages: Math.ceil(total / parseInt(limit)),

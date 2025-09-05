@@ -27,7 +27,7 @@ export function BuyerDashboard() {
       try {
         // Fetch dashboard data in parallel for better performance
         const [dashboardResponse, ordersResponse, listingsResponse, marketplaceStats] = await Promise.all([
-          apiService.getDashboardMetrics(),
+          apiService.getDashboard(),
           apiService.getUserOrders(),
           apiService.getMarketplaceListings({ limit: 6, featured: true }),
           apiService.getMarketplaceStats()
@@ -35,15 +35,19 @@ export function BuyerDashboard() {
 
         // Process dashboard stats
         const dashboardData = dashboardResponse?.data || dashboardResponse || {}
-        setStats({
-          totalOrders: (dashboardData as any)?.totalOrders || 0,
-          totalSpent: (dashboardData as any)?.totalSpent || 0,
-          pendingDeliveries: (dashboardData as any)?.pendingDeliveries || 0,
-          activeOrders: (dashboardData as any)?.activeOrders || 0,
-          favoriteProducts: (dashboardData as any)?.favoriteProducts || 0,
-          monthlySpent: (dashboardData as any)?.monthlySpent || 0,
-          lastOrderDate: (dashboardData as any)?.lastOrderDate
-        })
+
+        const processedStats = {
+          totalOrders: Number((dashboardData as any)?.totalOrders) || 0,
+          totalSpent: Number((dashboardData as any)?.totalSpent) || 0,
+          pendingDeliveries: Number((dashboardData as any)?.pendingDeliveries) || 0,
+          activeOrders: Number((dashboardData as any)?.activeOrders) || 0,
+          favoriteProducts: Number((dashboardData as any)?.favoriteProducts) || 0,
+          monthlySpent: Number((dashboardData as any)?.monthlySpent) || 0,
+          lastOrderDate: (dashboardData as any)?.lastOrderDate,
+          favorites: Number((dashboardData as any)?.favoriteProducts) || 0 // For backward compatibility
+        }
+
+        setStats(processedStats)
 
         // Process recent orders
         const ordersData = ordersResponse?.data || ordersResponse || []
@@ -204,7 +208,7 @@ export function BuyerDashboard() {
         />
         <StatsCard
           title="Total Spent"
-          value={`₦${(stats?.totalSpent || 0).toLocaleString()}`}
+          value={`₦${(stats?.totalSpent || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
           description="Lifetime spending"
           icon={TrendingUp}
           trend={{ value: 12, isPositive: true }}
@@ -218,7 +222,7 @@ export function BuyerDashboard() {
         />
         <StatsCard
           title="This Month"
-          value={`₦${(stats?.monthlySpent || 0).toLocaleString()}`}
+          value={`₦${(stats?.monthlySpent || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
           description="Monthly spending"
           icon={Package}
           trend={{ value: 15, isPositive: true }}
@@ -243,7 +247,7 @@ export function BuyerDashboard() {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {featuredProducts.length > 0 ? (
                   featuredProducts.slice(0, 6).map((product) => (
                     <MarketplaceCard

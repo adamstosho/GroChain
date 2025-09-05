@@ -53,8 +53,30 @@ const fintechController = {
       }
 
       // Get total earnings from transactions
+      let earningsQuery = {}
+
+      if (user.role === 'farmer') {
+        // For farmers, get earnings from orders where they are seller or listings they own
+        const farmerOrders = await require('../models/order.model').find({ seller: userId }).select('_id')
+        const orderIds = farmerOrders.map(order => order._id)
+
+        const farmerListings = await require('../models/listing.model').find({ farmer: userId }).select('_id')
+        const listingIds = farmerListings.map(listing => listing._id)
+
+        earningsQuery = {
+          $or: [
+            { orderId: { $in: orderIds } },
+            { listingId: { $in: listingIds } }
+          ],
+          type: { $in: ['payment', 'commission'] },
+          status: 'completed'
+        }
+      } else {
+        earningsQuery = { userId: userId, type: { $in: ['payment', 'commission'] }, status: 'completed' }
+      }
+
       const earnings = await Transaction.aggregate([
-        { $match: { userId: userId, type: { $in: ['payment', 'commission'] }, status: 'completed' } },
+        { $match: earningsQuery },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ])
 
@@ -320,7 +342,27 @@ const fintechController = {
       })
 
       // Get recent transactions
-      const recentTransactions = await Transaction.find({ userId: userId })
+      let transactionQuery = {}
+
+      if (user.role === 'farmer') {
+        // For farmers, get transactions from orders where they are seller or listings they own
+        const farmerOrders = await require('../models/order.model').find({ seller: userId }).select('_id')
+        const orderIds = farmerOrders.map(order => order._id)
+
+        const farmerListings = await require('../models/listing.model').find({ farmer: userId }).select('_id')
+        const listingIds = farmerListings.map(listing => listing._id)
+
+        transactionQuery = {
+          $or: [
+            { orderId: { $in: orderIds } },
+            { listingId: { $in: listingIds } }
+          ]
+        }
+      } else {
+        transactionQuery = { userId: userId }
+      }
+
+      const recentTransactions = await Transaction.find(transactionQuery)
         .sort({ createdAt: -1 })
         .limit(10)
         .select('type amount description status createdAt')
@@ -722,7 +764,28 @@ const fintechController = {
       const userId = farmerId === 'me' ? req.user.id : farmerId
       
       // Get user's financial data
-      const transactions = await Transaction.find({ userId })
+      const user = await User.findById(userId)
+      let transactionQuery = {}
+
+      if (user.role === 'farmer') {
+        // For farmers, get transactions from orders where they are seller or listings they own
+        const farmerOrders = await require('../models/order.model').find({ seller: userId }).select('_id')
+        const orderIds = farmerOrders.map(order => order._id)
+
+        const farmerListings = await require('../models/listing.model').find({ farmer: userId }).select('_id')
+        const listingIds = farmerListings.map(listing => listing._id)
+
+        transactionQuery = {
+          $or: [
+            { orderId: { $in: orderIds } },
+            { listingId: { $in: listingIds } }
+          ]
+        }
+      } else {
+        transactionQuery = { userId: userId }
+      }
+
+      const transactions = await Transaction.find(transactionQuery)
       const creditScore = await CreditScore.findOne({ farmer: userId })
       
       // Calculate financial health metrics

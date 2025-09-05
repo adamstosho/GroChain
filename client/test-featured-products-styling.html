@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Featured Products Styling Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .line-clamp-1 {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-2xl font-bold mb-6">Featured Products - Styling Test</h1>
+        
+        <!-- Test the new compact card design -->
+        <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <!-- Card 1 -->
+            <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer overflow-hidden h-full">
+                <div class="p-3 h-full">
+                    <div class="flex flex-col h-full">
+                        <!-- Image and badges -->
+                        <div class="relative mb-3">
+                            <img
+                                src="/placeholder.svg"
+                                alt="Cassava"
+                                class="w-full h-20 object-cover rounded-lg"
+                            />
+                            <span class="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 bg-green-600 text-white rounded">
+                                Organic
+                            </span>
+                            <span class="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded">
+                                Grade A
+                            </span>
+                        </div>
+
+                        <!-- Product Info -->
+                        <div class="flex-1 space-y-2">
+                            <div>
+                                <h4 class="font-semibold text-sm line-clamp-1">Cassava Fresh Produce</h4>
+                                <p class="text-xs text-gray-500 line-clamp-1">
+                                    by Adam Richards
+                                </p>
+                            </div>
+
+                            <!-- Location -->
+                            <div class="flex items-center text-xs text-gray-500">
+                                <svg class="h-3 w-3 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                <span class="truncate">
+                                    Lagos, Nigeria
+                                </span>
+                            </div>
+
+                            <!-- Price and Action -->
+                            <div class="flex items-center justify-between pt-2 border-t">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-bold text-green-600">₦15,000</span>
+                                    <span class="text-[10px] text-gray-500">per kg</span>
+                                </div>
+                                <button class="h-7 w-7 p-0 bg-green-600 hover:bg-green-700 flex-shrink-0 rounded flex items-center justify-center">
+                                    <svg class="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer overflow-hidden h-full">
+                <div class="p-3 h-full">
+                    <div class="flex flex-col h-full">
+                        <!-- Image and badges -->
+                        <div class="relative mb-3">
+                            <img
+                                src="/placeholder.svg"
+                                alt="Ginger"
+                                class="w-full h-20 object-cover rounded-lg"
+                            />
+                            <span class="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded">
+                                Grade B
+                            </span>
+                        </div>
+
+                        <!-- Product Info -->
+                        <div class="flex-1 space-y-2">
+                            <div>
+                                <h4 class="font-semibold text-sm line-clamp-1">Fresh Ginger Root</h4>
+                                <p class="text-xs text-gray-500 line-clamp-1">
+                                    by Sarah Johnson
+                                </p>
+                            </div>
+
+                            <!-- Location -->
+                            <div class="flex items-center text-xs text-gray-500">
+                                <svg class="h-3 w-3 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                <span class="truncate">
+                                    Abuja, Nigeria
+                                </span>
+                            </div>
+
+                            <!-- Price and Action -->
+                            <div class="flex items-center justify-between pt-2 border-t">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-bold text-green-600">₦8,500</span>
+                                    <span class="text-[10px] text-gray-500">per kg</span>
+                                </div>
+                                <button class="h-7 w-7 p-0 bg-green-600 hover:bg-green-700 flex-shrink-0 rounded flex items-center justify-center">
+                                    <svg class="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer overflow-hidden h-full">
+                <div class="p-3 h-full">
+                    <div class="flex flex-col h-full">
+                        <!-- Image and badges -->
+                        <div class="relative mb-3">
+                            <img
+                                src="/placeholder.svg"
+                                alt="Tomatoes"
+                                class="w-full h-20 object-cover rounded-lg"
+                            />
+                            <span class="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 bg-green-600 text-white rounded">
+                                Organic
+                            </span>
+                            <span class="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded">
+                                Grade A
+                            </span>
+                        </div>
+
+                        <!-- Product Info -->
+                        <div class="flex-1 space-y-2">
+                            <div>
+                                <h4 class="font-semibold text-sm line-clamp-1">Fresh Tomatoes</h4>
+                                <p class="text-xs text-gray-500 line-clamp-1">
+                                    by Michael Adebayo
+                                </p>
+                            </div>
+
+                            <!-- Location -->
+                            <div class="flex items-center text-xs text-gray-500">
+                                <svg class="h-3 w-3 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                <span class="truncate">
+                                    Ibadan, Nigeria
+                                </span>
+                            </div>
+
+                            <!-- Price and Action -->
+                            <div class="flex items-center justify-between pt-2 border-t">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-bold text-green-600">₦12,000</span>
+                                    <span class="text-[10px] text-gray-500">per kg</span>
+                                </div>
+                                <button class="h-7 w-7 p-0 bg-green-600 hover:bg-green-700 flex-shrink-0 rounded flex items-center justify-center">
+                                    <svg class="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 p-4 bg-green-50 rounded-lg">
+            <h2 class="text-lg font-semibold text-green-800 mb-2">✅ Styling Improvements Made:</h2>
+            <ul class="text-sm text-green-700 space-y-1">
+                <li>• Fixed card layout to use flexbox column structure</li>
+                <li>• Properly contained all elements within card boundaries</li>
+                <li>• Aligned price and shopping cart button in a clean row</li>
+                <li>• Added proper text truncation to prevent overflow</li>
+                <li>• Improved badge positioning and sizing</li>
+                <li>• Made cards equal height with h-full</li>
+                <li>• Better spacing and visual hierarchy</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

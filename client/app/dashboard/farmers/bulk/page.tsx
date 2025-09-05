@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useToast } from "@/hooks/use-toast"
+import { api } from "@/lib/api"
 import { 
   Upload, 
   Download, 
@@ -154,10 +155,10 @@ export default function BulkUploadPage() {
   }
 
   const handleUpload = async () => {
-    if (!validationResult || validationResult.valid.length === 0) {
+    if (!file || !validationResult || validationResult.valid.length === 0) {
       toast({
         title: "No valid data to upload",
-        description: "Please fix validation errors first",
+        description: "Please select a file and fix validation errors first",
         variant: "destructive",
       })
       return
@@ -167,37 +168,32 @@ export default function BulkUploadPage() {
       setIsUploading(true)
       setUploadProgress(0)
 
-      // Simulate upload progress
-      const interval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval)
-            return 100
-          }
-          return prev + 10
+      // Use real API call
+      const response = await api.uploadPartnerCSV(file)
+
+      if (response.status === 'success') {
+        const data = response.data
+        setUploadProgress(100)
+
+        toast({
+          title: "Upload completed!",
+          description: data.message || `${data.successfulRows} farmers onboarded successfully`,
         })
-      }, 200)
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      clearInterval(interval)
-      setUploadProgress(100)
-
-      toast({
-        title: "Upload successful!",
-        description: `${validationResult.valid.length} farmers have been onboarded`,
-      })
-
-      // Reset form
-      setFile(null)
-      setCsvData([])
-      setValidationResult(null)
-      setUploadProgress(0)
+        // Reset form
+        setFile(null)
+        setCsvData([])
+        setValidationResult(null)
+        setUploadProgress(0)
+        setShowPreview(false)
+      } else {
+        throw new Error(response.message || 'Upload failed')
+      }
     } catch (error: any) {
+      console.error('Upload error:', error)
       toast({
         title: "Upload failed",
-        description: error.message,
+        description: error.message || "Failed to upload farmers data",
         variant: "destructive",
       })
     } finally {
@@ -229,35 +225,37 @@ Mike Johnson,mike@farmer.com,+2348012345680,Kano`
 
   return (
     <DashboardLayout pageTitle="Bulk Farmer Upload">
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
+        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+          <div className="space-y-1 min-w-0 flex-1">
             <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="sm" asChild>
+              <Button variant="ghost" size="sm" asChild className="flex-shrink-0">
                 <Link href="/dashboard/farmers">
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Farmers
+                  <span className="hidden sm:inline">Back to Farmers</span>
+                  <span className="sm:hidden">Back</span>
                 </Link>
               </Button>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Bulk Farmer Upload</h1>
-            <p className="text-muted-foreground">Upload multiple farmers at once using CSV format</p>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">Bulk Farmer Upload</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Upload multiple farmers at once using CSV format</p>
           </div>
-          <Button variant="outline" onClick={downloadTemplate}>
+          <Button variant="outline" onClick={downloadTemplate} className="flex-shrink-0 w-full sm:w-auto">
             <Download className="w-4 h-4 mr-2" />
-            Download Template
+            <span className="hidden sm:inline">Download Template</span>
+            <span className="sm:hidden">Template</span>
           </Button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
           {/* Upload Section */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* File Upload */}
             <Card>
               <CardHeader>
-                <CardTitle>Upload CSV File</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-lg sm:text-xl">Upload CSV File</CardTitle>
+                <CardDescription className="text-sm sm:text-base">
                   Drag and drop your CSV file or click to browse
                 </CardDescription>
               </CardHeader>
@@ -265,71 +263,73 @@ Mike Johnson,mike@farmer.com,+2348012345680,Kano`
                 {!file ? (
                   <div
                     {...getRootProps()}
-                    className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                    className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center cursor-pointer transition-colors ${
                       isDragActive
                         ? "border-primary bg-primary/5"
                         : "border-muted-foreground/25 hover:border-primary/50"
                     }`}
                   >
                     <input {...getInputProps()} />
-                    <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <Upload className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
                     {isDragActive ? (
-                      <p className="text-primary font-medium">Drop the CSV file here</p>
+                      <p className="text-sm sm:text-base text-primary font-medium">Drop the CSV file here</p>
                     ) : (
                       <div>
-                        <p className="font-medium">Drop your CSV file here</p>
-                        <p className="text-sm text-muted-foreground mt-2">
+                        <p className="text-sm sm:text-base font-medium">Drop your CSV file here</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">
                           or click to select a file
                         </p>
                       </div>
                     )}
-                    <p className="text-xs text-muted-foreground mt-4">
+                    <p className="text-xs text-muted-foreground mt-3 sm:mt-4">
                       Supports .csv files up to 10MB
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="h-8 w-8 text-primary" />
-                        <div>
-                          <p className="font-medium">{file.name}</p>
-                          <p className="text-sm text-muted-foreground">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg gap-3 sm:gap-0">
+                      <div className="flex items-center space-x-3 min-w-0 flex-1">
+                        <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-primary flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm sm:text-base truncate">{file.name}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {(file.size / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={removeFile}>
+                      <Button variant="ghost" size="sm" onClick={removeFile} className="flex-shrink-0">
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
 
                     {validationResult && (
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <span className="text-sm font-medium">Validation Results</span>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setShowPreview(!showPreview)}
+                            className="w-full sm:w-auto"
                           >
-                            {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            {showPreview ? "Hide" : "Show"} Preview
+                            {showPreview ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                            <span className="hidden sm:inline">{showPreview ? "Hide" : "Show"} Preview</span>
+                            <span className="sm:hidden">{showPreview ? "Hide" : "Show"}</span>
                           </Button>
                         </div>
 
                         <div className="grid grid-cols-3 gap-2 text-sm">
-                          <div className="text-center p-2 bg-green-50 rounded">
-                            <div className="font-bold text-green-600">{validationResult.valid.length}</div>
-                            <div className="text-green-600">Valid</div>
+                          <div className="text-center p-2 sm:p-3 bg-green-50 rounded">
+                            <div className="font-bold text-green-600 text-sm sm:text-base">{validationResult.valid.length}</div>
+                            <div className="text-green-600 text-xs sm:text-sm">Valid</div>
                           </div>
-                          <div className="text-center p-2 bg-red-50 rounded">
-                            <div className="font-bold text-red-600">{validationResult.errors.length}</div>
-                            <div className="text-red-600">Errors</div>
+                          <div className="text-center p-2 sm:p-3 bg-red-50 rounded">
+                            <div className="font-bold text-red-600 text-sm sm:text-base">{validationResult.errors.length}</div>
+                            <div className="text-red-600 text-xs sm:text-sm">Errors</div>
                           </div>
-                          <div className="text-center p-2 bg-blue-50 rounded">
-                            <div className="font-bold text-blue-600">{validationResult.totalRows}</div>
-                            <div className="text-blue-600">Total</div>
+                          <div className="text-center p-2 sm:p-3 bg-blue-50 rounded">
+                            <div className="font-bold text-blue-600 text-sm sm:text-base">{validationResult.totalRows}</div>
+                            <div className="text-blue-600 text-xs sm:text-sm">Total</div>
                           </div>
                         </div>
 
@@ -343,10 +343,11 @@ Mike Johnson,mike@farmer.com,+2348012345680,Kano`
                         )}
 
                         {validationResult.valid.length > 0 && (
-                          <Button 
-                            onClick={handleUpload} 
+                          <Button
+                            onClick={handleUpload}
                             disabled={isUploading || validationResult.errors.length > 0}
                             className="w-full"
+                            size="sm"
                           >
                             {isUploading ? "Uploading..." : `Upload ${validationResult.valid.length} Farmers`}
                           </Button>
@@ -362,7 +363,7 @@ Mike Johnson,mike@farmer.com,+2348012345680,Kano`
             {isUploading && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Upload Progress</CardTitle>
+                  <CardTitle className="text-lg sm:text-xl">Upload Progress</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
@@ -377,34 +378,34 @@ Mike Johnson,mike@farmer.com,+2348012345680,Kano`
           </div>
 
           {/* Preview Section */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* CSV Template */}
             <Card>
               <CardHeader>
-                <CardTitle>CSV Template</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-lg sm:text-xl">CSV Template</CardTitle>
+                <CardDescription className="text-sm sm:text-base">
                   Your CSV should follow this format with these required columns
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <div className="grid grid-cols-4 gap-2 text-sm font-medium bg-muted p-2 rounded">
-                    <span>name</span>
-                    <span>email</span>
-                    <span>phone</span>
-                    <span>location</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs sm:text-sm font-medium bg-muted p-2 rounded">
+                    <span className="truncate">name</span>
+                    <span className="truncate">email</span>
+                    <span className="truncate">phone</span>
+                    <span className="truncate">location</span>
                   </div>
-                  <div className="grid grid-cols-4 gap-2 text-sm bg-muted/50 p-2 rounded">
-                    <span>John Doe</span>
-                    <span>john@farmer.com</span>
-                    <span>+2348012345678</span>
-                    <span>Lagos</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs sm:text-sm bg-muted/50 p-2 rounded">
+                    <span className="truncate">John Doe</span>
+                    <span className="truncate">john@farmer.com</span>
+                    <span className="truncate">+2348012345678</span>
+                    <span className="truncate">Lagos</span>
                   </div>
-                  <div className="grid grid-cols-4 gap-2 text-sm bg-muted/50 p-2 rounded">
-                    <span>Jane Smith</span>
-                    <span>jane@farmer.com</span>
-                    <span>+2348012345679</span>
-                    <span>Abuja</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs sm:text-sm bg-muted/50 p-2 rounded">
+                    <span className="truncate">Jane Smith</span>
+                    <span className="truncate">jane@farmer.com</span>
+                    <span className="truncate">+2348012345679</span>
+                    <span className="truncate">Abuja</span>
                   </div>
                 </div>
               </CardContent>
@@ -414,19 +415,19 @@ Mike Johnson,mike@farmer.com,+2348012345680,Kano`
             {validationResult && validationResult.errors.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <XCircle className="h-5 w-5 text-red-600" />
-                    <span>Validation Errors</span>
+                  <CardTitle className="flex items-center space-x-2 text-lg sm:text-xl">
+                    <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
+                    <span className="truncate">Validation Errors</span>
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm sm:text-base">
                     Please fix these errors before uploading
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <div className="space-y-2 max-h-40 sm:max-h-60 overflow-y-auto">
                     {validationResult.errors.map((error, index) => (
-                      <div key={index} className="flex items-start space-x-2 text-sm">
-                        <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                      <div key={index} className="flex items-start space-x-2 text-xs sm:text-sm">
+                        <XCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-600 mt-0.5 flex-shrink-0" />
                         <span className="text-red-700">{error}</span>
                       </div>
                     ))}
@@ -439,26 +440,26 @@ Mike Johnson,mike@farmer.com,+2348012345680,Kano`
             {showPreview && validationResult && validationResult.valid.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <span>Data Preview</span>
+                  <CardTitle className="flex items-center space-x-2 text-lg sm:text-xl">
+                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
+                    <span className="truncate">Data Preview</span>
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm sm:text-base">
                     Preview of valid data that will be uploaded
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <div className="space-y-2 max-h-40 sm:max-h-60 overflow-y-auto">
                     {validationResult.valid.slice(0, 5).map((row, index) => (
-                      <div key={index} className="p-2 border rounded text-sm">
-                        <div className="font-medium">{row.name}</div>
-                        <div className="text-muted-foreground">
+                      <div key={index} className="p-2 sm:p-3 border rounded text-xs sm:text-sm">
+                        <div className="font-medium truncate">{row.name}</div>
+                        <div className="text-muted-foreground text-xs sm:text-sm truncate">
                           {row.email} • {row.phone} • {typeof row.location === 'string' ? row.location : `${row.location?.city || 'Unknown'}, ${row.location?.state || 'Unknown State'}`}
                         </div>
                       </div>
                     ))}
                     {validationResult.valid.length > 5 && (
-                      <p className="text-sm text-muted-foreground text-center">
+                      <p className="text-xs sm:text-sm text-muted-foreground text-center">
                         ... and {validationResult.valid.length - 5} more
                       </p>
                     )}
@@ -472,13 +473,13 @@ Mike Johnson,mike@farmer.com,+2348012345680,Kano`
         {/* Instructions */}
         <Card>
           <CardHeader>
-            <CardTitle>Instructions</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Instructions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
               <div className="space-y-3">
-                <h4 className="font-medium">Required Fields</h4>
-                <ul className="space-y-1 text-sm text-muted-foreground">
+                <h4 className="font-medium text-sm sm:text-base">Required Fields</h4>
+                <ul className="space-y-1 text-xs sm:text-sm text-muted-foreground">
                   <li>• <strong>name:</strong> Full name of the farmer</li>
                   <li>• <strong>email:</strong> Valid email address</li>
                   <li>• <strong>phone:</strong> Nigerian phone number (+234 or 0)</li>
@@ -486,8 +487,8 @@ Mike Johnson,mike@farmer.com,+2348012345680,Kano`
                 </ul>
               </div>
               <div className="space-y-3">
-                <h4 className="font-medium">Tips</h4>
-                <ul className="space-y-1 text-sm text-muted-foreground">
+                <h4 className="font-medium text-sm sm:text-base">Tips</h4>
+                <ul className="space-y-1 text-xs sm:text-sm text-muted-foreground">
                   <li>• Use the template as a starting point</li>
                   <li>• Ensure all required fields are filled</li>
                   <li>• Check phone numbers follow Nigerian format</li>

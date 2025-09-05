@@ -1,19 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useToast } from './use-toast'
-import { apiService } from '@/lib/api'
+import { api } from '@/lib/api'
 
 interface Farmer {
-  _id: string
+  id: string
   name: string
   email: string
   phone: string
   location: string
   status: 'active' | 'inactive' | 'suspended'
-  joinedAt: Date
-  lastActivity: Date
-  totalHarvests: number
-  totalEarnings: number
-  partner: string
+  joinedAt: string
+  _id?: string
 }
 
 interface FarmerFilters {
@@ -24,74 +21,7 @@ interface FarmerFilters {
   limit?: number
 }
 
-// Mock data for development
-const mockFarmers: Farmer[] = [
-  {
-    _id: "1",
-    name: "John Doe",
-    email: "john@farmer.com",
-    phone: "+2348012345678",
-    location: "Lagos",
-    status: "active",
-    joinedAt: new Date("2024-01-15"),
-    lastActivity: new Date("2024-01-20"),
-    totalHarvests: 12,
-    totalEarnings: 45000,
-    partner: "partner_id"
-  },
-  {
-    _id: "2",
-    name: "Jane Smith",
-    email: "jane@farmer.com",
-    phone: "+2348012345679",
-    location: "Abuja",
-    status: "active",
-    joinedAt: new Date("2024-01-10"),
-    lastActivity: new Date("2024-01-19"),
-    totalHarvests: 8,
-    totalEarnings: 32000,
-    partner: "partner_id"
-  },
-  {
-    _id: "3",
-    name: "Mike Johnson",
-    email: "mike@farmer.com",
-    phone: "+2348012345680",
-    location: "Kano",
-    status: "inactive",
-    joinedAt: new Date("2024-01-05"),
-    lastActivity: new Date("2024-01-15"),
-    totalHarvests: 5,
-    totalEarnings: 18000,
-    partner: "partner_id"
-  },
-  {
-    _id: "4",
-    name: "Sarah Wilson",
-    email: "sarah@farmer.com",
-    phone: "+2348012345681",
-    location: "Port Harcourt",
-    status: "active",
-    joinedAt: new Date("2024-01-12"),
-    lastActivity: new Date("2024-01-21"),
-    totalHarvests: 15,
-    totalEarnings: 52000,
-    partner: "partner_id"
-  },
-  {
-    _id: "5",
-    name: "David Brown",
-    email: "david@farmer.com",
-    phone: "+2348012345682",
-    location: "Ibadan",
-    status: "suspended",
-    joinedAt: new Date("2024-01-08"),
-    lastActivity: new Date("2024-01-14"),
-    totalHarvests: 3,
-    totalEarnings: 12000,
-    partner: "partner_id"
-  }
-]
+// Real data from backend API only - no mock data
 
 export function useFarmers() {
   const [farmers, setFarmers] = useState<Farmer[]>([])
@@ -112,39 +42,40 @@ export function useFarmers() {
   })
   const { toast } = useToast()
 
-  // Fetch farmers
+  // Fetch farmers from real API
   const fetchFarmers = useCallback(async () => {
     try {
       setIsLoading(true)
-      // Try API call first, fallback to mock data
-      try {
-        const response = await apiService.getFarmers(filters)
-        const result = {
-          farmers: response.data.docs || [],
-          pagination: {
-            currentPage: response.data.page || 1,
-            totalPages: response.data.totalPages || 1,
-            totalItems: response.data.totalDocs || 0,
-            itemsPerPage: response.data.limit || 10
-          }
-        }
-        setFarmers(result.farmers)
-        setPagination(result.pagination)
-      } catch (error) {
-        console.warn('API call failed, using mock data:', error)
-        // Fallback to mock data
-        setFarmers(mockFarmers)
+
+      const response = await api.getPartnerFarmers({
+        limit: filters.limit || 50,
+        search: filters.searchTerm,
+        ...filters
+      })
+
+      if (response.data) {
+        const farmersData = response.data.farmers || []
+        setFarmers(farmersData)
         setPagination({
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: mockFarmers.length,
-          itemsPerPage: mockFarmers.length
+          currentPage: response.data.page || 1,
+          totalPages: response.data.totalPages || 1,
+          totalItems: response.data.total || 0,
+          itemsPerPage: filters.limit || 50
         })
       }
     } catch (error: any) {
+      console.error('Failed to fetch farmers:', error)
+      setFarmers([])
+      setPagination({
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: 0,
+        itemsPerPage: filters.limit || 50
+      })
+
       toast({
         title: "Error loading farmers",
-        description: error.message || "Failed to load farmers",
+        description: error?.message || "Failed to load farmers data",
         variant: "destructive"
       })
     } finally {

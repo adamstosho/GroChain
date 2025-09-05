@@ -79,8 +79,104 @@ router.get('/dashboard', authenticate, authorize('admin','partner','farmer','buy
     // Get buyer data
     if (userRole === 'buyer') {
       const Order = require('../models/order.model')
+      const Favorite = require('../models/favorite.model')
+
+      // Get current month start and end
+      const now = new Date()
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+
+      // Get total orders
       const totalOrders = await Order.countDocuments({ buyer: userId })
-      dashboardData.totalHarvests = totalOrders // For buyers, this represents orders
+
+      // Get total spent (sum of all completed orders) - use 'paid' or 'delivered' status
+      const totalSpentResult = await Order.aggregate([
+        {
+          $match: {
+            buyer: userId,
+            status: { $in: ['paid', 'delivered'] },
+            total: { $exists: true, $ne: null }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: { $ifNull: ['$total', 0] } }
+          }
+        }
+      ])
+      let totalSpent = totalSpentResult[0]?.total || 0
+
+      // Fallback: If no results from aggregation, try manual calculation
+      if (totalSpent === 0) {
+        const paidOrders = await Order.find({
+          buyer: userId,
+          status: { $in: ['paid', 'delivered'] },
+          total: { $exists: true, $ne: null }
+        }).select('total')
+        totalSpent = paidOrders.reduce((sum, order) => sum + (order.total || 0), 0)
+      }
+
+      // Get monthly spent (current month)
+      const monthlySpentResult = await Order.aggregate([
+        {
+          $match: {
+            buyer: userId,
+            status: { $in: ['paid', 'delivered'] },
+            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+            total: { $exists: true, $ne: null }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: { $ifNull: ['$total', 0] } }
+          }
+        }
+      ])
+      let monthlySpent = monthlySpentResult[0]?.total || 0
+
+      // Fallback: If no results from aggregation, try manual calculation
+      if (monthlySpent === 0) {
+        const monthlyPaidOrders = await Order.find({
+          buyer: userId,
+          status: { $in: ['paid', 'delivered'] },
+          createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+          total: { $exists: true, $ne: null }
+        }).select('total')
+        monthlySpent = monthlyPaidOrders.reduce((sum, order) => sum + (order.total || 0), 0)
+      }
+
+      // Get favorites count
+      const favoritesCount = await Favorite.countDocuments({ user: userId })
+
+      // Get pending deliveries (orders that are shipped but not delivered)
+      const pendingDeliveries = await Order.countDocuments({
+        buyer: userId,
+        status: 'shipped'
+      })
+
+      // Get active orders (confirmed, processing, or paid but not shipped)
+      const activeOrders = await Order.countDocuments({
+        buyer: userId,
+        status: { $in: ['confirmed', 'processing', 'paid'] }
+      })
+
+      dashboardData = {
+        totalOrders,
+        totalSpent,
+        monthlySpent,
+        favoriteProducts: favoritesCount,
+        pendingDeliveries,
+        activeOrders,
+        lastOrderDate: null
+      }
+
+      // Get last order date
+      const lastOrder = await Order.findOne({ buyer: userId }).sort({ createdAt: -1 })
+      if (lastOrder) {
+        dashboardData.lastOrderDate = lastOrder.createdAt
+      }
     }
     
     // Get admin data

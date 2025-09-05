@@ -166,6 +166,7 @@ export default function ProductsPage() {
       const listings = response.data?.listings || []
 
       console.log('📦 Received listings:', listings.length)
+      console.log('📦 First listing sample:', listings[0])
 
       // Convert backend listing format to frontend product format
       const convertedProducts: ProductListing[] = listings.map((listing: any) => ({
@@ -258,6 +259,12 @@ export default function ProductsPage() {
 
   const handleAddToFavorites = async (product: ProductListing) => {
     try {
+      console.log('🔍 handleAddToFavorites - Product data:', {
+        _id: product._id,
+        cropName: product.cropName,
+        fullProduct: product
+      })
+      
       // Add to favorites through the buyer store
       await addToFavorites(product._id)
 
@@ -523,7 +530,7 @@ export default function ProductsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
+          <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4' : 'space-y-4'}>
             {filteredProducts.map((product) => (
               <ProductCard
                 key={product._id}
@@ -673,97 +680,97 @@ function ProductCard({
 
   // Grid view
   return (
-    <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
-      <CardHeader className="p-4 pb-2">
+    <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1 h-full">
+      <CardHeader className="p-3 pb-2">
         <div className="relative">
-          <div className="aspect-square w-full overflow-hidden rounded-lg">
+          <div className="aspect-[4/3] w-full overflow-hidden rounded-lg">
             <Image
               src={product.images[0] || "/placeholder.svg"}
               alt={product.cropName}
               width={300}
-              height={300}
+              height={225}
               className="h-full w-full object-cover"
             />
           </div>
           {product.organic && (
-            <Badge className="absolute top-2 left-2 bg-green-600 text-white text-xs">
+            <Badge className="absolute top-1.5 left-1.5 bg-green-600 text-white text-[10px] px-1.5 py-0.5">
               Organic
             </Badge>
           )}
-          <Badge className={`absolute top-2 right-2 ${getQualityColor(product.qualityGrade)}`}>
+          <Badge className={`absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0.5 ${getQualityColor(product.qualityGrade)}`}>
             {product.qualityGrade}
           </Badge>
         </div>
       </CardHeader>
       
-      <CardContent className="p-4 pt-0">
-        <div className="space-y-3">
+      <CardContent className="p-3 pt-0 flex-1 flex flex-col">
+        <div className="space-y-2 flex-1">
           <div>
-            <h3 className="font-semibold text-foreground line-clamp-1">
+            <h3 className="font-semibold text-sm text-foreground line-clamp-1">
               {product.cropName}
             </h3>
-            <p className="text-sm text-muted-foreground line-clamp-2">
+            <p className="text-xs text-muted-foreground line-clamp-1">
               {product.description}
             </p>
           </div>
 
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center justify-between text-xs">
             <div className="flex items-center space-x-1">
               <MapPin className="h-3 w-3 text-muted-foreground" />
-              <span className="text-muted-foreground">
-                {typeof product.location === 'string' ? product.location : `${product.location?.city || 'Unknown'}, ${product.location?.state || 'Unknown State'}`}
+              <span className="text-muted-foreground truncate">
+                {typeof product.location === 'string' ? product.location.split(',')[0] : product.location?.city || 'Unknown'}
               </span>
             </div>
             <div className="flex items-center space-x-1">
               <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-              <span className="font-medium">{product.rating}</span>
-              <span className="text-muted-foreground">({product.reviews})</span>
+              <span className="font-medium text-xs">{product.rating}</span>
+              <span className="text-muted-foreground text-xs">({product.reviews})</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <span className="text-muted-foreground">Farmer: </span>
-              <span className="font-medium">{product.farmer.name}</span>
-              {product.farmer.verified && (
-                <Badge variant="secondary" className="ml-2 text-xs">
-                  Verified
-                </Badge>
-              )}
-            </div>
+          <div className="text-xs">
+            <span className="text-muted-foreground">by </span>
+            <span className="font-medium">{product.farmer.name}</span>
+            {product.farmer.verified && (
+              <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
+                Verified
+              </Badge>
+            )}
           </div>
 
-          <div className="text-center">
-            <div className="text-xl font-bold text-primary mb-1">
+          <div className="text-center py-1">
+            <div className="text-lg font-bold text-primary">
               {formatPrice(product.basePrice)}
             </div>
-            <div className="text-sm text-muted-foreground mb-3">
+            <div className="text-xs text-muted-foreground">
               per {product.unit} • {product.availableQuantity} {product.unit} available
             </div>
           </div>
+        </div>
 
+        <div className="space-y-2 pt-2 border-t">
           <div className="flex items-center space-x-2">
             <Button
               onClick={() => onAddToCart(product)}
-              className="flex-1"
+              className="flex-1 h-8 text-xs"
               size="sm"
             >
-              <ShoppingCart className="h-4 w-4 mr-2" />
+              <ShoppingCart className="h-3 w-3 mr-1.5" />
               Add to Cart
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => onAddToFavorites(product)}
-              className="px-3"
+              className="h-8 w-8 p-0"
             >
-              <Heart className="h-4 w-4" />
+              <Heart className="h-3 w-3" />
             </Button>
           </div>
 
-          <Button variant="ghost" size="sm" className="w-full" asChild>
+          <Button variant="ghost" size="sm" className="w-full h-7 text-xs" asChild>
             <Link href={`/dashboard/products/${product._id}`}>
-              <Eye className="h-4 w-4 mr-2" />
+              <Eye className="h-3 w-3 mr-1.5" />
               View Details
             </Link>
           </Button>

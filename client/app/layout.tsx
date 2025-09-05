@@ -4,6 +4,7 @@ import { DM_Sans, Nunito } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { DatadogSuppressor } from "@/components/datadog-suppressor"
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -24,6 +25,11 @@ export const metadata: Metadata = {
   generator: "GroChain Platform",
   keywords: ["agriculture", "farming", "supply chain", "Nigeria", "food security", "traceability"],
   authors: [{ name: "GroChain Team" }],
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
   openGraph: {
     title: "GroChain - Digital Agriculture Platform",
     description: "Building trust in Nigeria's food chain through transparent digital platform",
@@ -44,6 +50,7 @@ export default function RootLayout({
         <script src="https://js.paystack.co/v1/inline.js"></script>
       </head>
       <body className={`font-sans ${dmSans.variable} ${nunito.variable} antialiased`}>
+        <DatadogSuppressor />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           {children}
           <Toaster />

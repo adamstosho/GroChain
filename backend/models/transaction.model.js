@@ -5,7 +5,7 @@ const TransactionSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'completed', 'failed', 'cancelled'], default: 'pending' },
   amount: { type: Number, required: true, min: 0 },
   currency: { type: String, default: 'NGN' },
-  reference: { type: String, required: true, unique: true },
+  reference: { type: String, required: true },
   description: { type: String, required: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   partnerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Partner' },
@@ -25,7 +25,7 @@ const TransactionSchema = new mongoose.Schema({
 TransactionSchema.index({ userId: 1 })
 TransactionSchema.index({ type: 1 })
 TransactionSchema.index({ status: 1 })
-TransactionSchema.index({ reference: 1 })
+TransactionSchema.index({ reference: 1 }, { unique: true })
 TransactionSchema.index({ createdAt: -1 })
 
 module.exports = mongoose.model('Transaction', TransactionSchema)

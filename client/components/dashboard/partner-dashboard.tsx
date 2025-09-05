@@ -8,72 +8,139 @@ import { Progress } from "@/components/ui/progress"
 import { StatsCard } from "@/components/dashboard/stats-card"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { QuickActions } from "@/components/dashboard/quick-actions"
-import { apiService } from "@/lib/api"
+import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
-import { Users, Shield, TrendingUp, DollarSign, UserPlus, FileCheck, BarChart3, Upload } from "lucide-react"
+import { Users, Shield, TrendingUp, DollarSign, UserPlus, FileCheck, BarChart3, Upload, RefreshCw, AlertCircle } from "lucide-react"
 import Link from "next/link"
 
 export function PartnerDashboard() {
-  const [stats, setStats] = useState<any>(null)
-  const [pendingApprovals, setPendingApprovals] = useState<any[]>([])
-  const [recentFarmers, setRecentFarmers] = useState<any[]>([])
+  // State for all dashboard data
+  const [dashboardData, setDashboardData] = useState<any>(null)
+  const [farmersData, setFarmersData] = useState<any>(null)
+  const [commissionData, setCommissionData] = useState<any>(null)
+  const [metricsData, setMetricsData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [usingFallbackData, setUsingFallbackData] = useState(false)
   const { toast } = useToast()
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [dashboardResponse] = await Promise.all([apiService.getDashboard()])
-
-        setStats(dashboardResponse.data)
-        // Mock data for demo
-        setPendingApprovals([
-          {
-            _id: "1",
-            farmer: { name: "John Doe" },
-            cropType: "Tomatoes",
-            quantity: 50,
-            unit: "kg",
-            date: new Date(),
-            status: "pending",
-          },
-        ])
-        setRecentFarmers([
-          {
-            _id: "1",
-            name: "Jane Smith",
-            location: "Lagos",
-            joinedAt: new Date(),
-            status: "active",
-          },
-        ])
-      } catch (error: any) {
-        toast({
-          title: "Error loading dashboard",
-          description: error.message,
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoading(false)
+  // Fetch REAL DATABASE DATA ONLY - No fallback/demo data
+  const fetchDashboardData = async (showRefreshIndicator = false) => {
+    try {
+      if (showRefreshIndicator) {
+        setIsRefreshing(true)
+      } else {
+        setIsLoading(true)
       }
-    }
+      setError(null)
+      setUsingFallbackData(false)
 
+      // Fetch all data in parallel for better performance
+      const [
+        dashboardResponse,
+        farmersResponse,
+        commissionResponse,
+        metricsResponse
+      ] = await Promise.allSettled([
+        api.getPartnerDashboard(),
+        api.getPartnerFarmers({ limit: 5, sortBy: 'joinedAt', sortOrder: 'desc' }),
+        api.getPartnerCommission(),
+        api.getPartnerMetrics()
+      ])
+
+      // Handle dashboard data - REAL DATABASE DATA ONLY
+      if (dashboardResponse.status === 'fulfilled') {
+        console.log('✅ Dashboard data loaded from database');
+        setDashboardData(dashboardResponse.value.data)
+      } else {
+        console.error('❌ Dashboard fetch failed:', dashboardResponse.reason?.message || dashboardResponse.reason)
+        const errorMessage = dashboardResponse.reason?.response?.data?.message ||
+                           dashboardResponse.reason?.message ||
+                           'Failed to load dashboard data from database'
+        setError(errorMessage)
+        setDashboardData(null)
+      }
+
+      // Handle farmers data - REAL DATABASE DATA ONLY
+      if (farmersResponse.status === 'fulfilled') {
+        console.log('✅ Farmers data loaded from database');
+        setFarmersData(farmersResponse.value.data)
+      } else {
+        console.error('❌ Farmers fetch failed:', farmersResponse.reason?.message || farmersResponse.reason)
+        setFarmersData(null)
+      }
+
+      // Handle commission data - REAL DATABASE DATA ONLY
+      if (commissionResponse.status === 'fulfilled') {
+        console.log('✅ Commission data loaded from database');
+        setCommissionData(commissionResponse.value.data)
+      } else {
+        console.error('❌ Commission fetch failed:', commissionResponse.reason?.message || commissionResponse.reason)
+        setCommissionData(null)
+      }
+
+      // Handle metrics data - REAL DATABASE DATA ONLY
+      if (metricsResponse.status === 'fulfilled') {
+        console.log('✅ Metrics data loaded from database');
+        setMetricsData(metricsResponse.value.data)
+      } else {
+        console.error('❌ Metrics fetch failed:', metricsResponse.reason?.message || metricsResponse.reason)
+        setMetricsData(null)
+      }
+
+      // Show success message on manual refresh
+      if (showRefreshIndicator) {
+        toast({
+          title: "Dashboard Updated",
+          description: "Real data has been refreshed from the database.",
+        })
+      }
+
+    } catch (error: any) {
+      console.error('Dashboard fetch error:', error)
+      setError(error.message || 'Failed to load dashboard data')
+
+      toast({
+        title: "Error loading dashboard",
+        description: error.message || "Failed to load dashboard data. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
+    }
+  }
+
+  // Auto-refresh data every 5 minutes
+  useEffect(() => {
     fetchDashboardData()
-  }, [toast])
+
+    const interval = setInterval(() => {
+      fetchDashboardData()
+    }, 5 * 60 * 1000) // 5 minutes
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Manual refresh handler
+  const handleRefresh = () => {
+    fetchDashboardData(true)
+  }
 
   const quickActions = [
     {
       title: "Onboard Farmers",
       description: "Add new farmers to platform",
       icon: UserPlus,
-      href: "/dashboard/onboarding",
+      href: "/partners",
       color: "bg-primary/10 text-primary",
     },
     {
       title: "Bulk Upload",
       description: "CSV farmer onboarding",
       icon: Upload,
-      href: "/dashboard/onboarding/bulk",
+      href: "/partners/bulk-onboard",
       color: "bg-secondary/10 text-secondary",
     },
     {
@@ -92,94 +159,265 @@ export function PartnerDashboard() {
     },
   ]
 
+  // Loading state
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="space-y-4 md:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              <div className="h-8 sm:h-9 bg-gray-200 rounded animate-pulse w-48 sm:w-64"></div>
+            </h1>
+            <div className="text-gray-600 text-sm sm:text-base mt-2">
+              <div className="h-4 bg-gray-200 rounded animate-pulse w-64 sm:w-80"></div>
+            </div>
+          </div>
+          <div className="flex-shrink-0">
+            <Button disabled size="sm" className="w-full sm:w-auto">
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              Loading...
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader className="space-y-0 pb-2">
                 <div className="h-4 bg-muted rounded w-1/2" />
                 <div className="h-8 bg-muted rounded w-3/4" />
               </CardHeader>
+              <CardContent>
+                <div className="h-6 bg-muted rounded w-1/3" />
+              </CardContent>
             </Card>
           ))}
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardHeader>
+                  <div className="h-6 bg-muted rounded w-1/3" />
+                  <div className="h-4 bg-muted rounded w-1/2" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="h-4 bg-muted rounded" />
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-4 bg-muted rounded w-1/2" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="space-y-6">
+            {[...Array(2)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardHeader>
+                  <div className="h-6 bg-muted rounded w-2/3" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-muted rounded" />
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-4 bg-muted rounded w-1/2" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     )
   }
 
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Partner Dashboard</h1>
+            <p className="text-gray-600">Manage your farmer network and track performance</p>
+          </div>
+          <Button onClick={handleRefresh} disabled={isRefreshing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Retry'}
+          </Button>
+        </div>
+
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-4">
+              <AlertCircle className="h-8 w-8 text-red-600" />
+              <div>
+                <h3 className="text-lg font-semibold text-red-900">Failed to Load Dashboard</h3>
+                <p className="text-red-700 mt-1">{error}</p>
+                <Button
+                  onClick={handleRefresh}
+                  className="mt-4"
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Show error state if database connection fails
+  if (error && !dashboardData && !farmersData && !commissionData && !metricsData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Partner Dashboard</h1>
+            <p className="text-gray-600">Manage your farmer network and track performance</p>
+          </div>
+          <Button onClick={handleRefresh} disabled={isRefreshing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Retry'}
+          </Button>
+        </div>
+
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-4">
+              <AlertCircle className="h-8 w-8 text-red-600" />
+              <div>
+                <h3 className="text-lg font-semibold text-red-900">Database Connection Error</h3>
+                <p className="text-red-700 mt-1">{error}</p>
+                <p className="text-red-600 text-sm mt-2">
+                  Please check your internet connection and try again.
+                </p>
+                <Button
+                  onClick={handleRefresh}
+                  className="mt-4"
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
+      {/* Header with Refresh */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">Partner Dashboard</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Manage your farmer network and track performance</p>
+          {error && (
+            <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm bg-yellow-100 text-yellow-800">
+              <AlertCircle className="h-4 w-4 mr-1 flex-shrink-0" />
+              <span className="truncate">Some data may be unavailable - {error}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex-shrink-0">
+          <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" className="w-full sm:w-auto">
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
+      </div>
+
       {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Total Farmers"
-          value={stats?.totalFarmers || 0}
+          value={dashboardData?.totalFarmers || 0}
           description="Under your partnership"
           icon={Users}
-          trend={{ value: 8, isPositive: true }}
+          trend={{
+            value: dashboardData?.totalFarmers ? Math.round((dashboardData.totalFarmers / Math.max(dashboardData.totalFarmers, 10)) * 100) : 0,
+            isPositive: true
+          }}
         />
         <StatsCard
-          title="Pending Approvals"
-          value={stats?.pendingApprovals || 0}
-          description="Awaiting your review"
-          icon={Shield}
-          trend={{ value: 3, isPositive: false }}
+          title="Active Farmers"
+          value={dashboardData?.activeFarmers || 0}
+          description="Currently active"
+          icon={Users}
+          trend={{
+            value: dashboardData?.totalFarmers && dashboardData?.activeFarmers ?
+              Math.round((dashboardData.activeFarmers / dashboardData.totalFarmers) * 100) : 0,
+            isPositive: true
+          }}
         />
         <StatsCard
           title="Commission Earned"
-          value={`₦${(stats?.commissionEarned || 0).toLocaleString()}`}
+          value={`₦${(commissionData?.summary?.thisMonth || 0).toLocaleString()}`}
           description="This month"
           icon={DollarSign}
-          trend={{ value: 15, isPositive: true }}
+          trend={{
+            value: commissionData?.summary?.thisMonth ?
+              Math.round((commissionData.summary.thisMonth / Math.max(commissionData.summary.totalEarned || commissionData.summary.thisMonth, 1)) * 100) : 0,
+            isPositive: true
+          }}
         />
         <StatsCard
-          title="Active Partnerships"
-          value={stats?.activePartnerships || 0}
-          description="Ongoing collaborations"
+          title="Commission Rate"
+          value={`${((commissionData?.commissionRate || 0) * 100).toFixed(1)}%`}
+          description="Your earning rate"
           icon={TrendingUp}
-          trend={{ value: 5, isPositive: true }}
+          trend={{
+            value: ((commissionData?.commissionRate || 0) * 100),
+            isPositive: true
+          }}
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 lg:gap-6 lg:grid-cols-3">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 lg:space-y-6">
           {/* Quick Actions */}
           <QuickActions actions={quickActions} />
 
-          {/* Pending Approvals */}
+          {/* Pending Approvals - Using real data */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Pending Approvals</CardTitle>
-                <CardDescription>Harvest submissions awaiting your review</CardDescription>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
+              <div className="min-w-0 flex-1">
+                <CardTitle className="truncate">Pending Approvals</CardTitle>
+                <CardDescription className="truncate">Harvest submissions awaiting your review</CardDescription>
               </div>
-              <Button asChild size="sm">
+              <Button asChild size="sm" className="w-full sm:w-auto flex-shrink-0">
                 <Link href="/dashboard/approvals">View All</Link>
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {pendingApprovals.length > 0 ? (
-                  pendingApprovals.map((harvest) => (
-                    <div key={harvest._id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="h-10 w-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                          <Shield className="h-5 w-5 text-warning" />
+              <div className="space-y-3 sm:space-y-4">
+                {dashboardData?.recentActivity && dashboardData.recentActivity.length > 0 ? (
+                  dashboardData.recentActivity.slice(0, 3).map((activity: any, index: number) => (
+                    <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg gap-2 sm:gap-0">
+                      <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                        <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-warning/10 flex items-center justify-center flex-shrink-0">
+                          <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
                         </div>
-                        <div>
-                          <p className="font-medium">{harvest.cropType}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {harvest.farmer?.name} • {harvest.quantity} {harvest.unit}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm sm:text-base truncate">{activity.description || 'Pending Approval'}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                            {activity.farmer || 'Farmer'} • {new Date(activity.timestamp).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="secondary">Pending</Badge>
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/dashboard/approvals/${harvest._id}`}>Review</Link>
+                      <div className="flex items-center space-x-2 flex-shrink-0">
+                        <Badge variant="secondary" className="text-xs">Pending</Badge>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          Review
                         </Button>
                       </div>
                     </div>
@@ -194,55 +432,64 @@ export function PartnerDashboard() {
             </CardContent>
           </Card>
 
-          {/* Recent Farmers */}
+          {/* Recent Farmers - Using real data */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Recently Onboarded Farmers</CardTitle>
-                <CardDescription>New farmers in your network</CardDescription>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
+              <div className="min-w-0 flex-1">
+                <CardTitle className="truncate">Recently Onboarded Farmers</CardTitle>
+                <CardDescription className="truncate">New farmers in your network</CardDescription>
               </div>
-              <Button asChild size="sm">
-                <Link href="/dashboard/farmers">View All</Link>
+              <Button asChild size="sm" className="w-full sm:w-auto flex-shrink-0">
+                <Link href="/partners">View All</Link>
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentFarmers.length > 0 ? (
-                  recentFarmers.map((farmer) => (
-                    <div key={farmer._id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Users className="h-5 w-5 text-primary" />
+              <div className="space-y-3 sm:space-y-4">
+                {farmersData?.farmers && farmersData.farmers.length > 0 ? (
+                  farmersData.farmers.slice(0, 3).map((farmer: any) => (
+                    <div key={farmer.id || farmer._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg gap-2 sm:gap-0">
+                      <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                        <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                         </div>
-                        <div>
-                          <p className="font-medium">{farmer.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {typeof farmer.location === 'string' ? farmer.location : `${farmer.location?.city || 'Unknown'}, ${farmer.location?.state || 'Unknown State'}`} • Joined {new Date(farmer.joinedAt).toLocaleDateString()}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm sm:text-base truncate">{farmer.name}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                            {farmer.location} • Joined {new Date(farmer.joinedAt).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="default">Active</Badge>
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/dashboard/farmers/${farmer._id}`}>View</Link>
+                      <div className="flex items-center space-x-2 flex-shrink-0">
+                        <Badge variant={farmer.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                          {farmer.status || 'active'}
+                        </Badge>
+                        <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:p-2">
+                          <Link href={`/partners/farmers/${farmer.id || farmer._id}`}>
+                            <span className="hidden sm:inline">View</span>
+                            <span className="sm:hidden">👁️</span>
+                          </Link>
                         </Button>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-8">
-                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No recent farmers</p>
-                    <Button asChild className="mt-4">
-                      <Link href="/dashboard/onboarding">Onboard Farmers</Link>
-                    </Button>
+                  <div className="text-center py-6 sm:py-8">
+                    <Users className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground text-sm sm:text-base">
+                      {farmersData === null ? 'Unable to load farmer data' : 'No recent farmers'}
+                    </p>
+                    {farmersData !== null && (
+                      <Button asChild size="sm" className="mt-4 w-full sm:w-auto">
+                        <Link href="/partners">Onboard Farmers</Link>
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Performance Metrics */}
+          {/* Performance Metrics - Using real data */}
           <Card>
             <CardHeader>
               <CardTitle>Performance Metrics</CardTitle>
@@ -253,23 +500,27 @@ export function PartnerDashboard() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Farmers Onboarded</span>
-                    <span>85%</span>
+                    <span>{metricsData?.performanceMetrics?.farmersOnboardedThisMonth || 0}</span>
                   </div>
-                  <Progress value={85} className="h-2" />
+                  <Progress
+                    value={metricsData?.totalFarmers ?
+                      ((metricsData.performanceMetrics?.farmersOnboardedThisMonth || 0) / metricsData.totalFarmers) * 100 : 0}
+                    className="h-2"
+                  />
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Approval Rate</span>
-                    <span>92%</span>
+                    <span>{metricsData?.approvalRate ? `${metricsData.approvalRate.toFixed(1)}%` : '0%'}</span>
                   </div>
-                  <Progress value={92} className="h-2" />
+                  <Progress value={metricsData?.approvalRate || 0} className="h-2" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>Commission Target</span>
-                    <span>68%</span>
+                    <span>Commission Rate</span>
+                    <span>{metricsData?.commissionRate ? `${(metricsData.commissionRate * 100).toFixed(1)}%` : '0%'}</span>
                   </div>
-                  <Progress value={68} className="h-2" />
+                  <Progress value={(metricsData?.commissionRate || 0) * 100} className="h-2" />
                 </div>
               </div>
             </CardContent>
@@ -277,60 +528,74 @@ export function PartnerDashboard() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4 lg:space-y-6">
           <RecentActivity />
 
-          {/* Commission Summary */}
+          {/* Commission Summary - REAL DATABASE DATA ONLY */}
           <Card>
-            <CardHeader>
-              <CardTitle>Commission Summary</CardTitle>
-              <CardDescription>Your earnings breakdown</CardDescription>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-lg truncate">Commission Summary</CardTitle>
+              <CardDescription className="text-xs sm:text-sm truncate">Your earnings breakdown</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-sm">This Month</span>
-                  <span className="font-medium">₦45,000</span>
+              {commissionData ? (
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs sm:text-sm text-muted-foreground">This Month</span>
+                    <span className="font-medium text-sm sm:text-base">₦{(commissionData.summary?.thisMonth || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs sm:text-sm text-muted-foreground">Last Month</span>
+                    <span className="font-medium text-sm sm:text-base">₦{(commissionData.summary?.lastMonth || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs sm:text-sm text-muted-foreground">Total Earned</span>
+                    <span className="font-medium text-sm sm:text-base">₦{(commissionData.summary?.totalEarned || 0).toLocaleString()}</span>
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full mt-3" asChild>
+                    <Link href="/partners/commissions">View Details</Link>
+                  </Button>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Last Month</span>
-                  <span className="font-medium">₦38,500</span>
+              ) : (
+                <div className="text-center py-6 sm:py-8">
+                  <DollarSign className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground text-sm">Unable to load commission data</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Total Earned</span>
-                  <span className="font-medium">₦285,000</span>
-                </div>
-                <Button variant="outline" size="sm" className="w-full bg-transparent">
-                  View Details
-                </Button>
-              </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
+          {/* Quick Stats - REAL DATABASE DATA ONLY */}
           <Card>
-            <CardHeader>
-              <CardTitle>Quick Stats</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-lg truncate">Quick Stats</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span>Active Farmers</span>
-                  <span className="font-medium">24</span>
+              {dashboardData && commissionData ? (
+                <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Active Farmers</span>
+                    <span className="font-medium">{dashboardData.activeFarmers || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Total Farmers</span>
+                    <span className="font-medium">{dashboardData.totalFarmers || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Commission Rate</span>
+                    <span className="font-medium">{commissionData.commissionRate ? `${(commissionData.commissionRate * 100).toFixed(1)}%` : '0%'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">This Month</span>
+                    <span className="font-medium text-xs sm:text-sm">₦{(commissionData.summary?.thisMonth || 0).toLocaleString()}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>Pending Reviews</span>
-                  <span className="font-medium">3</span>
+              ) : (
+                <div className="text-center py-6 sm:py-8">
+                  <Users className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground text-sm">Unable to load statistics</p>
                 </div>
-                <div className="flex justify-between">
-                  <span>Approved Today</span>
-                  <span className="font-medium">7</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Success Rate</span>
-                  <span className="font-medium">94%</span>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>

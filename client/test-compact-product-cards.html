@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compact Product Cards - Styling Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .line-clamp-1 {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-2xl font-bold mb-6">Compact Product Cards - Before vs After</h1>
+        
+        <!-- Before (Old Styling) -->
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold mb-4 text-red-600">❌ Before (Too Tall)</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-white rounded-lg shadow-lg transition-all duration-200 hover:-translate-y-1">
+                    <div class="p-4 pb-2">
+                        <div class="relative">
+                            <div class="aspect-square w-full overflow-hidden rounded-lg">
+                                <img src="/placeholder.svg" alt="Cassava" class="h-full w-full object-cover" />
+                            </div>
+                            <span class="absolute top-2 left-2 bg-green-600 text-white text-xs px-2 py-1 rounded">Organic</span>
+                            <span class="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">Standard</span>
+                        </div>
+                    </div>
+                    <div class="p-4 pt-0">
+                        <div class="space-y-3">
+                            <div>
+                                <h3 class="font-semibold text-foreground line-clamp-1">Cassava</h3>
+                                <p class="text-sm text-gray-500 line-clamp-2">Fresh agricultural produce</p>
+                            </div>
+                            <div class="flex items-center justify-between text-sm">
+                                <div class="flex items-center space-x-1">
+                                    <svg class="h-3 w-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    </svg>
+                                    <span class="text-gray-500">Ado Odo/Ota, Ogun State</span>
+                                </div>
+                                <div class="flex items-center space-x-1">
+                                    <svg class="h-3 w-3 fill-yellow-400 text-yellow-400" viewBox="0 0 24 24">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                                    </svg>
+                                    <span class="font-medium">4.5</span>
+                                    <span class="text-gray-500">(0)</span>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-xl font-bold text-green-600 mb-1">₦15,000</div>
+                                <div class="text-sm text-gray-500 mb-3">per kg • 2222 kg available</div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button class="flex-1 bg-green-600 text-white px-4 py-2 rounded text-sm">Add to Cart</button>
+                                <button class="px-3 py-2 border border-gray-300 rounded text-sm">❤️</button>
+                            </div>
+                            <button class="w-full py-2 text-sm text-gray-600 hover:bg-gray-50 rounded">View Details</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- After (New Compact Styling) -->
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold mb-4 text-green-600">✅ After (Compact & Well-Sized)</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <!-- Card 1 -->
+                <div class="bg-white rounded-lg shadow-lg transition-all duration-200 hover:-translate-y-1 h-full">
+                    <div class="p-3 pb-2">
+                        <div class="relative">
+                            <div class="aspect-[4/3] w-full overflow-hidden rounded-lg">
+                                <img src="/placeholder.svg" alt="Cassava" class="h-full w-full object-cover" />
+                            </div>
+                            <span class="absolute top-1.5 left-1.5 bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded">Organic</span>
+                            <span class="absolute top-1.5 right-1.5 bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded">Standard</span>
+                        </div>
+                    </div>
+                    <div class="p-3 pt-0 flex-1 flex flex-col">
+                        <div class="space-y-2 flex-1">
+                            <div>
+                                <h3 class="font-semibold text-sm text-foreground line-clamp-1">Cassava</h3>
+                                <p class="text-xs text-gray-500 line-clamp-1">Fresh agricultural produce</p>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <div class="flex items-center space-x-1">
+                                    <svg class="h-3 w-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    </svg>
+                                    <span class="text-gray-500 truncate">Ado Odo/Ota</span>
+                                </div>
+                                <div class="flex items-center space-x-1">
+                                    <svg class="h-3 w-3 fill-yellow-400 text-yellow-400" viewBox="0 0 24 24">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                                    </svg>
+                                    <span class="font-medium text-xs">4.5</span>
+                                    <span class="text-gray-500 text-xs">(0)</span>
+                                </div>
+                            </div>
+                            <div class="text-xs">
+                                <span class="text-gray-500">by </span>
+                                <span class="font-medium">Adam Ridwan</span>
+                            </div>
+                            <div class="text-center py-1">
+                                <div class="text-lg font-bold text-green-600">₦15,000</div>
+                                <div class="text-xs text-gray-500">per kg • 2222 kg available</div>
+                            </div>
+                        </div>
+                        <div class="space-y-2 pt-2 border-t">
+                            <div class="flex items-center space-x-2">
+                                <button class="flex-1 h-8 text-xs bg-green-600 text-white rounded flex items-center justify-center">
+                                    <svg class="h-3 w-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path>
+                                    </svg>
+                                    Add to Cart
+                                </button>
+                                <button class="h-8 w-8 p-0 border border-gray-300 rounded flex items-center justify-center">
+                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <button class="w-full h-7 text-xs text-gray-600 hover:bg-gray-50 rounded flex items-center justify-center">
+                                <svg class="h-3 w-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="bg-white rounded-lg shadow-lg transition-all duration-200 hover:-translate-y-1 h-full">
+                    <div class="p-3 pb-2">
+                        <div class="relative">
+                            <div class="aspect-[4/3] w-full overflow-hidden rounded-lg">
+                                <img src="/placeholder.svg" alt="Ginger" class="h-full w-full object-cover" />
+                            </div>
+                            <span class="absolute top-1.5 right-1.5 bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded">Standard</span>
+                        </div>
+                    </div>
+                    <div class="p-3 pt-0 flex-1 flex flex-col">
+                        <div class="space-y-2 flex-1">
+                            <div>
+                                <h3 class="font-semibold text-sm text-foreground line-clamp-1">Ginger</h3>
+                                <p class="text-xs text-gray-500 line-clamp-1">Fresh ginger root</p>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <div class="flex items-center space-x-1">
+                                    <svg class="h-3 w-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    </svg>
+                                    <span class="text-gray-500 truncate">Ado Odo/Ota</span>
+                                </div>
+                                <div class="flex items-center space-x-1">
+                                    <svg class="h-3 w-3 fill-yellow-400 text-yellow-400" viewBox="0 0 24 24">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                                    </svg>
+                                    <span class="font-medium text-xs">4.5</span>
+                                    <span class="text-gray-500 text-xs">(0)</span>
+                                </div>
+                            </div>
+                            <div class="text-xs">
+                                <span class="text-gray-500">by </span>
+                                <span class="font-medium">Adam Ridwan</span>
+                            </div>
+                            <div class="text-center py-1">
+                                <div class="text-lg font-bold text-green-600">₦100</div>
+                                <div class="text-xs text-gray-500">per kg • 22 kg available</div>
+                            </div>
+                        </div>
+                        <div class="space-y-2 pt-2 border-t">
+                            <div class="flex items-center space-x-2">
+                                <button class="flex-1 h-8 text-xs bg-green-600 text-white rounded flex items-center justify-center">
+                                    <svg class="h-3 w-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path>
+                                    </svg>
+                                    Add to Cart
+                                </button>
+                                <button class="h-8 w-8 p-0 border border-gray-300 rounded flex items-center justify-center">
+                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <button class="w-full h-7 text-xs text-gray-600 hover:bg-gray-50 rounded flex items-center justify-center">
+                                <svg class="h-3 w-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="bg-white rounded-lg shadow-lg transition-all duration-200 hover:-translate-y-1 h-full">
+                    <div class="p-3 pb-2">
+                        <div class="relative">
+                            <div class="aspect-[4/3] w-full overflow-hidden rounded-lg">
+                                <img src="/placeholder.svg" alt="Tomatoes" class="h-full w-full object-cover" />
+                            </div>
+                            <span class="absolute top-1.5 left-1.5 bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded">Organic</span>
+                            <span class="absolute top-1.5 right-1.5 bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded">Premium</span>
+                        </div>
+                    </div>
+                    <div class="p-3 pt-0 flex-1 flex flex-col">
+                        <div class="space-y-2 flex-1">
+                            <div>
+                                <h3 class="font-semibold text-sm text-foreground line-clamp-1">Tomatoes</h3>
+                                <p class="text-xs text-gray-500 line-clamp-1">Fresh red tomatoes</p>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <div class="flex items-center space-x-1">
+                                    <svg class="h-3 w-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    </svg>
+                                    <span class="text-gray-500 truncate">Ibadan, Oyo</span>
+                                </div>
+                                <div class="flex items-center space-x-1">
+                                    <svg class="h-3 w-3 fill-yellow-400 text-yellow-400" viewBox="0 0 24 24">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                                    </svg>
+                                    <span class="font-medium text-xs">4.8</span>
+                                    <span class="text-gray-500 text-xs">(12)</span>
+                                </div>
+                            </div>
+                            <div class="text-xs">
+                                <span class="text-gray-500">by </span>
+                                <span class="font-medium">Sarah Johnson</span>
+                                <span class="ml-1 text-[10px] px-1 py-0 bg-blue-100 text-blue-600 rounded">Verified</span>
+                            </div>
+                            <div class="text-center py-1">
+                                <div class="text-lg font-bold text-green-600">₦8,500</div>
+                                <div class="text-xs text-gray-500">per kg • 150 kg available</div>
+                            </div>
+                        </div>
+                        <div class="space-y-2 pt-2 border-t">
+                            <div class="flex items-center space-x-2">
+                                <button class="flex-1 h-8 text-xs bg-green-600 text-white rounded flex items-center justify-center">
+                                    <svg class="h-3 w-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path>
+                                    </svg>
+                                    Add to Cart
+                                </button>
+                                <button class="h-8 w-8 p-0 border border-gray-300 rounded flex items-center justify-center">
+                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <button class="w-full h-7 text-xs text-gray-600 hover:bg-gray-50 rounded flex items-center justify-center">
+                                <svg class="h-3 w-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="bg-white rounded-lg shadow-lg transition-all duration-200 hover:-translate-y-1 h-full">
+                    <div class="p-3 pb-2">
+                        <div class="relative">
+                            <div class="aspect-[4/3] w-full overflow-hidden rounded-lg">
+                                <img src="/placeholder.svg" alt="Rice" class="h-full w-full object-cover" />
+                            </div>
+                            <span class="absolute top-1.5 right-1.5 bg-green-500 text-white text-[10px] px-1.5 py-0.5 rounded">Grade A</span>
+                        </div>
+                    </div>
+                    <div class="p-3 pt-0 flex-1 flex flex-col">
+                        <div class="space-y-2 flex-1">
+                            <div>
+                                <h3 class="font-semibold text-sm text-foreground line-clamp-1">Rice</h3>
+                                <p class="text-xs text-gray-500 line-clamp-1">Premium quality rice</p>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <div class="flex items-center space-x-1">
+                                    <svg class="h-3 w-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    </svg>
+                                    <span class="text-gray-500 truncate">Kano, Kano</span>
+                                </div>
+                                <div class="flex items-center space-x-1">
+                                    <svg class="h-3 w-3 fill-yellow-400 text-yellow-400" viewBox="0 0 24 24">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                                    </svg>
+                                    <span class="font-medium text-xs">4.2</span>
+                                    <span class="text-gray-500 text-xs">(8)</span>
+                                </div>
+                            </div>
+                            <div class="text-xs">
+                                <span class="text-gray-500">by </span>
+                                <span class="font-medium">Ahmad Musa</span>
+                            </div>
+                            <div class="text-center py-1">
+                                <div class="text-lg font-bold text-green-600">₦25,000</div>
+                                <div class="text-xs text-gray-500">per bag • 50 bags available</div>
+                            </div>
+                        </div>
+                        <div class="space-y-2 pt-2 border-t">
+                            <div class="flex items-center space-x-2">
+                                <button class="flex-1 h-8 text-xs bg-green-600 text-white rounded flex items-center justify-center">
+                                    <svg class="h-3 w-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path>
+                                    </svg>
+                                    Add to Cart
+                                </button>
+                                <button class="h-8 w-8 p-0 border border-gray-300 rounded flex items-center justify-center">
+                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <button class="w-full h-7 text-xs text-gray-600 hover:bg-gray-50 rounded flex items-center justify-center">
+                                <svg class="h-3 w-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 p-4 bg-green-50 rounded-lg">
+            <h2 class="text-lg font-semibold text-green-800 mb-2">✅ Key Improvements Made:</h2>
+            <ul class="text-sm text-green-700 space-y-1">
+                <li>• <strong>Reduced image aspect ratio</strong> from 1:1 (square) to 4:3 for better proportions</li>
+                <li>• <strong>Decreased padding</strong> from p-4 to p-3 for more compact cards</li>
+                <li>• <strong>Smaller font sizes</strong> - titles (text-sm), descriptions (text-xs), details (text-xs)</li>
+                <li>• <strong>Reduced spacing</strong> from space-y-3 to space-y-2 between elements</li>
+                <li>• <strong>Smaller badges</strong> with text-[10px] and compact padding</li>
+                <li>• <strong>Compact buttons</strong> - h-8 for main buttons, h-7 for secondary</li>
+                <li>• <strong>Better grid layout</strong> - added xl:grid-cols-4 for larger screens</li>
+                <li>• <strong>Improved responsive design</strong> - better breakpoints and spacing</li>
+                <li>• <strong>Equal height cards</strong> with h-full and flex layout</li>
+                <li>• <strong>Better text truncation</strong> for long product names and locations</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

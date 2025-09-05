@@ -180,19 +180,43 @@ router.get('/favorites/current', authenticate, async (req, res) => {
     const userExists = await User.findById(userId)
     console.log('User exists in database:', !!userExists)
 
-    const result = await Favorite.getUserFavorites(userId, parseInt(page), parseInt(limit))
-    console.log('✅ Favorites fetched successfully:', result.docs?.length || 0, 'items')
+    // Use a simpler approach to avoid circular references
+    const favorites = await Favorite.find({ user: userId })
+      .populate({
+        path: 'listing',
+        select: 'cropName basePrice unit quantity availableQuantity qualityGrade organic images location farmer harvest',
+        populate: [
+          { path: 'farmer', select: 'name location' },
+          { path: 'harvest', select: 'batchId cropType quality' }
+        ]
+      })
+      .sort({ addedAt: -1 })
+      .lean() // Use lean() to get plain JavaScript objects
 
-    // Log the structure of the result
-    if (result.docs && result.docs.length > 0) {
+    console.log('✅ Favorites fetched successfully:', favorites.length, 'items')
+
+    // Log the structure of the result safely
+    if (favorites.length > 0) {
       console.log('Sample favorite structure:', {
-        id: result.docs[0]._id,
-        user: result.docs[0].user,
-        listing: result.docs[0].listing
+        id: favorites[0]._id,
+        user: favorites[0].user,
+        listingId: favorites[0].listing?._id,
+        listingCropName: favorites[0].listing?.cropName
       })
     }
 
-    return res.json({ status: 'success', data: result })
+    return res.json({ 
+      status: 'success', 
+      data: { 
+        favorites,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: 1,
+          totalItems: favorites.length,
+          itemsPerPage: parseInt(limit)
+        }
+      } 
+    })
   } catch (error) {
     console.error('❌ Error fetching favorites for current user:', error)
     console.error('Error details:', error.message)
@@ -237,25 +261,61 @@ router.get('/favorites/:userId', authenticate, async (req, res) => {
 
   try {
     const result = await Favorite.getUserFavorites(userId, parseInt(page), parseInt(limit))
+    console.log('Favorites result:', JSON.stringify(result, null, 2))
     return res.json({ status: 'success', data: result })
   } catch (error) {
     console.error('Error fetching favorites:', error)
     return res.status(500).json({
       status: 'error',
-      message: 'Failed to fetch favorites'
+      message: 'Failed to fetch favorites',
+      details: error.message
     })
   }
 })
 
 router.post('/favorites', authenticate, async (req, res) => {
   const { listingId, notes } = req.body || {}
-  if (!listingId) return res.status(400).json({ status: 'error', message: 'listingId required' })
+  console.log('📝 Favorites POST - Request body:', { listingId, notes })
+  console.log('👤 Favorites POST - User:', { id: req.user?.id, _id: req.user?._id, role: req.user?.role })
+  
+  if (!listingId) {
+    console.log('❌ Favorites POST - Missing listingId')
+    return res.status(400).json({ status: 'error', message: 'listingId required' })
+  }
+  
   try {
+    console.log('🔍 Favorites POST - Checking if listing exists:', listingId)
+    
+    // Check if the listing exists
+    const listing = await Listing.findById(listingId)
+    if (!listing) {
+      console.log('❌ Favorites POST - Listing not found:', listingId)
+      return res.status(404).json({ status: 'error', message: 'Listing not found' })
+    }
+    
+    console.log('✅ Favorites POST - Listing found:', listing.cropName)
+    console.log('💾 Favorites POST - Creating favorite with user:', req.user.id)
+    
     const fav = await Favorite.create({ user: req.user.id, listing: listingId, notes })
+    console.log('✅ Favorites POST - Favorite created successfully:', fav._id)
     return res.status(201).json({ status: 'success', data: fav })
   } catch (e) {
-    if (e.code === 11000) return res.status(200).json({ status: 'success', message: 'Already in favorites' })
-    return res.status(500).json({ status: 'error', message: 'Server error' })
+    console.error('❌ Favorites POST - Error creating favorite:', e)
+    console.error('❌ Favorites POST - Error name:', e.name)
+    console.error('❌ Favorites POST - Error code:', e.code)
+    console.error('❌ Favorites POST - Error message:', e.message)
+    console.error('❌ Favorites POST - Error stack:', e.stack)
+    
+    if (e.code === 11000) {
+      console.log('ℹ️ Favorites POST - Duplicate favorite (already exists)')
+      return res.status(200).json({ status: 'success', message: 'Already in favorites' })
+    }
+    if (e.name === 'ValidationError') {
+      console.log('❌ Favorites POST - Validation error:', e.message)
+      return res.status(400).json({ status: 'error', message: 'Validation error: ' + e.message })
+    }
+    console.log('❌ Favorites POST - Generic server error')
+    return res.status(500).json({ status: 'error', message: 'Server error: ' + e.message })
   }
 })
 

@@ -116,14 +116,17 @@ export default function FarmersPage() {
   if (isLoading) {
     return (
       <DashboardLayout pageTitle="Farmers Management">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-bold tracking-tight">Farmers Management</h1>
-              <p className="text-muted-foreground">Manage your partner farmers</p>
+        <div className="space-y-4 md:space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="min-w-0 flex-1 space-y-1">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">Farmers Management</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">Manage your partner farmers</p>
+            </div>
+            <div className="flex-shrink-0">
+              <div className="h-8 w-20 bg-gray-200 rounded animate-pulse"></div>
             </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
               <Card key={i} className="animate-pulse">
                 <CardHeader className="space-y-0 pb-2">
@@ -142,78 +145,78 @@ export default function FarmersPage() {
     <DashboardLayout pageTitle="Farmers Management">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight">Farmers Management</h1>
-            <p className="text-muted-foreground">Manage your partner farmers and track their performance</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="min-w-0 flex-1 space-y-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">Farmers Management</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">Manage your partner farmers and track their performance</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0">
+            <Button variant="outline" size="sm" className="w-full sm:w-auto">
               <Download className="w-4 h-4 mr-2" />
-              Export
+              <span className="hidden sm:inline">Export</span>
             </Button>
-            <Button asChild>
+            <Button asChild size="sm" className="w-full sm:w-auto">
               <Link href="/dashboard/farmers/bulk">
                 <Upload className="w-4 h-4 mr-2" />
-                Bulk Upload
+                <span className="hidden sm:inline">Bulk Upload</span>
               </Link>
             </Button>
-            <Button asChild>
+            <Button asChild size="sm" className="w-full sm:w-auto">
               <Link href="/dashboard/farmers/add">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Farmer
+                <span className="hidden sm:inline">Add Farmer</span>
               </Link>
             </Button>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Farmers</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium truncate">Total Farmers</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalFarmers}</div>
+              <div className="text-xl sm:text-2xl font-bold">{totalFarmers}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-green-600">+12%</span> from last month
+                <span className="text-green-600">+{Math.round((totalFarmers / Math.max(totalFarmers - 1, 1)) * 100)}%</span> from last month
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Farmers</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <CardTitle className="text-sm font-medium truncate">Active Farmers</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalActiveFarmers}</div>
+              <div className="text-xl sm:text-2xl font-bold">{totalActiveFarmers}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-green-600">+8%</span> from last month
+                <span className="text-green-600">+{Math.round((totalActiveFarmers / Math.max(totalFarmers, 1)) * 100)}%</span> active rate
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Harvests</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium truncate">Inactive Farmers</CardTitle>
+              <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{farmers.reduce((sum, f) => sum + f.totalHarvests, 0)}</div>
+              <div className="text-xl sm:text-2xl font-bold">{inactiveFarmers.length}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-green-600">+15%</span> from last month
+                <span className="text-orange-600">{Math.round((inactiveFarmers.length / Math.max(totalFarmers, 1)) * 100)}%</span> of total
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium truncate">Suspended Farmers</CardTitle>
+              <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₦{farmers.reduce((sum, f) => sum + f.totalEarnings, 0).toLocaleString()}</div>
+              <div className="text-xl sm:text-2xl font-bold">{suspendedFarmers.length}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-green-600">+22%</span> from last month
+                <span className="text-red-600">{Math.round((suspendedFarmers.length / Math.max(totalFarmers, 1)) * 100)}%</span> of total
               </p>
             </CardContent>
           </Card>
@@ -221,13 +224,13 @@ export default function FarmersPage() {
 
         {/* Filters and Search */}
         <Card>
-          <CardHeader>
-            <CardTitle>Search & Filters</CardTitle>
-            <CardDescription>Find specific farmers or filter by criteria</CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg truncate">Search & Filters</CardTitle>
+            <CardDescription className="text-xs sm:text-sm truncate">Find specific farmers or filter by criteria</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="relative">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="relative sm:col-span-1 lg:col-span-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search farmers..."
@@ -256,6 +259,8 @@ export default function FarmersPage() {
                   <SelectItem value="Lagos">Lagos</SelectItem>
                   <SelectItem value="Abuja">Abuja</SelectItem>
                   <SelectItem value="Kano">Kano</SelectItem>
+                  <SelectItem value="Port Harcourt">Port Harcourt</SelectItem>
+                  <SelectItem value="Ibadan">Ibadan</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -264,113 +269,120 @@ export default function FarmersPage() {
 
         {/* Farmers List */}
         <Card>
-          <CardHeader>
-            <CardTitle>Farmers List</CardTitle>
-            <CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg truncate">Farmers List</CardTitle>
+            <CardDescription className="text-xs sm:text-sm truncate">
               Showing {getPaginatedFarmers().length} of {filteredFarmers.length} farmers
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {getPaginatedFarmers().map((farmer) => (
-                <div key={farmer._id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center space-x-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${farmer.name}`} />
-                      <AvatarFallback>{farmer.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <p className="font-medium">{farmer.name}</p>
-                        {getStatusBadge(farmer.status)}
-                      </div>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <div className="flex items-center space-x-1">
-                          <Mail className="w-3 h-3" />
-                          <span>{farmer.email}</span>
+            <div className="space-y-3 sm:space-y-4">
+              {getPaginatedFarmers().length > 0 ? (
+                getPaginatedFarmers().map((farmer) => (
+                  <div key={farmer.id || farmer._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3 sm:gap-0">
+                    <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+                        <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${farmer.name}`} />
+                        <AvatarFallback className="text-xs sm:text-sm">{farmer.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                      </Avatar>
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:space-x-2">
+                          <p className="font-medium text-sm sm:text-base truncate">{farmer.name}</p>
+                          {getStatusBadge(farmer.status)}
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <Phone className="w-3 h-3" />
-                          <span>{farmer.phone}</span>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+                          <div className="flex items-center space-x-1 min-w-0">
+                            <Mail className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{farmer.email}</span>
+                          </div>
+                          <div className="flex items-center space-x-1 min-w-0">
+                            <Phone className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{farmer.phone}</span>
+                          </div>
+                          <div className="flex items-center space-x-1 min-w-0">
+                            <MapPin className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{farmer.location}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <MapPin className="w-3 h-3" />
-                          <span>{typeof farmer.location === 'string' ? farmer.location : `${farmer.location?.city || 'Unknown'}, ${farmer.location?.state || 'Unknown State'}`}</span>
+                        <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+                          <span>Joined: {new Date(farmer.joinedAt).toLocaleDateString()}</span>
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                        <span>Joined: {new Date(farmer.joinedAt).toLocaleDateString()}</span>
-                        <span>Harvests: {farmer.totalHarvests}</span>
-                        <span>Earnings: ₦{farmer.totalEarnings.toLocaleString()}</span>
                       </div>
                     </div>
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                      <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:p-2">
+                        <Link href={`/dashboard/farmers/${farmer.id || farmer._id}`}>
+                          <span className="hidden sm:inline">View Details</span>
+                          <span className="sm:hidden">👁️</span>
+                        </Link>
+                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Farmer Actions</DialogTitle>
+                            <DialogDescription>Choose an action for {farmer.name}</DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-2">
+                            <Button variant="outline" className="w-full justify-start">
+                              <Mail className="w-4 h-4 mr-2" />
+                              Send Message
+                            </Button>
+                            <Button variant="outline" className="w-full justify-start">
+                              <TrendingUp className="w-4 h-4 mr-2" />
+                              View Performance
+                            </Button>
+                            <Button variant="outline" className="w-full justify-start">
+                              <Calendar className="w-4 h-4 mr-2" />
+                              Schedule Training
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/dashboard/farmers/${farmer._id}`}>View Details</Link>
-                    </Button>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Farmer Actions</DialogTitle>
-                          <DialogDescription>Choose an action for {farmer.name}</DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-2">
-                          <Button variant="outline" className="w-full justify-start">
-                            <Mail className="w-4 h-4 mr-2" />
-                            Send Message
-                          </Button>
-                          <Button variant="outline" className="w-full justify-start">
-                            <TrendingUp className="w-4 h-4 mr-2" />
-                            View Performance
-                          </Button>
-                          <Button variant="outline" className="w-full justify-start">
-                            <Calendar className="w-4 h-4 mr-2" />
-                            Schedule Training
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : null}
               
               {getPaginatedFarmers().length === 0 && (
-                <div className="text-center py-8">
-                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No farmers found</p>
-                  <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
+                <div className="text-center py-6 sm:py-8">
+                  <Users className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground text-sm sm:text-base">No farmers found</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Try adjusting your search or filters</p>
                 </div>
               )}
             </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-6">
-                <p className="text-sm text-muted-foreground">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mt-4 sm:mt-6">
+                <p className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
                   Page {currentPage} of {totalPages}
                 </p>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-center space-x-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
+                    className="w-20 sm:w-auto"
                   >
-                    Previous
+                    <span className="hidden sm:inline">Previous</span>
+                    <span className="sm:hidden">←</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
+                    className="w-20 sm:w-auto"
                   >
-                    Next
+                    <span className="hidden sm:inline">Next</span>
+                    <span className="sm:hidden">→</span>
                   </Button>
                 </div>
               </div>

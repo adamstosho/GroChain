@@ -11,9 +11,28 @@ class ApiService {
     this.loadTokenFromStorage()
   }
 
+  private safeStringify(obj: any): string {
+    try {
+      return JSON.stringify(obj, null, 2)
+    } catch (error) {
+      // Handle circular references
+      const seen = new WeakSet()
+      return JSON.stringify(obj, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular Reference]'
+          }
+          seen.add(value)
+        }
+        return value
+      }, 2)
+    }
+  }
+
   private loadTokenFromStorage() {
     if (typeof window !== "undefined") {
       this.token = localStorage.getItem(APP_CONFIG.auth.tokenKey)
+      console.log('🔑 API Service - Token loaded from localStorage:', !!this.token)
     }
   }
 
@@ -57,9 +76,16 @@ class ApiService {
       headers["Authorization"] = `Bearer ${this.token}`
       console.log('🔑 Token included in request:', this.token.substring(0, 20) + '...')
     } else {
+      console.log('❌ No token available for request to:', endpoint)
       console.log('⚠️ No token found for request - this will cause 401 errors')
       console.log('Current token value:', this.token)
       console.log('Token from localStorage:', typeof window !== 'undefined' ? localStorage.getItem(APP_CONFIG.auth.tokenKey) : 'N/A')
+      console.log('Attempting to load token from storage...')
+      this.loadTokenFromStorage()
+      if (this.token && this.token !== 'undefined') {
+        headers["Authorization"] = `Bearer ${this.token}`
+        console.log('✅ Token recovered and added to request')
+      }
     }
 
     // If sending FormData, let the browser set the correct multipart boundary
@@ -110,7 +136,9 @@ class ApiService {
           endpoint,
           method: options.method || 'GET',
           errorMessage,
-          responseData: data,
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          responseData: this.safeStringify(data),
           hasAuth: !!headers.Authorization
         })
 
@@ -129,7 +157,7 @@ class ApiService {
 
         const err: any = new Error(errorMessage)
         err.status = response.status
-        err.payload = data
+        err.payload = this.safeStringify(data)
         err.endpoint = endpoint
         throw err
       }
@@ -736,6 +764,8 @@ class ApiService {
 
   async getFavorites(userId?: string, params: any = {}) {
     console.log('🔍 API: getFavorites called with userId:', userId)
+    console.log('🔑 API: Current token:', this.token ? 'Present' : 'Missing')
+    console.log('🔑 API: Token from localStorage:', typeof window !== 'undefined' ? localStorage.getItem('grochain_auth_token') ? 'Present' : 'Missing' : 'N/A')
 
     if (userId && userId !== 'undefined' && userId !== 'null') {
       console.log('📋 API: Using userId parameter:', userId)
@@ -878,6 +908,217 @@ class ApiService {
       return this.request(`/api/analytics/farmers/${farmerId}`)
     }
     return this.request('/api/analytics/farmers/me')
+  }
+
+  // Partner Dashboard Methods
+  async getPartnerDashboard() {
+    return this.request<{
+      totalFarmers: number
+      activeFarmers: number
+      pendingApprovals: number
+      monthlyCommission: number
+      totalCommission: number
+      approvalRate: number
+      recentActivity: Array<{
+        type: string
+        farmer?: string
+        amount?: number
+        timestamp: string
+        description: string
+      }>
+    }>("/api/partners/dashboard")
+  }
+
+  async getPartnerFarmers(params?: {
+    page?: number
+    limit?: number
+    status?: string
+    search?: string
+  }) {
+    const queryString = params ? new URLSearchParams(params).toString() : ''
+    return this.request<{
+      farmers: Array<{
+        _id: string
+        name: string
+        email: string
+        phone: string
+        location: string
+        status: 'active' | 'inactive' | 'pending'
+        joinedDate: string
+        totalHarvests: number
+        totalSales: number
+      }>
+      total: number
+      page: number
+      pages: number
+    }>(`/api/partners/farmers?${queryString}`)
+  }
+
+  async getPartnerMetrics() {
+    return this.request<{
+      totalFarmers: number
+      activeFarmers: number
+      inactiveFarmers: number
+      pendingFarmers: number
+      totalCommissions: number
+      monthlyCommissions: number
+      commissionRate: number
+      approvalRate: number
+      conversionRate: number
+      performanceMetrics: {
+        farmersOnboardedThisMonth: number
+        commissionsEarnedThisMonth: number
+        averageCommissionPerFarmer: number
+      }
+    }>("/api/partners/metrics")
+  }
+
+  async getPartnerCommission() {
+    return this.request<{
+      totalEarned: number
+      commissionRate: number
+      pendingAmount: number
+      paidAmount: number
+      lastPayout?: string
+      monthlyBreakdown: Array<{
+        month: string
+        amount: number
+      }>
+    }>("/api/partners/commission")
+  }
+
+  async uploadPartnerCSV(file: File) {
+    const formData = new FormData()
+    formData.append('csvFile', file)
+
+    return this.request<{
+      totalRows: number
+      successfulRows: number
+      failedRows: number
+      errors: Array<{
+        row: number
+        error: string
+      }>
+    }>("/api/partners/upload-csv", {
+      method: "POST",
+      body: formData,
+      headers: {} // Let browser set Content-Type for FormData
+    })
+  }
+
+  // Commission Management
+  async getCommissions(params?: {
+    page?: number
+    limit?: number
+    status?: string
+    farmerId?: string
+    startDate?: string
+    endDate?: string
+    sortBy?: string
+    sortOrder?: string
+  }) {
+    const queryString = params ? new URLSearchParams(params).toString() : ''
+    return this.request<{
+      commissions: Array<{
+        _id: string
+        farmer: {
+          _id: string
+          name: string
+          email: string
+        }
+        order: {
+          _id: string
+          orderNumber: string
+          total: number
+        }
+        amount: number
+        rate: number
+        status: 'pending' | 'approved' | 'paid' | 'cancelled'
+        paidAt?: string
+        notes?: string
+      }>
+      pagination: {
+        currentPage: number
+        totalPages: number
+        totalItems: number
+        itemsPerPage: number
+        hasNextPage: boolean
+        hasPrevPage: boolean
+      }
+    }>(`/api/commissions?${queryString}`)
+  }
+
+  async processCommissionPayout(data: {
+    commissionIds: string[]
+    payoutMethod: string
+    payoutDetails: any
+  }) {
+    return this.request('/api/commissions/payout', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  // Referral Management
+  async getReferrals(params?: {
+    page?: number
+    limit?: number
+    status?: string
+    farmerId?: string
+    sortBy?: string
+    sortOrder?: string
+  }) {
+    const queryString = params ? new URLSearchParams(params).toString() : ''
+    return this.request<{
+      docs: Array<{
+        _id: string
+        farmer: {
+          _id: string
+          name: string
+          email: string
+          phone: string
+          region: string
+        }
+        status: 'pending' | 'active' | 'completed' | 'cancelled' | 'expired'
+        referralCode: string
+        commissionRate: number
+        commission: number
+        commissionStatus: 'pending' | 'calculated' | 'paid' | 'cancelled'
+        performanceMetrics: {
+          totalTransactions: number
+          totalValue: number
+          averageOrderValue: number
+          customerRetention: number
+        }
+        expiresAt: string
+        isRenewable: boolean
+      }>
+      totalDocs: number
+      limit: number
+      page: number
+      totalPages: number
+      hasNextPage: boolean
+      hasPrevPage: boolean
+    }>(`/api/referrals?${queryString}`)
+  }
+
+  async createReferral(data: {
+    farmerId: string
+    commissionRate?: number
+    notes?: string
+  }) {
+    return this.request('/api/referrals', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async getReferralStats() {
+    return this.request('/api/referrals/stats/overview')
+  }
+
+  async getReferralPerformanceStats(period: string = 'month') {
+    return this.request(`/api/referrals/stats/performance?period=${period}`)
   }
 
 
@@ -1248,6 +1489,54 @@ class ApiService {
     return this.request<any>(`/api/referrals/${id}`, {
       method: 'DELETE'
     })
+  }
+
+  // QR Code Verification Methods
+  async verifyQRCode(batchId: string) {
+    return this.request<{
+      verified: boolean
+      batchId: string
+      cropType: string
+      harvestDate: string
+      quantity: number
+      unit: string
+      quality: string
+      location: any
+      farmer: string
+      status: string
+      message?: string
+    }>(`/api/verify/${batchId}`)
+  }
+
+  async getQRProvenance(batchId: string) {
+    return this.request<any>(`/api/verify/harvest/${batchId}`)
+  }
+
+  async getProductProvenance(productId: string) {
+    return this.request<any>(`/api/verify/product/${productId}`)
+  }
+
+  async recordQRScan(qrCodeId: string, scanData: any) {
+    return this.request<{ status: string; message: string }>('/api/qr-codes/scan', {
+      method: 'POST',
+      body: JSON.stringify({ qrCodeId, scanData })
+    })
+  }
+
+  async getQRCodeStats() {
+    return this.request<{
+      totalCodes: number
+      activeCodes: number
+      verifiedCodes: number
+      revokedCodes: number
+      expiredCodes: number
+      totalScans: number
+      totalDownloads: number
+      monthlyGrowth: number
+      monthlyTrend: any[]
+      recentActivity: any[]
+      lastUpdated: string
+    }>('/api/qr-codes/stats')
   }
 }
 

@@ -292,15 +292,40 @@ exports.processRefund = async (req, res) => {
 exports.getTransactionHistory = async (req, res) => {
   try {
     const userId = req.user.id
+    const userRole = req.user.role
     const { page = 1, limit = 20, type, status } = req.query
 
-    const query = { userId: userId }
+    let query = {}
+
+    if (userRole === 'farmer') {
+      // For farmers, show transactions where they are the seller
+      // First, get all orders where farmer is seller
+      const farmerOrders = await require('../models/order.model').find({ seller: userId }).select('_id')
+      const orderIds = farmerOrders.map(order => order._id)
+
+      // Also get all listings where farmer is the owner
+      const farmerListings = await require('../models/listing.model').find({ farmer: userId }).select('_id')
+      const listingIds = farmerListings.map(listing => listing._id)
+
+      query = {
+        $or: [
+          { orderId: { $in: orderIds } }, // Transactions for orders where farmer is seller
+          { listingId: { $in: listingIds } } // Transactions for listings where farmer is owner
+        ]
+      }
+    } else {
+      // For buyers, show their own transactions
+      query = { userId: userId }
+    }
+
     if (type) query.type = type
     if (status) query.status = status
 
     const transactions = await Transaction.find(query)
-      .populate('orderId', 'total status')
-      .populate('listingId', 'cropName')
+      .populate('orderId', 'total status buyer seller')
+      .populate('listingId', 'cropName farmer')
+      .populate('userId', 'name email') // Buyer info
+      .populate('listingId.farmer', 'name email') // Farmer info
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit)
@@ -320,6 +345,7 @@ exports.getTransactionHistory = async (req, res) => {
       }
     })
   } catch (error) {
+    console.error('Transaction history error:', error)
     return res.status(500).json({ status: 'error', message: 'Server error' })
   }
 }

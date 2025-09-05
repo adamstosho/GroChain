@@ -117,16 +117,31 @@ export default function ProductDetailPage() {
           const userFavorites = await apiService.getFavorites()
           console.log('📦 Product detail: Favorites response:', userFavorites)
 
-          const favoritesData = userFavorites.data?.data || userFavorites.data || []
+          // Handle the new API response structure: { status: 'success', data: { favorites: [...] } }
+          let favoritesData = []
+          if (userFavorites.data?.favorites) {
+            favoritesData = userFavorites.data.favorites
+          } else if (Array.isArray(userFavorites.data)) {
+            favoritesData = userFavorites.data
+          } else if (userFavorites.favorites) {
+            favoritesData = userFavorites.favorites
+          }
+          
           console.log('📋 Product detail: Favorites data structure:', favoritesData)
+          console.log('📋 Product detail: Is array?', Array.isArray(favoritesData))
 
-          const isFav = favoritesData.some((fav: any) =>
-            fav.listingId === productId ||
-            fav.listing?._id === productId ||
-            fav._id === productId
-          )
-          setIsFavorite(isFav || false)
-          console.log('💝 Product detail: Favorites status:', isFav, 'Favorites count:', favoritesData.length)
+          if (Array.isArray(favoritesData)) {
+            const isFav = favoritesData.some((fav: any) =>
+              fav.listingId === productId ||
+              fav.listing?._id === productId ||
+              fav._id === productId
+            )
+            setIsFavorite(isFav || false)
+            console.log('💝 Product detail: Favorites status:', isFav, 'Favorites count:', favoritesData.length)
+          } else {
+            console.warn('⚠️ Product detail: Favorites data is not an array:', typeof favoritesData)
+            setIsFavorite(false)
+          }
         } catch (favError) {
           console.error('❌ Product detail: Could not fetch favorites:', favError)
           console.error('Error details:', favError.response?.data || favError.message)
@@ -210,20 +225,16 @@ export default function ProductDetailPage() {
 
     try {
       if (isFavorite) {
-        // For removing favorites, we still need user ID
-        const userId = useBuyerStore.getState().getCurrentUserId()
-        if (userId) {
-          await apiService.removeFromFavorites(userId, product._id)
-        } else {
-          await apiService.removeFromFavorites('current', product._id)
-        }
+        // Use the buyer store method which handles user ID properly
+        await removeFromFavorites(product._id)
         setIsFavorite(false)
         toast({
           title: "Removed from Favorites",
           description: `${product.cropName || product.name || 'Product'} removed from your favorites`,
         })
       } else {
-        await apiService.addToFavorites(product._id, `Interested in ${product.cropName || product.name || 'product'}`)
+        // Use the buyer store method which handles user ID properly
+        await addToFavorites(product._id, `Interested in ${product.cropName || product.name || 'product'}`)
         setIsFavorite(true)
         toast({
           title: "Added to Favorites",

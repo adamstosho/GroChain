@@ -2,6 +2,8 @@ const User = require('../models/user.model')
 const Harvest = require('../models/harvest.model')
 const Transaction = require('../models/transaction.model')
 const FarmerProfile = require('../models/farmer-profile.model')
+const Order = require('../models/order.model')
+const Listing = require('../models/listing.model')
 
 const farmerController = {
   // Get farmer's own profile
@@ -261,36 +263,92 @@ const farmerController = {
   async getDashboardData(req, res) {
     try {
       const farmerId = req.user.id
-      
+
       // Get recent harvests
       const recentHarvests = await Harvest.find({ farmer: farmerId })
         .sort({ createdAt: -1 })
         .limit(5)
         .select('cropType quantity status createdAt')
-      
-      // Get earnings summary
-      const earnings = await Transaction.aggregate([
-        { $match: { farmer: farmerId, type: 'sale', status: 'completed' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ])
-      
+
       // Get harvest count
       const harvestCount = await Harvest.countDocuments({ farmer: farmerId })
-      
-      // Get pending harvests
-      const pendingHarvests = await Harvest.countDocuments({ 
-        farmer: farmerId, 
-        status: 'pending' 
+
+      // Get pending approvals (harvests awaiting approval + pending orders)
+      const pendingHarvests = await Harvest.countDocuments({
+        farmer: farmerId,
+        status: 'pending'
       })
-      
+
+      // Also count pending orders that need farmer approval
+      const pendingOrders = await Order.countDocuments({
+        seller: farmerId,
+        status: 'pending'
+      })
+
+      const pendingApprovals = pendingHarvests + pendingOrders
+
+      // Get active listings count
+      const activeListings = await Listing.countDocuments({
+        farmer: farmerId,
+        status: 'active'
+      })
+
+      // Calculate monthly revenue (current month)
+      const now = new Date()
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+
+      // Get orders for farmer's listings in current month
+      const monthlyOrders = await Order.find({
+        seller: farmerId,
+        status: { $in: ['paid', 'delivered'] },
+        createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+      }).populate('items.listing')
+
+      // Calculate monthly revenue
+      let monthlyRevenue = 0
+      monthlyOrders.forEach(order => {
+        order.items?.forEach(item => {
+          if (item.listing && item.listing.farmer && item.listing.farmer.toString() === farmerId.toString()) {
+            monthlyRevenue += item.total || 0
+          }
+        })
+      })
+
+      // Get total earnings (all time) - from orders where farmer is seller
+      const farmerOrders = await Order.find({
+        seller: farmerId,
+        status: { $in: ['paid', 'delivered'] }
+      }).select('_id')
+
+      const orderIds = farmerOrders.map(order => order._id)
+
+      const earnings = await Transaction.aggregate([
+        {
+          $match: {
+            $or: [
+              { orderId: { $in: orderIds } },
+              { type: 'commission', userId: farmerId }
+            ],
+            status: 'completed'
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ])
+
       const dashboardData = {
+        // Map to frontend expected fields
+        totalHarvests: harvestCount,
+        pendingApprovals: pendingApprovals,
+        activeListings: activeListings,
+        monthlyRevenue: monthlyRevenue,
+
+        // Additional data
         recentHarvests,
         totalEarnings: earnings[0]?.total || 0,
-        harvestCount,
-        pendingHarvests,
         lastUpdated: new Date()
       }
-      
+
       res.json({
         status: 'success',
         data: dashboardData

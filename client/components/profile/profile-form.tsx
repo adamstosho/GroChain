@@ -112,7 +112,7 @@ export function ProfileForm() {
       const response = await apiService.getMyProfile()
 
       if (response.status === 'success' && response.data) {
-        const profileData = response.data
+        const profileData = response.data as any
 
         // Handle different user roles
         if (user?.role === 'farmer') {
@@ -214,44 +214,44 @@ export function ProfileForm() {
       // Prepare update data based on user role
       let updateData: any = {}
 
-      if (user?.role === 'farmer') {
+      if (user?.role === 'farmer' && 'location' in profile) {
+        const farmerProfile = profile as FarmerProfile
         updateData = {
-          name: profile.name,
-          phone: profile.phone,
-          location: profile.location,
-          gender: profile.gender,
-          age: parseInt(profile.age) || undefined,
-          education: profile.education,
+          name: farmerProfile.name,
+          phone: farmerProfile.phone,
+          location: farmerProfile.location,
+          gender: farmerProfile.gender,
+          age: parseInt(farmerProfile.age) || undefined,
+          education: farmerProfile.education,
           profile: {
-            ...profile.profile,
-            bio: profile.bio,
-            address: profile.address,
-            city: profile.city,
-            state: profile.state,
-            country: profile.country,
-            postalCode: profile.postalCode,
-            avatar: profile.avatar,
-            farmSize: profile.farmSize,
-            experience: profile.experience,
-            certifications: profile.certifications
+            bio: farmerProfile.bio,
+            address: farmerProfile.address,
+            city: farmerProfile.city,
+            state: farmerProfile.state,
+            country: farmerProfile.country,
+            postalCode: farmerProfile.postalCode,
+            avatar: farmerProfile.avatar,
+            farmSize: farmerProfile.farmSize,
+            experience: farmerProfile.experience,
+            certifications: farmerProfile.certifications
           },
           preferences: {
-            ...profile.preferences,
-            cropTypes: profile.primaryCrops
+            cropTypes: farmerProfile.primaryCrops
           }
         }
-      } else if (user?.role === 'partner') {
+      } else if (user?.role === 'partner' && 'organization' in profile) {
+        const partnerProfile = profile as PartnerProfile
         // For partners, the structure might be different
         updateData = {
-          name: profile.name,
-          phone: profile.phone,
+          name: partnerProfile.name,
+          phone: partnerProfile.phone,
           profile: {
-            bio: profile.description,
-            address: profile.address?.street,
-            city: profile.address?.city,
-            state: profile.address?.state,
-            country: profile.address?.country,
-            postalCode: profile.address?.postalCode
+            bio: partnerProfile.description,
+            address: partnerProfile.address?.street,
+            city: partnerProfile.address?.city,
+            state: partnerProfile.address?.state,
+            country: partnerProfile.address?.country,
+            postalCode: partnerProfile.address?.postalCode
           }
         }
       }
@@ -261,13 +261,13 @@ export function ProfileForm() {
 
       if (response.status === 'success' && response.data) {
         // Update local state with the response
-        setProfile(response.data)
+        setProfile(response.data as any)
 
         // Update auth store if needed
         updateUser({
-          name: response.data.name,
-          email: response.data.email,
-          phone: response.data.phone
+          name: (response.data as any).name,
+          email: (response.data as any).email,
+          phone: (response.data as any).phone
         })
 
         toast({
@@ -317,6 +317,20 @@ export function ProfileForm() {
     return <FarmerProfileView />
   }
 
+  // Type guard to ensure we're working with a PartnerProfile
+  if (profile.role !== 'partner') {
+    return (
+      <div className="text-center py-8">
+        <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <h3 className="text-lg font-medium mb-2">Invalid profile type</h3>
+        <p className="text-muted-foreground">This profile is not configured for partners.</p>
+      </div>
+    )
+  }
+
+  // Now TypeScript knows profile is PartnerProfile
+  const partnerProfile = profile as PartnerProfile
+
   return (
     <div className="space-y-6">
       {/* Profile Header */}
@@ -324,22 +338,22 @@ export function ProfileForm() {
         <CardHeader className="pb-4">
           <div className="flex items-center space-x-4">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={profile.logo} alt={profile.name} />
+              <AvatarImage src={partnerProfile.logo} alt={partnerProfile.name || 'Profile'} />
               <AvatarFallback className="text-2xl">
-                {profile.name.split(' ').map(n => n[0]).join('')}
+                {(partnerProfile.name || '').split(' ').map(n => n[0]).join('') || 'U'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <CardTitle className="text-2xl">{profile.name}</CardTitle>
+              <CardTitle className="text-2xl">{partnerProfile.name}</CardTitle>
               <CardDescription className="text-lg">
-                {profile.organization} • {profile.organizationType.replace('_', ' ')}
+                {partnerProfile.organization || 'No organization'} {partnerProfile.organizationType && `• ${partnerProfile.organizationType.replace('_', ' ')}`}
               </CardDescription>
               <div className="flex items-center space-x-2 mt-2">
-                <Badge variant={profile.status === 'active' ? 'default' : 'secondary'}>
-                  {profile.status}
+                <Badge variant={partnerProfile.status === 'active' ? 'default' : 'secondary'}>
+                  {partnerProfile.status || 'unknown'}
                 </Badge>
                 <Badge variant="outline">
-                  Partner since {new Date(profile.createdAt).getFullYear()}
+                  Partner since {partnerProfile.createdAt ? new Date(partnerProfile.createdAt).getFullYear() : 'N/A'}
                 </Badge>
               </div>
             </div>
@@ -381,8 +395,8 @@ export function ProfileForm() {
               <Label htmlFor="name">Full Name</Label>
               <Input
                 id="name"
-                value={profile.name}
-                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                value={partnerProfile.name}
+                onChange={(e) => setProfile({ ...partnerProfile, name: e.target.value })}
                 disabled={!isEditing}
               />
             </div>
@@ -391,8 +405,8 @@ export function ProfileForm() {
               <Input
                 id="email"
                 type="email"
-                value={profile.email}
-                onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                value={partnerProfile.email}
+                onChange={(e) => setProfile({ ...partnerProfile, email: e.target.value })}
                 disabled={!isEditing}
               />
             </div>
@@ -400,8 +414,8 @@ export function ProfileForm() {
               <Label htmlFor="phone">Phone Number</Label>
               <Input
                 id="phone"
-                value={profile.phone}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                value={partnerProfile.phone}
+                onChange={(e) => setProfile({ ...partnerProfile, phone: e.target.value })}
                 disabled={!isEditing}
               />
             </div>
@@ -409,8 +423,8 @@ export function ProfileForm() {
               <Label htmlFor="website">Website</Label>
               <Input
                 id="website"
-                value={profile.website || ''}
-                onChange={(e) => setProfile({ ...profile, website: e.target.value })}
+                value={partnerProfile.website || ''}
+                onChange={(e) => setProfile({ ...partnerProfile, website: e.target.value })}
                 disabled={!isEditing}
                 placeholder="https://example.com"
               />
@@ -420,8 +434,8 @@ export function ProfileForm() {
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
-              value={profile.description || ''}
-              onChange={(e) => setProfile({ ...profile, description: e.target.value })}
+              value={partnerProfile.description || ''}
+              onChange={(e) => setProfile({ ...partnerProfile, description: e.target.value })}
               disabled={!isEditing}
               placeholder="Tell us about your organization..."
               rows={3}
@@ -442,51 +456,51 @@ export function ProfileForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="street">Street Address</Label>
-              <Input
-                id="street"
-                value={profile.address.street}
-                onChange={(e) => setProfile({
-                  ...profile,
-                  address: { ...profile.address, street: e.target.value }
-                })}
-                disabled={!isEditing}
-              />
+                             <Input
+                 id="street"
+                 value={profile.address?.street || ''}
+                 onChange={(e) => setProfile({
+                   ...profile,
+                   address: { ...profile.address, street: e.target.value }
+                 })}
+                 disabled={!isEditing}
+               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="city">City</Label>
-              <Input
-                id="city"
-                value={profile.address.city}
-                onChange={(e) => setProfile({
-                  ...profile,
-                  address: { ...profile.address, city: e.target.value }
-                })}
-                disabled={!isEditing}
-              />
+                             <Input
+                 id="city"
+                 value={profile.address?.city || ''}
+                 onChange={(e) => setProfile({
+                   ...profile,
+                   address: { ...profile.address, city: e.target.value }
+                 })}
+                 disabled={!isEditing}
+               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="state">State</Label>
-              <Input
-                id="state"
-                value={profile.address.state}
-                onChange={(e) => setProfile({
-                  ...profile,
-                  address: { ...profile.address, state: e.target.value }
-                })}
-                disabled={!isEditing}
-              />
+                             <Input
+                 id="state"
+                 value={profile.address?.state || ''}
+                 onChange={(e) => setProfile({
+                   ...profile,
+                   address: { ...profile.address, state: e.target.value }
+                 })}
+                 disabled={!isEditing}
+               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="postalCode">Postal Code</Label>
-              <Input
-                id="postalCode"
-                value={profile.address.postalCode}
-                onChange={(e) => setProfile({
-                  ...profile,
-                  address: { ...profile.address, postalCode: e.target.value }
-                })}
-                disabled={!isEditing}
-              />
+                             <Input
+                 id="postalCode"
+                 value={profile.address?.postalCode || ''}
+                 onChange={(e) => setProfile({
+                   ...profile,
+                   address: { ...profile.address, postalCode: e.target.value }
+                 })}
+                 disabled={!isEditing}
+               />
             </div>
           </div>
         </CardContent>
@@ -514,7 +528,7 @@ export function ProfileForm() {
             <div className="space-y-2">
               <Label htmlFor="organizationType">Organization Type</Label>
               <Select
-                value={profile.organizationType}
+                value={profile.organizationType || ''}
                 onValueChange={(value: any) => setProfile({ ...profile, organizationType: value })}
                 disabled={!isEditing}
               >
@@ -541,7 +555,7 @@ export function ProfileForm() {
                 <Label htmlFor="contactName">Name</Label>
                 <Input
                   id="contactName"
-                  value={profile.contactPerson.name}
+                  value={profile.contactPerson?.name || ''}
                   onChange={(e) => setProfile({
                     ...profile,
                     contactPerson: { ...profile.contactPerson, name: e.target.value }
@@ -553,7 +567,7 @@ export function ProfileForm() {
                 <Label htmlFor="contactPosition">Position</Label>
                 <Input
                   id="contactPosition"
-                  value={profile.contactPerson.position}
+                  value={profile.contactPerson?.position || ''}
                   onChange={(e) => setProfile({
                     ...profile,
                     contactPerson: { ...profile.contactPerson, position: e.target.value }
@@ -565,7 +579,7 @@ export function ProfileForm() {
                 <Label htmlFor="contactPhone">Phone</Label>
                 <Input
                   id="contactPhone"
-                  value={profile.contactPerson.phone}
+                  value={profile.contactPerson?.phone || ''}
                   onChange={(e) => setProfile({
                     ...profile,
                     contactPerson: { ...profile.contactPerson, phone: e.target.value }
@@ -578,7 +592,7 @@ export function ProfileForm() {
                 <Input
                   id="contactEmail"
                   type="email"
-                  value={profile.contactPerson.email}
+                  value={profile.contactPerson?.email || ''}
                   onChange={(e) => setProfile({
                     ...profile,
                     contactPerson: { ...profile.contactPerson, email: e.target.value }
@@ -602,11 +616,11 @@ export function ProfileForm() {
                       <input
                         type="checkbox"
                         id={service}
-                        checked={profile.services.includes(service.toLowerCase())}
+                        checked={(profile.services || []).includes(service.toLowerCase())}
                         onChange={(e) => {
                           const newServices = e.target.checked
-                            ? [...profile.services, service.toLowerCase()]
-                            : profile.services.filter(s => s !== service.toLowerCase())
+                            ? [...(profile.services || []), service.toLowerCase()]
+                            : (profile.services || []).filter(s => s !== service.toLowerCase())
                           setProfile({ ...profile, services: newServices })
                         }}
                         disabled={!isEditing}
@@ -619,7 +633,7 @@ export function ProfileForm() {
               <div className="space-y-2">
                 <Label>Coverage Areas</Label>
                 <Textarea
-                  value={profile.coverageAreas.join(', ')}
+                  value={(profile.coverageAreas || []).join(', ')}
                   onChange={(e) => setProfile({
                     ...profile,
                     coverageAreas: e.target.value.split(',').map(area => area.trim()).filter(Boolean)
@@ -656,7 +670,7 @@ function FarmerProfileView() {
       const response = await apiService.getMyProfile()
 
       if (response.status === 'success' && response.data) {
-        const profileData = response.data
+        const profileData = response.data as any
         const farmerProfile: FarmerProfile = {
           _id: profileData._id,
           name: profileData.name,
@@ -738,11 +752,11 @@ function FarmerProfileView() {
       const response = await apiService.updateMyProfile(updateData)
 
       if (response.status === 'success' && response.data) {
-        setProfile(response.data)
+        setProfile(response.data as any)
         updateUser({
-          name: response.data.name,
-          email: response.data.email,
-          phone: response.data.phone
+          name: (response.data as any).name,
+          email: (response.data as any).email,
+          phone: (response.data as any).phone
         })
 
         toast({

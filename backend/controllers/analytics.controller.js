@@ -122,30 +122,114 @@ exports.getFarmerAnalytics = async (req, res) => {
     if (!farmer || farmer.role !== 'farmer') {
       return res.status(404).json({ status: 'error', message: 'Farmer not found' })
     }
-    
+
     // Get farmer's harvests
     const harvests = await Harvest.find({ farmer: farmerId })
     const approvedHarvests = harvests.filter(h => h.status === 'approved')
-    
+
     // Get farmer's listings
     const listings = await Listing.find({ farmer: farmerId })
-    
-    // Get farmer's orders (as seller)
-    const orders = await Order.find({ 
-      'items.listing': { $in: listings.map(l => l._id) }
+
+    // Get farmer's orders (as seller) - correctly calculate revenue from payments
+    const listingIds = listings.map(l => l._id)
+    const orders = await Order.find({
+      'items.listing': { $in: listingIds },
+      status: { $in: ['paid', 'delivered'] } // Only include paid orders for revenue calculation
+    }).populate('items.listing')
+
+    // Calculate total revenue from paid orders where farmer is the seller
+    let totalRevenue = 0
+    let totalOrders = 0
+
+    orders.forEach(order => {
+      if (order.status === 'paid' || order.status === 'delivered') {
+        // Sum up revenue from this farmer's listings in the order
+        let farmerOrderRevenue = 0
+        order.items?.forEach(item => {
+          if (item.listing && listingIds.includes(item.listing._id)) {
+            farmerOrderRevenue += item.total || 0
+          }
+        })
+        totalRevenue += farmerOrderRevenue
+        totalOrders += 1
+      }
     })
-    
+
+    // Calculate monthly trends for charts
+    const monthlyTrends = []
+    const currentDate = new Date()
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setMonth(currentDate.getMonth() - 6)
+
+    // Group orders by month for revenue trends
+    const revenueByMonth = {}
+    orders.forEach(order => {
+      if (order.createdAt >= sixMonthsAgo) {
+        const monthKey = order.createdAt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        if (!revenueByMonth[monthKey]) {
+          revenueByMonth[monthKey] = 0
+        }
+        // Sum up revenue from this farmer's listings in the order
+        let farmerOrderRevenue = 0
+        order.items?.forEach(item => {
+          if (item.listing && listingIds.includes(item.listing._id)) {
+            farmerOrderRevenue += item.total || 0
+          }
+        })
+        revenueByMonth[monthKey] += farmerOrderRevenue
+      }
+    })
+
+    // Group harvests by month for harvest trends
+    const harvestsByMonth = {}
+    const qualityByMonth = {}
+
+    harvests.forEach(harvest => {
+      if (harvest.createdAt >= sixMonthsAgo) {
+        const monthKey = harvest.createdAt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        if (!harvestsByMonth[monthKey]) {
+          harvestsByMonth[monthKey] = 0
+          qualityByMonth[monthKey] = []
+        }
+        harvestsByMonth[monthKey] += 1
+        // Assume quality score based on approval status (you can enhance this)
+        qualityByMonth[monthKey].push(harvest.status === 'approved' ? 85 : 70)
+      }
+    })
+
+    // Create monthly trends array
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
+      const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+
+      const harvests = harvestsByMonth[monthKey] || 0
+      const revenue = revenueByMonth[monthKey] || 0
+      const qualityScores = qualityByMonth[monthKey] || []
+      const quality = qualityScores.length > 0
+        ? qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length
+        : 75 // Default quality score
+
+      monthlyTrends.push({
+        month: monthKey,
+        harvests: harvests,
+        revenue: revenue,
+        quality: Math.round(quality)
+      })
+    }
+
     // Calculate metrics
     const metrics = {
       totalHarvests: harvests.length,
       approvedHarvests: approvedHarvests.length,
       approvalRate: harvests.length > 0 ? Math.round((approvedHarvests.length / harvests.length) * 100) : 0,
       totalListings: listings.length,
-      totalOrders: orders.length,
-      totalRevenue: orders.reduce((sum, order) => sum + order.total, 0),
-      averageHarvestQuantity: harvests.length > 0 ? harvests.reduce((sum, h) => sum + h.quantity, 0) / harvests.length : 0
+      totalOrders: totalOrders, // Only count orders where farmer is seller
+      totalRevenue: totalRevenue, // Only count revenue from farmer's sales
+      averageHarvestQuantity: harvests.length > 0 ? harvests.reduce((sum, h) => sum + h.quantity, 0) / harvests.length : 0,
+      // Add monthly trends for better chart data
+      monthlyTrends: monthlyTrends
     }
-    
+
     return res.json({ status: 'success', data: metrics })
   } catch (error) {
     return res.status(500).json({ status: 'error', message: 'Server error' })

@@ -95,11 +95,17 @@ export function FarmerAnalytics() {
       setError(null)
       if (!period) setIsLoading(true)
 
-      const [farmerAnalytics, marketplaceAnalytics, creditScore] = await Promise.all([
+      const [farmerAnalytics, creditScore] = await Promise.all([
         apiService.getFarmerAnalytics(),
-        apiService.getFarmerAnalytics().catch(() => null), // Optional marketplace data
         apiService.getMyCreditScore().catch(() => ({ data: { creditScore: 0 } }))
       ])
+
+      // Debug: Log the raw API response
+      console.log('🔍 Analytics API Response:', {
+        status: farmerAnalytics.status,
+        data: farmerAnalytics.data,
+        creditScore: creditScore.data?.creditScore
+      })
 
       // Process and combine the data
       const combinedData: FarmerAnalyticsData = {
@@ -113,13 +119,23 @@ export function FarmerAnalytics() {
         },
         monthlyTrends: farmerAnalytics.data.monthlyTrends || [],
         cropDistribution: farmerAnalytics.data.cropDistribution || [],
-        marketplaceStats: marketplaceAnalytics?.data || {
-          activeListings: 0,
+        marketplaceStats: {
+          activeListings: farmerAnalytics.data.totalListings || 0,
           totalViews: 0,
-          conversionRate: 0,
+          conversionRate: farmerAnalytics.data.totalOrders && farmerAnalytics.data.totalListings
+            ? Math.round((farmerAnalytics.data.totalOrders / farmerAnalytics.data.totalListings) * 100)
+            : 0,
           topProducts: []
         }
       }
+
+      // Debug: Log the processed data
+      console.log('📊 Processed Analytics Data:', {
+        totalRevenue: combinedData.totalRevenue,
+        totalOrders: combinedData.totalOrders,
+        totalHarvests: combinedData.totalHarvests,
+        totalListings: combinedData.totalListings
+      })
 
       setAnalyticsData(combinedData)
     } catch (error: any) {
@@ -407,6 +423,16 @@ export function FarmerAnalytics() {
     return <LoadingSkeleton />
   }
 
+  // Debug: Show data status
+  if (analyticsData) {
+    console.log('✅ Analytics data loaded:', {
+      hasRevenue: (analyticsData.totalRevenue || 0) > 0,
+      revenue: analyticsData.totalRevenue,
+      orders: analyticsData.totalOrders,
+      harvests: analyticsData.totalHarvests
+    })
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -520,6 +546,11 @@ export function FarmerAnalytics() {
               <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
               {analyticsData?.totalOrders || 0} orders completed
             </div>
+            {(analyticsData?.totalRevenue || 0) === 0 && (
+              <div className="text-xs text-amber-600 mt-1">
+                💡 Start selling to see revenue here
+              </div>
+            )}
           </CardContent>
           <div className="absolute top-0 right-0 w-16 h-16 bg-green-50 rounded-bl-full opacity-20" />
         </Card>

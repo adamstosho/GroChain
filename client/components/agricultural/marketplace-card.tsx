@@ -134,36 +134,58 @@ export function MarketplaceCard({
 
   if (variant === "compact") {
     return (
-      <Card className={cn("hover:shadow-md transition-shadow cursor-pointer overflow-hidden", className)}>
-        <CardContent className="p-3">
-          <div className="flex items-center space-x-3">
-            <div className="relative flex-shrink-0">
+      <Card className={cn("hover:shadow-md transition-shadow cursor-pointer overflow-hidden h-full", className)}>
+        <CardContent className="p-3 h-full">
+          <div className="flex flex-col h-full">
+            {/* Image and badges */}
+            <div className="relative mb-3">
               <img
                 src={product.images[0]}
                 alt={product.name}
-                className="w-12 h-12 object-cover rounded-lg"
+                className="w-full h-20 object-cover rounded-lg"
               />
               {product.organic && (
-                <Badge className="absolute -top-1 -right-1 text-xs px-1 py-0 bg-green-600 text-white">
+                <Badge className="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 bg-green-600 text-white">
                   Organic
                 </Badge>
               )}
+              <Badge className={cn("absolute top-1 right-1 text-[10px] px-1.5 py-0.5", gradeColors[product.grade])}>
+                Grade {product.grade}
+              </Badge>
             </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-sm truncate">{product.name}</h4>
-              <p className="text-xs text-muted-foreground truncate">
-                {product.farmer.name} • {typeof product.location === 'string' ? product.location.split(',')[0] : product.location?.city || 'Unknown'}
-              </p>
-              <div className="flex items-center justify-between mt-1">
-                <Badge variant="outline" className={cn("text-xs px-1 py-0", gradeColors[product.grade])}>
-                  Grade {product.grade}
-                </Badge>
-                <span className="text-sm font-bold text-green-600">₦{product.price.toLocaleString()}</span>
+
+            {/* Product Info */}
+            <div className="flex-1 space-y-2">
+              <div>
+                <h4 className="font-semibold text-sm line-clamp-1">{product.name}</h4>
+                <p className="text-xs text-muted-foreground line-clamp-1">
+                  by {product.farmer.name}
+                </p>
+              </div>
+
+              {/* Location */}
+              <div className="flex items-center text-xs text-muted-foreground">
+                <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                <span className="truncate">
+                  {typeof product.location === 'string' ? product.location.split(',')[0] : product.location?.city || 'Unknown'}
+                </span>
+              </div>
+
+              {/* Price and Action */}
+              <div className="flex items-center justify-between pt-2 border-t">
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-green-600">₦{product.price.toLocaleString()}</span>
+                  <span className="text-[10px] text-muted-foreground">per {product.unit}</span>
+                </div>
+                <Button 
+                  size="sm" 
+                  className="h-7 w-7 p-0 bg-green-600 hover:bg-green-700 flex-shrink-0" 
+                  onClick={handleAddToCart}
+                >
+                  <ShoppingCart className="h-3 w-3" />
+                </Button>
               </div>
             </div>
-            <Button size="sm" className="flex-shrink-0 h-8 w-8 p-0" onClick={handleAddToCart}>
-              <ShoppingCart className="h-3 w-3" />
-            </Button>
           </div>
         </CardContent>
       </Card>

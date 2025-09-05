@@ -37,8 +37,34 @@ favoriteSchema.virtual('favoriteCount').get(function() {
 })
 
 // Ensure virtual fields are serialized
-favoriteSchema.set('toJSON', { virtuals: true })
-favoriteSchema.set('toObject', { virtuals: true })
+favoriteSchema.set('toJSON', { 
+  virtuals: true,
+  transform: function(doc, ret) {
+    // Remove circular references and unnecessary fields
+    delete ret.__v
+    if (ret.listing && ret.listing.farmer) {
+      delete ret.listing.farmer.__v
+    }
+    if (ret.listing && ret.listing.harvest) {
+      delete ret.listing.harvest.__v
+    }
+    return ret
+  }
+})
+favoriteSchema.set('toObject', { 
+  virtuals: true,
+  transform: function(doc, ret) {
+    // Remove circular references and unnecessary fields
+    delete ret.__v
+    if (ret.listing && ret.listing.farmer) {
+      delete ret.listing.farmer.__v
+    }
+    if (ret.listing && ret.listing.harvest) {
+      delete ret.listing.harvest.__v
+    }
+    return ret
+  }
+})
 
 // Static method to get user favorites with pagination
 favoriteSchema.statics.getUserFavorites = function(userId, page = 1, limit = 20) {

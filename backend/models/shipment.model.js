@@ -53,7 +53,7 @@ const ShipmentSchema = new mongoose.Schema({
     required: true 
   },
   carrier: { type: String, required: true },
-  trackingNumber: { type: String, unique: true, sparse: true },
+  trackingNumber: { type: String, sparse: true },
   estimatedDelivery: { type: Date, required: true },
   actualDelivery: { type: Date },
   
@@ -155,7 +155,7 @@ ShipmentSchema.index({ order: 1 })
 ShipmentSchema.index({ buyer: 1 })
 ShipmentSchema.index({ seller: 1 })
 ShipmentSchema.index({ status: 1 })
-ShipmentSchema.index({ trackingNumber: 1 })
+ShipmentSchema.index({ trackingNumber: 1 }, { unique: true, sparse: true })
 ShipmentSchema.index({ estimatedDelivery: 1 })
 ShipmentSchema.index({ 'origin.coordinates': '2dsphere' })
 ShipmentSchema.index({ 'destination.coordinates': '2dsphere' })

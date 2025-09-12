@@ -4,8 +4,8 @@ const User = require('../models/user.model')
 const bcrypt = require('bcryptjs')
 
 const client = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID || '960943486355-8s5eh1p3k1svarjcvhfue2uss0nd8uof.apps.googleusercontent.com',
-  process.env.GOOGLE_CLIENT_SECRET || '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',
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
   process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/auth/google/callback'
 )
 
@@ -35,7 +35,7 @@ const googleAuthController = {
       // Get user info from Google
       const ticket = await client.verifyIdToken({
         idToken: tokens.id_token,
-        audience: process.env.GOOGLE_CLIENT_ID || '960943486355-8s5eh1p3k1svarjcvhfue2uss0nd8uof.apps.googleusercontent.com'
+        audience: process.env.GOOGLE_CLIENT_ID
       })
 
       const payload = ticket.getPayload()

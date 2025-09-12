@@ -17,10 +17,6 @@ const nextConfig = {
   },
   // Silence the warning about multiple lockfiles in monorepo
   outputFileTracingRoot: path.join(__dirname, '../../'),
-  // Ensure proper module resolution
-  experimental: {
-    esmExternals: 'loose',
-  },
   // Webpack configuration for better module resolution
   webpack: (config, { isServer }) => {
     // Add path resolution for @ alias

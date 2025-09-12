@@ -23,7 +23,7 @@ router.post('/bulk-sync', ctrl.bulkSyncOrders)
 router.get('/transactions', ctrl.getTransactionHistory)
 
 // Payment verification routes
-router.post('/verify-payment/:reference', require('../payment-verifier').verifyPaymentHandler)
+router.post('/verify-payment/:reference', ctrl.verifyPayment)
 
 
 // Payment Methods Management

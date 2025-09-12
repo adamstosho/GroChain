@@ -1,7 +1,0 @@
-  location: {
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    country: { type: String, default: 'Nigeria' },
-    // Explicitly exclude from geospatial indexing
-    coordinates: { type: [Number], index: false }
-  },

@@ -29,9 +29,22 @@ export function useReferrals() {
     try {
       setIsLoading(true)
       const result = await referralService.getReferrals(filters)
-      setReferrals(result.referrals)
-      setPagination(result.pagination)
+      setReferrals(result.referrals || [])
+      setPagination(result.pagination || {
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: 0,
+        itemsPerPage: 20
+      })
     } catch (error: any) {
+      console.error('❌ Failed to fetch referrals:', error)
+      setReferrals([])
+      setPagination({
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: 0,
+        itemsPerPage: 20
+      })
       toast({
         title: "Error loading referrals",
         description: error.message || "Failed to load referrals",
@@ -49,6 +62,18 @@ export function useReferrals() {
       setStats(statsData)
     } catch (error: any) {
       console.error('Failed to fetch referral stats:', error)
+      // Set default stats to prevent undefined errors
+      setStats({
+        totalReferrals: 0,
+        pendingReferrals: 0,
+        activeReferrals: 0,
+        completedReferrals: 0,
+        conversionRate: 0,
+        monthlyGrowth: 0,
+        averageCommission: 0,
+        statusBreakdown: [],
+        performanceData: []
+      })
     }
   }, [])
 

@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, CheckCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, CheckCircle, RefreshCw, Key } from 'lucide-react'
 import { isStorageAvailable, safeStorage } from '@/lib/utils'
+import { APP_CONFIG } from '@/lib/constants'
+import { NotificationDemo } from '@/components/notifications/notification-demo'
+import { WebSocketTest } from '@/components/debug/websocket-test'
 
 export default function DebugPage() {
   const [storageStatus, setStorageStatus] = useState<{
@@ -15,6 +18,19 @@ export default function DebugPage() {
   }>({ localStorage: false, sessionStorage: false, cookies: false })
 
   const [datadogErrors, setDatadogErrors] = useState<string[]>([])
+  const [authStatus, setAuthStatus] = useState<{
+    hasToken: boolean
+    tokenLength: number
+    hasRefreshToken: boolean
+    hasAuthData: boolean
+    authData: any
+  }>({
+    hasToken: false,
+    tokenLength: 0,
+    hasRefreshToken: false,
+    hasAuthData: false,
+    authData: null
+  })
 
   useEffect(() => {
     // Check storage availability
@@ -36,6 +52,21 @@ export default function DebugPage() {
       sessionStorage: sessionAvailable,
       cookies: cookiesAvailable
     })
+
+    // Check authentication status
+    if (localAvailable) {
+      const token = localStorage.getItem(APP_CONFIG.auth.tokenKey)
+      const refreshToken = localStorage.getItem(APP_CONFIG.auth.refreshTokenKey)
+      const authData = localStorage.getItem('grochain-auth')
+
+      setAuthStatus({
+        hasToken: !!token,
+        tokenLength: token ? token.length : 0,
+        hasRefreshToken: !!refreshToken,
+        hasAuthData: !!authData,
+        authData: authData ? JSON.parse(authData) : null
+      })
+    }
 
     // Listen for Datadog errors
     const originalWarn = console.warn
@@ -80,6 +111,66 @@ export default function DebugPage() {
       window.location.reload()
     } catch (e) {
       console.error('Error clearing storage:', e)
+    }
+  }
+
+  const testApiCall = async () => {
+    const token = localStorage.getItem(APP_CONFIG.auth.tokenKey)
+    if (!token) {
+      alert('No token found. Please login first.')
+      return
+    }
+
+    try {
+      const response = await fetch('http://localhost:5000/api/partners/dashboard', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      const data = await response.json()
+      console.log('API Test Response:', response.status, data)
+
+      if (response.ok) {
+        alert('✅ API call successful!')
+      } else {
+        alert(`❌ API call failed: ${response.status} - ${data.message || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('API Test Error:', error)
+      alert(`❌ API call error: ${error.message}`)
+    }
+  }
+
+  const testFarmersApi = async () => {
+    const token = localStorage.getItem(APP_CONFIG.auth.tokenKey)
+    if (!token) {
+      alert('No token found. Please login first.')
+      return
+    }
+
+    try {
+      const response = await fetch('http://localhost:5000/api/partners/farmers', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      const data = await response.json()
+      console.log('Farmers API Test Response:', response.status, data)
+
+      if (response.ok) {
+        alert(`✅ Farmers API call successful! Found ${data.data?.total || 0} farmers`)
+      } else {
+        alert(`❌ Farmers API call failed: ${response.status} - ${data.message || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Farmers API Test Error:', error)
+      alert(`❌ Farmers API call error: ${error.message}`)
     }
   }
 
@@ -137,6 +228,73 @@ export default function DebugPage() {
             </Button>
             <Button onClick={clearAllStorage} variant="destructive">
               Clear All Storage
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Authentication Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            Authentication Status
+            {authStatus.hasToken ? (
+              <CheckCircle className="h-5 w-5 text-green-500" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-red-500" />
+            )}
+          </CardTitle>
+          <CardDescription>Check authentication tokens and user session</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between p-3 border rounded">
+              <span>Access Token</span>
+              <Badge variant={authStatus.hasToken ? 'default' : 'destructive'}>
+                {authStatus.hasToken ? `${authStatus.tokenLength} chars` : 'Missing'}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between p-3 border rounded">
+              <span>Refresh Token</span>
+              <Badge variant={authStatus.hasRefreshToken ? 'default' : 'destructive'}>
+                {authStatus.hasRefreshToken ? 'Present' : 'Missing'}
+              </Badge>
+            </div>
+          </div>
+
+          {authStatus.authData && (
+            <div className="p-3 bg-gray-50 border rounded">
+              <h4 className="font-semibold text-sm mb-2">Auth Store Data</h4>
+              <pre className="text-xs text-gray-700 overflow-auto max-h-32">
+                {JSON.stringify(authStatus.authData, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={testApiCall} variant="default">
+              Test Dashboard API
+            </Button>
+            <Button onClick={testFarmersApi} variant="default">
+              Test Farmers API
+            </Button>
+            <Button
+              onClick={() => {
+                localStorage.removeItem(APP_CONFIG.auth.tokenKey)
+                localStorage.removeItem(APP_CONFIG.auth.refreshTokenKey)
+                localStorage.removeItem('grochain-auth')
+                window.location.reload()
+              }}
+              variant="destructive"
+            >
+              Clear Auth Data
+            </Button>
+            <Button
+              onClick={() => window.location.href = '/login'}
+              variant="outline"
+            >
+              Go to Login
             </Button>
           </div>
         </CardContent>
@@ -210,6 +368,16 @@ export default function DebugPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Notification Demo */}
+      <div className="flex justify-center">
+        <NotificationDemo />
+      </div>
+
+      {/* WebSocket Test */}
+      <div className="flex justify-center">
+        <WebSocketTest />
+      </div>
 
       {/* Browser Info */}
       <Card>

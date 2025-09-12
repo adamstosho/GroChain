@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useToast } from "@/hooks/use-toast"
+import { APP_CONFIG } from "@/lib/constants"
 import { 
   ArrowLeft, 
   UserPlus, 
@@ -96,20 +97,53 @@ export default function AddFarmerPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
 
     try {
       setIsSubmitting(true)
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
+
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'
+      const token = localStorage.getItem(APP_CONFIG.auth.tokenKey)
+      if (!token) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in again to continue",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const response = await fetch(`${apiBaseUrl}/api/partners/farmers/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          location: formData.location,
+          address: formData.address,
+          farmSize: formData.farmSize,
+          primaryCrops: formData.primaryCrops,
+          experience: formData.experience,
+          notes: formData.notes
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || `Failed to add farmer (${response.status})`)
+      }
+
       toast({
         title: "Farmer added successfully!",
-        description: `${formData.name} has been onboarded to your network`,
+        description: `${formData.name} has been onboarded to your network and welcome email sent`,
       })
 
       // Reset form
@@ -125,7 +159,7 @@ export default function AddFarmerPage() {
         notes: ""
       })
       setErrors({})
-      
+
     } catch (error: any) {
       toast({
         title: "Failed to add farmer",
@@ -141,7 +175,7 @@ export default function AddFarmerPage() {
     "Lagos", "Abuja", "Kano", "Kaduna", "Ondo", "Oyo", "Rivers", "Delta", "Edo", "Imo",
     "Anambra", "Enugu", "Ebonyi", "Abia", "Cross River", "Akwa Ibom", "Bayelsa", "Sokoto",
     "Zamfara", "Kebbi", "Niger", "Kwara", "Plateau", "Nasarawa", "Taraba", "Adamawa",
-    "Borno", "Yobe", "Gombe", "Bauchi", "Jigawa", "Katsina", "Kano", "Kaduna"
+    "Borno", "Yobe", "Gombe", "Bauchi", "Jigawa", "Katsina"
   ]
 
   const experienceLevels = [
@@ -172,7 +206,7 @@ export default function AddFarmerPage() {
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Form */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -189,7 +223,7 @@ export default function AddFarmerPage() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium">Basic Information</h3>
                     
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="name">Full Name *</Label>
                         <Input
@@ -226,7 +260,7 @@ export default function AddFarmerPage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="phone">Phone Number *</Label>
                         <Input
@@ -283,7 +317,7 @@ export default function AddFarmerPage() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium">Farming Information</h3>
                     
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="farmSize">Farm Size *</Label>
                         <Input
@@ -348,11 +382,11 @@ export default function AddFarmerPage() {
                   </div>
 
                   {/* Submit Button */}
-                  <div className="flex items-center justify-end space-x-2 pt-4">
-                    <Button variant="outline" asChild>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
+                    <Button variant="outline" asChild className="w-full sm:w-auto">
                       <Link href="/dashboard/farmers">Cancel</Link>
                     </Button>
-                    <Button type="submit" disabled={isSubmitting}>
+                    <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
                       {isSubmitting ? (
                         <>
                           <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
@@ -372,7 +406,7 @@ export default function AddFarmerPage() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-6 lg:col-span-1">
             {/* Quick Tips */}
             <Card>
               <CardHeader>

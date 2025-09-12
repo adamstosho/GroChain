@@ -13,9 +13,9 @@
   --secondary: oklch(0.75 0.12 85); /* Golden Yellow */
   --secondary-foreground: oklch(0.15 0.02 120);
   --muted: oklch(0.96 0.01 120);
-  --muted-foreground: oklch(0.45 0.02 120);
-  --accent: oklch(0.4 0.08 45); /* Earth Brown */
-  --accent-foreground: oklch(0.98 0.01 120);
+  --muted-foreground: oklch(0.35 0.05 120);
+  --accent: oklch(0.5 0.1 45); /* Earth Brown - More visible */
+  --accent-foreground: oklch(0.95 0.02 120);
   --destructive: oklch(0.55 0.25 25);
   --destructive-foreground: oklch(0.98 0.01 120);
   --border: oklch(0.9 0.01 120);
@@ -51,9 +51,9 @@
   --secondary: oklch(0.65 0.12 85);
   --secondary-foreground: oklch(0.08 0.02 120);
   --muted: oklch(0.15 0.02 120);
-  --muted-foreground: oklch(0.65 0.02 120);
-  --accent: oklch(0.5 0.08 45);
-  --accent-foreground: oklch(0.95 0.01 120);
+  --muted-foreground: oklch(0.7 0.05 120);
+  --accent: oklch(0.55 0.1 45); /* Earth Brown - More visible */
+  --accent-foreground: oklch(0.9 0.02 120);
   --destructive: oklch(0.45 0.25 25);
   --destructive-foreground: oklch(0.95 0.01 120);
   --border: oklch(0.2 0.02 120);
@@ -128,6 +128,71 @@
     @apply bg-background text-foreground;
   }
 
+  /* Improve button hover visibility */
+  button:hover {
+    color: hsl(var(--primary-foreground)) !important;
+  }
+
+  /* Fix outline button hover states */
+  button[data-variant="outline"]:hover {
+    background-color: hsl(var(--accent)) !important;
+    color: hsl(var(--accent-foreground)) !important;
+    border-color: hsl(var(--accent)) !important;
+  }
+
+  /* Fix ghost button hover states */
+  button[data-variant="ghost"]:hover {
+    background-color: hsl(var(--accent)) !important;
+    color: hsl(var(--accent-foreground)) !important;
+  }
+
+  /* Ensure all button text remains visible on hover */
+  .inline-flex:hover {
+    color: hsl(var(--primary-foreground)) !important;
+  }
+
+  /* Fix link hover states */
+  a:hover {
+    color: hsl(var(--primary)) !important;
+  }
+
+  /* Ensure navigation links have proper hover contrast */
+  nav a:hover {
+    color: hsl(var(--primary)) !important;
+    background-color: transparent !important;
+  }
+
+  /* Fix any text that becomes invisible on hover */
+  [class*="hover:text-"]:hover {
+    color: hsl(var(--primary)) !important;
+  }
+
+  /* Ensure all interactive elements maintain visibility */
+  button, a, [role="button"] {
+    transition: all 0.2s ease-in-out;
+  }
+
+  button:hover, a:hover, [role="button"]:hover {
+    opacity: 1 !important;
+  }
+
+  /* Fix specific component hover issues */
+  [class*="notification-bell"] button:hover {
+    background-color: hsl(var(--muted)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  /* Ensure dropdown items remain visible */
+  [role="menuitem"]:hover {
+    background-color: hsl(var(--accent)) !important;
+    color: hsl(var(--accent-foreground)) !important;
+  }
+
+  /* Fix any remaining invisible text issues */
+  *:hover {
+    color: inherit;
+  }
+
   /* Added custom scrollbar styling */
   ::-webkit-scrollbar {
     width: 8px;
@@ -148,11 +213,31 @@
 }
 
 /* Added agricultural pattern background */
-.agricultural-pattern {
-  background-image: radial-gradient(circle at 25% 25%, rgba(22, 163, 74, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(255, 215, 0, 0.1) 0%, transparent 50%);
+/* .agricultural-pattern {
+  background-image: radial-gradient(circle at 25% 25%, rgba(22, 163, 74, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(255, 215, 0, 0.05) 0%, transparent 50%);
   background-size: 100px 100px;
   background-position: 0 0, 50px 50px;
+} */
+
+.agricultural-pattern {
+  background-image: radial-gradient(circle at 25% 25%, rgba(22, 163, 74, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(255, 215, 0, 0.05) 0%, transparent 50%);
+  background-size: 100px 100px;
+  background-position: 0 0, 50px 50px;
+  animation: movePattern 20s linear infinite alternate;
+}
+
+@keyframes movePattern {
+  0% {
+    background-position: 0 0, 50px 50px;
+  }
+  50% {
+    background-position: 25px 25px, 75px 75px;
+  }
+  100% {
+    background-position: 0 50px, 50px 100px;
+  }
 }
 
 /* Added glass morphism utility classes */

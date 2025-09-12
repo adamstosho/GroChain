@@ -116,101 +116,126 @@ export default function MarketplacePage() {
       console.log("🔄 Fetching marketplace data...")
 
       // Fetch marketplace stats and analytics
-      const [statsResponse, listingsResponse, ordersResponse] = await Promise.all([
+      const [statsResponse, listingsResponse, ordersResponse, farmerAnalytics] = await Promise.all([
         apiService.getMarketplaceAnalytics(), // Get farmer-specific analytics
         apiService.getListings(), // Get all listings
-        apiService.getOrders() // Get farmer's orders
+        apiService.getOrders(), // Get farmer's orders
+        apiService.getFarmerAnalytics().catch(() => ({ data: {} })) // Get farmer-specific analytics for accurate revenue
       ])
 
       console.log("📊 Stats Response:", statsResponse)
       console.log("📦 Listings Response:", listingsResponse)
       console.log("📋 Orders Response:", ordersResponse)
 
-      // Process stats data
-      if (statsResponse?.status === 'success' && statsResponse?.data) {
-        const statsData = statsResponse.data
-
-        // Handle different response structures
+        // Process stats data - prioritize farmer analytics for accurate revenue
         let processedStats: MarketplaceStats
-        if (statsData.totalListings !== undefined) {
-          // Farmer-specific analytics response
+        if (farmerAnalytics?.status === 'success' && farmerAnalytics?.data) {
+          // Use farmer analytics for accurate revenue data
+          const analyticsData = farmerAnalytics.data
+          console.log('🔍 Marketplace Farmer Analytics Data:', analyticsData)
+          console.log('💰 Marketplace Total Revenue from Analytics:', analyticsData.totalRevenue)
+          console.log('📊 Marketplace Monthly Trends:', analyticsData.monthlyTrends)
+
           processedStats = {
-            totalListings: statsData.totalListings || 0,
-            activeListings: statsData.activeListings || 0,
-            totalOrders: statsData.totalOrders || 0,
-            pendingOrders: statsData.pendingOrders || 0,
-            totalRevenue: statsData.totalRevenue || 0,
-            monthlyRevenue: statsData.monthlyRevenue || 0,
-            totalCustomers: statsData.totalCustomers || 0,
-            averageRating: statsData.averageRating || 0
+            totalListings: analyticsData.totalListings || 0,
+            activeListings: analyticsData.totalListings || 0, // Use total listings as active for now
+            totalOrders: analyticsData.totalOrders || 0,
+            pendingOrders: 0, // Will be calculated from orders
+            totalRevenue: analyticsData.totalRevenue || 0,
+            monthlyRevenue: analyticsData.monthlyTrends?.length > 0
+              ? analyticsData.monthlyTrends[analyticsData.monthlyTrends.length - 1]?.revenue || 0
+              : 0,
+            totalCustomers: 0, // Will be calculated from orders
+            averageRating: 0 // Not available in analytics
           }
 
-          // Use recent data from farmer analytics
-          if (statsData.recentListings) {
-            setListings(statsData.recentListings.map((listing: any) => ({
-              _id: listing._id,
-              cropName: listing.cropName,
-              category: listing.category,
-              description: listing.description || `${listing.cropName} - Fresh produce`,
-              basePrice: listing.basePrice,
-              quantity: listing.quantity,
-              unit: listing.unit || 'kg',
-              availableQuantity: listing.availableQuantity,
-              location: listing.location,
-              images: listing.images || [],
-              tags: listing.tags || [],
-              status: listing.status,
-              createdAt: listing.createdAt,
-              views: listing.views || 0,
-              orders: listing.orders || 0,
-              rating: listing.rating || 0,
-              reviews: listing.reviewCount || 0
-            })))
+          setStats(processedStats)
+          console.log("✅ Stats set:", processedStats)
+        } else if (statsResponse?.status === 'success' && statsResponse?.data) {
+          const statsData = statsResponse.data
+
+          // Handle different response structures
+          if (statsData.totalListings !== undefined) {
+            // Farmer-specific analytics response
+            processedStats = {
+              totalListings: statsData.totalListings || 0,
+              activeListings: statsData.activeListings || 0,
+              totalOrders: statsData.totalOrders || 0,
+              pendingOrders: statsData.pendingOrders || 0,
+              totalRevenue: statsData.totalRevenue || 0,
+              monthlyRevenue: statsData.monthlyRevenue || 0,
+              totalCustomers: statsData.totalCustomers || 0,
+              averageRating: statsData.averageRating || 0
+            }
+
+            // Use recent data from farmer analytics
+            if (statsData.recentListings) {
+              setListings(statsData.recentListings.map((listing: any) => ({
+                _id: listing._id,
+                cropName: listing.cropName,
+                category: listing.category,
+                description: listing.description || `${listing.cropName} - Fresh produce`,
+                basePrice: listing.basePrice,
+                quantity: listing.quantity,
+                unit: listing.unit || 'kg',
+                availableQuantity: listing.availableQuantity,
+                location: listing.location,
+                images: listing.images || [],
+                tags: listing.tags || [],
+                status: listing.status,
+                createdAt: listing.createdAt,
+                views: listing.views || 0,
+                orders: listing.orders || 0,
+                rating: listing.rating || 0,
+                reviews: listing.reviewCount || 0
+              })))
+            }
+
+            if (statsData.recentOrders) {
+              setOrders(statsData.recentOrders.map((order: any) => ({
+                _id: order._id,
+                orderNumber: order.orderNumber,
+                customer: order.customer,
+                products: order.products,
+                totalAmount: order.totalAmount,
+                status: order.status,
+                orderDate: order.orderDate,
+                expectedDelivery: order.expectedDelivery || '',
+                paymentStatus: order.paymentStatus
+              })))
+            }
+          } else {
+            // Global marketplace analytics response
+            processedStats = {
+              totalListings: statsData.totalListings || 0,
+              activeListings: statsData.activeListings || 0,
+              totalOrders: statsData.totalOrders || 0,
+              pendingOrders: 0, // Not available in global stats
+              totalRevenue: statsData.totalRevenue || 0,
+              monthlyRevenue: 0, // Not available in global stats
+              totalCustomers: 0, // Not available in global stats
+              averageRating: 0 // Not available in global stats
+            }
           }
 
-          if (statsData.recentOrders) {
-            setOrders(statsData.recentOrders.map((order: any) => ({
-              _id: order._id,
-              orderNumber: order.orderNumber,
-              customer: order.customer,
-              products: order.products,
-              totalAmount: order.totalAmount,
-              status: order.status,
-              orderDate: order.orderDate,
-              expectedDelivery: order.expectedDelivery || '',
-              paymentStatus: order.paymentStatus
-            })))
-          }
+          setStats(processedStats)
+          console.log("✅ Stats set:", processedStats)
         } else {
-          // Global marketplace analytics response
+          // Default stats if no data
           processedStats = {
-            totalListings: statsData.totalListings || 0,
-            activeListings: statsData.activeListings || 0,
-            totalOrders: statsData.totalOrders || 0,
-            pendingOrders: 0, // Not available in global stats
-            totalRevenue: statsData.totalRevenue || 0,
-            monthlyRevenue: 0, // Not available in global stats
-            totalCustomers: 0, // Not available in global stats
-            averageRating: 0 // Not available in global stats
+            totalListings: 0,
+            activeListings: 0,
+            totalOrders: 0,
+            pendingOrders: 0,
+            totalRevenue: 0,
+            monthlyRevenue: 0,
+            totalCustomers: 0,
+            averageRating: 0
           }
-        }
 
-        setStats(processedStats)
-        console.log("✅ Stats set:", processedStats)
-      } else {
-        console.warn("⚠️ Stats response not in expected format:", statsResponse)
-        // Set default stats
-        setStats({
-          totalListings: 0,
-          activeListings: 0,
-          totalOrders: 0,
-          pendingOrders: 0,
-          totalRevenue: 0,
-          monthlyRevenue: 0,
-          totalCustomers: 0,
-          averageRating: 0
-        })
-      }
+          setStats(processedStats)
+          console.log("✅ Stats set:", processedStats)
+        }
 
       // Process listings data
       if (listingsResponse?.status === 'success' && listingsResponse?.data?.listings && Array.isArray(listingsResponse.data.listings)) {
@@ -265,6 +290,17 @@ export default function MarketplacePage() {
           orderDate: order.createdAt,
           expectedDelivery: order.estimatedDelivery || '',
           paymentStatus: order.paymentStatus
+        }))
+
+        // Calculate additional stats from orders
+        const pendingOrdersCount = processedOrders.filter(order => order.status === 'pending').length
+        const uniqueCustomers = new Set(processedOrders.map(order => order.customer.email)).size
+
+        // Update stats with calculated values
+        setStats(prevStats => ({
+          ...prevStats,
+          pendingOrders: pendingOrdersCount,
+          totalCustomers: uniqueCustomers
         }))
 
         // Only set orders if we didn't get them from farmer analytics

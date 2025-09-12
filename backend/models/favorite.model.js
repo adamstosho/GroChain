@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
-const mongoosePaginate = require('mongoose-paginate-v2')
+// Removed mongoose-paginate to avoid potential circular references
+// const mongoosePaginate = require('mongoose-paginate-v2')
 
 const favoriteSchema = new mongoose.Schema({
   user: {
@@ -28,64 +29,68 @@ const favoriteSchema = new mongoose.Schema({
 // Compound index to prevent duplicate favorites
 favoriteSchema.index({ user: 1, listing: 1 }, { unique: true })
 
-// Add pagination plugin
-favoriteSchema.plugin(mongoosePaginate)
+// Removed pagination plugin to avoid potential circular references
+// favoriteSchema.plugin(mongoosePaginate)
 
-// Virtual for favorite count
-favoriteSchema.virtual('favoriteCount').get(function() {
-  return this.model('Favorite').countDocuments({ user: this.user })
-})
+// Remove the virtual that causes circular references
+// favoriteSchema.virtual('favoriteCount').get(function() {
+//   return this.model('Favorite').countDocuments({ user: this.user })
+// })
 
 // Ensure virtual fields are serialized
-favoriteSchema.set('toJSON', { 
-  virtuals: true,
+favoriteSchema.set('toJSON', {
+  // virtuals: true, // Disable virtuals to avoid circular references
   transform: function(doc, ret) {
     // Remove circular references and unnecessary fields
     delete ret.__v
-    if (ret.listing && ret.listing.farmer) {
-      delete ret.listing.farmer.__v
-    }
-    if (ret.listing && ret.listing.harvest) {
-      delete ret.listing.harvest.__v
+    if (ret.listing && typeof ret.listing === 'object') {
+      if (ret.listing.farmer && typeof ret.listing.farmer === 'object') {
+        delete ret.listing.farmer.__v
+      }
+      if (ret.listing.harvest && typeof ret.listing.harvest === 'object') {
+        delete ret.listing.harvest.__v
+      }
     }
     return ret
   }
 })
-favoriteSchema.set('toObject', { 
-  virtuals: true,
+favoriteSchema.set('toObject', {
+  // virtuals: true, // Disable virtuals to avoid circular references
   transform: function(doc, ret) {
     // Remove circular references and unnecessary fields
     delete ret.__v
-    if (ret.listing && ret.listing.farmer) {
-      delete ret.listing.farmer.__v
-    }
-    if (ret.listing && ret.listing.harvest) {
-      delete ret.listing.harvest.__v
+    if (ret.listing && typeof ret.listing === 'object') {
+      if (ret.listing.farmer && typeof ret.listing.farmer === 'object') {
+        delete ret.listing.farmer.__v
+      }
+      if (ret.listing.harvest && typeof ret.listing.harvest === 'object') {
+        delete ret.listing.harvest.__v
+      }
     }
     return ret
   }
 })
 
-// Static method to get user favorites with pagination
-favoriteSchema.statics.getUserFavorites = function(userId, page = 1, limit = 20) {
-  return this.paginate(
-    { user: userId },
-    {
-      page,
-      limit,
-      populate: [
-        {
-          path: 'listing',
-          populate: [
-            { path: 'farmer', select: 'name location' },
-            { path: 'harvest', select: 'batchId cropType quality' }
-          ]
-        }
-      ],
-      sort: { addedAt: -1 }
-    }
-  )
-}
+// Removed static method that used pagination plugin to avoid circular references
+// favoriteSchema.statics.getUserFavorites = function(userId, page = 1, limit = 20) {
+//   return this.paginate(
+//     { user: userId },
+//     {
+//       page,
+//       limit,
+//       populate: [
+//         {
+//           path: 'listing',
+//           populate: [
+//             { path: 'farmer', select: 'name location' },
+//             { path: 'harvest', select: 'batchId cropType quality' }
+//           ]
+//         }
+//       ],
+//       sort: { addedAt: -1 }
+//     }
+//   )
+// }
 
 // Static method to check if item is favorited
 favoriteSchema.statics.isFavorited = function(userId, listingId) {

@@ -4,6 +4,8 @@ const Product = require('../models/product.model')
 const User = require('../models/user.model')
 const Harvest = require('../models/harvest.model')
 const Transaction = require('../models/transaction.model')
+const mongoose = require('mongoose')
+const notificationController = require('./notification.controller')
 
 // Helper function to map crop types to categories
 const getCategoryFromCropType = (cropType) => {
@@ -27,6 +29,14 @@ const getCategoryFromCropType = (cropType) => {
   }
 }
 
+const getSellerFromListing = async (listingId) => {
+  const listing = await Listing.findById(listingId)
+  if (!listing) {
+    return null
+  }
+  return listing.farmer
+}
+
 const marketplaceController = {
   // Get all listings with filters
   async getListings(req, res) {
@@ -45,7 +55,10 @@ const marketplaceController = {
         sortOrder = 'desc'
       } = req.query
       
-      const query = { status: 'active' }
+      const query = { 
+        status: 'active',
+        availableQuantity: { $gt: 0 } // Only show products with available stock
+      }
       
       // Apply filters
       if (category) query.category = category
@@ -248,6 +261,16 @@ const marketplaceController = {
         })
       }
       
+      // Ensure quantity is a positive number and round to 2 decimal places
+      const harvestQuantity = Number(Number(harvest.quantity).toFixed(2))
+      
+      // Logging for debugging
+      console.log('📦 Creating Listing:', {
+        cropType: harvest.cropType,
+        totalQuantity: harvestQuantity,
+        price: price
+      })
+
       // Create listing
       const listing = await Listing.create({
         farmer: req.user.id,
@@ -259,8 +282,8 @@ const marketplaceController = {
         images: images || harvest.images || [],
         location: typeof harvest.location === 'string' ? harvest.location : `${harvest.location?.city || 'Unknown'}, ${harvest.location?.state || 'Unknown'}, Nigeria`,
         qualityGrade: harvest.quality || 'standard',
-        quantity: harvest.quantity,
-        availableQuantity: harvest.quantity,
+        quantity: harvestQuantity,
+        availableQuantity: harvestQuantity,  // Explicitly set available quantity
         unit: harvest.unit,
         status: 'active',
         tags: harvest.quality ? [harvest.quality] : []
@@ -270,10 +293,62 @@ const marketplaceController = {
       harvest.status = 'listed'
       await harvest.save()
       
-      res.status(201).json({
-        status: 'success',
-        data: listing
+      // Create notification for farmer
+      try {
+        await notificationController.createNotificationForActivity(
+          req.user.id,
+          'farmer',
+          'marketplace',
+          'productListed',
+          {
+            productName: listing.cropName,
+            actionUrl: `/dashboard/marketplace/listings/${listing._id}`
+          }
+        )
+      } catch (notificationError) {
+        console.error('Failed to create listing notification:', notificationError)
+      }
+
+      // Notify admins about new listing
+      try {
+        await notificationController.notifyAdmins(
+          'farmer',
+          'listingCreated',
+          {
+            farmerName: req.user.name,
+            productName: listing.cropName,
+            actionUrl: `/admin/marketplace/listings/${listing._id}`
+          }
+        )
+      } catch (notificationError) {
+        console.error('Failed to notify admins about listing:', notificationError)
+      }
+
+      // Notify partner about farmer's listing
+      try {
+        await notificationController.notifyPartners(
+          req.user.id,
+          'farmer',
+          'listingCreated',
+          {
+            farmerName: req.user.name,
+            productName: listing.cropName,
+            actionUrl: `/partner/marketplace/listings/${listing._id}`
+          }
+        )
+      } catch (notificationError) {
+        console.error('Failed to notify partner about listing:', notificationError)
+      }
+      
+      // Logging for verification
+      console.log('✅ Listing Created:', {
+        listingId: listing._id,
+        cropType: listing.cropName,
+        totalQuantity: listing.quantity,
+        availableQuantity: listing.availableQuantity
       })
+
+      res.status(201).json(listing)
     } catch (error) {
       console.error('Error creating listing:', error)
       res.status(500).json({
@@ -327,77 +402,181 @@ const marketplaceController = {
 
   // Create order
   async createOrder(req, res) {
+    const session = await mongoose.startSession()
+    session.startTransaction()
+    
     try {
-      const { items, shippingAddress, paymentMethod } = req.body
-      
+      const { items, shippingAddress, deliveryInstructions, paymentMethod, notes } = req.body || {}
+
+      // Validate required fields
       if (!items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Order items are required'
-        })
+        return res.status(400).json({ status: 'error', message: 'Items are required' })
       }
-      
-      if (!shippingAddress) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Shipping address is required'
-        })
-      }
-      
-      // Validate items and calculate total
-      let total = 0
-      const orderItems = []
-      
+
+      // Validate inventory before processing order
       for (const item of items) {
         const listing = await Listing.findById(item.listingId)
-        if (!listing || listing.status !== 'active') {
-          return res.status(400).json({
-            status: 'error',
-            message: `Listing ${item.listingId} is not available`
+        if (!listing) {
+          await session.abortTransaction()
+          session.endSession()
+          return res.status(404).json({ 
+            status: 'error', 
+            message: `Listing ${item.listingId} not found` 
           })
         }
-        
-        if (listing.quantity < item.quantity) {
-          return res.status(400).json({
-            status: 'error',
-            message: `Insufficient quantity for ${listing.cropName}`
-          })
-        }
-        
-        const itemTotal = listing.price * item.quantity
-        total += itemTotal
-        
-        orderItems.push({
-          listing: item.listingId,
-          quantity: item.quantity,
-          price: listing.price,
-          total: itemTotal
+
+        // Strict inventory check with detailed logging
+        console.log('🔍 Inventory Check:', {
+          listingId: item.listingId,
+          cropName: listing.cropName,
+          requestedQuantity: item.quantity,
+          currentAvailableQuantity: listing.availableQuantity,
+          currentTotalQuantity: listing.quantity
         })
+
+        if (listing.availableQuantity < item.quantity) {
+          await session.abortTransaction()
+          session.endSession()
+          return res.status(400).json({ 
+            status: 'error', 
+            message: `Insufficient inventory for ${listing.cropName}. Requested: ${item.quantity}, Available: ${listing.availableQuantity}` 
+          })
+        }
       }
-      
-      // Create order
-      const order = await Order.create({
+
+      // Calculate totals
+      const subtotal = items.reduce((s, it) => s + (Number(it.quantity) * Number(it.price || 0)), 0)
+      const shipping = subtotal > 5000 ? 0 : 500 // Free shipping over ₦5,000
+      const tax = Math.round(subtotal * 0.075) // 7.5% VAT
+      const total = subtotal + shipping + tax
+
+      // Prepare order data
+      const orderData = {
         buyer: req.user.id,
-        items: orderItems,
+        seller: items[0]?.listing ? await getSellerFromListing(items[0].listing) : null,
+        items: items.map(item => ({
+          listing: item.listing,
+          quantity: Number(item.quantity),
+          price: Number(item.price),
+          unit: item.unit,
+          total: Number(item.quantity) * Number(item.price)
+        })),
+        subtotal,
+        shipping,
+        tax,
         total,
-        shippingAddress,
-        paymentMethod: paymentMethod || 'paystack',
         status: 'pending',
-        orderNumber: `ORD_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      })
-      
-      // Update listing quantities
-      for (const item of items) {
-        await Listing.findByIdAndUpdate(item.listingId, {
-          $inc: { quantity: -item.quantity }
-        })
+        paymentStatus: 'pending',
+        paymentMethod: paymentMethod || 'paystack',
+        shippingAddress: {
+          street: shippingAddress.street,
+          city: shippingAddress.city,
+          state: shippingAddress.state,
+          country: shippingAddress.country || 'Nigeria',
+          postalCode: shippingAddress.postalCode || '',
+          phone: shippingAddress.phone
+        },
+        deliveryInstructions: deliveryInstructions || '',
+        notes: notes || ''
       }
-      
+
+      // Create the order
+      const order = await Order.create(orderData)
+
+      // Create notifications for new order
+      try {
+        // Notify buyer about order confirmation
+        await notificationController.createNotificationForActivity(
+          req.user.id,
+          'buyer',
+          'marketplace',
+          'orderReceived',
+          {
+            productName: items.length === 1 ? items[0].cropName : `${items.length} products`,
+            orderNumber: order._id,
+            actionUrl: `/dashboard/orders/${order._id}`
+          }
+        )
+
+        // Notify farmers about new orders
+        const populatedOrder = await Order.findById(order._id)
+          .populate('items.listing', 'farmer cropName')
+          .populate('buyer', 'name')
+
+        for (const item of populatedOrder.items) {
+          if (item.listing && item.listing.farmer) {
+            await notificationController.createNotificationForActivity(
+              item.listing.farmer,
+              'farmer',
+              'marketplace',
+              'orderReceived',
+              {
+                productName: item.listing.cropName,
+                buyerName: populatedOrder.buyer.name,
+                orderNumber: order._id,
+                actionUrl: `/dashboard/orders/${order._id}`
+              }
+            )
+          }
+        }
+
+        // Notify admins about new order
+        await notificationController.notifyAdmins(
+          'system',
+          'newOrder',
+          {
+            orderNumber: order._id,
+            buyerName: populatedOrder.buyer.name,
+            totalAmount: order.total,
+            actionUrl: `/admin/orders/${order._id}`
+          }
+        )
+
+      } catch (notificationError) {
+        console.error('❌ Order notification failed:', notificationError)
+        // Don't fail the order creation because of notification errors
+      }
+
+      // Reserve quantities for the order (but don't reduce inventory yet)
+      // Inventory will be reduced only when payment is successful
+      for (const item of items) {
+        const listing = await Listing.findById(item.listingId)
+        if (listing) {
+          // Just validate that there's enough quantity available
+          // Don't actually reduce the inventory yet
+          console.log('🔍 Validating inventory for order:', {
+            listingId: item.listingId,
+            cropName: listing.cropName,
+            orderedQuantity: item.quantity,
+            availableQuantity: listing.availableQuantity,
+            totalQuantity: listing.quantity
+          })
+
+          // The actual inventory reduction will happen during payment verification
+          // This ensures that inventory is only reduced when payment is successful
+          console.log('✅ Inventory validation passed - quantities will be reduced on payment success')
+        } else {
+          console.error(`❌ Listing not found: ${item.listingId}`)
+          await session.abortTransaction()
+          session.endSession()
+          return res.status(404).json({ 
+            status: 'error', 
+            message: `Listing ${item.listingId} not found` 
+          })
+        }
+      }
+
+      // Commit the transaction
+      await session.commitTransaction()
+      session.endSession()
+
       res.status(201).json({
         status: 'success',
         data: order
       })
     } catch (error) {
+      await session.abortTransaction()
+      session.endSession()
       console.error('Error creating order:', error)
       res.status(500).json({
         status: 'error',
@@ -583,6 +762,220 @@ const marketplaceController = {
     }
   },
 
+  // Reserve quantity for cart items (temporary reservation)
+  async reserveCartQuantity(req, res) {
+    try {
+      const { items } = req.body // items: [{ listingId, quantity }]
+      const userId = req.user.id
+
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Items array is required'
+        })
+      }
+
+      const results = []
+      const errors = []
+
+      for (const item of items) {
+        try {
+          const { listingId, quantity } = item
+
+          const listing = await Listing.findById(listingId)
+          if (!listing) {
+            errors.push({ listingId, error: 'Listing not found' })
+            continue
+          }
+
+          // Check if there's enough quantity available (including any existing reservations)
+          const availableQuantity = listing.availableQuantity
+          if (availableQuantity < quantity) {
+            errors.push({
+              listingId,
+              error: `Insufficient quantity. Available: ${availableQuantity}, Requested: ${quantity}`
+            })
+            continue
+          }
+
+          // For now, we'll just validate the quantity but not actually reserve it
+          // The actual reservation will happen during order completion
+          // This allows multiple users to add items to cart without blocking each other
+
+          results.push({
+            listingId,
+            reservedQuantity: quantity,
+            remainingQuantity: availableQuantity - quantity,
+            actualQuantity: availableQuantity
+          })
+
+        } catch (error) {
+          errors.push({ listingId: item.listingId, error: error.message })
+        }
+      }
+
+      res.json({
+        status: 'success',
+        data: {
+          reserved: results,
+          errors: errors
+        }
+      })
+
+    } catch (error) {
+      console.error('Error reserving cart quantity:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to reserve cart quantity'
+      })
+    }
+  },
+
+  // Release quantity when items are removed from cart
+  async releaseCartQuantity(req, res) {
+    try {
+      const { items } = req.body // items: [{ listingId, quantity }]
+      const userId = req.user.id
+
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Items array is required'
+        })
+      }
+
+      const results = []
+
+      for (const item of items) {
+        try {
+          const { listingId, quantity } = item
+
+          // Since we're not actually reserving quantities anymore,
+          // we just acknowledge the release request
+          const listing = await Listing.findById(listingId)
+
+          if (listing) {
+            results.push({
+              listingId,
+              releasedQuantity: quantity,
+              currentQuantity: listing.availableQuantity
+            })
+          } else {
+            results.push({
+              listingId,
+              error: 'Listing not found',
+              releasedQuantity: 0
+            })
+          }
+
+        } catch (error) {
+          console.error(`Error releasing quantity for listing ${item.listingId}:`, error)
+          results.push({
+            listingId: item.listingId,
+            error: error.message,
+            releasedQuantity: 0
+          })
+        }
+      }
+
+      res.json({
+        status: 'success',
+        data: { released: results }
+      })
+
+    } catch (error) {
+      console.error('Error releasing cart quantity:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to release cart quantity'
+      })
+    }
+  },
+
+  // Update cart item quantity
+  async updateCartItemQuantity(req, res) {
+    try {
+      const { listingId, oldQuantity, newQuantity } = req.body
+      const userId = req.user.id
+
+      const quantityDifference = newQuantity - oldQuantity
+
+      if (quantityDifference === 0) {
+        return res.json({
+          status: 'success',
+          message: 'No quantity change needed'
+        })
+      }
+
+      const listing = await Listing.findById(listingId)
+      if (!listing) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Listing not found'
+        })
+      }
+
+      // Check if we have enough quantity for increase
+      if (quantityDifference > 0 && listing.availableQuantity < quantityDifference) {
+        return res.status(400).json({
+          status: 'error',
+          message: `Insufficient quantity. Available: ${listing.availableQuantity}, Requested: ${quantityDifference}`
+        })
+      }
+
+      // Since we're not actually reserving quantities during cart operations,
+      // we just validate that there's enough quantity available
+      res.json({
+        status: 'success',
+        data: {
+          listingId,
+          oldQuantity,
+          newQuantity,
+          quantityChange: quantityDifference,
+          remainingQuantity: listing.availableQuantity - quantityDifference,
+          currentQuantity: listing.availableQuantity
+        }
+      })
+
+    } catch (error) {
+      console.error('Error updating cart item quantity:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to update cart item quantity'
+      })
+    }
+  },
+
+  // Clean up sold-out products (remove after 7 days)
+  async cleanupSoldOutProducts(req, res) {
+    try {
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+      const result = await Listing.deleteMany({
+        status: 'out_of_stock',
+        soldOutAt: { $lt: sevenDaysAgo }
+      })
+
+      console.log(`🧹 Cleaned up ${result.deletedCount} sold-out products`)
+
+      res.json({
+        status: 'success',
+        data: {
+          deletedCount: result.deletedCount,
+          message: `Cleaned up ${result.deletedCount} sold-out products`
+        }
+      })
+
+    } catch (error) {
+      console.error('Error cleaning up sold-out products:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to cleanup sold-out products'
+      })
+    }
+  },
+
   // Get marketplace statistics
   async getMarketplaceStats(req, res) {
     try {
@@ -615,6 +1008,33 @@ const marketplaceController = {
         status: 'error',
         message: 'Failed to get marketplace statistics'
       })
+    }
+  }
+}
+
+// Auto cleanup function (can be called by a cron job)
+marketplaceController.autoCleanupSoldOutProducts = async () => {
+  try {
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+    const result = await Listing.deleteMany({
+      status: 'out_of_stock',
+      soldOutAt: { $lt: sevenDaysAgo }
+    })
+
+    console.log(`🧹 Auto-cleanup: Removed ${result.deletedCount} sold-out products older than 7 days`)
+
+    return {
+      success: true,
+      deletedCount: result.deletedCount
+    }
+
+  } catch (error) {
+    console.error('❌ Auto-cleanup error:', error)
+    return {
+      success: false,
+      error: error.message
     }
   }
 }

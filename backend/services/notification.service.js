@@ -10,10 +10,11 @@ class NotificationService {
     if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
       this.twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
     }
-    
-    // Initialize email transporter
-    if (process.env.SMTP_HOST) {
-      this.emailTransporter = nodemailer.createTransporter({
+
+    // Initialize email service - prioritize SMTP like auth controller
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      // Initialize SMTP transporter (preferred)
+      this.emailTransporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: process.env.SMTP_PORT || 587,
         secure: process.env.SMTP_SECURE === 'true',
@@ -22,6 +23,15 @@ class NotificationService {
           pass: process.env.SMTP_PASS
         }
       })
+      console.log('✅ SMTP email service initialized')
+    } else if (process.env.EMAIL_PROVIDER === 'sendgrid' && process.env.SENDGRID_API_KEY) {
+      // Initialize SendGrid as fallback
+      const sgMail = require('@sendgrid/mail')
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY)
+      this.sendgridClient = sgMail
+      console.log('✅ SendGrid email service initialized')
+    } else {
+      console.warn('⚠️ No email service configured')
     }
   }
 
@@ -133,10 +143,6 @@ class NotificationService {
 
   // Send email notification
   async sendEmail(user, notification) {
-    if (!this.emailTransporter) {
-      throw new Error('Email service not configured')
-    }
-
     if (!user.email) {
       throw new Error('User email not available')
     }
@@ -147,17 +153,37 @@ class NotificationService {
     }
 
     const emailContent = this.generateEmailContent(notification)
-    
-    const mailOptions = {
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to: user.email,
-      subject: notification.title,
-      html: emailContent.html,
-      text: emailContent.text
-    }
 
-    const result = await this.emailTransporter.sendMail(mailOptions)
-    return result
+    if (this.sendgridClient) {
+      // Use SendGrid
+      const msg = {
+        to: user.email,
+        from: {
+          email: process.env.SENDGRID_FROM_EMAIL || 'grochain.ng@gmail.com',
+          name: process.env.SENDGRID_FROM_NAME || 'GroChain'
+        },
+        subject: notification.title,
+        html: emailContent.html,
+        text: emailContent.text
+      }
+
+      const result = await this.sendgridClient.send(msg)
+      return result
+    } else if (this.emailTransporter) {
+      // Use SMTP
+      const mailOptions = {
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: user.email,
+        subject: notification.title,
+        html: emailContent.html,
+        text: emailContent.text
+      }
+
+      const result = await this.emailTransporter.sendMail(mailOptions)
+      return result
+    } else {
+      throw new Error('No email service configured')
+    }
   }
 
   // Send SMS notification

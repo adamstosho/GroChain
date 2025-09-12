@@ -102,14 +102,18 @@ export default function FinancialServicesPage() {
       setLoading(true)
       
       // Fetch real data from backend
-      const response = await apiService.getFinancialDashboard()
-      if (response.status === 'success' && response.data) {
-        const data = response.data
+      const [financialResponse, farmerAnalytics] = await Promise.all([
+        apiService.getFinancialDashboard(),
+        apiService.getFarmerAnalytics().catch(() => ({ data: {} }))
+      ])
+
+      if (financialResponse.status === 'success' && financialResponse.data) {
+        const data = financialResponse.data
 
         // Transform the data to match frontend interface
         const overviewData: FinancialOverview = {
           creditScore: data.overview?.creditScore || 0,
-          totalEarnings: data.overview?.totalEarnings || 0,
+          totalEarnings: farmerAnalytics.data?.totalRevenue || data.overview?.totalEarnings || 0,
           pendingPayments: data.overview?.pendingPayments || 0,
           activeLoans: data.overview?.activeLoans || 0,
           insurancePolicies: data.overview?.insurancePolicies || 0,

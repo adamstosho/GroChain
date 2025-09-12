@@ -39,4 +39,19 @@ ListingSchema.index({ status: 1 })
 ListingSchema.index({ featured: 1 })
 ListingSchema.index({ createdAt: -1 })
 
+// Transform to remove circular references
+ListingSchema.set('toJSON', {
+  transform: function(doc, ret) {
+    delete ret.__v
+    return ret
+  }
+})
+
+ListingSchema.set('toObject', {
+  transform: function(doc, ret) {
+    delete ret.__v
+    return ret
+  }
+})
+
 module.exports = mongoose.model('Listing', ListingSchema)

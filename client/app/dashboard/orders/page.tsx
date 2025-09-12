@@ -204,6 +204,19 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrdersData()
+
+    // Check if user came from payment verification
+    const urlParams = new URLSearchParams(window.location.search)
+    const fromPayment = urlParams.get('from_payment')
+    const paymentRef = urlParams.get('payment_ref')
+
+    if (fromPayment === 'true' && paymentRef) {
+      console.log('🔄 User returned from payment verification, refreshing data...')
+      // Force refresh after a short delay to ensure backend has processed everything
+      setTimeout(() => {
+        fetchOrdersData()
+      }, 2000)
+    }
   }, [])
 
   const fetchOrdersData = async (page = 1, status?: string, paymentStatus?: string) => {

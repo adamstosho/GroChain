@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { AvatarUpload } from "@/components/ui/avatar-upload"
 import { useToast } from "@/hooks/use-toast"
 import { apiService } from "@/lib/api"
 import { useAuthStore } from "@/lib/auth"
@@ -101,21 +102,21 @@ export function BuyerProfileForm() {
           website: profileData.website || '',
           bio: profileData.profile?.bio || '',
           avatar: profileData.profile?.avatar || '',
-                     stats: {
-             totalOrders: profileData.stats?.totalOrders || 0,
-             totalSpent: profileData.stats?.totalSpent || 0,
-             favoriteProducts: profileData.stats?.favoriteProducts || 0,
-             lastActive: profileData.stats?.lastActive || new Date()
-           },
-                     preferences: {
-             cropTypes: profileData.preferences?.cropTypes || [],
-             priceRange: {
-               min: profileData.preferences?.priceRange?.min || 0,
-               max: profileData.preferences?.priceRange?.max || 100000
-             },
-             qualityPreferences: profileData.preferences?.qualityPreferences || [],
-             organicPreference: profileData.preferences?.organicPreference || false
-           },
+          stats: {
+            totalOrders: profileData.stats?.totalOrders || 0,
+            totalSpent: profileData.stats?.totalSpent || 0,
+            favoriteProducts: profileData.stats?.favoriteProducts || 0,
+            lastActive: profileData.stats?.lastActive || new Date()
+          },
+          preferences: {
+            cropTypes: profileData.preferences?.cropTypes || [],
+            priceRange: {
+              min: profileData.preferences?.priceRange?.min || 0,
+              max: profileData.preferences?.priceRange?.max || 100000
+            },
+            qualityPreferences: profileData.preferences?.qualityPreferences || [],
+            organicPreference: profileData.preferences?.organicPreference || false
+          },
           createdAt: profileData.createdAt,
           updatedAt: profileData.updatedAt
         }
@@ -147,14 +148,15 @@ export function BuyerProfileForm() {
         businessType: profile.businessType,
         website: profile.website,
         profile: {
-          bio: profile.bio,
-          address: profile.address.street,
-          city: profile.address.city,
-          state: profile.address.state,
-          country: profile.address.country,
-          postalCode: profile.address.postalCode
+          bio: profile.bio || '',
+          avatar: profile.avatar || '',
+          address: profile.address?.street || '',
+          city: profile.address?.city || '',
+          state: profile.address?.state || '',
+          country: profile.address?.country || 'Nigeria',
+          postalCode: profile.address?.postalCode || ''
         },
-        preferences: profile.preferences
+        preferences: profile.preferences || {}
       }
 
       const response = await apiService.updateMyProfile(updateData)
@@ -164,8 +166,22 @@ export function BuyerProfileForm() {
         updateUser({
           name: (response.data as any).name,
           email: (response.data as any).email,
-          phone: (response.data as any).phone
+          phone: (response.data as any).phone,
+          profile: (response.data as any).profile
         })
+
+        // Also update localStorage to ensure persistence
+        const currentUser = JSON.parse(localStorage.getItem('zustand-auth-store') || '{}')
+        if (currentUser.state?.user) {
+          currentUser.state.user = {
+            ...currentUser.state.user,
+            name: (response.data as any).name,
+            email: (response.data as any).email,
+            phone: (response.data as any).phone,
+            profile: (response.data as any).profile
+          }
+          localStorage.setItem('zustand-auth-store', JSON.stringify(currentUser))
+        }
 
         toast({
           title: "Profile updated",
@@ -188,13 +204,84 @@ export function BuyerProfileForm() {
     }
   }
 
+  const handleAvatarUpdate = (newAvatarUrl: string) => {
+    if (profile) {
+      // Update local profile state
+      setProfile({ ...profile, avatar: newAvatarUrl })
+
+      // Update auth store to sync avatar across the app
+      updateUser({
+        profile: {
+          ...user?.profile,
+          avatar: newAvatarUrl
+        }
+      })
+
+      // Also update localStorage to ensure persistence across page refreshes
+      const currentUser = JSON.parse(localStorage.getItem('zustand-auth-store') || '{}')
+      if (currentUser.state?.user) {
+        currentUser.state.user.profile = {
+          ...currentUser.state.user.profile,
+          avatar: newAvatarUrl
+        }
+        localStorage.setItem('zustand-auth-store', JSON.stringify(currentUser))
+      }
+    }
+  }
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center space-y-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
-          <p className="text-lg font-medium">Loading profile...</p>
+      <div className="space-y-6">
+        {/* Profile Header Skeleton */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center space-x-4">
+              <div className="h-20 w-20 bg-muted rounded-full animate-pulse" />
+              <div className="flex-1 space-y-2">
+                <div className="h-6 bg-muted rounded w-48 animate-pulse" />
+                <div className="h-4 bg-muted rounded w-32 animate-pulse" />
+                <div className="flex space-x-2">
+                  <div className="h-6 bg-muted rounded w-16 animate-pulse" />
+                  <div className="h-6 bg-muted rounded w-20 animate-pulse" />
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* Stats Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <div className="h-5 w-5 bg-muted rounded animate-pulse" />
+                  <div className="space-y-1">
+                    <div className="h-3 bg-muted rounded w-20 animate-pulse" />
+                    <div className="h-6 bg-muted rounded w-12 animate-pulse" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+
+        {/* Form Skeleton */}
+        <Card>
+          <CardHeader>
+            <div className="h-6 bg-muted rounded w-40 animate-pulse" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <div className="h-4 bg-muted rounded w-24 animate-pulse" />
+                  <div className="h-10 bg-muted rounded animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -214,13 +301,14 @@ export function BuyerProfileForm() {
       {/* Profile Header */}
       <Card>
         <CardHeader className="pb-4">
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={profile.avatar} alt={profile.name} />
-                             <AvatarFallback className="text-2xl">
-                 {(profile.name || '').split(' ').map(n => n[0]).join('') || 'U'}
-               </AvatarFallback>
-            </Avatar>
+          <div className="flex items-center space-x-6">
+            <AvatarUpload
+              currentAvatar={profile.avatar}
+              userName={profile.name}
+              onAvatarUpdate={handleAvatarUpdate}
+              disabled={!isEditing}
+              size="lg"
+            />
             <div className="flex-1">
               <CardTitle className="text-2xl">{profile.name}</CardTitle>
               <CardDescription className="text-lg">
@@ -230,9 +318,9 @@ export function BuyerProfileForm() {
                 <Badge variant={profile.status === 'active' ? 'default' : 'secondary'}>
                   {profile.status}
                 </Badge>
-                                 <Badge variant="outline">
-                   Buyer since {profile.createdAt ? new Date(profile.createdAt).getFullYear() : 'N/A'}
-                 </Badge>
+                <Badge variant="outline">
+                  Buyer since {profile.createdAt ? new Date(profile.createdAt).getFullYear() : 'N/A'}
+                </Badge>
               </div>
             </div>
             <div className="flex space-x-2">
@@ -267,7 +355,7 @@ export function BuyerProfileForm() {
               <ShoppingCart className="h-5 w-5 text-blue-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Total Orders</p>
-                                 <p className="text-2xl font-bold">{profile.stats.totalOrders || 0}</p>
+                <p className="text-2xl font-bold">{profile.stats?.totalOrders || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -279,7 +367,7 @@ export function BuyerProfileForm() {
               <DollarSign className="h-5 w-5 text-green-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Total Spent</p>
-                <p className="text-2xl font-bold">₦{(profile.stats.totalSpent || 0).toLocaleString()}</p>
+                <p className="text-2xl font-bold">₦{(profile.stats?.totalSpent || 0).toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -291,7 +379,7 @@ export function BuyerProfileForm() {
               <Activity className="h-5 w-5 text-purple-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Favorites</p>
-                                 <p className="text-2xl font-bold">{profile.stats.favoriteProducts || 0}</p>
+                <p className="text-2xl font-bold">{profile.stats?.favoriteProducts || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -303,9 +391,9 @@ export function BuyerProfileForm() {
               <Building className="h-5 w-5 text-orange-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Last Active</p>
-                                 <p className="text-2xl font-bold">
-                   {profile.stats.lastActive ? new Date(profile.stats.lastActive).toLocaleDateString() : 'N/A'}
-                 </p>
+                <p className="text-2xl font-bold">
+                  {profile.stats?.lastActive ? new Date(profile.stats.lastActive).toLocaleDateString() : 'N/A'}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -322,33 +410,33 @@ export function BuyerProfileForm() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                value={profile.name}
-                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                disabled={!isEditing}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={profile.email}
-                disabled // Email should not be editable
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                value={profile.phone}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                disabled={!isEditing}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  value={profile.name || ''}
+                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  disabled={!isEditing}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={profile.email || ''}
+                  disabled // Email should not be editable
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  value={profile.phone || ''}
+                  onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                  disabled={!isEditing}
+                />
+              </div>
             <div className="space-y-2">
               <Label htmlFor="company">Company Name</Label>
               <Input
@@ -408,10 +496,10 @@ export function BuyerProfileForm() {
               <Label htmlFor="street">Street Address</Label>
               <Input
                 id="street"
-                value={profile.address.street}
+                value={(profile.address?.street) || ''}
                 onChange={(e) => setProfile({
                   ...profile,
-                  address: { ...profile.address, street: e.target.value }
+                  address: { ...(profile.address || {}), street: e.target.value }
                 })}
                 disabled={!isEditing}
               />
@@ -420,10 +508,10 @@ export function BuyerProfileForm() {
               <Label htmlFor="city">City</Label>
               <Input
                 id="city"
-                value={profile.address.city}
+                value={(profile.address?.city) || ''}
                 onChange={(e) => setProfile({
                   ...profile,
-                  address: { ...profile.address, city: e.target.value }
+                  address: { ...(profile.address || {}), city: e.target.value }
                 })}
                 disabled={!isEditing}
               />
@@ -432,10 +520,10 @@ export function BuyerProfileForm() {
               <Label htmlFor="state">State</Label>
               <Input
                 id="state"
-                value={profile.address.state}
+                value={(profile.address?.state) || ''}
                 onChange={(e) => setProfile({
                   ...profile,
-                  address: { ...profile.address, state: e.target.value }
+                  address: { ...(profile.address || {}), state: e.target.value }
                 })}
                 disabled={!isEditing}
               />
@@ -444,10 +532,10 @@ export function BuyerProfileForm() {
               <Label htmlFor="postalCode">Postal Code</Label>
               <Input
                 id="postalCode"
-                value={profile.address.postalCode}
+                value={(profile.address?.postalCode) || ''}
                 onChange={(e) => setProfile({
                   ...profile,
-                  address: { ...profile.address, postalCode: e.target.value }
+                  address: { ...(profile.address || {}), postalCode: e.target.value }
                 })}
                 disabled={!isEditing}
               />
@@ -456,10 +544,10 @@ export function BuyerProfileForm() {
               <Label htmlFor="country">Country</Label>
               <Input
                 id="country"
-                value={profile.address.country}
+                value={(profile.address?.country) || ''}
                 onChange={(e) => setProfile({
                   ...profile,
-                  address: { ...profile.address, country: e.target.value }
+                  address: { ...(profile.address || {}), country: e.target.value }
                 })}
                 disabled={!isEditing}
               />
@@ -483,18 +571,18 @@ export function BuyerProfileForm() {
               {['Maize', 'Rice', 'Cassava', 'Yam', 'Tomato', 'Pepper', 'Onion', 'Potato', 'Sorghum', 'Millet'].map((crop) => (
                 <Button
                   key={crop}
-                                     variant={(profile.preferences.cropTypes || []).includes(crop) ? "default" : "outline"}
+                                     variant={((profile.preferences?.cropTypes) || []).includes(crop) ? "default" : "outline"}
                   size="sm"
                   onClick={() => {
                     if (!isEditing) return
-                                         const currentCrops = profile.preferences.cropTypes || []
+                                         const currentCrops = profile.preferences?.cropTypes || []
                      const newCrops = currentCrops.includes(crop)
                        ? currentCrops.filter(c => c !== crop)
                        : [...currentCrops, crop]
                     setProfile({
                       ...profile,
                       preferences: {
-                        ...profile.preferences,
+                        ...(profile.preferences || {}),
                         cropTypes: newCrops
                       }
                     })
@@ -513,13 +601,13 @@ export function BuyerProfileForm() {
               <Input
                 id="priceMin"
                 type="number"
-                value={profile.preferences.priceRange.min}
+                value={(profile.preferences?.priceRange?.min) || 0}
                 onChange={(e) => setProfile({
                   ...profile,
                   preferences: {
-                    ...profile.preferences,
+                    ...(profile.preferences || {}),
                     priceRange: {
-                      ...profile.preferences.priceRange,
+                      ...(profile.preferences?.priceRange || {}),
                       min: parseInt(e.target.value) || 0
                     }
                   }
@@ -532,13 +620,13 @@ export function BuyerProfileForm() {
               <Input
                 id="priceMax"
                 type="number"
-                value={profile.preferences.priceRange.max}
+                value={(profile.preferences?.priceRange?.max) || 100000}
                 onChange={(e) => setProfile({
                   ...profile,
                   preferences: {
-                    ...profile.preferences,
+                    ...(profile.preferences || {}),
                     priceRange: {
-                      ...profile.preferences.priceRange,
+                      ...(profile.preferences?.priceRange || {}),
                       max: parseInt(e.target.value) || 100000
                     }
                   }
@@ -554,18 +642,18 @@ export function BuyerProfileForm() {
               {['Premium', 'Standard', 'Organic', 'Fair Trade', 'Local'].map((quality) => (
                 <Button
                   key={quality}
-                                     variant={(profile.preferences.qualityPreferences || []).includes(quality) ? "default" : "outline"}
+                                     variant={((profile.preferences?.qualityPreferences) || []).includes(quality) ? "default" : "outline"}
                   size="sm"
                   onClick={() => {
                     if (!isEditing) return
-                                         const currentQualities = profile.preferences.qualityPreferences || []
+                                         const currentQualities = profile.preferences?.qualityPreferences || []
                      const newQualities = currentQualities.includes(quality)
                        ? currentQualities.filter(q => q !== quality)
                        : [...currentQualities, quality]
                     setProfile({
                       ...profile,
                       preferences: {
-                        ...profile.preferences,
+                        ...(profile.preferences || {}),
                         qualityPreferences: newQualities
                       }
                     })

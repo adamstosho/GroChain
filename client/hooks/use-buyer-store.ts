@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useEffect } from 'react'
 import { apiService } from '@/lib/api'
 
 interface BuyerState {
@@ -53,13 +54,13 @@ const loadCartFromStorage = (): any[] => {
       return []
     }
   }
-  return []
+  return [] // Return empty array for SSR
 }
 
 export const useBuyerStore = create<BuyerState>((set, get) => ({
   profile: null,
   favorites: [],
-  cart: [], // Initialize with empty array to avoid hydration issues
+  cart: loadCartFromStorage(), // Initialize with cart from localStorage
   orders: [],
   notifications: [],
   isLoading: false,
@@ -170,46 +171,105 @@ export const useBuyerStore = create<BuyerState>((set, get) => ({
     }
   },
 
-  addToCart: (cartItem: any, quantity?: number) => {
-    // Handle both formats: raw product object or pre-formatted cartItem
-    const itemToAdd = cartItem.id ? cartItem : {
-      id: cartItem._id || cartItem.id,
-      listingId: cartItem._id || cartItem.listingId || cartItem.id,
-      cropName: cartItem.cropName || cartItem.name,
-      quantity: quantity || cartItem.quantity || 1,
-      unit: cartItem.unit,
-      price: cartItem.price || cartItem.basePrice,
-      total: (cartItem.price || cartItem.basePrice) * (quantity || cartItem.quantity || 1),
-      farmer: cartItem.farmer || 'Unknown Farmer',
-      location: cartItem.location,
-      image: cartItem.image || "/placeholder.svg",
-      availableQuantity: cartItem.availableQuantity || 0
-    }
+  addToCart: async (cartItem: any, quantity?: number) => {
+    try {
+      // Handle both formats: raw product object or pre-formatted cartItem
+      const itemToAdd = cartItem.id ? cartItem : {
+        id: cartItem._id || cartItem.id,
+        listingId: cartItem._id || cartItem.listingId || cartItem.id,
+        cropName: cartItem.cropName || cartItem.name,
+        quantity: quantity || cartItem.quantity || 1,
+        unit: cartItem.unit,
+        price: cartItem.price || cartItem.basePrice,
+        total: (cartItem.price || cartItem.basePrice) * (quantity || cartItem.quantity || 1),
+        farmer: cartItem.farmer || 'Unknown Farmer',
+        location: cartItem.location,
+        image: cartItem.image || "/placeholder.svg",
+        availableQuantity: cartItem.availableQuantity || 0
+      }
 
-    const existingItem = get().cart.find(item => item.id === itemToAdd.id)
-    if (existingItem) {
-      get().updateCartQuantity(itemToAdd.id, existingItem.quantity + itemToAdd.quantity)
-    } else {
+      const existingItem = get().cart.find(item => item.id === itemToAdd.id)
+      if (existingItem) {
+        // Update existing item quantity
+        const newQuantity = existingItem.quantity + itemToAdd.quantity
+        await get().updateCartQuantity(itemToAdd.id, newQuantity)
+      } else {
+        // Reserve quantity in backend before adding to cart
+        try {
+          await apiService.reserveCartQuantity([{
+            listingId: itemToAdd.listingId,
+            quantity: itemToAdd.quantity
+          }])
+
+          set(state => {
+            const newCart = [...state.cart, itemToAdd]
+            saveCartToStorage(newCart) // Save to localStorage
+            return { cart: newCart }
+          })
+        } catch (error) {
+          console.error('Failed to reserve cart quantity:', error)
+          throw error // Re-throw to let caller handle it
+        }
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error)
+      throw error
+    }
+  },
+
+    removeFromCart: async (productId: string) => {
+    try {
+      const cartItem = get().cart.find(item => item.id === productId)
+      if (cartItem) {
+        // Release quantity in backend before removing from cart
+        try {
+          await apiService.releaseCartQuantity([{
+            listingId: cartItem.listingId,
+            quantity: cartItem.quantity
+          }])
+        } catch (error) {
+          console.error('Failed to release cart quantity:', error)
+          // Continue with cart removal even if backend call fails
+        }
+      }
+
       set(state => {
-        const newCart = [...state.cart, itemToAdd]
+        const newCart = state.cart.filter(item => item.id !== productId)
         saveCartToStorage(newCart) // Save to localStorage
         return { cart: newCart }
       })
+    } catch (error) {
+      console.error('Error removing from cart:', error)
+      throw error
     }
   },
 
-    removeFromCart: (productId: string) => {
-    set(state => {
-      const newCart = state.cart.filter(item => item.id !== productId)
-      saveCartToStorage(newCart) // Save to localStorage
-      return { cart: newCart }
-    })
-  },
+  updateCartQuantity: async (productId: string, quantity: number) => {
+    try {
+      if (quantity <= 0) {
+        await get().removeFromCart(productId)
+        return
+      }
 
-  updateCartQuantity: (productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      get().removeFromCart(productId)
-    } else {
+      const cartItem = get().cart.find(item => item.id === productId)
+      if (!cartItem) {
+        throw new Error('Cart item not found')
+      }
+
+      const oldQuantity = cartItem.quantity
+      const quantityDifference = quantity - oldQuantity
+
+      if (quantityDifference !== 0) {
+        // Update quantity in backend
+        try {
+          await apiService.updateCartItemQuantity(cartItem.listingId, oldQuantity, quantity)
+        } catch (error) {
+          console.error('Failed to update cart item quantity in backend:', error)
+          throw error
+        }
+      }
+
+      // Update cart in store
       set(state => {
         const newCart = state.cart.map(item =>
           item.id === productId
@@ -219,6 +279,9 @@ export const useBuyerStore = create<BuyerState>((set, get) => ({
         saveCartToStorage(newCart) // Save to localStorage
         return { cart: newCart }
       })
+    } catch (error) {
+      console.error('Error updating cart quantity:', error)
+      throw error
     }
   },
 
@@ -337,4 +400,20 @@ export const useBuyerStore = create<BuyerState>((set, get) => ({
     }
   },
 }))
+
+// Custom hook to ensure cart is initialized on component mount
+export const useCartInitialization = () => {
+  useEffect(() => {
+    // Ensure cart is loaded from localStorage on mount
+    if (typeof window !== 'undefined') {
+      const storedCart = loadCartFromStorage()
+      const currentCart = useBuyerStore.getState().cart
+
+      // Only update if the stored cart is different from current cart
+      if (JSON.stringify(storedCart) !== JSON.stringify(currentCart)) {
+        useBuyerStore.getState().initializeCart()
+      }
+    }
+  }, [])
+}
 

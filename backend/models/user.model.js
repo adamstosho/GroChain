@@ -15,6 +15,9 @@ const UserSchema = new mongoose.Schema({
   gender: { type: String, enum: ['male', 'female', 'other'] },
   age: { type: Number, min: 18, max: 120 },
   education: { type: String },
+  company: { type: String },
+  businessType: { type: String },
+  website: { type: String },
   suspensionReason: { type: String },
   suspendedAt: { type: Date },
   suspendedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -27,14 +30,29 @@ const UserSchema = new mongoose.Schema({
   smsOtpAttempts: { type: Number, default: 0 },
   pushToken: { type: String },
   notificationPreferences: {
+    websocket: { type: Boolean, default: true },
     email: { type: Boolean, default: true },
-    sms: { type: Boolean, default: true },
+    sms: { type: Boolean, default: false },
     push: { type: Boolean, default: true },
-    inApp: { type: Boolean, default: true },
-    harvestUpdates: { type: Boolean, default: true },
-    marketplaceUpdates: { type: Boolean, default: true },
-    financialUpdates: { type: Boolean, default: true },
-    systemUpdates: { type: Boolean, default: true }
+    categories: [{
+      type: String,
+      enum: [
+        'harvest', 
+        'marketplace', 
+        'financial', 
+        'system', 
+        'weather', 
+        'shipment', 
+        'payment', 
+        'partner'
+      ]
+    }],
+    priorityThreshold: {
+      type: String,
+      enum: ['low', 'normal', 'high', 'urgent'],
+      default: 'normal'
+    },
+    lastUpdated: { type: Date, default: Date.now }
   },
   profile: {
     avatar: { type: String },
@@ -114,5 +132,50 @@ UserSchema.methods.getPublicProfile = function() {
   delete userObject.smsOtpExpires
   return userObject
 }
+
+// Method to get auth user data (for JWT tokens and middleware)
+UserSchema.methods.getAuthData = function() {
+  return {
+    id: String(this._id),
+    name: this.name,
+    email: this.email,
+    role: this.role,
+    status: this.status
+  }
+}
+
+// Static method to find user by ID with auth data
+UserSchema.statics.findAuthUser = function(userId) {
+  return this.findById(userId).select('name email role status')
+}
+
+// Transform to remove circular references and sensitive data
+UserSchema.set('toJSON', {
+  transform: function(doc, ret) {
+    delete ret.password
+    delete ret.resetPasswordToken
+    delete ret.resetPasswordExpires
+    delete ret.emailVerificationToken
+    delete ret.emailVerificationExpires
+    delete ret.smsOtpToken
+    delete ret.smsOtpExpires
+    delete ret.__v
+    return ret
+  }
+})
+
+UserSchema.set('toObject', {
+  transform: function(doc, ret) {
+    delete ret.password
+    delete ret.resetPasswordToken
+    delete ret.resetPasswordExpires
+    delete ret.emailVerificationToken
+    delete ret.emailVerificationExpires
+    delete ret.smsOtpToken
+    delete ret.smsOtpExpires
+    delete ret.__v
+    return ret
+  }
+})
 
 module.exports = mongoose.model('User', UserSchema)

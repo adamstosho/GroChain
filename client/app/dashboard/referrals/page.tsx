@@ -85,19 +85,19 @@ export default function ReferralsPage() {
     <DashboardLayout pageTitle="Referral Management">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight">Referral Management</h1>
-            <p className="text-muted-foreground">Manage farmer referrals and track performance</p>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">Referral Management</h1>
+            <p className="text-muted-foreground text-sm md:text-base">Manage farmer referrals and track performance</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleExportReferrals}>
+            <Button variant="outline" size="sm" onClick={handleExportReferrals} className="md:size-default">
               <Download className="w-4 h-4 mr-2" />
-              Export
+              <span className="hidden sm:inline">Export</span>
             </Button>
-            <Button onClick={handleCreateReferral}>
+            <Button size="sm" onClick={handleCreateReferral} className="md:size-default">
               <Plus className="w-4 h-4 mr-2" />
-              Add Referral
+              <span className="hidden sm:inline">Add Referral</span>
             </Button>
           </div>
         </div>
@@ -161,7 +161,7 @@ export default function ReferralsPage() {
             <CardDescription>Find specific referrals or filter by criteria</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -171,14 +171,16 @@ export default function ReferralsPage() {
                   className="pl-10"
                 />
               </div>
-              <Button variant="outline">
-                <Filter className="w-4 h-4 mr-2" />
-                Filters
-              </Button>
-              <Button variant="outline" onClick={refreshData} disabled={isRefreshing}>
-                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
+              <div className="flex items-center gap-2 md:gap-4">
+                <Button variant="outline" size="sm" className="md:size-default">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Filters</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={refreshData} disabled={isRefreshing} className="md:size-default">
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Refresh</span>
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -191,50 +193,52 @@ export default function ReferralsPage() {
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="pending">Pending</TabsTrigger>
-                <TabsTrigger value="active">Active</TabsTrigger>
-                <TabsTrigger value="completed">Completed</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
+                <TabsTrigger value="overview" className="text-xs md:text-sm">Overview</TabsTrigger>
+                <TabsTrigger value="pending" className="text-xs md:text-sm">Pending</TabsTrigger>
+                <TabsTrigger value="active" className="text-xs md:text-sm">Active</TabsTrigger>
+                <TabsTrigger value="completed" className="text-xs md:text-sm">Completed</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-4">
                 <div className="space-y-4">
                   {filteredReferrals.slice(0, 10).map((referral) => (
-                    <div key={referral._id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={referral._id} className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg gap-4">
                       <div className="flex items-center space-x-4">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <Users className="h-5 w-5 text-primary" />
                         </div>
-                        <div>
-                          <p className="font-medium">{referral.farmer.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {referral.farmer.email} • {referral.farmer.phone}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate">{referral.farmer.name}</p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {referral.farmer.email}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             Referred on {new Date(referral.createdAt).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4">
+                        <div className="text-left md:text-right">
                           <p className="text-sm text-muted-foreground">
-                            Commission Rate: {(referral.commissionRate * 100).toFixed(1)}%
+                            Commission: {(referral.commissionRate * 100).toFixed(1)}%
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {referral.notes}
+                          <p className="text-xs text-muted-foreground truncate max-w-32 md:max-w-none">
+                            {referral.notes || 'No notes'}
                           </p>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant={referral.status === 'completed' ? 'default' : 'secondary'}>
+                        <div className="flex items-center justify-between md:justify-end space-x-2">
+                          <Badge variant={referral.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
                             {referral.status}
                           </Badge>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <div className="flex space-x-1">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>

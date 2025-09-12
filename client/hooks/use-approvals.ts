@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { approvalsService, HarvestApproval, ApprovalStats, ApprovalFilters } from '@/lib/approvals-service'
 import { useToast } from './use-toast'
 
@@ -26,16 +26,30 @@ export function useApprovals(initialFilters: ApprovalFilters = {}): UseApprovals
   const [filters, setFiltersState] = useState<ApprovalFilters>(initialFilters)
   const { toast } = useToast()
 
+  // Debug: Track approvals state changes
+  React.useEffect(() => {
+    console.log('useApprovals: Approvals state changed -', {
+      count: approvals.length,
+      firstItem: approvals[0]?.harvest?.cropType || 'none',
+      timestamp: new Date().toISOString()
+    })
+  }, [approvals])
+
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       const [approvalsData, statsData] = await Promise.all([
         approvalsService.getApprovals(filters),
         approvalsService.getApprovalStats()
       ])
-      
+
+      console.log('useApprovals: Fetched data -', {
+        approvalsCount: approvalsData.length,
+        stats: statsData
+      })
+
       setApprovals(approvalsData)
       setStats(statsData)
     } catch (err: any) {
@@ -51,6 +65,17 @@ export function useApprovals(initialFilters: ApprovalFilters = {}): UseApprovals
     }
   }, [filters, toast])
 
+  // Safeguard: Prevent approvals from being cleared if we have data and no error
+  // Only restore if we have stats indicating there should be data
+  React.useEffect(() => {
+    if (approvals.length === 0 && !isLoading && !error && stats && stats.total > 0 && stats.pending > 0) {
+      console.log('useApprovals: Approvals list cleared unexpectedly, attempting to restore data')
+      console.log('Stats indicate there should be data:', { total: stats.total, pending: stats.pending })
+      // Try to restore from cache or refetch
+      fetchData()
+    }
+  }, [approvals.length, isLoading, error, stats, fetchData])
+
   useEffect(() => {
     fetchData()
   }, [fetchData])
@@ -65,33 +90,45 @@ export function useApprovals(initialFilters: ApprovalFilters = {}): UseApprovals
 
   const approveHarvest = useCallback(async (approvalId: string, notes?: string) => {
     try {
+      console.log('=== useApprovals: Starting approval for harvest:', approvalId, '===', { notes })
       setIsLoading(true)
-      
-      await approvalsService.approveHarvest(approvalId, notes)
-      
-      // Update local state
-      setApprovals(prev => prev.map(a => 
-        a._id === approvalId 
-          ? { ...a, status: 'approved', approvalNotes: notes, reviewedAt: new Date() }
-          : a
-      ))
-      
-      // Refresh stats
-      const newStats = await approvalsService.getApprovalStats()
-      setStats(newStats)
-      
+
+      console.log('useApprovals: Calling approvalsService.approveHarvest...')
+      const result = await approvalsService.approveHarvest(approvalId, notes)
+      console.log('useApprovals: API approval successful, result:', result)
+
+      // Refresh all data after approval to get updated status
+      console.log('useApprovals: Refreshing all data after approval...')
+      await fetchData()
+
       toast({
         title: "Harvest approved",
         description: "The harvest has been approved successfully",
       })
+      console.log('useApprovals: Approval process completed successfully')
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to approve harvest'
-      toast({
-        title: "Error approving harvest",
-        description: errorMessage,
-        variant: "destructive",
+      console.error('=== useApprovals: Approval failed ===', {
+        message: errorMessage,
+        error: err,
+        stack: err.stack
       })
-      throw err
+
+      // If approval failed due to authorization (partner trying to approve non-network farmer)
+      if (errorMessage.includes('You can only approve') || errorMessage.includes('Partner profile not found')) {
+        toast({
+          title: "Authorization Error",
+          description: "You can only approve harvests from farmers in your network",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Error approving harvest",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }
+      // Don't throw - allow the UI to remain stable
     } finally {
       setIsLoading(false)
     }
@@ -100,32 +137,36 @@ export function useApprovals(initialFilters: ApprovalFilters = {}): UseApprovals
   const rejectHarvest = useCallback(async (approvalId: string, reason: string, notes?: string) => {
     try {
       setIsLoading(true)
-      
+
       await approvalsService.rejectHarvest(approvalId, reason, notes)
-      
-      // Update local state
-      setApprovals(prev => prev.map(a => 
-        a._id === approvalId 
-          ? { ...a, status: 'rejected', rejectionReason: reason, reviewedAt: new Date() }
-          : a
-      ))
-      
-      // Refresh stats
-      const newStats = await approvalsService.getApprovalStats()
-      setStats(newStats)
-      
+
+      // Refresh all data after rejection to get updated status
+      console.log('useApprovals: Refreshing all data after rejection...')
+      await fetchData()
+
       toast({
         title: "Harvest rejected",
         description: "The harvest has been rejected with reason provided",
       })
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to reject harvest'
-      toast({
-        title: "Error rejecting harvest",
-        description: errorMessage,
-        variant: "destructive",
-      })
-      throw err
+      console.error('Rejection failed:', errorMessage)
+
+      // If rejection failed due to authorization (partner trying to reject non-network farmer)
+      if (errorMessage.includes('You can only reject') || errorMessage.includes('Partner profile not found')) {
+        toast({
+          title: "Authorization Error",
+          description: "You can only reject harvests from farmers in your network",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Error rejecting harvest",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }
+      // Don't throw - allow the UI to remain stable
     } finally {
       setIsLoading(false)
     }
@@ -183,22 +224,9 @@ export function useApprovals(initialFilters: ApprovalFilters = {}): UseApprovals
       
       await approvalsService.batchProcessApprovals(batchAction)
       
-      // Update local state
-      setApprovals(prev => prev.map(a => 
-        approvalIds.includes(a._id)
-          ? { 
-              ...a, 
-              status: action === 'approve' ? 'approved' : 'rejected',
-              approvalNotes: action === 'approve' ? notes : undefined,
-              rejectionReason: action === 'reject' ? reason : undefined,
-              reviewedAt: new Date()
-            }
-          : a
-      ))
-      
-      // Refresh stats
-      const newStats = await approvalsService.getApprovalStats()
-      setStats(newStats)
+      // Refresh all data after batch processing
+      console.log('useApprovals: Refreshing all data after batch processing...')
+      await fetchData()
       
       toast({
         title: `Batch ${action} successful`,
@@ -250,12 +278,15 @@ export function useApprovals(initialFilters: ApprovalFilters = {}): UseApprovals
   }, [filters, toast])
 
   const clearCache = useCallback(() => {
+    console.log('Clearing approvals cache manually')
     approvalsService.clearCache()
+    // Refresh data after clearing cache
+    fetchData()
     toast({
       title: "Cache cleared",
       description: "Approvals cache has been cleared",
     })
-  }, [toast])
+  }, [toast, fetchData])
 
   return {
     approvals,

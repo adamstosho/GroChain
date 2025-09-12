@@ -12,22 +12,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useFarmers } from "@/hooks/use-farmers"
 import { useToast } from "@/hooks/use-toast"
-import { 
-  Users, 
-  Search, 
-  Filter, 
-  Plus, 
-  MoreHorizontal, 
-  Phone, 
-  Mail, 
-  MapPin, 
+import {
+  Users,
+  Search,
+  Filter,
+  Plus,
+  MoreHorizontal,
+  Phone,
+  Mail,
+  MapPin,
   Calendar,
   TrendingUp,
   AlertCircle,
   CheckCircle,
   XCircle,
   Download,
-  Upload
+  Upload,
+  RefreshCw
 } from "lucide-react"
 import Link from "next/link"
 
@@ -52,6 +53,7 @@ export default function FarmersPage() {
     isLoading,
     filters,
     pagination,
+    stats,
     updateFilters,
     addFarmer,
     updateFarmer,
@@ -63,30 +65,32 @@ export default function FarmersPage() {
     totalFarmers,
     totalActiveFarmers
   } = useFarmers()
-  
+
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [locationFilter, setLocationFilter] = useState<string>("all")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage] = useState(10)
+  const [hasError, setHasError] = useState(false)
   const { toast } = useToast()
-
-  // Calculate total pages for pagination
-  const totalPages = Math.ceil(filteredFarmers.length / itemsPerPage)
 
   useEffect(() => {
     // Update filters when local state changes
-    updateFilters({
-      searchTerm: searchTerm || undefined,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-      location: locationFilter !== 'all' ? locationFilter : undefined
-    })
-  }, [searchTerm, statusFilter, locationFilter, updateFilters])
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, statusFilter, locationFilter])
+    try {
+      updateFilters({
+        searchTerm: searchTerm || undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        location: locationFilter !== 'all' ? locationFilter : undefined
+      })
+      setHasError(false)
+    } catch (error) {
+      console.error('Error updating filters:', error)
+      setHasError(true)
+      toast({
+        title: "Error updating filters",
+        description: "Failed to update search filters. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }, [searchTerm, statusFilter, locationFilter, updateFilters, toast])
 
   // Functions now handled by the useFarmers hook
 
@@ -103,15 +107,8 @@ export default function FarmersPage() {
     }
   }
 
-  const getPaginatedFarmers = () => {
-    const startIndex = (currentPage - 1) * itemsPerPage
-    const endIndex = startIndex + itemsPerPage
-    return filteredFarmers.slice(startIndex, endIndex)
-  }
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page)
-  }
+  // Use backend pagination - farmers are already paginated
+  const paginatedFarmers = filteredFarmers
 
   if (isLoading) {
     return (
@@ -141,6 +138,37 @@ export default function FarmersPage() {
     )
   }
 
+  if (hasError) {
+    return (
+      <DashboardLayout pageTitle="Farmers Management">
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="min-w-0 flex-1 space-y-1">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">Farmers Management</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">Manage your partner farmers</p>
+            </div>
+          </div>
+
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Error Loading Farmers</h3>
+              <p className="text-muted-foreground text-center mb-4">
+                We encountered an error while loading your farmers data. Please try refreshing the page.
+              </p>
+              <Button onClick={() => {
+                setHasError(false)
+                refreshData()
+              }}>
+                <span>Retry</span>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout pageTitle="Farmers Management">
       <div className="space-y-6">
@@ -151,6 +179,15 @@ export default function FarmersPage() {
             <p className="text-muted-foreground text-sm sm:text-base">Manage your partner farmers and track their performance</p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refreshData()}
+              className="w-full sm:w-auto"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
             <Button variant="outline" size="sm" className="w-full sm:w-auto">
               <Download className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Export</span>
@@ -178,9 +215,9 @@ export default function FarmersPage() {
               <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl sm:text-2xl font-bold">{totalFarmers}</div>
+              <div className="text-xl sm:text-2xl font-bold">{stats.totalFarmers}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-green-600">+{Math.round((totalFarmers / Math.max(totalFarmers - 1, 1)) * 100)}%</span> from last month
+                Real data from database
               </p>
             </CardContent>
           </Card>
@@ -190,9 +227,9 @@ export default function FarmersPage() {
               <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl sm:text-2xl font-bold">{totalActiveFarmers}</div>
+              <div className="text-xl sm:text-2xl font-bold">{stats.activeFarmers}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-green-600">+{Math.round((totalActiveFarmers / Math.max(totalFarmers, 1)) * 100)}%</span> active rate
+                <span className="text-green-600">{stats.totalFarmers > 0 ? Math.round((stats.activeFarmers / stats.totalFarmers) * 100) : 0}%</span> active rate
               </p>
             </CardContent>
           </Card>
@@ -202,9 +239,9 @@ export default function FarmersPage() {
               <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl sm:text-2xl font-bold">{inactiveFarmers.length}</div>
+              <div className="text-xl sm:text-2xl font-bold">{stats.inactiveFarmers}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-orange-600">{Math.round((inactiveFarmers.length / Math.max(totalFarmers, 1)) * 100)}%</span> of total
+                <span className="text-orange-600">{stats.totalFarmers > 0 ? Math.round((stats.inactiveFarmers / stats.totalFarmers) * 100) : 0}%</span> of total
               </p>
             </CardContent>
           </Card>
@@ -214,9 +251,9 @@ export default function FarmersPage() {
               <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl sm:text-2xl font-bold">{suspendedFarmers.length}</div>
+              <div className="text-xl sm:text-2xl font-bold">{stats.suspendedFarmers}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-red-600">{Math.round((suspendedFarmers.length / Math.max(totalFarmers, 1)) * 100)}%</span> of total
+                <span className="text-red-600">{stats.totalFarmers > 0 ? Math.round((stats.suspendedFarmers / stats.totalFarmers) * 100) : 0}%</span> of total
               </p>
             </CardContent>
           </Card>
@@ -272,13 +309,13 @@ export default function FarmersPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base sm:text-lg truncate">Farmers List</CardTitle>
             <CardDescription className="text-xs sm:text-sm truncate">
-              Showing {getPaginatedFarmers().length} of {filteredFarmers.length} farmers
+              Showing {paginatedFarmers.length} of {pagination.totalItems} farmers
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3 sm:space-y-4">
-              {getPaginatedFarmers().length > 0 ? (
-                getPaginatedFarmers().map((farmer) => (
+              {paginatedFarmers.length > 0 ? (
+                paginatedFarmers.map((farmer) => (
                   <div key={farmer.id || farmer._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3 sm:gap-0">
                     <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
@@ -306,7 +343,16 @@ export default function FarmersPage() {
                         </div>
                         <div className="flex items-center space-x-4 text-xs text-muted-foreground">
                           <span>Joined: {new Date(farmer.joinedAt).toLocaleDateString()}</span>
+                          {farmer.lastActivity && (
+                            <span>Last Activity: {new Date(farmer.lastActivity).toLocaleDateString()}</span>
+                          )}
                         </div>
+                        {farmer.totalHarvests !== undefined && (
+                          <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+                            <span>Harvests: {farmer.totalHarvests}</span>
+                            <span>Earnings: ₦{farmer.totalEarnings?.toLocaleString() || '0'}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center space-x-2 flex-shrink-0">
@@ -348,7 +394,7 @@ export default function FarmersPage() {
                 ))
               ) : null}
               
-              {getPaginatedFarmers().length === 0 && (
+              {paginatedFarmers.length === 0 && (
                 <div className="text-center py-6 sm:py-8">
                   <Users className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground text-sm sm:text-base">No farmers found</p>
@@ -358,17 +404,17 @@ export default function FarmersPage() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
+            {pagination.totalPages > 1 && (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mt-4 sm:mt-6">
                 <p className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
-                  Page {currentPage} of {totalPages}
+                  Page {pagination.currentPage} of {pagination.totalPages}
                 </p>
                 <div className="flex items-center justify-center space-x-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
+                    onClick={() => updateFilters({ page: pagination.currentPage - 1 })}
+                    disabled={pagination.currentPage === 1}
                     className="w-20 sm:w-auto"
                   >
                     <span className="hidden sm:inline">Previous</span>
@@ -377,8 +423,8 @@ export default function FarmersPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
+                    onClick={() => updateFilters({ page: pagination.currentPage + 1 })}
+                    disabled={pagination.currentPage === pagination.totalPages}
                     className="w-20 sm:w-auto"
                   >
                     <span className="hidden sm:inline">Next</span>

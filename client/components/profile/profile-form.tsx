@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { AvatarUpload } from "@/components/ui/avatar-upload"
 import { useToast } from "@/hooks/use-toast"
 import { apiService } from "@/lib/api"
 import { useAuthStore } from "@/lib/auth"
@@ -241,17 +242,20 @@ export function ProfileForm() {
         }
       } else if (user?.role === 'partner' && 'organization' in profile) {
         const partnerProfile = profile as PartnerProfile
-        // For partners, the structure might be different
         updateData = {
           name: partnerProfile.name,
           phone: partnerProfile.phone,
+          company: partnerProfile.organization, // Partner organization as company
+          businessType: partnerProfile.organizationType,
+          website: partnerProfile.website,
           profile: {
             bio: partnerProfile.description,
             address: partnerProfile.address?.street,
             city: partnerProfile.address?.city,
             state: partnerProfile.address?.state,
             country: partnerProfile.address?.country,
-            postalCode: partnerProfile.address?.postalCode
+            postalCode: partnerProfile.address?.postalCode,
+            avatar: partnerProfile.logo // Partner logo as avatar
           }
         }
       }
@@ -260,15 +264,38 @@ export function ProfileForm() {
       const response = await apiService.updateMyProfile(updateData)
 
       if (response.status === 'success' && response.data) {
+        // For partners, preserve the logo/avatar mapping
+        let updatedProfile = response.data as any
+        if (user?.role === 'partner' && profile.logo) {
+          updatedProfile.profile = {
+            ...updatedProfile.profile,
+            avatar: profile.logo // Ensure logo is preserved as avatar
+          }
+        }
+
         // Update local state with the response
-        setProfile(response.data as any)
+        setProfile(updatedProfile)
 
         // Update auth store if needed
         updateUser({
-          name: (response.data as any).name,
-          email: (response.data as any).email,
-          phone: (response.data as any).phone
+          name: updatedProfile.name,
+          email: updatedProfile.email,
+          phone: updatedProfile.phone,
+          profile: updatedProfile.profile
         })
+
+        // Also update localStorage to ensure persistence
+        const currentUser = JSON.parse(localStorage.getItem('zustand-auth-store') || '{}')
+        if (currentUser.state?.user) {
+          currentUser.state.user = {
+            ...currentUser.state.user,
+            name: updatedProfile.name,
+            email: updatedProfile.email,
+            phone: updatedProfile.phone,
+            profile: updatedProfile.profile
+          }
+          localStorage.setItem('zustand-auth-store', JSON.stringify(currentUser))
+        }
 
         toast({
           title: "Profile updated",
@@ -288,6 +315,35 @@ export function ProfileForm() {
       })
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleAvatarUpdate = (newAvatarUrl: string) => {
+    if (profile) {
+      // Update local profile state - handle both farmer and partner profiles
+      if (user?.role === 'partner') {
+        setProfile({ ...profile, logo: newAvatarUrl })
+      } else {
+        setProfile({ ...profile, avatar: newAvatarUrl })
+      }
+
+      // Update auth store to sync avatar across the app
+      updateUser({
+        profile: {
+          ...user?.profile,
+          avatar: newAvatarUrl
+        }
+      })
+
+      // Also update localStorage to ensure persistence across page refreshes
+      const currentUser = JSON.parse(localStorage.getItem('zustand-auth-store') || '{}')
+      if (currentUser.state?.user) {
+        currentUser.state.user.profile = {
+          ...currentUser.state.user.profile,
+          avatar: newAvatarUrl
+        }
+        localStorage.setItem('zustand-auth-store', JSON.stringify(currentUser))
+      }
     }
   }
 
@@ -336,13 +392,14 @@ export function ProfileForm() {
       {/* Profile Header */}
       <Card>
         <CardHeader className="pb-4">
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={partnerProfile.logo} alt={partnerProfile.name || 'Profile'} />
-              <AvatarFallback className="text-2xl">
-                {(partnerProfile.name || '').split(' ').map(n => n[0]).join('') || 'U'}
-              </AvatarFallback>
-            </Avatar>
+          <div className="flex items-center space-x-6">
+            <AvatarUpload
+              currentAvatar={partnerProfile.logo}
+              userName={partnerProfile.name}
+              onAvatarUpdate={handleAvatarUpdate}
+              disabled={!isEditing}
+              size="lg"
+            />
             <div className="flex-1">
               <CardTitle className="text-2xl">{partnerProfile.name}</CardTitle>
               <CardDescription className="text-lg">
@@ -520,7 +577,7 @@ export function ProfileForm() {
               <Label htmlFor="organization">Organization Name</Label>
               <Input
                 id="organization"
-                value={profile.organization}
+                value={profile.organization || ''}
                 onChange={(e) => setProfile({ ...profile, organization: e.target.value })}
                 disabled={!isEditing}
               />
@@ -667,10 +724,17 @@ function FarmerProfileView() {
   const fetchFarmerProfile = async () => {
     try {
       setIsLoading(true)
-      const response = await apiService.getMyProfile()
+      
+      // Fetch both profile and analytics data in parallel
+      const [profileResponse, analyticsResponse] = await Promise.all([
+        apiService.getMyProfile(),
+        apiService.getFarmerAnalytics().catch(() => ({ data: {} }))
+      ])
 
-      if (response.status === 'success' && response.data) {
-        const profileData = response.data as any
+      if (profileResponse.status === 'success' && profileResponse.data) {
+        const profileData = profileResponse.data as any
+        const analyticsData = analyticsResponse.data || {}
+        
         const farmerProfile: FarmerProfile = {
           _id: profileData._id,
           name: profileData.name,
@@ -693,12 +757,12 @@ function FarmerProfileView() {
           country: profileData.profile?.country || 'Nigeria',
           postalCode: profileData.profile?.postalCode || '',
           avatar: profileData.profile?.avatar || '',
-          stats: profileData.stats || {
-            totalHarvests: 0,
-            totalListings: 0,
-            totalOrders: 0,
-            totalRevenue: 0,
-            lastActive: new Date()
+          stats: {
+            totalHarvests: analyticsData.totalHarvests || profileData.stats?.totalHarvests || 0,
+            totalListings: analyticsData.totalListings || profileData.stats?.totalListings || 0,
+            totalOrders: analyticsData.totalOrders || profileData.stats?.totalOrders || 0,
+            totalRevenue: analyticsData.totalRevenue || profileData.stats?.totalRevenue || 0,
+            lastActive: profileData.stats?.lastActive || new Date()
           },
           recentHarvests: profileData.recentHarvests || [],
           createdAt: profileData.createdAt,
@@ -780,6 +844,31 @@ function FarmerProfileView() {
     }
   }
 
+  const handleAvatarUpdate = (newAvatarUrl: string) => {
+    if (profile) {
+      // Update local profile state
+      setProfile({ ...profile, avatar: newAvatarUrl })
+
+      // Update auth store to sync avatar across the app
+      updateUser({
+        profile: {
+          ...user?.profile,
+          avatar: newAvatarUrl
+        }
+      })
+
+      // Also update localStorage to ensure persistence across page refreshes
+      const currentUser = JSON.parse(localStorage.getItem('zustand-auth-store') || '{}')
+      if (currentUser.state?.user) {
+        currentUser.state.user.profile = {
+          ...currentUser.state.user.profile,
+          avatar: newAvatarUrl
+        }
+        localStorage.setItem('zustand-auth-store', JSON.stringify(currentUser))
+      }
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -806,13 +895,14 @@ function FarmerProfileView() {
       {/* Farmer Profile Header */}
       <Card>
         <CardHeader className="pb-4">
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={profile.avatar} alt={profile.name} />
-              <AvatarFallback className="text-2xl">
-                {profile.name.split(' ').map(n => n[0]).join('')}
-              </AvatarFallback>
-            </Avatar>
+          <div className="flex items-center space-x-6">
+            <AvatarUpload
+              currentAvatar={profile.avatar}
+              userName={profile.name}
+              onAvatarUpdate={handleAvatarUpdate}
+              disabled={!isEditing}
+              size="lg"
+            />
             <div className="flex-1">
               <CardTitle className="text-2xl">{profile.name}</CardTitle>
               <CardDescription className="text-lg">
@@ -917,7 +1007,7 @@ function FarmerProfileView() {
               <div className="space-y-2">
                 <Label>Full Name</Label>
                 <Input
-                  value={profile.name}
+                  value={profile.name || ''}
                   onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                   disabled={!isEditing}
                 />
@@ -926,7 +1016,7 @@ function FarmerProfileView() {
                 <Label>Email</Label>
                 <Input
                   type="email"
-                  value={profile.email}
+                  value={profile.email || ''}
                   disabled // Email should not be editable
                 />
               </div>
@@ -936,7 +1026,7 @@ function FarmerProfileView() {
               <div className="space-y-2">
                 <Label>Phone</Label>
                 <Input
-                  value={profile.phone}
+                  value={profile.phone || ''}
                   onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                   disabled={!isEditing}
                 />
@@ -945,7 +1035,7 @@ function FarmerProfileView() {
                 <Label>Age</Label>
                 <Input
                   type="number"
-                  value={profile.age}
+                  value={profile.age || ''}
                   onChange={(e) => setProfile({ ...profile, age: e.target.value })}
                   disabled={!isEditing}
                 />
@@ -956,7 +1046,7 @@ function FarmerProfileView() {
               <div className="space-y-2">
                 <Label>Gender</Label>
                 <Select
-                  value={profile.gender}
+                  value={profile.gender || ''}
                   onValueChange={(value) => setProfile({ ...profile, gender: value })}
                   disabled={!isEditing}
                 >
@@ -973,7 +1063,7 @@ function FarmerProfileView() {
               <div className="space-y-2">
                 <Label>Education</Label>
                 <Input
-                  value={profile.education}
+                  value={profile.education || ''}
                   onChange={(e) => setProfile({ ...profile, education: e.target.value })}
                   disabled={!isEditing}
                 />
@@ -994,7 +1084,7 @@ function FarmerProfileView() {
             <div className="space-y-2">
               <Label>Farm Size (hectares)</Label>
               <Input
-                value={profile.farmSize}
+                value={profile.farmSize || ''}
                 onChange={(e) => setProfile({ ...profile, farmSize: e.target.value })}
                 disabled={!isEditing}
                 placeholder="e.g. 5.5"
@@ -1004,7 +1094,7 @@ function FarmerProfileView() {
             <div className="space-y-2">
               <Label>Primary Crops</Label>
               <Input
-                value={profile.primaryCrops.join(', ')}
+                value={(profile.primaryCrops || []).join(', ')}
                 onChange={(e) => setProfile({
                   ...profile,
                   primaryCrops: e.target.value.split(',').map(crop => crop.trim()).filter(crop => crop)
@@ -1017,7 +1107,7 @@ function FarmerProfileView() {
             <div className="space-y-2">
               <Label>Farming Experience (years)</Label>
               <Input
-                value={profile.experience}
+                value={profile.experience || ''}
                 onChange={(e) => setProfile({ ...profile, experience: e.target.value })}
                 disabled={!isEditing}
                 placeholder="e.g. 10"
@@ -1027,7 +1117,7 @@ function FarmerProfileView() {
             <div className="space-y-2">
               <Label>Certifications</Label>
               <Input
-                value={profile.certifications.join(', ')}
+                value={(profile.certifications || []).join(', ')}
                 onChange={(e) => setProfile({
                   ...profile,
                   certifications: e.target.value.split(',').map(cert => cert.trim()).filter(cert => cert)
@@ -1053,7 +1143,7 @@ function FarmerProfileView() {
             <div className="space-y-2">
               <Label>Address</Label>
               <Input
-                value={profile.address}
+                value={profile.address || ''}
                 onChange={(e) => setProfile({ ...profile, address: e.target.value })}
                 disabled={!isEditing}
               />
@@ -1061,7 +1151,7 @@ function FarmerProfileView() {
             <div className="space-y-2">
               <Label>City</Label>
               <Input
-                value={profile.city}
+                value={profile.city || ''}
                 onChange={(e) => setProfile({ ...profile, city: e.target.value })}
                 disabled={!isEditing}
               />
@@ -1072,7 +1162,7 @@ function FarmerProfileView() {
             <div className="space-y-2">
               <Label>State</Label>
               <Input
-                value={profile.state}
+                value={profile.state || ''}
                 onChange={(e) => setProfile({ ...profile, state: e.target.value })}
                 disabled={!isEditing}
               />
@@ -1080,7 +1170,7 @@ function FarmerProfileView() {
             <div className="space-y-2">
               <Label>Country</Label>
               <Input
-                value={profile.country}
+                value={profile.country || ''}
                 onChange={(e) => setProfile({ ...profile, country: e.target.value })}
                 disabled={!isEditing}
               />
@@ -1088,7 +1178,7 @@ function FarmerProfileView() {
             <div className="space-y-2">
               <Label>Postal Code</Label>
               <Input
-                value={profile.postalCode}
+                value={profile.postalCode || ''}
                 onChange={(e) => setProfile({ ...profile, postalCode: e.target.value })}
                 disabled={!isEditing}
               />
@@ -1104,7 +1194,7 @@ function FarmerProfileView() {
         </CardHeader>
         <CardContent>
           <Textarea
-            value={profile.bio}
+            value={profile.bio || ''}
             onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
             disabled={!isEditing}
             placeholder="Tell us about yourself and your farming experience..."

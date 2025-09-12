@@ -252,34 +252,36 @@ export default function QRCodesPage() {
 
         setStats(formattedStats)
       } else {
-        // Set default stats instead of null
-        const defaultStats: QRStats = {
-          totalCodes: 0,
-          activeCodes: 0,
-          verifiedCodes: 0,
-          revokedCodes: 0,
-          expiredCodes: 0,
-          totalScans: 0,
-          totalDownloads: 0,
-          monthlyGrowth: 0,
+        // Calculate stats from QR codes data if API doesn't provide them
+        const calculatedStats: QRStats = {
+          totalCodes: qrCodes.length,
+          activeCodes: qrCodes.filter(qr => qr.status === 'active').length,
+          verifiedCodes: qrCodes.filter(qr => qr.status === 'verified').length,
+          revokedCodes: qrCodes.filter(qr => qr.status === 'revoked').length,
+          expiredCodes: qrCodes.filter(qr => qr.status === 'expired').length,
+          totalScans: qrCodes.reduce((sum, qr) => sum + (qr.scanCount || 0), 0),
+          totalDownloads: 0, // Not tracked in current data
+          monthlyGrowth: 0, // Would need historical data
           monthlyTrend: []
         }
-        console.log("⚠️ Setting default stats:", defaultStats)
-        setStats(defaultStats)
+        console.log("⚠️ Using calculated stats:", calculatedStats)
+        setStats(calculatedStats)
       }
     } catch (error) {
       console.error("❌ Failed to fetch QR stats:", error)
-      setStats(prevStats => prevStats || {
-        totalCodes: 0,
-        activeCodes: 0,
-        verifiedCodes: 0,
-        revokedCodes: 0,
-        expiredCodes: 0,
-        totalScans: 0,
+      // Calculate stats from QR codes data as fallback
+      const fallbackStats: QRStats = {
+        totalCodes: qrCodes.length,
+        activeCodes: qrCodes.filter(qr => qr.status === 'active').length,
+        verifiedCodes: qrCodes.filter(qr => qr.status === 'verified').length,
+        revokedCodes: qrCodes.filter(qr => qr.status === 'revoked').length,
+        expiredCodes: qrCodes.filter(qr => qr.status === 'expired').length,
+        totalScans: qrCodes.reduce((sum, qr) => sum + (qr.scanCount || 0), 0),
         totalDownloads: 0,
         monthlyGrowth: 0,
         monthlyTrend: []
-      })
+      }
+      setStats(fallbackStats)
     } finally {
       setStatsLoading(false)
     }

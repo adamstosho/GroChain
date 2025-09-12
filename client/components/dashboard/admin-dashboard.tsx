@@ -24,32 +24,93 @@ export function AdminDashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [dashboardResponse] = await Promise.all([apiService.getDashboard()])
-
-        setStats(dashboardResponse.data)
-        // Mock system health data
-        setSystemHealth({
-          uptime: "99.9%",
-          responseTime: "120ms",
-          activeUsers: 1250,
-          errorRate: "0.1%",
-        })
-        // Mock recent users
-        setRecentUsers([
-          {
-            _id: "1",
-            name: "John Farmer",
-            email: "john@example.com",
-            role: "farmer",
-            createdAt: new Date(),
-            status: "active",
-          },
+        // Fetch admin dashboard data, system health, and recent users in parallel
+        const [dashboardResponse, systemHealthResponse, recentUsersResponse] = await Promise.allSettled([
+          apiService.getAdminDashboard(),
+          apiService.getAdminSystemHealth(),
+          apiService.getAdminRecentUsers(5)
         ])
+
+        // Process dashboard data
+        if (dashboardResponse.status === 'fulfilled') {
+          const dashboardData = dashboardResponse.value.data as any
+          setStats({
+            totalUsers: dashboardData?.totalUsers || 0,
+            totalRevenue: dashboardData?.totalRevenue || 0,
+            activeTransactions: dashboardData?.activeTransactions || 0,
+            totalHarvests: dashboardData?.totalHarvests || 0,
+            pendingApprovals: dashboardData?.pendingApprovals || 0,
+            activeListings: dashboardData?.totalListings || 0,
+            monthlyRevenue: dashboardData?.monthlyRevenue || 0,
+            userDistribution: dashboardData?.userDistribution || {},
+            approvalRate: dashboardData?.approvalRate || 0,
+            ...dashboardData
+          })
+        } else {
+          console.error('Dashboard data error:', dashboardResponse.reason)
+          // Set fallback data
+          setStats({
+            totalUsers: 0,
+            totalRevenue: 0,
+            activeTransactions: 0,
+            totalHarvests: 0,
+            pendingApprovals: 0,
+            activeListings: 0,
+            monthlyRevenue: 0,
+            userDistribution: {},
+            approvalRate: 0,
+          })
+        }
+
+        // Process system health data
+        if (systemHealthResponse.status === 'fulfilled') {
+          const healthData = systemHealthResponse.value.data as any
+          setSystemHealth({
+            uptime: `${(healthData.uptime / 3600).toFixed(1)}h`,
+            responseTime: "120ms", // This would come from monitoring
+            activeUsers: stats?.totalUsers || 0,
+            errorRate: "0.1%", // This would come from monitoring
+            status: healthData.status,
+            memory: healthData.memory,
+            timestamp: healthData.timestamp
+          })
+        } else {
+          console.error('System health error:', systemHealthResponse.reason)
+          setSystemHealth({
+            uptime: "99.9%",
+            responseTime: "120ms",
+            activeUsers: stats?.totalUsers || 0,
+            errorRate: "0.1%",
+          })
+        }
+
+        // Process recent users data
+        if (recentUsersResponse.status === 'fulfilled') {
+          const usersData = recentUsersResponse.value.data as any
+          setRecentUsers(usersData?.users || [])
+        } else {
+          console.error('Recent users error:', recentUsersResponse.reason)
+          setRecentUsers([])
+        }
+
       } catch (error: any) {
+        console.error('Dashboard error:', error)
         toast({
           title: "Error loading dashboard",
           description: error.message,
           variant: "destructive",
+        })
+        // Set fallback data
+        setStats({
+          totalUsers: 0,
+          totalRevenue: 0,
+          activeTransactions: 0,
+          totalHarvests: 0,
+          pendingApprovals: 0,
+          activeListings: 0,
+          monthlyRevenue: 0,
+          userDistribution: {},
+          approvalRate: 0,
         })
       } finally {
         setIsLoading(false)
@@ -163,34 +224,51 @@ export function AdminDashboard() {
 
                 <TabsContent value="users" className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Farmers</span>
-                        <span>45%</span>
-                      </div>
-                      <Progress value={45} className="h-2" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Buyers</span>
-                        <span>35%</span>
-                      </div>
-                      <Progress value={35} className="h-2" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Partners</span>
-                        <span>15%</span>
-                      </div>
-                      <Progress value={15} className="h-2" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Admins</span>
-                        <span>5%</span>
-                      </div>
-                      <Progress value={5} className="h-2" />
-                    </div>
+                    {(() => {
+                      const totalUsers = stats?.totalUsers || 1
+                      const farmers = stats?.userDistribution?.farmers || 0
+                      const buyers = stats?.userDistribution?.buyers || 0
+                      const partners = stats?.userDistribution?.partners || 0
+                      const admins = stats?.userDistribution?.admins || 0
+                      
+                      const farmersPercent = Math.round((farmers / totalUsers) * 100)
+                      const buyersPercent = Math.round((buyers / totalUsers) * 100)
+                      const partnersPercent = Math.round((partners / totalUsers) * 100)
+                      const adminsPercent = Math.round((admins / totalUsers) * 100)
+
+                      return (
+                        <>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span>Farmers</span>
+                              <span>{farmersPercent}% ({farmers})</span>
+                            </div>
+                            <Progress value={farmersPercent} className="h-2" />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span>Buyers</span>
+                              <span>{buyersPercent}% ({buyers})</span>
+                            </div>
+                            <Progress value={buyersPercent} className="h-2" />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span>Partners</span>
+                              <span>{partnersPercent}% ({partners})</span>
+                            </div>
+                            <Progress value={partnersPercent} className="h-2" />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span>Admins</span>
+                              <span>{adminsPercent}% ({admins})</span>
+                            </div>
+                            <Progress value={adminsPercent} className="h-2" />
+                          </div>
+                        </>
+                      )
+                    })()}
                   </div>
                 </TabsContent>
 
@@ -284,7 +362,7 @@ export function AdminDashboard() {
                           <Users className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{user.name}</p>
+                          <p className="font-medium">{user.name || user.firstName + ' ' + user.lastName || 'Unknown User'}</p>
                           <p className="text-sm text-muted-foreground">
                             {user.email} • Joined {new Date(user.createdAt).toLocaleDateString()}
                           </p>
@@ -294,7 +372,9 @@ export function AdminDashboard() {
                         <Badge variant="secondary" className="capitalize">
                           {user.role}
                         </Badge>
-                        <Badge variant={user.status === "active" ? "default" : "destructive"}>{user.status}</Badge>
+                        <Badge variant={user.status === "active" ? "default" : "destructive"}>
+                          {user.status || "inactive"}
+                        </Badge>
                         <Button variant="ghost" size="sm" asChild>
                           <Link href={`/dashboard/users/${user._id}`}>View</Link>
                         </Button>
@@ -326,22 +406,30 @@ export function AdminDashboard() {
               <div className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-sm">Uptime</span>
-                  <span className="font-medium text-success">99.9%</span>
+                  <span className="font-medium text-success">
+                    {systemHealth?.uptime || "99.9%"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">Response Time</span>
-                  <span className="font-medium">120ms</span>
+                  <span className="font-medium">
+                    {systemHealth?.responseTime || "120ms"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">Active Users</span>
-                  <span className="font-medium">1,250</span>
+                  <span className="font-medium">
+                    {stats?.totalUsers?.toLocaleString() || "0"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">Error Rate</span>
-                  <span className="font-medium text-success">0.1%</span>
+                  <span className="font-medium text-success">
+                    {systemHealth?.errorRate || "0.1%"}
+                  </span>
                 </div>
-                <Button variant="outline" size="sm" className="w-full bg-transparent">
-                  View Details
+                <Button variant="outline" size="sm" className="w-full bg-transparent" asChild>
+                  <Link href="/dashboard/system">View Details</Link>
                 </Button>
               </div>
             </CardContent>
@@ -354,17 +442,23 @@ export function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <Button variant="outline" size="sm" className="w-full justify-start bg-transparent">
-                  <Database className="mr-2 h-4 w-4" />
-                  Backup Database
+                <Button variant="outline" size="sm" className="w-full justify-start bg-transparent" asChild>
+                  <Link href="/dashboard/system">
+                    <Database className="mr-2 h-4 w-4" />
+                    System Management
+                  </Link>
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start bg-transparent">
-                  <Settings className="mr-2 h-4 w-4" />
-                  System Settings
+                <Button variant="outline" size="sm" className="w-full justify-start bg-transparent" asChild>
+                  <Link href="/dashboard/settings">
+                    <Settings className="mr-2 h-4 w-4" />
+                    System Settings
+                  </Link>
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start bg-transparent">
-                  <FileText className="mr-2 h-4 w-4" />
-                  Export Reports
+                <Button variant="outline" size="sm" className="w-full justify-start bg-transparent" asChild>
+                  <Link href="/dashboard/reports">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Generate Reports
+                  </Link>
                 </Button>
               </div>
             </CardContent>

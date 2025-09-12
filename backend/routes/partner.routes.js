@@ -219,34 +219,92 @@ router.get('/farmers', async (req, res) => {
     // Build query based on filters
     const query = { partner: partner._id, role: 'farmer' };
 
-    if (req.query.status) {
+    if (req.query.status && req.query.status !== 'all') {
       query.status = req.query.status;
+    }
+
+    if (req.query.location && req.query.location !== 'all') {
+      query.location = req.query.location;
     }
 
     if (req.query.search) {
       query.$or = [
         { name: { $regex: req.query.search, $options: 'i' } },
-        { email: { $regex: req.query.search, $options: 'i' } }
+        { email: { $regex: req.query.search, $options: 'i' } },
+        { phone: { $regex: req.query.search, $options: 'i' } }
       ];
     }
 
-    // Get farmers
+    // Get total farmers count for stats (without pagination, but with filters)
+    const baseQuery = { partner: partner._id, role: 'farmer' };
+    const statsQuery = { ...baseQuery };
+
+    // Apply location filter to stats if present
+    if (req.query.location && req.query.location !== 'all') {
+      statsQuery.location = req.query.location;
+    }
+
+    // Apply search filter to stats if present
+    if (req.query.search) {
+      statsQuery.$or = [
+        { name: { $regex: req.query.search, $options: 'i' } },
+        { email: { $regex: req.query.search, $options: 'i' } },
+        { phone: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+
+    const totalFarmers = await User.countDocuments(statsQuery);
+    const activeFarmers = await User.countDocuments({ ...statsQuery, status: 'active' });
+    const inactiveFarmers = await User.countDocuments({ ...statsQuery, status: 'inactive' });
+    const suspendedFarmers = await User.countDocuments({ ...statsQuery, status: 'suspended' });
+
+    // Get farmers for current page
     const farmers = await User.find(query)
       .select('name email phone location status createdAt')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const totalFarmers = await User.countDocuments(query);
+    // Get harvest data for each farmer
+    const farmersData = await Promise.all(farmers.map(async (farmer) => {
+      // Count harvests for this farmer
+      const Harvest = require('../models/harvest.model');
+      const totalHarvests = await Harvest.countDocuments({ farmer: farmer._id });
 
-    const farmersData = farmers.map(farmer => ({
-      id: farmer._id,
-      name: farmer.name,
-      email: farmer.email,
-      phone: farmer.phone,
-      location: farmer.location,
-      status: farmer.status || 'active',
-      joinedAt: farmer.createdAt
+      // Get total earnings from orders/transactions
+      const Order = require('../models/order.model');
+      const totalEarningsResult = await Order.aggregate([
+        { $match: { farmer: farmer._id, status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$total' } } }
+      ]);
+      const totalEarnings = totalEarningsResult.length > 0 ? totalEarningsResult[0].total : 0;
+
+      // Get last activity (last harvest or order)
+      const lastHarvest = await Harvest.findOne({ farmer: farmer._id }).sort({ createdAt: -1 });
+      const lastOrder = await Order.findOne({ farmer: farmer._id }).sort({ createdAt: -1 });
+
+      let lastActivity = farmer.createdAt;
+      if (lastHarvest && lastHarvest.createdAt > lastActivity) {
+        lastActivity = lastHarvest.createdAt;
+      }
+      if (lastOrder && lastOrder.createdAt > lastActivity) {
+        lastActivity = lastOrder.createdAt;
+      }
+
+      return {
+        _id: farmer._id,
+        id: farmer._id,
+        name: farmer.name,
+        email: farmer.email,
+        phone: farmer.phone,
+        location: farmer.location,
+        status: farmer.status || 'active',
+        joinedAt: farmer.createdAt,
+        lastActivity: lastActivity,
+        totalHarvests: totalHarvests,
+        totalEarnings: totalEarnings,
+        partner: partner._id
+      };
     }));
 
     return res.json({
@@ -257,7 +315,13 @@ router.get('/farmers', async (req, res) => {
         total: totalFarmers,
         page: page,
         limit: limit,
-        totalPages: Math.ceil(totalFarmers / limit)
+        totalPages: Math.ceil(totalFarmers / limit),
+        stats: {
+          totalFarmers,
+          activeFarmers,
+          inactiveFarmers,
+          suspendedFarmers
+        }
       }
     });
 
@@ -494,5 +558,29 @@ const upload = multer({
 });
 
 router.post('/upload-csv', upload.single('csvFile'), ctrl.bulkUploadFarmersCSV);
+
+// Add single farmer endpoint
+router.post('/farmers/add', ctrl.addSingleFarmer);
+
+// Referral management routes
+const referralController = require('../controllers/referral.controller');
+
+// Get referrals for partner
+router.get('/referrals', referralController.getReferrals);
+
+// Get referral statistics
+router.get('/referrals/stats/overview', referralController.getReferralStats);
+
+// Create new referral
+router.post('/referrals', referralController.createReferral);
+
+// Get specific referral
+router.get('/referrals/:id', referralController.getReferralById);
+
+// Update referral
+router.put('/referrals/:id', referralController.updateReferral);
+
+// Delete referral
+router.delete('/referrals/:id', referralController.deleteReferral);
 
 module.exports = router

@@ -25,12 +25,9 @@ router.get('/transactions', ctrl.getTransactionHistory)
 // Payment verification routes
 router.post('/verify-payment/:reference', require('../payment-verifier').verifyPaymentHandler)
 
-// Instant payment verification routes (no auth required for instant verification)
-router.post('/instant-verify', require('../instant-payment-fix').instantVerifyHandler)
-router.post('/batch-verify', require('../instant-payment-fix').batchVerifyHandler)
 
 // Payment Methods Management
-router.get('/methods', authenticate, async (req, res) => {
+router.get('/methods', async (req, res) => {
   try {
     // For now, return mock data - can be replaced with database queries
     const paymentMethods = [

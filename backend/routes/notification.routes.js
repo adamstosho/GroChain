@@ -1,30 +1,36 @@
 const express = require('express')
 const router = express.Router()
-const ctrl = require('../controllers/notification.controller')
-const { authenticate } = require('../middlewares/auth.middleware')
+const notificationController = require('../controllers/notification.controller')
+const { authenticate, authorize } = require('../middlewares/auth.middleware')
 
-// All notification routes require authentication
-router.use(authenticate)
+// Create role-based notification (internal/admin use)
+router.post('/create', authenticate, authorize('admin', 'system'), notificationController.createRoleBasedNotification)
 
-// Root endpoint - get all notifications for user
-router.get('/', ctrl.getUserNotifications)
+// Get user's notifications with advanced filtering
+router.get('/', authenticate, notificationController.getUserNotifications)
 
-// Notification management
-router.post('/send', ctrl.sendNotification)
-router.post('/send-bulk', ctrl.sendBulkNotifications)
-router.get('/user', ctrl.getUserNotifications)
-router.patch('/:notificationId/read', ctrl.markAsRead)
-router.patch('/mark-all-read', ctrl.markAllAsRead)
+// Mark multiple notifications as read
+router.patch('/mark-read', authenticate, notificationController.markNotificationsAsRead)
 
-// Notification preferences
-router.get('/preferences', ctrl.getNotificationPreferences)
-router.put('/preferences', ctrl.updateNotificationPreferences)
-router.put('/push-token', ctrl.updatePushToken)
+// Mark all notifications as read
+router.patch('/mark-all-read', authenticate, notificationController.markAllAsRead)
 
-// Specialized notifications
-router.post('/harvest', ctrl.sendHarvestNotification)
-router.post('/marketplace', ctrl.sendMarketplaceNotification)
-router.post('/transaction', ctrl.sendTransactionNotification)
+// Get notification preferences
+router.get('/preferences', authenticate, notificationController.getNotificationPreferences)
+
+// Update notification preferences
+router.put('/preferences', authenticate, notificationController.updateNotificationPreferences)
+
+// Update push token
+router.put('/push-token', authenticate, notificationController.updatePushToken)
+
+// Test notification endpoint (for development)
+router.post('/test', authenticate, notificationController.testNotification)
+
+// Specialized notification endpoints
+router.post('/harvest', authenticate, notificationController.sendHarvestNotification)
+router.post('/marketplace', authenticate, notificationController.sendMarketplaceNotification)
+router.post('/transaction', authenticate, notificationController.sendTransactionNotification)
 
 module.exports = router
 

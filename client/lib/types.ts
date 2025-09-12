@@ -16,8 +16,23 @@ export interface User {
   suspendedAt?: Date
   pushToken?: string
   notificationPreferences: NotificationPreferences
+  profile?: UserProfile
   createdAt: Date
   updatedAt: Date
+}
+
+export interface UserProfile {
+  avatar?: string
+  bio?: string
+  address?: string
+  city?: string
+  state?: string
+  country?: string
+  postalCode?: string
+  coordinates?: {
+    lat: number
+    lng: number
+  }
 }
 
 export interface NotificationPreferences {
@@ -29,6 +44,17 @@ export interface NotificationPreferences {
   harvestUpdates: boolean
   paymentUpdates: boolean
   weatherAlerts: boolean
+}
+
+export interface Review {
+  id: string
+  user: {
+    name: string
+    avatar?: string
+  }
+  rating: number
+  comment: string
+  createdAt: string
 }
 
 export interface Harvest {

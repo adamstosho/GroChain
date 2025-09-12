@@ -5,6 +5,8 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { DatadogSuppressor } from "@/components/datadog-suppressor"
+import { NotificationProvider } from "@/components/notifications/notification-provider"
+import { NotificationContainer } from "@/components/notifications/notification-toast"
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -52,7 +54,11 @@ export default function RootLayout({
       <body className={`font-sans ${dmSans.variable} ${nunito.variable} antialiased`}>
         <DatadogSuppressor />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          {children}
+          <NotificationProvider>
+            <NotificationContainer>
+              {children}
+            </NotificationContainer>
+          </NotificationProvider>
           <Toaster />
         </ThemeProvider>
       </body>

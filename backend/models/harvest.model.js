@@ -64,6 +64,21 @@ HarvestSchema.index({ 'geoLocation.lat': 1, 'geoLocation.lng': 1 })
 HarvestSchema.index({ cropType: 1, status: 1 })
 HarvestSchema.index({ createdAt: -1 })
 
+// Transform to remove circular references
+HarvestSchema.set('toJSON', {
+  transform: function(doc, ret) {
+    delete ret.__v
+    return ret
+  }
+})
+
+HarvestSchema.set('toObject', {
+  transform: function(doc, ret) {
+    delete ret.__v
+    return ret
+  }
+})
+
 module.exports = mongoose.model('Harvest', HarvestSchema)
 
 

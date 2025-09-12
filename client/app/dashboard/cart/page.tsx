@@ -1,7 +1,7 @@
 "use client"
 
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
-import { useBuyerStore } from "@/hooks/use-buyer-store"
+import { useBuyerStore, useCartInitialization } from "@/hooks/use-buyer-store"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +13,9 @@ import { useRouter } from "next/navigation"
 
 export default function CartPage() {
   const { cart, updateCartQuantity, removeFromCart, clearCart } = useBuyerStore()
+
+  // Initialize cart from localStorage
+  useCartInitialization()
   const router = useRouter()
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)

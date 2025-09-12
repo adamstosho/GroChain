@@ -1,6 +1,7 @@
 const Partner = require('../models/partner.model')
 const User = require('../models/user.model')
 const Commission = require('../models/commission.model')
+const NotificationService = require('../services/notification.service')
 
 exports.getAllPartners = async (req, res) => {
   try {
@@ -326,6 +327,7 @@ exports.bulkUploadFarmersCSV = async (req, res) => {
         role: 'farmer',
         status: 'active',
         partner: partner._id,
+        emailVerified: true, // Automatically verify emails for partner-onboarded farmers
         password: Math.random().toString(36).slice(-12) + 'Aa1!' // Generate temporary password
       });
     }
@@ -360,8 +362,14 @@ exports.bulkUploadFarmersCSV = async (req, res) => {
     const createdFarmers = [];
     for (const farmerData of newFarmers) {
       try {
+        // Store the plain text password before it gets hashed
+        const plainTextPassword = farmerData.password;
+
         const farmer = new User(farmerData);
         await farmer.save();
+
+        // Add the plain text password back for email sending
+        farmer.plainTextPassword = plainTextPassword;
         createdFarmers.push(farmer);
 
         // Add farmer to partner's list
@@ -378,13 +386,71 @@ exports.bulkUploadFarmersCSV = async (req, res) => {
     partner.totalFarmers = partner.farmers.length;
     await partner.save();
 
+    // Send welcome emails to newly created farmers
+    if (createdFarmers.length > 0) {
+      console.log('📧 Sending welcome emails to', createdFarmers.length, 'farmers...');
+
+      for (const farmer of createdFarmers) {
+        try {
+          // Generate welcome email content
+          const welcomeEmailData = {
+            user: farmer._id,
+            title: 'Welcome to GroChain - Your Agricultural Partner!',
+            message: `Welcome to GroChain, ${farmer.name}!
+
+Your farmer account has been successfully created by your partner ${partner.name || 'GroChain Partner'}.
+
+**Your Login Credentials:**
+Email: ${farmer.email}
+Password: ${farmer.plainTextPassword} (Please change this after first login)
+
+**Next Steps:**
+1. Visit http://localhost:3000/login
+2. Log in with your email and temporary password
+3. Complete your profile information
+4. Start logging your harvests and accessing our marketplace
+
+**What You Can Do:**
+• Log your harvests with photos and details
+• Access our agricultural marketplace
+• Get insights and analytics on your farming activities
+• Connect with buyers and partners
+• Access financial services and loan opportunities
+
+If you have any questions, please contact your partner or our support team.
+
+Welcome to the future of agriculture!
+
+Best regards,
+The GroChain Team`,
+            type: 'info',
+            category: 'system',
+            channels: ['email'],
+            data: {
+              farmerId: farmer._id,
+              partnerId: partner._id,
+              temporaryPassword: farmer.plainTextPassword,
+              loginUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`
+            }
+          };
+
+          await NotificationService.createNotification(welcomeEmailData);
+          console.log('✅ Welcome email sent to:', farmer.email);
+
+        } catch (emailError) {
+          console.error('❌ Failed to send welcome email to:', farmer.email, emailError.message);
+          // Don't fail the entire process if email sending fails
+        }
+      }
+    }
+
     const result = {
       totalRows: lines.length - 1,
       successfulRows: createdFarmers.length,
       failedRows: errors.length,
       skippedRows: existingUsers.length,
       errors: errors.length > 0 ? errors : undefined,
-      message: `${createdFarmers.length} farmers onboarded successfully${existingUsers.length > 0 ? `, ${existingUsers.length} already existed` : ''}`
+      message: `${createdFarmers.length} farmers onboarded successfully${existingUsers.length > 0 ? `, ${existingUsers.length} already existed` : ''}${createdFarmers.length > 0 ? ' and welcome emails sent' : ''}`
     };
 
     console.log('✅ CSV upload completed:', result);
@@ -580,6 +646,198 @@ exports.getPartnerFarmers = async (req, res) => {
     })
   }
 }
+
+// Add single farmer endpoint
+exports.addSingleFarmer = async (req, res) => {
+  try {
+    console.log('🔍 Add single farmer request received');
+
+    // Validate authentication
+    const userId = req.user?.id || req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ status: 'error', message: 'Authentication required' });
+    }
+
+    // Get user from database
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    // Get or create partner profile
+    let partner = await Partner.findOne({ email: user.email });
+    if (!partner) {
+      partner = new Partner({
+        name: user.name,
+        email: user.email,
+        phone: user.phone || '+234000000000',
+        organization: `${user.name} Organization`,
+        type: 'cooperative',
+        location: user.location || 'Nigeria',
+        status: 'active',
+        commissionRate: 0.05,
+        farmers: [],
+        totalFarmers: 0,
+        totalCommissions: 0
+      });
+      await partner.save();
+      console.log('✅ Partner created');
+    }
+
+    // Validate request data
+    const { name, email, phone, location, address, farmSize, primaryCrops, experience, notes } = req.body;
+
+    if (!name || !email || !phone || !location || !farmSize || !primaryCrops) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Missing required fields: name, email, phone, location, farmSize, primaryCrops'
+      });
+    }
+
+    // Check if farmer already exists
+    const existingFarmer = await User.findOne({ email: email.toLowerCase() });
+    if (existingFarmer) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'A user with this email already exists'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid email format'
+      });
+    }
+
+    // Validate Nigerian phone format
+    const phoneRegex = /^(\+234|0)[789][01]\d{8}$/;
+    const cleanPhone = phone.replace(/\s/g, '');
+    if (!phoneRegex.test(cleanPhone)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid phone format (use +234 or 0 followed by 10 digits)'
+      });
+    }
+
+    // Generate temporary password
+    const tempPassword = Math.random().toString(36).slice(-12) + 'Aa1!';
+
+    // Create farmer data
+    const farmerData = {
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      phone: cleanPhone,
+      location: location.trim(),
+      address: address?.trim() || '',
+      role: 'farmer',
+      status: 'active',
+      partner: partner._id,
+      emailVerified: true, // Automatically verify emails for partner-onboarded farmers
+      password: tempPassword,
+      profile: {
+        farmSize: farmSize?.trim() || '',
+        primaryCrops: primaryCrops?.trim() || '',
+        experience: experience?.trim() || '',
+        notes: notes?.trim() || '',
+        bio: `Farmer onboarded by ${partner.name}`
+      }
+    };
+
+    // Create the farmer
+    const farmer = new User(farmerData);
+    await farmer.save();
+
+    // Add farmer to partner's list
+    if (!partner.farmers.includes(farmer._id)) {
+      partner.farmers.push(farmer._id);
+      partner.totalFarmers = partner.farmers.length;
+      await partner.save();
+    }
+
+    // Send welcome email with credentials
+    try {
+      const welcomeEmailData = {
+        user: farmer._id,
+        title: 'Welcome to GroChain - Your Agricultural Partner!',
+        message: `Welcome to GroChain, ${farmer.name}!
+
+Your farmer account has been successfully created by your partner ${partner.name || 'GroChain Partner'}.
+
+**Your Login Credentials:**
+Email: ${farmer.email}
+Password: ${tempPassword} (Please change this after first login)
+
+**Next Steps:**
+1. Visit http://localhost:3000/login
+2. Log in with your email and temporary password
+3. Complete your profile information
+4. Start logging your harvests and accessing our marketplace
+
+**What You Can Do:**
+• Log your harvests with photos and details
+• Access our agricultural marketplace
+• Get insights and analytics on your farming activities
+• Connect with buyers and partners
+• Access financial services and loan opportunities
+
+If you have any questions, please contact your partner or our support team.
+
+Welcome to the future of agriculture!
+
+Best regards,
+The GroChain Team`,
+        type: 'info',
+        category: 'system',
+        channels: ['email'],
+        data: {
+          farmerId: farmer._id,
+          partnerId: partner._id,
+          temporaryPassword: tempPassword,
+          loginUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`
+        }
+      };
+
+      await NotificationService.createNotification(welcomeEmailData);
+      console.log('✅ Welcome email sent to:', farmer.email);
+
+    } catch (emailError) {
+      console.error('❌ Failed to send welcome email to:', farmer.email, emailError.message);
+      // Don't fail the entire process if email sending fails
+    }
+
+    // Return success response
+    return res.status(201).json({
+      status: 'success',
+      message: 'Farmer added successfully and welcome email sent',
+      data: {
+        farmer: {
+          id: farmer._id,
+          name: farmer.name,
+          email: farmer.email,
+          phone: farmer.phone,
+          location: farmer.location,
+          status: farmer.status,
+          joinedAt: farmer.createdAt
+        },
+        partnerUpdated: {
+          totalFarmers: partner.totalFarmers,
+          commissionRate: partner.commissionRate
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Add single farmer error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Server error during farmer creation',
+      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
 
 // Add missing partner commission method
 exports.getPartnerCommission = async (req, res) => {

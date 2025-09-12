@@ -119,6 +119,21 @@ const errorHandler = (err, req, res, next) => {
     error = { message, statusCode }
   }
 
+  // Handle circular reference errors (JSON serialization issues)
+  if (err.message && err.message.includes('Converting circular structure to JSON')) {
+    console.error('Circular reference error detected:', {
+      url: req.originalUrl,
+      method: req.method,
+      user: req.user?.id || 'anonymous',
+      timestamp: new Date().toISOString()
+    })
+
+    error = {
+      message: 'Server encountered a serialization error while processing your request',
+      statusCode: 500
+    }
+  }
+
   // Default error
   const statusCode = error.statusCode || err.statusCode || 500
   const message = error.message || 'Internal Server Error'
@@ -126,16 +141,31 @@ const errorHandler = (err, req, res, next) => {
   // Don't leak error details in production
   const isDevelopment = process.env.NODE_ENV === 'development'
   
-  res.status(statusCode).json({
+  // Safely construct response object to avoid circular references
+  const responseData = {
     status: 'error',
     message,
-    ...(isDevelopment && { 
-      stack: err.stack,
-      details: error
-    }),
     timestamp: new Date().toISOString(),
     path: req.originalUrl
-  })
+  }
+
+  // Only add development details if not a circular reference error
+  if (isDevelopment && !err.message?.includes('Converting circular structure to JSON')) {
+    responseData.stack = err.stack
+    responseData.details = error
+  }
+
+  try {
+    res.status(statusCode).json(responseData)
+  } catch (jsonError) {
+    // If JSON serialization fails, send a simple error response
+    console.error('JSON serialization failed in error handler:', jsonError.message)
+    res.status(500).json({
+      status: 'error',
+      message: 'Server encountered an error while processing your request',
+      timestamp: new Date().toISOString()
+    })
+  }
 }
 
 // Async error wrapper

@@ -32,13 +32,19 @@ export function useFarmers() {
     status: "all",
     location: "all",
     page: 1,
-    limit: 10
+    limit: 50
   })
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
     totalItems: 0,
-    itemsPerPage: 10
+    itemsPerPage: 50
+  })
+  const [stats, setStats] = useState({
+    totalFarmers: 0,
+    activeFarmers: 0,
+    inactiveFarmers: 0,
+    suspendedFarmers: 0
   })
   const { toast } = useToast()
 
@@ -47,30 +53,91 @@ export function useFarmers() {
     try {
       setIsLoading(true)
 
+      console.log('🔍 useFarmers: Fetching farmers with filters:', filters)
+
       const response = await api.getPartnerFarmers({
         limit: filters.limit || 50,
+        page: filters.page || 1,
         search: filters.searchTerm,
-        ...filters
+        status: filters.status,
+        location: filters.location
       })
 
-      if (response.data) {
+      console.log('📊 useFarmers: API response:', response)
+
+      if (response && response.data) {
         const farmersData = response.data.farmers || []
+        console.log('👥 useFarmers: Farmers data received:', farmersData.length, 'farmers')
+
         setFarmers(farmersData)
+        setFilteredFarmers(farmersData) // Backend already filters
         setPagination({
           currentPage: response.data.page || 1,
           totalPages: response.data.totalPages || 1,
           totalItems: response.data.total || 0,
           itemsPerPage: filters.limit || 50
         })
+
+        // Use stats from backend response if available, otherwise calculate from current page
+        const backendStats = response.data.stats
+        let statsData
+
+        if (backendStats) {
+          statsData = {
+            totalFarmers: backendStats.totalFarmers || 0,
+            activeFarmers: backendStats.activeFarmers || 0,
+            inactiveFarmers: backendStats.inactiveFarmers || 0,
+            suspendedFarmers: backendStats.suspendedFarmers || 0
+          }
+          console.log('📈 useFarmers: Using backend stats:', statsData)
+        } else {
+          // Fallback: calculate from current page data
+          const activeFarmers = farmersData.filter(f => f.status === 'active').length
+          const inactiveFarmers = farmersData.filter(f => f.status === 'inactive').length
+          const suspendedFarmers = farmersData.filter(f => f.status === 'suspended').length
+
+          statsData = {
+            totalFarmers: response.data.total || 0,
+            activeFarmers,
+            inactiveFarmers,
+            suspendedFarmers
+          }
+          console.log('📈 useFarmers: Using calculated stats (fallback):', statsData)
+        }
+
+        setStats(statsData)
+      } else {
+        console.log('⚠️ useFarmers: No data in response')
+        setFarmers([])
+        setFilteredFarmers([])
+        setPagination({
+          currentPage: 1,
+          totalPages: 1,
+          totalItems: 0,
+          itemsPerPage: filters.limit || 50
+        })
+        setStats({
+          totalFarmers: 0,
+          activeFarmers: 0,
+          inactiveFarmers: 0,
+          suspendedFarmers: 0
+        })
       }
     } catch (error: any) {
       console.error('Failed to fetch farmers:', error)
       setFarmers([])
+      setFilteredFarmers([])
       setPagination({
         currentPage: 1,
         totalPages: 1,
         totalItems: 0,
         itemsPerPage: filters.limit || 50
+      })
+      setStats({
+        totalFarmers: 0,
+        activeFarmers: 0,
+        inactiveFarmers: 0,
+        suspendedFarmers: 0
       })
 
       toast({
@@ -210,7 +277,8 @@ export function useFarmers() {
     isLoading,
     filters,
     pagination,
-    
+    stats,
+
     // Actions
     fetchFarmers,
     updateFilters,
@@ -218,12 +286,12 @@ export function useFarmers() {
     updateFarmer,
     deleteFarmer,
     refreshData,
-    
-    // Computed values
-    activeFarmers: farmers.filter(f => f.status === 'active'),
-    inactiveFarmers: farmers.filter(f => f.status === 'inactive'),
-    suspendedFarmers: farmers.filter(f => f.status === 'suspended'),
-    totalFarmers: farmers.length,
-    totalActiveFarmers: farmers.filter(f => f.status === 'active').length
+
+    // Computed values from backend stats
+    activeFarmers: stats.activeFarmers,
+    inactiveFarmers: stats.inactiveFarmers,
+    suspendedFarmers: stats.suspendedFarmers,
+    totalFarmers: stats.totalFarmers,
+    totalActiveFarmers: stats.activeFarmers
   }
 }

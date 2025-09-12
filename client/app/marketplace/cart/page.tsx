@@ -5,7 +5,7 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { useBuyerStore } from "@/hooks/use-buyer-store"
+import { useBuyerStore, useCartInitialization } from "@/hooks/use-buyer-store"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -18,12 +18,69 @@ export default function CartPage() {
     isLoading
   } = useBuyerStore()
 
+  // Initialize cart from localStorage
+  useCartInitialization()
+
   const [loading, setLoading] = useState(false)
+  const [currentProductData, setCurrentProductData] = useState<any>({})
+
+  // Fetch current product data for cart items
+  useEffect(() => {
+    const fetchCurrentProductData = async () => {
+      if (cart.length === 0) return
+
+      try {
+        console.log('🔍 Fetching current product data for cart items...')
+
+        // Get unique listing IDs from cart
+        const listingIds = [...new Set(cart.map(item => item.listingId))]
+        console.log('📋 Cart listing IDs:', listingIds)
+
+        // Fetch current data for these products
+        const productPromises = listingIds.map(async (listingId) => {
+          try {
+            console.log(`🌐 Fetching product data for ID: ${listingId}`)
+            const response = await fetch(`http://localhost:5000/api/marketplace/listings/${listingId}`)
+
+            if (response.ok) {
+              const data = await response.json()
+              console.log(`✅ Product ${listingId} data:`, data)
+              return { listingId, data: data.data || data }
+            } else {
+              console.error(`❌ Failed to fetch product ${listingId}:`, response.status, response.statusText)
+              const errorText = await response.text()
+              console.error(`❌ Error details:`, errorText)
+            }
+          } catch (error) {
+            console.error(`❌ Network error fetching product ${listingId}:`, error)
+          }
+          return null
+        })
+
+        const results = await Promise.all(productPromises)
+        const productData: any = {}
+
+        results.forEach(result => {
+          if (result) {
+            productData[result.listingId] = result.data
+          }
+        })
+
+        console.log('📦 Final product data:', productData)
+        setCurrentProductData(productData)
+      } catch (error) {
+        console.error('❌ Failed to fetch current product data:', error)
+      }
+    }
+
+    fetchCurrentProductData()
+  }, [cart])
 
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
   const shipping = subtotal > 5000 ? 0 : 500
-  const total = subtotal + shipping
+  const tax = Math.round(subtotal * 0.075) // 7.5% VAT
+  const total = subtotal + shipping + tax
 
   const handleUpdateQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
@@ -105,6 +162,24 @@ export default function CartPage() {
                           <h4 className="font-semibold">{item.cropName}</h4>
                           <p className="text-sm text-gray-600">{item.farmer}</p>
                           <p className="text-sm text-gray-500">{item.location}</p>
+                          {currentProductData[item.listingId] ? (
+                            <div className="text-xs text-gray-400 mt-1">
+                              {currentProductData[item.listingId].quantity <= 0 ? (
+                                <span className="text-red-500 font-medium">Out of Stock</span>
+                              ) : (
+                                <span>
+                                  {currentProductData[item.listingId].quantity} {item.unit} available
+                                  {currentProductData[item.listingId].quantity < item.quantity && (
+                                    <span className="text-orange-500 ml-1">(Low stock!)</span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-blue-400 mt-1">
+                              Loading current stock...
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -121,7 +196,7 @@ export default function CartPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                            disabled={item.quantity >= item.availableQuantity}
+                            disabled={item.quantity >= (currentProductData[item.listingId]?.quantity || item.availableQuantity)}
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
@@ -162,11 +237,40 @@ export default function CartPage() {
                     <span>Subtotal</span>
                     <span>₦{subtotal.toLocaleString()}</span>
                   </div>
+
+                  {/* Only show shipping when there's a cost */}
+                  {shipping > 0 && (
+                    <div className="flex justify-between">
+                      <span>Shipping</span>
+                      <span>₦{shipping.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {/* Show free shipping indicator */}
+                  {shipping === 0 && subtotal > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-green-600 font-medium">Shipping</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-green-600 font-medium">FREE</span>
+                        <span className="text-xs text-green-500">🎉</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex justify-between">
-                    <span>Shipping</span>
-                    <span>{shipping === 0 ? "Free" : `₦${shipping.toLocaleString()}`}</span>
+                    <span className="text-gray-600">VAT (7.5% - Nigerian Govt Tax)</span>
+                    <span>₦{tax.toLocaleString()}</span>
                   </div>
-                  {shipping === 0 && <p className="text-sm text-green-600">Free shipping on orders over ₦5,000</p>}
+
+                  {/* Free shipping celebration message */}
+                  {shipping === 0 && subtotal >= 5000 && (
+                    <div className="bg-green-50 border border-green-200 rounded-md p-2 mt-2">
+                      <p className="text-xs text-green-700 text-center">
+                        🎉 Free shipping on orders ₦5,000 and above!
+                      </p>
+                    </div>
+                  )}
+
                   <Separator />
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>

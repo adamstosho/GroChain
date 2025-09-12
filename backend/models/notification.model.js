@@ -5,12 +5,34 @@ const NotificationSchema = new mongoose.Schema({
   title: { type: String, required: true },
   message: { type: String, required: true },
   type: { type: String, enum: ['info', 'success', 'warning', 'error'], default: 'info' },
-  category: { type: String, enum: ['harvest', 'marketplace', 'financial', 'system', 'weather'], default: 'system' },
+  category: { type: String, enum: ['harvest', 'marketplace', 'financial', 'system', 'weather', 'order', 'payment'], default: 'system' },
+  deliveryStatus: {
+    websocket: { type: Boolean, default: false },
+    email: { type: Boolean, default: false },
+    sms: { type: Boolean, default: false },
+    timestamp: { type: Date }
+  },
+  deliveryLogs: [{
+    timestamp: { type: Date, default: Date.now },
+    status: {
+      websocket: { type: Boolean },
+      email: { type: Boolean },
+      sms: { type: Boolean }
+    },
+    methods: [{ type: String }],
+    error: { type: String }
+  }],
   channels: [{
     type: { type: String, enum: ['email', 'sms', 'push', 'in_app'], required: true },
     sent: { type: Boolean, default: false },
     sentAt: { type: Date },
-    error: { type: String }
+    error: { type: String },
+    deliveryTracking: {
+      websocket: { type: Boolean },
+      email: { type: Boolean },
+      sms: { type: Boolean },
+      timestamp: { type: Date }
+    }
   }],
   data: { type: Object }, // Additional data for the notification
   read: { type: Boolean, default: false },

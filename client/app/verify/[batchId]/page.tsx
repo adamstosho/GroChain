@@ -372,7 +372,7 @@ export default function VerifyHarvestPage() {
               <div>
                 <label className="text-sm font-medium text-gray-600">Blockchain Status</label>
                 <p className="mt-1 flex items-center gap-2">
-                  <div className="h-2 w-2 bg-yellow-400 rounded-full"></div>
+                  <span className="h-2 w-2 bg-yellow-400 rounded-full inline-block"></span>
                   Pending Anchor
                 </p>
               </div>

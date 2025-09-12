@@ -27,9 +27,9 @@ export default function CheckoutPage() {
   const [processing, setProcessing] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState("paystack")
   const [shippingInfo, setShippingInfo] = useState({
-    fullName: "",
+    fullName: user?.name || "",
     email: user?.email || "",
-    phone: "",
+    phone: user?.phone || "",
     address: "",
     city: "",
     state: "",
@@ -56,15 +56,17 @@ export default function CheckoutPage() {
     }
   }, [initializeCart, router, toast])
 
-  // Pre-fill email when user data is available
+  // Pre-fill user data when available
   useEffect(() => {
-    if (user?.email && mounted) {
+    if (user && mounted) {
       setShippingInfo(prev => ({
         ...prev,
-        email: user.email
+        fullName: user.name || prev.fullName,
+        email: user.email || prev.email,
+        phone: user.phone || prev.phone
       }))
     }
-  }, [user?.email, mounted])
+  }, [user, mounted])
 
   // Ensure Paystack script is loaded
   useEffect(() => {
@@ -195,17 +197,36 @@ export default function CheckoutPage() {
         async (response) => {
           console.log('✅ Payment successful:', response)
 
+          console.log('✅ Payment successful - starting post-payment cleanup')
+          console.log('📦 Order details:', { orderId: order._id, totalItems: order.items?.length || 0 })
+
           toast({
             title: "Payment successful!",
-            description: "Your payment has been processed. Redirecting to order details...",
+            description: "Your payment has been processed. Redirecting to order confirmation...",
           })
 
           // Clear cart after successful payment
+          console.log('🗑️ Clearing cart...')
           clearCart()
 
-          // Redirect to order details
+          // Force refresh of marketplace products by clearing cache
+          try {
+            console.log('🔄 Setting marketplace refresh flag...')
+            // Clear any cached product data
+            if (typeof window !== 'undefined') {
+              // Force a hard refresh of the marketplace page data
+              localStorage.setItem('marketplace_refresh_needed', 'true')
+              console.log('✅ Refresh flag set successfully')
+            }
+          } catch (error) {
+            console.log('❌ Could not set refresh flag:', error)
+          }
+
+          console.log('🚀 Post-payment cleanup completed')
+
+          // Redirect to order success page first
           setTimeout(() => {
-            router.push(`/dashboard/orders/${order._id}`)
+            router.push(`/marketplace/order-success/${order._id}`)
           }, 2000)
         },
         // Close callback
@@ -264,8 +285,8 @@ export default function CheckoutPage() {
       // Clear cart after successful order creation
       clearCart()
 
-      // Redirect to order details with bank transfer instructions
-      router.push(`/dashboard/orders/${response.data._id}?payment_method=bank_transfer`)
+      // Redirect to order success page with bank transfer instructions
+      router.push(`/marketplace/order-success/${response.data._id}?payment_method=bank_transfer`)
     } else {
       throw new Error(response?.message || 'Failed to create order')
     }
@@ -303,8 +324,8 @@ export default function CheckoutPage() {
       // Clear cart after successful order creation
       clearCart()
 
-      // Redirect to order details
-      router.push(`/dashboard/orders/${response.data._id}`)
+      // Redirect to order success page
+      router.push(`/marketplace/order-success/${response.data._id}?payment_method=cash`)
     } else {
       throw new Error(response?.message || 'Failed to create order')
     }
@@ -375,25 +396,35 @@ export default function CheckoutPage() {
                   Shipping Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="fullName">Full Name</Label>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName" className="text-sm font-medium text-gray-700 block">
+                      Full Name
+                    </Label>
                     <Input
                       id="fullName"
                       value={shippingInfo.fullName}
                       onChange={(e) => handleInputChange("fullName", e.target.value)}
                       placeholder="Enter your full name"
+                      className="w-full h-11 px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                     />
+                    {user?.name && (
+                      <p className="text-xs text-green-600 mt-1">
+                        Using your registered name
+                      </p>
+                    )}
                   </div>
-                  <div>
-                    <Label htmlFor="email">Email Address</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-sm font-medium text-gray-700 block">
+                      Email Address
+                    </Label>
                     <Input
                       id="email"
                       type="email"
                       value={shippingInfo.email}
                       readOnly
-                      className="bg-gray-50 cursor-not-allowed"
+                      className="w-full h-11 px-4 py-3 bg-gray-50 border border-gray-200 rounded-md cursor-not-allowed text-gray-600"
                       placeholder="Your registered email"
                     />
                     <p className="text-xs text-gray-500 mt-1">
@@ -402,54 +433,76 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="phone">Phone Number</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-sm font-medium text-gray-700 block">
+                    Phone Number
+                  </Label>
                   <Input
                     id="phone"
                     value={shippingInfo.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
                     placeholder="Enter your phone number"
+                    className="w-full h-11 px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                   />
+                  {user?.phone && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Using your registered phone number
+                    </p>
+                  )}
                 </div>
 
-                <div>
-                  <Label htmlFor="address">Address</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="text-sm font-medium text-gray-700 block">
+                    Address
+                  </Label>
                   <Textarea
                     id="address"
                     value={shippingInfo.address}
                     onChange={(e) => handleInputChange("address", e.target.value)}
                     placeholder="Enter your full address"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors resize-none"
+                    rows={3}
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="city">City</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="city" className="text-sm font-medium text-gray-700 block">
+                      City
+                    </Label>
                     <Input
                       id="city"
                       value={shippingInfo.city}
                       onChange={(e) => handleInputChange("city", e.target.value)}
                       placeholder="Enter your city"
+                      className="w-full h-11 px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="state">State</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="state" className="text-sm font-medium text-gray-700 block">
+                      State
+                    </Label>
                     <Input
                       id="state"
                       value={shippingInfo.state}
                       onChange={(e) => handleInputChange("state", e.target.value)}
                       placeholder="Enter your state"
+                      className="w-full h-11 px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="notes">Delivery Notes (Optional)</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="notes" className="text-sm font-medium text-gray-700 block">
+                    Delivery Notes (Optional)
+                  </Label>
                   <Textarea
                     id="notes"
                     value={shippingInfo.notes}
                     onChange={(e) => handleInputChange("notes", e.target.value)}
                     placeholder="Any special delivery instructions"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors resize-none"
+                    rows={3}
                   />
                 </div>
               </CardContent>
@@ -546,15 +599,39 @@ export default function CheckoutPage() {
                     <span>Subtotal</span>
                     <span>₦{subtotal.toLocaleString()}</span>
                   </div>
+
+                  {/* Only show shipping when there's a cost */}
+                  {shipping > 0 && (
+                    <div className="flex justify-between">
+                      <span>Shipping</span>
+                      <span>₦{shipping.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {/* Show free shipping indicator */}
+                  {shipping === 0 && subtotal > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-green-600 font-medium">Shipping</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-green-600 font-medium">FREE</span>
+                        <span className="text-xs text-green-500">🎉</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex justify-between">
-                    <span>Shipping</span>
-                    <span>{shipping === 0 ? "Free" : `₦${shipping.toLocaleString()}`}</span>
-                  </div>
-                  {shipping === 0 && <p className="text-sm text-green-600">🎉 Free shipping on orders over ₦5,000</p>}
-                  <div className="flex justify-between">
-                    <span>Tax (7.5% VAT)</span>
+                    <span className="text-gray-600">VAT (7.5% - Nigerian Govt Tax)</span>
                     <span>₦{tax.toLocaleString()}</span>
                   </div>
+
+                  {/* Free shipping celebration message */}
+                  {shipping === 0 && subtotal >= 5000 && (
+                    <div className="bg-green-50 border border-green-200 rounded-md p-2 mt-2">
+                      <p className="text-xs text-green-700 text-center">
+                        🎉 Free shipping on orders ₦5,000 and above!
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <Separator />

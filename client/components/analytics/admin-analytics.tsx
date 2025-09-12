@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -21,9 +22,28 @@ import {
   MapPin,
   Target,
   Shield,
-  Globe
+  Globe,
+  AlertTriangle,
+  CheckCircle
 } from "lucide-react"
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie, Legend } from "recharts"
+import { 
+  LineChart, 
+  Line, 
+  AreaChart, 
+  Area, 
+  BarChart, 
+  Bar, 
+  PieChart as RechartsPieChart, 
+  Cell, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  Pie, 
+  Legend,
+  ComposedChart
+} from "recharts"
 import { cn } from "@/lib/utils"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
@@ -53,77 +73,174 @@ interface ChartData {
   [key: string]: any
 }
 
+interface OverviewData {
+  monthlyGrowth: any[]
+  userGrowth: any[]
+  harvestTrends: any[]
+  revenueTrends: any[]
+}
+
+interface UserAnalyticsData {
+  userDistribution: any[]
+  userGrowth: any[]
+  userActivity: any[]
+  topUsers: any[]
+}
+
+interface RegionalData {
+  regionalData: any[]
+}
+
+interface QualityData {
+  qualityDistribution: any[]
+  statusMetrics: any[]
+  creditScoreStats: any
+  approvalMetrics: any
+}
+
 export function AdminAnalytics() {
   const [analyticsData, setAnalyticsData] = useState<AdminAnalyticsData | null>(null)
+  const [overviewData, setOverviewData] = useState<OverviewData | null>(null)
+  const [userAnalyticsData, setUserAnalyticsData] = useState<UserAnalyticsData | null>(null)
+  const [regionalData, setRegionalData] = useState<RegionalData | null>(null)
+  const [qualityData, setQualityData] = useState<QualityData | null>(null)
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "1y">("30d")
   const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState("overview")
   const { toast } = useToast()
 
-  // Mock data for charts (replace with real API calls)
-  const mockPlatformGrowth: ChartData[] = [
-    { name: "Jan", users: 1200, harvests: 850, revenue: 2500000, orders: 320 },
-    { name: "Feb", users: 1350, harvests: 920, revenue: 2800000, orders: 380 },
-    { name: "Mar", users: 1480, harvests: 1050, revenue: 3200000, orders: 420 },
-    { name: "Apr", users: 1620, harvests: 1180, revenue: 3800000, orders: 480 },
-    { name: "May", users: 1780, harvests: 1320, revenue: 4500000, orders: 550 },
-    { name: "Jun", users: 1950, harvests: 1480, revenue: 5200000, orders: 620 }
-  ]
+  useEffect(() => {
+    fetchAllAnalytics()
+  }, [timeRange])
 
-  const mockUserDistribution: ChartData[] = [
-    { name: "Farmers", value: 45, color: "#22c55e" },
-    { name: "Buyers", value: 30, color: "#f59e0b" },
-    { name: "Partners", value: 20, color: "#8b5cf6" },
-    { name: "Admins", value: 5, color: "#ef4444" }
-  ]
+  const fetchAllAnalytics = async () => {
+    try {
+      setIsLoading(true)
+      
+      // Fetch dashboard metrics and overview data in parallel
+      const [dashboardResponse, overviewResponse] = await Promise.allSettled([
+        apiService.getAdminDashboard(),
+        apiService.getAdminAnalyticsOverview(timeRange)
+      ])
 
-  const mockRegionalData: ChartData[] = [
-    { region: "Lagos", users: 450, harvests: 320, revenue: 1200000 },
-    { region: "Kano", users: 380, harvests: 280, revenue: 980000 },
-    { region: "Oyo", users: 320, harvests: 240, revenue: 850000 },
-    { region: "Kaduna", users: 280, harvests: 200, revenue: 720000 },
-    { region: "Katsina", users: 240, harvests: 180, revenue: 650000 },
-    { region: "Others", users: 280, harvests: 260, revenue: 700000 }
-  ]
+      // Handle dashboard data
+      if (dashboardResponse.status === 'fulfilled' && dashboardResponse.value.status === 'success') {
+        const data = dashboardResponse.value.data as any
+        setAnalyticsData({
+          totalUsers: data.totalUsers || 0,
+          activeUsers: data.activeUsers || 0,
+          newRegistrations: 0, // This would need to be calculated
+          totalHarvests: data.totalHarvests || 0,
+          approvedHarvests: data.totalHarvests - (data.pendingApprovals || 0),
+          totalListings: data.totalListings || 0,
+          totalOrders: data.totalOrders || 0,
+          totalRevenue: data.totalRevenue || 0,
+          averageCreditScore: 650, // Default value
+          approvalRate: data.approvalRate || 0,
+          userDistribution: data.userDistribution
+        })
+      }
 
-  const mockQualityMetrics = {
-    excellent: 40,
-    good: 35,
-    fair: 20,
-    poor: 5
+      // Handle overview data
+      if (overviewResponse.status === 'fulfilled' && overviewResponse.value.status === 'success') {
+        setOverviewData(overviewResponse.value.data as OverviewData)
+      }
+
+    } catch (error: any) {
+      console.error('Error fetching analytics:', error)
+      toast({
+        title: "Error loading analytics",
+        description: error.message || "Failed to load analytics data",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        setIsLoading(true)
-        // Fetch admin analytics data
-        const response = await apiService.getDashboardMetrics()
-        setAnalyticsData(response.data)
-      } catch (error: any) {
-        toast({
-          title: "Error loading analytics",
-          description: error.message,
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoading(false)
+  const fetchTabData = async (tab: string) => {
+    try {
+      switch (tab) {
+        case 'users':
+          if (!userAnalyticsData) {
+            const response = await apiService.getAdminAnalyticsUsers(timeRange)
+            if (response.status === 'success') {
+              setUserAnalyticsData(response.data as UserAnalyticsData)
+            }
+          }
+          break
+        case 'regional':
+          if (!regionalData) {
+            const response = await apiService.getAdminAnalyticsRegional(timeRange)
+            if (response.status === 'success') {
+              setRegionalData(response.data as RegionalData)
+            }
+          }
+          break
+        case 'quality':
+          if (!qualityData) {
+            const response = await apiService.getAdminAnalyticsQuality(timeRange)
+            if (response.status === 'success') {
+              setQualityData(response.data as QualityData)
+            }
+          }
+          break
       }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: `Failed to load ${tab} data`,
+        variant: "destructive",
+      })
     }
+  }
 
-    fetchAnalytics()
-  }, [toast])
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    fetchTabData(value)
+  }
 
   const handleRefresh = () => {
-    // Refresh analytics data
-    window.location.reload()
+    fetchAllAnalytics()
+    // Clear cached tab data to force refresh
+    setUserAnalyticsData(null)
+    setRegionalData(null)
+    setQualityData(null)
   }
 
-  const handleExport = () => {
-    // Export analytics data
-    toast({
-      title: "Export initiated",
-      description: "Your analytics report is being prepared for download.",
-    })
+  const handleExport = async () => {
+    try {
+      const response = await apiService.getAdminAnalyticsExport({
+        type: 'all',
+        format: 'json',
+        period: timeRange
+      })
+      
+      if (response.status === 'success') {
+        // Create download link
+        const dataStr = JSON.stringify(response.data, null, 2)
+        const dataBlob = new Blob([dataStr], { type: 'application/json' })
+        const url = URL.createObjectURL(dataBlob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `admin-analytics-${timeRange}-${new Date().toISOString().split('T')[0]}.json`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+        
+        toast({
+          title: "Export successful",
+          description: "Analytics data has been downloaded",
+        })
+      }
+    } catch (error: any) {
+      toast({
+        title: "Export failed",
+        description: error.message || "Failed to export analytics data",
+        variant: "destructive",
+      })
+    }
   }
 
   const formatCurrency = (value: number) => {
@@ -142,148 +259,83 @@ export function AdminAnalytics() {
     }).format(value)
   }
 
-  // Ensure data is valid before rendering charts
-  const isValidData = (data: any[]) => {
-    return Array.isArray(data) && data.length > 0 && data.every(item => item !== null && item !== undefined)
-  }
-
-  // Safe chart rendering with error boundaries
-  const renderChart = (chartType: string, data: any[], fallback: React.ReactNode) => {
-    if (!isValidData(data)) {
-      return fallback
+  const processChartData = (data: any[], format: 'monthly' | 'combined' = 'monthly') => {
+    if (!Array.isArray(data) || data.length === 0) return []
+    
+    if (format === 'combined') {
+      // Combine data from different sources
+      const combinedMap = new Map()
+      
+      data.forEach(item => {
+        const month = item._id
+        if (!combinedMap.has(month)) {
+          combinedMap.set(month, { name: month })
+        }
+        const existing = combinedMap.get(month)
+        Object.keys(item).forEach(key => {
+          if (key !== '_id') {
+            existing[key] = item[key]
+          }
+        })
+      })
+      
+      return Array.from(combinedMap.values()).sort((a, b) => a.name.localeCompare(b.name))
     }
     
-    try {
-      switch (chartType) {
-        case 'line':
-          return (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="users" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
-                  name="Users"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="transactions" 
-                  stroke="#10b981" 
-                  strokeWidth={2}
-                  name="Transactions"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )
-        case 'area':
-          return (
-            <ResponsiveContainer width="100%" height={400}>
-              <AreaChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Area 
-                  type="monotone" 
-                  dataKey="users" 
-                  stackId="1" 
-                  stroke="#3b82f6" 
-                  fill="#3b82f6" 
-                  fillOpacity={0.6}
-                  name="Users"
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="transactions" 
-                  stackId="2" 
-                  stroke="#10b981" 
-                  fill="#10b981" 
-                  fillOpacity={0.6}
-                  name="Transactions"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          )
-        case 'bar':
-          return (
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="value" fill="#3b82f6" name="Count" />
-                <Bar dataKey="amount" fill="#10b981" name="Amount" />
-              </BarChart>
-            </ResponsiveContainer>
-          )
-        case 'pie':
-          return (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Farmers', value: analyticsData?.userDistribution?.farmers || 0, color: '#10b981' },
-                    { name: 'Buyers', value: analyticsData?.userDistribution?.buyers || 0, color: '#3b82f6' },
-                    { name: 'Partners', value: analyticsData?.userDistribution?.partners || 0, color: '#f59e0b' },
-                    { name: 'Admins', value: analyticsData?.userDistribution?.admins || 0, color: '#ef4444' }
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
-                  {[
-                    { name: 'Farmers', value: analyticsData?.userDistribution?.farmers || 0, color: '#10b981' },
-                    { name: 'Buyers', value: analyticsData?.userDistribution?.buyers || 0, color: '#3b82f6' },
-                    { name: 'Partners', value: analyticsData?.userDistribution?.partners || 0, color: '#f59e0b' },
-                    { name: 'Admins', value: analyticsData?.userDistribution?.admins || 0, color: '#ef4444' }
-                  ].map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          )
-        default:
-          return fallback
-      }
-    } catch (error) {
-      console.error(`Error rendering ${chartType} chart:`, error)
-      return fallback
-    }
+    return data.map(item => ({
+      name: item._id,
+      value: item.count || item.users || item.harvests || item.revenue || 0,
+      ...item
+    })).sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  const getUserDistributionData = () => {
+    if (!analyticsData?.userDistribution) return []
+    
+    const { farmers, buyers, partners, admins } = analyticsData.userDistribution
+    const total = farmers + buyers + partners + admins
+    
+    if (total === 0) return []
+    
+    return [
+      { name: 'Farmers', value: Math.round((farmers / total) * 100), count: farmers, color: '#22c55e' },
+      { name: 'Buyers', value: Math.round((buyers / total) * 100), count: buyers, color: '#3b82f6' },
+      { name: 'Partners', value: Math.round((partners / total) * 100), count: partners, color: '#8b5cf6' },
+      { name: 'Admins', value: Math.round((admins / total) * 100), count: admins, color: '#ef4444' }
+    ]
+  }
+
+  const getQualityDistributionData = () => {
+    if (!qualityData?.qualityDistribution) return []
+    
+    const total = qualityData.qualityDistribution.reduce((sum: number, item: any) => sum + item.count, 0)
+    
+    return qualityData.qualityDistribution.map((item: any) => ({
+      quality: item._id || 'Unknown',
+      percentage: total > 0 ? Math.round((item.count / total) * 100) : 0,
+      count: item.count
+    }))
   }
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <RefreshCw className="h-8 w-8 animate-spin" />
+        <LoadingSpinner size="lg" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Admin Analytics</h2>
-          <p className="text-muted-foreground">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold text-gray-900">Analytics Dashboard</h1>
+          <p className="text-gray-600">
             Platform-wide insights, user growth, and system performance metrics
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Select value={timeRange} onValueChange={(value: any) => setTimeRange(value)}>
             <SelectTrigger className="w-32">
               <SelectValue />
@@ -295,8 +347,8 @@ export function AdminAnalytics() {
               <SelectItem value="1y">Last year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={handleRefresh}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
           <Button variant="outline" onClick={handleExport}>
@@ -307,17 +359,17 @@ export function AdminAnalytics() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analyticsData?.totalUsers || 0}</div>
+            <div className="text-2xl font-bold">{formatNumber(analyticsData?.totalUsers || 0)}</div>
             <div className="flex items-center text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
-              {analyticsData?.activeUsers || 0} active
+              {formatNumber(analyticsData?.activeUsers || 0)} active
             </div>
           </CardContent>
         </Card>
@@ -333,7 +385,7 @@ export function AdminAnalytics() {
             </div>
             <div className="flex items-center text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3 mr-1 text-green-600" />
-              From {analyticsData?.totalOrders || 0} orders
+              From {formatNumber(analyticsData?.totalOrders || 0)} orders
             </div>
           </CardContent>
         </Card>
@@ -344,7 +396,7 @@ export function AdminAnalytics() {
             <Package className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analyticsData?.totalHarvests || 0}</div>
+            <div className="text-2xl font-bold">{formatNumber(analyticsData?.totalHarvests || 0)}</div>
             <div className="flex items-center text-xs text-muted-foreground">
               <Target className="h-3 w-3 mr-1 text-blue-600" />
               {analyticsData?.approvalRate || 0}% approval rate
@@ -368,8 +420,8 @@ export function AdminAnalytics() {
       </div>
 
       {/* Charts Section */}
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="users">User Analytics</TabsTrigger>
           <TabsTrigger value="regional">Regional Data</TabsTrigger>
@@ -389,60 +441,62 @@ export function AdminAnalytics() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <AreaChart data={mockPlatformGrowth}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis 
-                    yAxisId="left"
-                    tickFormatter={(value) => formatNumber(value)}
-                  />
-                  <YAxis 
-                    yAxisId="right" 
-                    orientation="right"
-                    tickFormatter={(value) => formatCurrency(value)}
-                  />
-                  <Tooltip 
-                    formatter={(value: any, name: string) => [
-                      name === 'revenue' ? formatCurrency(value) : value,
-                      name === 'revenue' ? 'Revenue' : name === 'harvests' ? 'Harvests' : name === 'orders' ? 'Orders' : 'Users'
-                    ]}
-                  />
-                  <Area
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="users"
-                    stroke="#3b82f6"
-                    fill="#3b82f6"
-                    fillOpacity={0.1}
-                    name="Users"
-                  />
-                  <Line
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="harvests"
-                    stroke="#22c55e"
-                    strokeWidth={2}
-                    name="Harvests"
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#8b5cf6"
-                    strokeWidth={2}
-                    name="Revenue"
-                  />
-                  <Line
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="orders"
-                    stroke="#ef4444"
-                    strokeWidth={2}
-                    name="Orders"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {overviewData?.monthlyGrowth && overviewData.monthlyGrowth.length > 0 ? (
+                <ResponsiveContainer width="100%" height={400}>
+                  <ComposedChart data={processChartData(overviewData.monthlyGrowth)}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis 
+                      yAxisId="left"
+                      tickFormatter={(value) => formatNumber(value)}
+                    />
+                    <YAxis 
+                      yAxisId="right" 
+                      orientation="right"
+                      tickFormatter={(value) => formatCurrency(value)}
+                    />
+                    <Tooltip 
+                      formatter={(value: any, name: string) => [
+                        name === 'revenue' ? formatCurrency(value) : formatNumber(value),
+                        name === 'users' ? 'Users' : name === 'harvests' ? 'Harvests' : name === 'orders' ? 'Orders' : 'Revenue'
+                      ]}
+                    />
+                    <Legend />
+                    <Area
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="users"
+                      stroke="#3b82f6"
+                      fill="#3b82f6"
+                      fillOpacity={0.1}
+                      name="Users"
+                    />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="harvests"
+                      stroke="#22c55e"
+                      strokeWidth={2}
+                      name="Harvests"
+                    />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="orders"
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                      name="Orders"
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-64 text-gray-500">
+                  <div className="text-center">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No growth data available for the selected period</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -450,26 +504,14 @@ export function AdminAnalytics() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Best Month</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">June</div>
-                <p className="text-xs text-muted-foreground">
-                  1,950 users • 1,480 harvests • ₦5.2M revenue
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
                 <CardTitle className="text-sm font-medium">User Growth</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {analyticsData?.newRegistrations || 0}
+                  {formatNumber(analyticsData?.newRegistrations || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  New registrations this month
+                  New registrations this period
                 </p>
               </CardContent>
             </Card>
@@ -479,11 +521,25 @@ export function AdminAnalytics() {
                 <CardTitle className="text-sm font-medium">Platform Health</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-purple-600">
+                <div className="text-2xl font-bold text-green-600">
                   {analyticsData?.approvalRate || 0}%
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Harvest approval rate
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">
+                  {analyticsData?.totalUsers ? Math.round((analyticsData.activeUsers / analyticsData.totalUsers) * 100) : 0}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  User engagement rate
                 </p>
               </CardContent>
             </Card>
@@ -504,25 +560,34 @@ export function AdminAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <RechartsPieChart>
-                    <Pie
-                      data={mockUserDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {mockUserDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: any) => [`${value}%`, 'Distribution']} />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
+                {getUserDistributionData().length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RechartsPieChart>
+                      <Pie
+                        data={getUserDistributionData()}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, value }) => `${name} ${value}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {getUserDistributionData().map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: any, name: string) => [`${value}%`, 'Distribution']} />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-gray-500">
+                    <div className="text-center">
+                      <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>No user distribution data available</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -530,22 +595,46 @@ export function AdminAnalytics() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-primary" />
-                  User Growth
+                  User Activity
                 </CardTitle>
                 <CardDescription>
-                  Monthly user registration trends
+                  User status and activity metrics
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={mockPlatformGrowth}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis tickFormatter={(value) => formatNumber(value)} />
-                    <Tooltip formatter={(value: any) => [formatNumber(value), 'Users']} />
-                    <Bar dataKey="users" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {userAnalyticsData?.userActivity ? (
+                  <div className="space-y-4">
+                    {userAnalyticsData.userActivity.map((status: any, index: number) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium capitalize">{status._id}</span>
+                          <span className="text-sm text-muted-foreground">{status.count}</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div
+                            className={cn(
+                              "h-2 rounded-full transition-all duration-300",
+                              status._id === "active" && "bg-green-500",
+                              status._id === "pending" && "bg-yellow-500",
+                              status._id === "suspended" && "bg-red-500",
+                              status._id === "verified" && "bg-blue-500"
+                            )}
+                            style={{ 
+                              width: `${Math.min(100, (status.count / (analyticsData?.totalUsers || 1)) * 100)}%` 
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-gray-500">
+                    <div className="text-center">
+                      <Activity className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>Loading user activity data...</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -564,58 +653,72 @@ export function AdminAnalytics() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={mockRegionalData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="region" />
-                  <YAxis yAxisId="left" tickFormatter={(value) => formatNumber(value)} />
-                  <YAxis yAxisId="right" orientation="right" tickFormatter={(value) => formatCurrency(value)} />
-                  <Tooltip 
-                    formatter={(value: any, name: string) => [
-                      name === 'revenue' ? formatCurrency(value) : value,
-                      name === 'revenue' ? 'Revenue' : name === 'harvests' ? 'Harvests' : 'Users'
-                    ]}
-                  />
-                  <Bar yAxisId="left" dataKey="users" fill="#3b82f6" name="Users" />
-                  <Bar yAxisId="left" dataKey="harvests" fill="#22c55e" name="Harvests" />
-                  <Bar yAxisId="right" dataKey="revenue" fill="#8b5cf6" name="Revenue" />
-                </BarChart>
-              </ResponsiveContainer>
+              {regionalData?.regionalData && regionalData.regionalData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={regionalData.regionalData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="region" />
+                    <YAxis yAxisId="left" tickFormatter={(value) => formatNumber(value)} />
+                    <YAxis yAxisId="right" orientation="right" tickFormatter={(value) => formatCurrency(value)} />
+                    <Tooltip 
+                      formatter={(value: any, name: string) => [
+                        name === 'revenue' ? formatCurrency(value) : formatNumber(value),
+                        name === 'revenue' ? 'Revenue' : name === 'harvests' ? 'Harvests' : 'Users'
+                      ]}
+                    />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="users" fill="#3b82f6" name="Users" />
+                    <Bar yAxisId="left" dataKey="harvests" fill="#22c55e" name="Harvests" />
+                    <Bar yAxisId="right" dataKey="revenue" fill="#8b5cf6" name="Revenue" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-64 text-gray-500">
+                  <div className="text-center">
+                    <MapPin className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>Loading regional data...</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Regional Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Regional Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2 font-medium">Region</th>
-                      <th className="text-left p-2 font-medium">Users</th>
-                      <th className="text-left p-2 font-medium">Harvests</th>
-                      <th className="text-left p-2 font-medium">Revenue</th>
-                      <th className="text-left p-2 font-medium">Avg Revenue/User</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mockRegionalData.map((region) => (
-                      <tr key={region.region} className="border-b hover:bg-muted/30">
-                        <td className="p-2 font-medium">{region.region}</td>
-                        <td className="p-2">{formatNumber(region.users)}</td>
-                        <td className="p-2">{formatNumber(region.harvests)}</td>
-                        <td className="p-2">{formatCurrency(region.revenue)}</td>
-                        <td className="p-2">{formatCurrency(region.revenue / region.users)}</td>
+          {regionalData?.regionalData && regionalData.regionalData.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Regional Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2 font-medium">Region</th>
+                        <th className="text-left p-2 font-medium">Users</th>
+                        <th className="text-left p-2 font-medium">Harvests</th>
+                        <th className="text-left p-2 font-medium">Revenue</th>
+                        <th className="text-left p-2 font-medium">Avg Revenue/User</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                    </thead>
+                    <tbody>
+                      {regionalData.regionalData.map((region) => (
+                        <tr key={region.region} className="border-b hover:bg-muted/30">
+                          <td className="p-2 font-medium">{region.region}</td>
+                          <td className="p-2">{formatNumber(region.users)}</td>
+                          <td className="p-2">{formatNumber(region.harvests)}</td>
+                          <td className="p-2">{formatCurrency(region.revenue)}</td>
+                          <td className="p-2">
+                            {region.users > 0 ? formatCurrency(region.revenue / region.users) : '₦0'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="quality" className="space-y-6">
@@ -632,28 +735,37 @@ export function AdminAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {Object.entries(mockQualityMetrics).map(([quality, percentage]) => (
-                    <div key={quality} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium capitalize">{quality}</span>
-                        <span className="text-sm text-muted-foreground">{percentage}%</span>
+                {getQualityDistributionData().length > 0 ? (
+                  <div className="space-y-4">
+                    {getQualityDistributionData().map((quality) => (
+                      <div key={quality.quality} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium capitalize">{quality.quality}</span>
+                          <span className="text-sm text-muted-foreground">{quality.percentage}%</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div
+                            className={cn(
+                              "h-2 rounded-full transition-all duration-300",
+                              quality.quality === "excellent" && "bg-green-500",
+                              quality.quality === "good" && "bg-blue-500",
+                              quality.quality === "fair" && "bg-yellow-500",
+                              quality.quality === "poor" && "bg-red-500"
+                            )}
+                            style={{ width: `${quality.percentage}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div
-                          className={cn(
-                            "h-2 rounded-full transition-all duration-300",
-                            quality === "excellent" && "bg-green-500",
-                            quality === "good" && "bg-blue-500",
-                            quality === "fair" && "bg-yellow-500",
-                            quality === "poor" && "bg-red-500"
-                          )}
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-gray-500">
+                    <div className="text-center">
+                      <Target className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>Loading quality data...</p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -679,7 +791,7 @@ export function AdminAnalytics() {
                     <div
                       className="h-2 rounded-full bg-blue-500 transition-all duration-300"
                       style={{ 
-                        width: `${analyticsData?.totalUsers > 0 ? (analyticsData.activeUsers / analyticsData.totalUsers) * 100 : 0}%` 
+                        width: `${analyticsData?.totalUsers && analyticsData.totalUsers > 0 ? (analyticsData.activeUsers / analyticsData.totalUsers) * 100 : 0}%` 
                       }}
                     />
                   </div>
@@ -706,9 +818,28 @@ export function AdminAnalytics() {
                   <div className="w-full bg-muted rounded-full h-2">
                     <div
                       className="h-2 rounded-full bg-purple-500 transition-all duration-300"
-                      style={{ width: `${analyticsData?.averageCreditScore || 0}%` }}
+                      style={{ width: `${Math.min(100, analyticsData?.averageCreditScore || 0)}%` }}
                     />
                   </div>
+
+                  {qualityData?.approvalMetrics && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Harvest Approval</span>
+                        <span className="text-sm text-muted-foreground">
+                          {qualityData.approvalMetrics.approved} / {qualityData.approvalMetrics.total}
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className="h-2 rounded-full bg-green-500 transition-all duration-300"
+                          style={{ 
+                            width: `${qualityData.approvalMetrics.total > 0 ? (qualityData.approvalMetrics.approved / qualityData.approvalMetrics.total) * 100 : 0}%` 
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -718,4 +849,3 @@ export function AdminAnalytics() {
     </div>
   )
 }
-

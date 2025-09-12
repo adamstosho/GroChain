@@ -133,9 +133,7 @@ router.get('/search-suggestions', async (req, res) => {
 
 // Debug endpoint to check authentication
 router.get('/auth/debug', authenticate, (req, res) => {
-  console.log('🔍 Auth debug endpoint called')
-  console.log('User object:', req.user)
-  console.log('Headers:', req.headers.authorization)
+  console.log('🔍 Auth debug endpoint called for user:', req.user?.email || 'unknown')
 
   res.json({
     status: 'success',
@@ -157,8 +155,7 @@ router.get('/debug/models', (req, res) => {
 
 // Favorites for current authenticated user
 router.get('/favorites/current', authenticate, async (req, res) => {
-  console.log('🔍 Favorites/current endpoint called')
-  console.log('User object:', req.user)
+  console.log('🔍 Favorites/current endpoint called for user:', req.user?.email || 'unknown')
 
   const { page = 1, limit = 20 } = req.query
   const userId = req.user?.id || req.user?._id
@@ -260,11 +257,40 @@ router.get('/favorites/:userId', authenticate, async (req, res) => {
   }
 
   try {
-    const result = await Favorite.getUserFavorites(userId, parseInt(page), parseInt(limit))
-    console.log('Favorites result:', JSON.stringify(result, null, 2))
+    // Use lean() to avoid circular references
+    const favorites = await Favorite.find({ user: userId })
+      .populate({
+        path: 'listing',
+        select: 'cropName basePrice unit quantity availableQuantity qualityGrade organic images location farmer harvest',
+        populate: [
+          { path: 'farmer', select: 'name location' },
+          { path: 'harvest', select: 'batchId cropType quality' }
+        ]
+      })
+      .sort({ addedAt: -1 })
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .limit(parseInt(limit))
+      .lean()
+
+    // Get total count for pagination
+    const total = await Favorite.countDocuments({ user: userId })
+
+    const result = {
+      docs: favorites,
+      totalDocs: total,
+      limit: parseInt(limit),
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+      hasNextPage: parseInt(page) < Math.ceil(total / parseInt(limit)),
+      hasPrevPage: parseInt(page) > 1,
+      nextPage: parseInt(page) < Math.ceil(total / parseInt(limit)) ? parseInt(page) + 1 : null,
+      prevPage: parseInt(page) > 1 ? parseInt(page) - 1 : null
+    }
+
+    console.log('✅ Favorites fetched successfully:', favorites.length, 'items')
     return res.json({ status: 'success', data: result })
   } catch (error) {
-    console.error('Error fetching favorites:', error)
+    console.error('❌ Error fetching favorites:', error)
     return res.status(500).json({
       status: 'error',
       message: 'Failed to fetch favorites',
@@ -276,46 +302,70 @@ router.get('/favorites/:userId', authenticate, async (req, res) => {
 router.post('/favorites', authenticate, async (req, res) => {
   const { listingId, notes } = req.body || {}
   console.log('📝 Favorites POST - Request body:', { listingId, notes })
-  console.log('👤 Favorites POST - User:', { id: req.user?.id, _id: req.user?._id, role: req.user?.role })
-  
+  console.log('👤 Favorites POST - User:', req.user?.email || 'unknown')
+
   if (!listingId) {
     console.log('❌ Favorites POST - Missing listingId')
     return res.status(400).json({ status: 'error', message: 'listingId required' })
   }
-  
+
   try {
     console.log('🔍 Favorites POST - Checking if listing exists:', listingId)
-    
+
     // Check if the listing exists
     const listing = await Listing.findById(listingId)
     if (!listing) {
       console.log('❌ Favorites POST - Listing not found:', listingId)
       return res.status(404).json({ status: 'error', message: 'Listing not found' })
     }
-    
+
     console.log('✅ Favorites POST - Listing found:', listing.cropName)
     console.log('💾 Favorites POST - Creating favorite with user:', req.user.id)
-    
+
+    // Create favorite without any population to avoid circular references
     const fav = await Favorite.create({ user: req.user.id, listing: listingId, notes })
     console.log('✅ Favorites POST - Favorite created successfully:', fav._id)
-    return res.status(201).json({ status: 'success', data: fav })
+
+    // Convert to plain object and manually remove any potential circular references
+    const favoriteData = fav.toObject()
+
+    // Ensure no circular references by creating a clean object
+    const cleanFavoriteData = {
+      _id: favoriteData._id,
+      user: favoriteData.user,
+      listing: favoriteData.listing,
+      addedAt: favoriteData.addedAt,
+      notes: favoriteData.notes,
+      createdAt: favoriteData.createdAt,
+      updatedAt: favoriteData.updatedAt
+    }
+
+    return res.status(201).json({ status: 'success', data: cleanFavoriteData })
   } catch (e) {
     console.error('❌ Favorites POST - Error creating favorite:', e)
-    console.error('❌ Favorites POST - Error name:', e.name)
-    console.error('❌ Favorites POST - Error code:', e.code)
-    console.error('❌ Favorites POST - Error message:', e.message)
-    console.error('❌ Favorites POST - Error stack:', e.stack)
-    
-    if (e.code === 11000) {
+    console.error('❌ Favorites POST - Error name:', e?.name)
+    console.error('❌ Favorites POST - Error code:', e?.code)
+    console.error('❌ Favorites POST - Error message:', e?.message)
+    // Don't log the stack trace as it might contain circular references
+    // console.error('❌ Favorites POST - Error stack:', e.stack)
+
+    // Handle specific error types safely
+    if (e?.code === 11000) {
       console.log('ℹ️ Favorites POST - Duplicate favorite (already exists)')
       return res.status(200).json({ status: 'success', message: 'Already in favorites' })
     }
-    if (e.name === 'ValidationError') {
-      console.log('❌ Favorites POST - Validation error:', e.message)
-      return res.status(400).json({ status: 'error', message: 'Validation error: ' + e.message })
+    if (e?.name === 'ValidationError') {
+      console.log('❌ Favorites POST - Validation error:', e?.message)
+      return res.status(400).json({ status: 'error', message: 'Validation error: ' + (e?.message || 'Invalid data') })
     }
+
+    // Generic error handling - avoid serializing the error object
     console.log('❌ Favorites POST - Generic server error')
-    return res.status(500).json({ status: 'error', message: 'Server error: ' + e.message })
+    const errorMessage = e?.message || 'Unknown server error'
+    return res.status(500).json({
+      status: 'error',
+      message: 'Server error occurred while adding to favorites'
+    })
   }
 })
 
@@ -647,6 +697,51 @@ router.get('/orders/:id/tracking', authenticate, async (req, res) => {
   }
   // Minimal tracking stub
   return res.json({ status: 'success', data: { trackingNumber: order.trackingNumber || null, status: order.status, updatedAt: order.updatedAt } })
+})
+
+// Cart quantity management
+router.post('/cart/reserve', authenticate, marketplaceController.reserveCartQuantity)
+router.post('/cart/release', authenticate, marketplaceController.releaseCartQuantity)
+router.patch('/cart/item-quantity', authenticate, marketplaceController.updateCartItemQuantity)
+
+// Sold-out products cleanup (admin only)
+router.post('/cleanup-sold-out', authenticate, authorize('admin'), marketplaceController.cleanupSoldOutProducts)
+
+// Inventory cleanup service management (admin only)
+router.get('/cleanup-stats', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const inventoryCleanupService = require('../services/inventory-cleanup.service')
+    const stats = await inventoryCleanupService.getCleanupStats()
+    
+    res.json({
+      status: 'success',
+      data: stats
+    })
+  } catch (error) {
+    console.error('❌ Error getting cleanup stats:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get cleanup stats'
+    })
+  }
+})
+
+router.post('/cleanup-manual', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const inventoryCleanupService = require('../services/inventory-cleanup.service')
+    await inventoryCleanupService.manualCleanup()
+    
+    res.json({
+      status: 'success',
+      message: 'Manual cleanup completed'
+    })
+  } catch (error) {
+    console.error('❌ Error running manual cleanup:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to run manual cleanup'
+    })
+  }
 })
 
 module.exports = router

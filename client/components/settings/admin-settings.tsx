@@ -14,17 +14,10 @@ import { apiService } from "@/lib/api"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import {
   Settings,
-  Bell,
   Globe,
   Shield,
   Download,
   Upload,
-  Eye,
-  EyeOff,
-  Lock,
-  Smartphone,
-  Mail,
-  Calendar,
   Languages,
   Palette,
   Database,
@@ -35,33 +28,13 @@ import {
   RefreshCw,
   Trash2,
   FileText,
-  CreditCard,
-  UserCheck,
-  BellOff,
-  BellRing,
   Server,
-  Monitor,
-  Key,
-  Activity,
-  BarChart3,
   Cog,
   Users,
   Database as DatabaseIcon
 } from "lucide-react"
 
 interface AdminSettings {
-  notifications: {
-    email: boolean
-    sms: boolean
-    push: boolean
-    systemAlerts: boolean
-    userReports: boolean
-    securityEvents: boolean
-    performanceMetrics: boolean
-    backupStatus: boolean
-    complianceAlerts: boolean
-    maintenanceUpdates: boolean
-  }
   privacy: {
     profileVisibility: 'public' | 'private' | 'staff'
     showLocation: boolean
@@ -167,10 +140,6 @@ export function AdminSettings() {
   const [settings, setSettings] = useState<AdminSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
 
@@ -183,27 +152,18 @@ export function AdminSettings() {
   const fetchSettings = async () => {
     try {
       setLoading(true)
-      
-      // Fetch user preferences and settings from API
-      const [preferencesResponse, settingsResponse] = await Promise.all([
-        apiService.request('/api/users/preferences/me'),
-        apiService.request('/api/users/settings/me')
-      ])
 
-      // Combine and set default values
+      // Fetch admin settings from API
+      let response
+      try {
+        response = await apiService.getAdminSettings()
+      } catch (apiError) {
+        console.warn("API call failed, using default settings:", apiError)
+        response = null
+      }
+
+      // Set default values if API fails or returns invalid data
       const defaultSettings: AdminSettings = {
-        notifications: {
-          email: true,
-          sms: true,
-          push: false,
-          systemAlerts: true,
-          userReports: true,
-          securityEvents: true,
-          performanceMetrics: true,
-          backupStatus: true,
-          complianceAlerts: true,
-          maintenanceUpdates: true
-        },
         privacy: {
           profileVisibility: 'staff',
           showLocation: true,
@@ -249,21 +209,89 @@ export function AdminSettings() {
         }
       }
 
-      // Merge with API response
-      const mergedSettings = {
-        ...defaultSettings,
-        ...preferencesResponse?.data,
-        ...settingsResponse?.data
+      // Use API response or fall back to defaults
+      const settingsData = response?.data || defaultSettings
+
+      // Ensure the settings object has the expected structure
+      const safeSettings: AdminSettings = {
+        privacy: {
+          ...defaultSettings.privacy,
+          ...settingsData.privacy
+        },
+        system: {
+          ...defaultSettings.system,
+          ...settingsData.system
+        },
+        preferences: {
+          ...defaultSettings.preferences,
+          ...settingsData.preferences
+        },
+        security: {
+          ...defaultSettings.security,
+          ...settingsData.security
+        },
+        data: {
+          ...defaultSettings.data,
+          ...settingsData.data
+        }
       }
 
-      setSettings(mergedSettings)
+      setSettings(safeSettings)
     } catch (error) {
       console.error("Failed to fetch settings:", error)
       toast({
         title: "Error",
-        description: "Failed to load settings. Please try again.",
+        description: "Failed to load settings. Using default settings.",
         variant: "destructive"
       })
+
+      // Set safe default settings on error
+      const safeDefaultSettings: AdminSettings = {
+        privacy: {
+          profileVisibility: 'staff',
+          showLocation: true,
+          showContact: true,
+          showPermissions: false,
+          showActivityLogs: true,
+          showSystemAccess: false
+        },
+        system: {
+          dashboardLayout: 'Detailed',
+          reportFormat: 'PDF',
+          dataRefreshRate: '5 minutes',
+          sessionTimeout: 30,
+          autoLogout: true,
+          auditLogging: true,
+          performanceMonitoring: true
+        },
+        preferences: {
+          language: 'en',
+          theme: 'light',
+          currency: 'NGN',
+          timezone: 'Africa/Lagos',
+          dateFormat: 'DD/MM/YYYY',
+          numberFormat: '1,234.56',
+          timeFormat: '24-hour'
+        },
+        security: {
+          twoFactorEnabled: true,
+          sessionTimeout: 30,
+          loginNotifications: true,
+          passwordExpiry: 90,
+          biometricAuth: false,
+          ipWhitelist: false,
+          deviceManagement: true
+        },
+        data: {
+          autoBackup: true,
+          backupFrequency: 'daily',
+          retentionPeriod: 365,
+          exportFormat: 'csv',
+          dataArchiving: true,
+          realTimeSync: true
+        }
+      }
+      setSettings(safeDefaultSettings)
     } finally {
       setLoading(false)
     }
@@ -274,27 +302,15 @@ export function AdminSettings() {
 
     try {
       setSaving(true)
-      
-      // Save settings to API
-      await Promise.all([
-        apiService.request('/api/users/preferences/me', {
-          method: 'PUT',
-          body: JSON.stringify({
-            notifications: settings.notifications,
-            system: settings.system,
-            preferences: settings.preferences
-          })
-        }),
-        apiService.request('/api/users/settings/me', {
-          method: 'PUT',
-          body: JSON.stringify({
-            privacy: settings.privacy,
-            security: settings.security,
-            data: settings.data
-          })
-        })
-      ])
-      
+
+      // Save admin settings to API
+      await apiService.updateAdminSettings({
+        system: settings?.system || {},
+        preferences: settings?.preferences || {},
+        security: settings?.security || {},
+        data: settings?.data || {}
+      })
+
       toast({
         title: "Settings Saved Successfully! 🎉",
         description: "Your administrative preferences have been updated.",
@@ -312,47 +328,6 @@ export function AdminSettings() {
     }
   }
 
-  const handleChangePassword = async () => {
-    if (newPassword !== confirmPassword) {
-      toast({
-        title: "Error",
-        description: "New passwords do not match.",
-        variant: "destructive"
-      })
-      return
-    }
-
-    try {
-      setSaving(true)
-      
-      await apiService.request('/api/users/change-password', {
-        method: 'POST',
-        body: JSON.stringify({
-          currentPassword,
-          newPassword
-        })
-      })
-      
-      toast({
-        title: "Password Changed Successfully! 🔐",
-        description: "Your password has been updated.",
-        variant: "default"
-      })
-      
-      setCurrentPassword("")
-      setNewPassword("")
-      setConfirmPassword("")
-    } catch (error) {
-      console.error("Failed to change password:", error)
-      toast({
-        title: "Error",
-        description: "Failed to change password. Please check your current password.",
-        variant: "destructive"
-      })
-    } finally {
-      setSaving(false)
-    }
-  }
 
   const handleExportData = async () => {
     try {
@@ -399,134 +374,72 @@ export function AdminSettings() {
   }
 
   if (loading) {
-    return <LoadingSpinner />
+    return (
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+          <div className="space-y-2">
+            <div className="h-8 bg-gray-200 rounded animate-pulse w-48"></div>
+            <div className="h-4 bg-gray-200 rounded animate-pulse w-64"></div>
+          </div>
+          <div className="h-10 bg-gray-200 rounded animate-pulse w-32"></div>
+        </div>
+
+        {/* Cards Skeleton */}
+        <div className="grid gap-6 xl:grid-cols-2">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="border rounded-lg p-6">
+              <div className="h-6 bg-gray-200 rounded animate-pulse w-32 mb-4"></div>
+              <div className="space-y-3">
+                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   if (!settings) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Failed to load settings</p>
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">Failed to load settings</p>
+          <Button onClick={fetchSettings} variant="outline">
+            Try Again
+          </Button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Settings</h1>
-          <p className="text-muted-foreground">
-            Customize your administrative system and preferences
+      <div className="flex flex-col space-y-3 sm:space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+        <div className="space-y-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">System Settings</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Configure system-wide administrative preferences and data management
           </p>
         </div>
-        <Button onClick={handleSaveSettings} disabled={saving}>
+        <Button onClick={handleSaveSettings} disabled={saving} className="self-start md:self-auto w-full sm:w-auto">
           <Save className="mr-2 h-4 w-4" />
-          {saving ? "Saving..." : "Save Settings"}
+          <span className="hidden sm:inline">{saving ? "Saving..." : "Save Settings"}</span>
+          <span className="sm:hidden">{saving ? "Saving..." : "Save"}</span>
         </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Notifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Notifications
-            </CardTitle>
-            <CardDescription>Manage your notification preferences</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="email-notifications">Email Notifications</Label>
-                <Switch
-                  id="email-notifications"
-                  checked={settings.notifications.email}
-                  onCheckedChange={(checked) =>
-                    setSettings(prev => prev ? {
-                      ...prev,
-                      notifications: { ...prev.notifications, email: checked }
-                    } : null)
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="sms-notifications">SMS Notifications</Label>
-                <Switch
-                  id="sms-notifications"
-                  checked={settings.notifications.sms}
-                  onCheckedChange={(checked) =>
-                    setSettings(prev => prev ? {
-                      ...prev,
-                      notifications: { ...prev.notifications, sms: checked }
-                    } : null)
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="push-notifications">Push Notifications</Label>
-                <Switch
-                  id="push-notifications"
-                  checked={settings.notifications.push}
-                  onCheckedChange={(checked) =>
-                    setSettings(prev => prev ? {
-                      ...prev,
-                      notifications: { ...prev.notifications, push: checked }
-                    } : null)
-                  }
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <Label htmlFor="system-alerts">System Alerts</Label>
-                <Switch
-                  id="system-alerts"
-                  checked={settings.notifications.systemAlerts}
-                  onCheckedChange={(checked) =>
-                    setSettings(prev => prev ? {
-                      ...prev,
-                      notifications: { ...prev.notifications, systemAlerts: checked }
-                    } : null)
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="security-events">Security Events</Label>
-                <Switch
-                  id="security-events"
-                  checked={settings.notifications.securityEvents}
-                  onCheckedChange={(checked) =>
-                    setSettings(prev => prev ? {
-                      ...prev,
-                      notifications: { ...prev.notifications, securityEvents: checked }
-                    } : null)
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="backup-status">Backup Status</Label>
-                <Switch
-                  id="backup-status"
-                  checked={settings.notifications.backupStatus}
-                  onCheckedChange={(checked) =>
-                    setSettings(prev => prev ? {
-                      ...prev,
-                      notifications: { ...prev.notifications, backupStatus: checked }
-                    } : null)
-                  }
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
 
         {/* Privacy & Security */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Privacy & Security
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Shield className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="truncate">Privacy & Security</span>
             </CardTitle>
             <CardDescription>Control your data visibility and security</CardDescription>
           </CardHeader>
@@ -535,7 +448,7 @@ export function AdminSettings() {
               <div className="space-y-2">
                 <Label htmlFor="profile-visibility">Profile Visibility</Label>
                 <Select
-                  value={settings.privacy.profileVisibility}
+                  value={settings?.privacy?.profileVisibility || 'staff'}
                   onValueChange={(value: 'public' | 'private' | 'staff') =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -553,11 +466,11 @@ export function AdminSettings() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="show-location">Show Location</Label>
+              <div className="flex items-center justify-between py-2">
+                <Label htmlFor="show-location" className="text-sm font-medium cursor-pointer flex-1 mr-4">Show Location</Label>
                 <Switch
                   id="show-location"
-                  checked={settings.privacy.showLocation}
+                  checked={settings?.privacy?.showLocation ?? true}
                   onCheckedChange={(checked) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -566,11 +479,11 @@ export function AdminSettings() {
                   }
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="show-activity-logs">Show Activity Logs</Label>
+              <div className="flex items-center justify-between py-2">
+                <Label htmlFor="show-activity-logs" className="text-sm font-medium cursor-pointer flex-1 mr-4">Show Activity Logs</Label>
                 <Switch
                   id="show-activity-logs"
-                  checked={settings.privacy.showActivityLogs}
+                  checked={settings?.privacy?.showActivityLogs ?? true}
                   onCheckedChange={(checked) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -579,11 +492,11 @@ export function AdminSettings() {
                   }
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="two-factor">Two-Factor Authentication</Label>
+              <div className="flex items-center justify-between py-2">
+                <Label htmlFor="two-factor" className="text-sm font-medium cursor-pointer flex-1 mr-4">Two-Factor Authentication</Label>
                 <Switch
                   id="two-factor"
-                  checked={settings.security.twoFactorEnabled}
+                  checked={settings?.security?.twoFactorEnabled ?? true}
                   onCheckedChange={(checked) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -599,9 +512,9 @@ export function AdminSettings() {
         {/* System Preferences */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Server className="h-5 w-5" />
-              System Preferences
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Server className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="truncate">System Preferences</span>
             </CardTitle>
             <CardDescription>Customize your system experience</CardDescription>
           </CardHeader>
@@ -610,7 +523,7 @@ export function AdminSettings() {
               <div className="space-y-2">
                 <Label htmlFor="dashboard-layout">Dashboard Layout</Label>
                 <Select
-                  value={settings.system.dashboardLayout}
+                  value={settings?.system?.dashboardLayout || 'Detailed'}
                   onValueChange={(value) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -633,7 +546,7 @@ export function AdminSettings() {
               <div className="space-y-2">
                 <Label htmlFor="data-refresh-rate">Data Refresh Rate</Label>
                 <Select
-                  value={settings.system.dataRefreshRate}
+                  value={settings?.system?.dataRefreshRate || '5 minutes'}
                   onValueChange={(value) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -653,11 +566,11 @@ export function AdminSettings() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="auto-logout">Auto Logout</Label>
+              <div className="flex items-center justify-between py-2">
+                <Label htmlFor="auto-logout" className="text-sm font-medium cursor-pointer flex-1 mr-4">Auto Logout</Label>
                 <Switch
                   id="auto-logout"
-                  checked={settings.system.autoLogout}
+                  checked={settings?.system?.autoLogout ?? true}
                   onCheckedChange={(checked) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -666,11 +579,11 @@ export function AdminSettings() {
                   }
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="audit-logging">Audit Logging</Label>
+              <div className="flex items-center justify-between py-2">
+                <Label htmlFor="audit-logging" className="text-sm font-medium cursor-pointer flex-1 mr-4">Audit Logging</Label>
                 <Switch
                   id="audit-logging"
-                  checked={settings.system.auditLogging}
+                  checked={settings?.system?.auditLogging ?? true}
                   onCheckedChange={(checked) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -686,9 +599,9 @@ export function AdminSettings() {
         {/* Language & Region */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              Language & Region
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Globe className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="truncate">Language & Region</span>
             </CardTitle>
             <CardDescription>Set your local preferences</CardDescription>
           </CardHeader>
@@ -697,7 +610,7 @@ export function AdminSettings() {
               <div className="space-y-2">
                 <Label htmlFor="language">Language</Label>
                 <Select
-                  value={settings.preferences.language}
+                  value={settings?.preferences?.language || 'en'}
                   onValueChange={(value) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -720,7 +633,7 @@ export function AdminSettings() {
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency</Label>
                 <Select
-                  value={settings.preferences.currency}
+                  value={settings?.preferences?.currency || 'NGN'}
                   onValueChange={(value) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -743,7 +656,7 @@ export function AdminSettings() {
               <div className="space-y-2">
                 <Label htmlFor="number-format">Number Format</Label>
                 <Select
-                  value={settings.preferences.numberFormat}
+                  value={settings?.preferences?.numberFormat || '1,234.56'}
                   onValueChange={(value) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -768,83 +681,24 @@ export function AdminSettings() {
         </Card>
       </div>
 
-      {/* Password Change */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Lock className="h-5 w-5" />
-            Change Password
-          </CardTitle>
-          <CardDescription>Update your account password</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="current-password">Current Password</Label>
-              <div className="relative">
-                <Input
-                  id="current-password"
-                  type={showPassword ? "text" : "password"}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter current password"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-password">New Password</Label>
-              <Input
-                id="new-password"
-                type={showPassword ? "text" : "password"}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
-              <Input
-                id="confirm-password"
-                type={showPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
-              />
-            </div>
-          </div>
-          <Button onClick={handleChangePassword} disabled={saving || !currentPassword || !newPassword || !confirmPassword}>
-            <Lock className="mr-2 h-4 w-4" />
-            {saving ? "Changing..." : "Change Password"}
-          </Button>
-        </CardContent>
-      </Card>
 
       {/* Data Management */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DatabaseIcon className="h-5 w-5" />
-            Data Management
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <DatabaseIcon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+            <span className="truncate">Data Management</span>
           </CardTitle>
           <CardDescription>Manage your system data and exports</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="auto-backup">Auto Backup</Label>
+              <div className="flex items-center justify-between py-2">
+                <Label htmlFor="auto-backup" className="text-sm font-medium cursor-pointer flex-1 mr-4">Auto Backup</Label>
                 <Switch
                   id="auto-backup"
-                  checked={settings.data.autoBackup}
+                  checked={settings?.data?.autoBackup ?? true}
                   onCheckedChange={(checked) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -853,11 +707,11 @@ export function AdminSettings() {
                   }
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="data-archiving">Data Archiving</Label>
+              <div className="flex items-center justify-between py-2">
+                <Label htmlFor="data-archiving" className="text-sm font-medium cursor-pointer flex-1 mr-4">Data Archiving</Label>
                 <Switch
                   id="data-archiving"
-                  checked={settings.data.dataArchiving}
+                  checked={settings?.data?.dataArchiving ?? true}
                   onCheckedChange={(checked) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -866,11 +720,11 @@ export function AdminSettings() {
                   }
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="real-time-sync">Real-time Sync</Label>
+              <div className="flex items-center justify-between py-2">
+                <Label htmlFor="real-time-sync" className="text-sm font-medium cursor-pointer flex-1 mr-4">Real-time Sync</Label>
                 <Switch
                   id="real-time-sync"
-                  checked={settings.data.realTimeSync}
+                  checked={settings?.data?.realTimeSync ?? true}
                   onCheckedChange={(checked) =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -884,7 +738,7 @@ export function AdminSettings() {
               <div className="space-y-2">
                 <Label htmlFor="export-format">Export Format</Label>
                 <Select
-                  value={settings.data.exportFormat}
+                  value={settings?.data?.exportFormat || 'csv'}
                   onValueChange={(value: 'csv' | 'json' | 'pdf' | 'xml') =>
                     setSettings(prev => prev ? {
                       ...prev,
@@ -903,9 +757,10 @@ export function AdminSettings() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleExportData} disabled={exporting} variant="outline" className="w-full">
+              <Button onClick={handleExportData} disabled={exporting} variant="outline" className="w-full sm:w-auto">
                 <Download className="mr-2 h-4 w-4" />
-                {exporting ? "Exporting..." : "Export Admin Data"}
+                <span className="hidden sm:inline">{exporting ? "Exporting..." : "Export Admin Data"}</span>
+                <span className="sm:hidden">{exporting ? "Exporting..." : "Export"}</span>
               </Button>
             </div>
           </div>

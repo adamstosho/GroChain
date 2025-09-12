@@ -41,17 +41,9 @@ export function usePaymentVerification(options: UsePaymentVerificationOptions = 
     try {
       console.log(`🔍 Verifying payment: ${refToVerify}`)
 
-      const response = await fetch('/api/payments/instant-verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ reference: refToVerify })
-      })
+      const result = await apiService.verifyPayment(refToVerify)
 
-      const result = await response.json()
-
-      if (result.success) {
+      if (result.status === 'success') {
         setState(prev => ({
           ...prev,
           isVerifying: false,
@@ -104,7 +96,7 @@ export function usePaymentVerification(options: UsePaymentVerificationOptions = 
     setState(prev => ({ ...prev, isVerifying: true, error: null }))
 
     try {
-      const response = await fetch('/api/payments/batch-verify', {
+      const response = await fetch(`${apiService.baseUrl}/api/payments/batch-verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,7 +106,7 @@ export function usePaymentVerification(options: UsePaymentVerificationOptions = 
 
       const result = await response.json()
 
-      if (result.success) {
+      if (result.status === 'success') {
         setState(prev => ({
           ...prev,
           isVerifying: false,

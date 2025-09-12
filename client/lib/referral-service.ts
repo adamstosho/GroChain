@@ -135,34 +135,37 @@ export class ReferralService {
   async getReferrals(filters: ReferralFilters = {}): Promise<{ referrals: Referral[]; pagination: any }> {
     const cacheKey = `referrals_${JSON.stringify(filters)}`
     const cached = this.getCache(cacheKey)
-    
+
     if (cached) {
       return cached
     }
 
     try {
       const response = await apiService.getReferrals(filters)
+
       const result = {
-        referrals: response.data.docs || [],
+        referrals: response.data?.docs || [],
         pagination: {
-          currentPage: response.data.page || 1,
-          totalPages: response.data.totalPages || 1,
-          totalItems: response.data.totalDocs || 0,
-          itemsPerPage: response.data.limit || 20
+          currentPage: response.data?.page || 1,
+          totalPages: response.data?.totalPages || 1,
+          totalItems: response.data?.totalDocs || 0,
+          itemsPerPage: response.data?.limit || 20
         }
       }
+
       this.setCache(cacheKey, result)
       return result
     } catch (error) {
-      console.warn('API call failed, using mock data:', error)
-      // Fallback to mock data
+      console.error('Referral API call failed:', error)
+
+      // Return empty data instead of mock data for production
       const result = {
-        referrals: mockReferrals,
+        referrals: [],
         pagination: {
           currentPage: 1,
           totalPages: 1,
-          totalItems: mockReferrals.length,
-          itemsPerPage: mockReferrals.length
+          totalItems: 0,
+          itemsPerPage: 20
         }
       }
       this.setCache(cacheKey, result)
@@ -198,7 +201,7 @@ export class ReferralService {
   async getReferralStats(): Promise<ReferralStats> {
     const cacheKey = 'stats'
     const cached = this.getCache(cacheKey)
-    
+
     if (cached) {
       return cached
     }
@@ -209,10 +212,22 @@ export class ReferralService {
       this.setCache(cacheKey, stats)
       return stats
     } catch (error) {
-      console.warn('API call failed, using mock data:', error)
-      // Fallback to mock data
-      this.setCache(cacheKey, mockReferralStats)
-      return mockReferralStats
+      console.error('Referral stats API call failed:', error)
+
+      // Return default stats instead of mock data
+      const defaultStats: ReferralStats = {
+        totalReferrals: 0,
+        pendingReferrals: 0,
+        activeReferrals: 0,
+        completedReferrals: 0,
+        conversionRate: 0,
+        monthlyGrowth: 0,
+        averageCommission: 0,
+        statusBreakdown: [],
+        performanceData: []
+      }
+      this.setCache(cacheKey, defaultStats)
+      return defaultStats
     }
   }
 

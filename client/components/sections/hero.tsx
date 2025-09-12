@@ -60,7 +60,7 @@ export function Hero() {
           <div className="relative">
             <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted">
               <Image
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/screencapture-localhost-3000-2025-08-26-09_49_16-kCKbWKJY4IfnHogSE6GRtU0lzicS3D.png"
+                src="/herosection-image.png"
                 alt="Nigerian farmers with fresh produce showcasing agricultural products"
                 fill
                 className="object-cover"

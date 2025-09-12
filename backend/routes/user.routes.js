@@ -278,6 +278,36 @@ router.get('/profile/me', authenticate, async (req, res) => {
 
       profileData.recentHarvests = recentHarvests
 
+    } else if (user.role === 'buyer') {
+      // Get buyer-specific stats
+      const Order = require('../models/order.model')
+      const Transaction = require('../models/transaction.model')
+      const Favorite = require('../models/favorite.model')
+
+      const [totalOrders, totalSpent, favoriteProducts] = await Promise.all([
+        Order.countDocuments({ buyer: user._id }),
+        Transaction.aggregate([
+          { $match: { userId: user._id, type: 'payment', status: 'completed' } },
+          { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]),
+        Favorite.countDocuments({ user: user._id })
+      ])
+
+      profileData.stats = {
+        totalOrders,
+        totalSpent: totalSpent[0]?.total || 0,
+        favoriteProducts,
+        lastActive: user.stats?.lastActive || user.createdAt
+      }
+
+      // Get recent orders
+      const recentOrders = await Order.find({ buyer: user._id })
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .select('status total paymentStatus createdAt')
+
+      profileData.recentOrders = recentOrders
+
     } else if (user.role === 'partner') {
       // Get partner-specific data
       const partnerFarmers = await User.countDocuments({ partner: user.partner?._id, role: 'farmer' })
@@ -296,6 +326,106 @@ router.get('/profile/me', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error fetching profile:', error)
     return res.status(500).json({ status: 'error', message: 'Failed to fetch profile' })
+  }
+})
+
+// Profile picture upload endpoint
+router.post('/profile/avatar', authenticate, (req, res) => {
+  try {
+    // Configure multer for this specific route
+    const multer = require('multer')
+    const path = require('path')
+
+    const storage = multer.memoryStorage()
+    const upload = multer({
+      storage,
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit
+      },
+      fileFilter: (req, file, cb) => {
+        const allowedImageTypes = /jpeg|jpg|png|gif|webp/
+        const extname = allowedImageTypes.test(path.extname(file.originalname).toLowerCase())
+        const mimetype = allowedImageTypes.test(file.mimetype)
+
+        if (mimetype && extname) {
+          return cb(null, true)
+        } else {
+          cb(new Error('Only image files (JPEG, PNG, GIF, WebP) are allowed!'))
+        }
+      }
+    })
+
+    // Use multer middleware
+    upload.single('avatar')(req, res, async (err) => {
+      if (err) {
+        console.error('Multer error:', err)
+        return res.status(400).json({
+          status: 'error',
+          message: err.message || 'File upload error'
+        })
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ status: 'error', message: 'No avatar file provided' })
+      }
+
+      try {
+        const cloudinary = require('cloudinary').v2
+
+        // Convert buffer to base64
+        const b64 = Buffer.from(req.file.buffer).toString('base64')
+        const dataURI = `data:${req.file.mimetype};base64,${b64}`
+
+        // Upload to Cloudinary
+        const uploadOptions = {
+          folder: 'grochain/avatars',
+          public_id: `avatar_${req.user.id}_${Date.now()}`,
+          transformation: [
+            { width: 200, height: 200, crop: 'fill', gravity: 'face' },
+            { quality: 'auto' }
+          ]
+        }
+
+        const result = await cloudinary.uploader.upload(dataURI, uploadOptions)
+
+        // Update user's profile avatar
+        const user = await User.findByIdAndUpdate(
+          req.user.id,
+          {
+            'profile.avatar': result.secure_url,
+            stats: { lastActive: new Date() }
+          },
+          { new: true }
+        ).select('-password')
+
+        if (!user) {
+          return res.status(404).json({ status: 'error', message: 'User not found' })
+        }
+
+        return res.json({
+          status: 'success',
+          data: {
+            avatar: result.secure_url,
+            public_id: result.public_id
+          },
+          message: 'Avatar uploaded successfully'
+        })
+      } catch (error) {
+        console.error('Error uploading avatar:', error)
+        return res.status(500).json({
+          status: 'error',
+          message: 'Failed to upload avatar',
+          error: error.message
+        })
+      }
+    })
+  } catch (error) {
+    console.error('Route error:', error)
+    return res.status(500).json({
+      status: 'error',
+      message: 'Server error',
+      error: error.message
+    })
   }
 })
 

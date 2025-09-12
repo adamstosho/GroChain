@@ -25,7 +25,6 @@ import {
   Users,
   BarChart3,
   Settings,
-  Bell,
   LogOut,
   User,
   CreditCard,
@@ -47,6 +46,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 
 interface NavigationItem {
   name: string
@@ -130,7 +130,7 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
           ...baseItems.slice(0, 1),
           { name: "Harvests", href: "/dashboard/harvests", icon: Leaf },
           { name: "Marketplace", href: "/dashboard/marketplace", icon: Package },
-          { name: "QR Codes", href: "/dashboard/qr-codes", icon: QrCode },
+          // { name: "QR Codes", href: "/dashboard/qr-codes", icon: QrCode },
           { name: "Financial", href: "/dashboard/financial", icon: CreditCard },
           { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
           ...baseItems.slice(1),
@@ -184,6 +184,7 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
         return [
           ...baseItems.slice(0, 1),
           { name: "Users", href: "/dashboard/users", icon: Users },
+          { name: "Approvals", href: "/dashboard/approvals", icon: Shield },
           { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
           { name: "System", href: "/dashboard/system", icon: Database },
           { name: "Reports", href: "/dashboard/reports", icon: TrendingUp },
@@ -226,7 +227,7 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
       <div className="border-b p-6">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10">
-            <AvatarImage src="/placeholder.svg" alt={user?.name || "User"} />
+            <AvatarImage src={user?.profile?.avatar || undefined} alt={user?.name || "User"} />
             <AvatarFallback>
               {user?.name
                 ? user.name.split(" ").map((n) => n[0]).join("")
@@ -253,15 +254,17 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
             {/* Dashboard link */}
             <Link
               href="/dashboard"
-              className={`flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`group flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
                 pathname === "/dashboard"
-                  ? "bg-primary text-primary-foreground shadow-sm" 
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                  : "text-muted-foreground hover:bg-gradient-to-r hover:from-primary/20 hover:to-primary/10 hover:text-primary hover:shadow-md hover:shadow-primary/20 hover:scale-[1.02] hover:translate-x-1"
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              <Home className="h-4 w-4" />
-              <span>Dashboard</span>
+              <Home className={`h-4 w-4 transition-transform duration-200 ${
+                pathname === "/dashboard" ? "" : "group-hover:rotate-12 group-hover:scale-110"
+              }`} />
+              <span className="transition-all duration-200">Dashboard</span>
             </Link>
 
             {/* Grouped sections */}
@@ -276,21 +279,21 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
                   {/* Section header */}
                   <button
                     onClick={() => toggleSection(section.id)}
-                    className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground ${
-                      hasActiveItem 
-                        ? "bg-accent/50 text-accent-foreground border-l-2 border-primary" 
+                    className={`group w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 hover:bg-gradient-to-r hover:from-primary/15 hover:to-primary/10 hover:text-primary hover:shadow-sm hover:shadow-primary/15 hover:scale-[1.01] ${
+                      hasActiveItem
+                        ? "bg-gradient-to-r from-primary/20 to-primary/10 text-primary border-l-2 border-primary shadow-sm"
                         : "text-muted-foreground"
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <section.icon className="h-4 w-4" />
-                      <span>{section.title}</span>
+                      <section.icon className={`h-4 w-4 transition-all duration-200 ${
+                        hasActiveItem ? "" : "group-hover:rotate-6 group-hover:scale-110"
+                      }`} />
+                      <span className="transition-all duration-200">{section.title}</span>
                     </div>
-                    {isExpanded ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
+                    <ChevronDown className={`h-4 w-4 transition-all duration-200 ${
+                      isExpanded ? "rotate-0" : "-rotate-90"
+                    } group-hover:scale-110`} />
                   </button>
 
                   {/* Section items */}
@@ -303,15 +306,17 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
                           <Link
                             key={item.name}
                             href={item.href}
-                            className={`flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                              isActive 
-                                ? "bg-primary text-primary-foreground shadow-sm" 
-                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                            className={`group flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                              isActive
+                                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                                : "text-muted-foreground hover:bg-gradient-to-r hover:from-primary/20 hover:to-primary/10 hover:text-primary hover:shadow-md hover:shadow-primary/15 hover:scale-[1.02] hover:translate-x-0.5"
                             }`}
                             onClick={() => setSidebarOpen(false)}
                           >
-                            <item.icon className="h-4 w-4" />
-                            <span>{item.name}</span>
+                            <item.icon className={`h-4 w-4 transition-all duration-200 ${
+                              isActive ? "" : "group-hover:rotate-12 group-hover:scale-110"
+                            }`} />
+                            <span className="transition-all duration-200">{item.name}</span>
                           </Link>
                         )
                       })}
@@ -322,53 +327,59 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
             })}
 
             {/* Profile and Settings */}
-            <div className="pt-4 border-t">
+            <div className="pt-4 border-t border-border/50">
               <Link
                 href="/dashboard/profile"
-                className={`flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`group flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 mb-1 ${
                   pathname === "/dashboard/profile"
-                    ? "bg-primary text-primary-foreground shadow-sm" 
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                    : "text-muted-foreground hover:bg-gradient-to-r hover:from-primary/20 hover:to-primary/10 hover:text-primary hover:shadow-md hover:shadow-primary/15 hover:scale-[1.02] hover:translate-x-1"
                 }`}
                 onClick={() => setSidebarOpen(false)}
               >
-                <User className="h-4 w-4" />
-                <span>Profile</span>
+                <User className={`h-4 w-4 transition-all duration-200 ${
+                  pathname === "/dashboard/profile" ? "" : "group-hover:rotate-12 group-hover:scale-110"
+                }`} />
+                <span className="transition-all duration-200">Profile</span>
               </Link>
-              
+
               <Link
                 href="/dashboard/settings"
-                className={`flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`group flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
                   pathname === "/dashboard/settings"
-                    ? "bg-primary text-primary-foreground shadow-sm" 
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                    : "text-muted-foreground hover:bg-gradient-to-r hover:from-primary/20 hover:to-primary/10 hover:text-primary hover:shadow-md hover:shadow-primary/15 hover:scale-[1.02] hover:translate-x-1"
                 }`}
                 onClick={() => setSidebarOpen(false)}
               >
-                <Settings className="h-4 w-4" />
-                <span>Settings</span>
+                <Settings className={`h-4 w-4 transition-all duration-200 ${
+                  pathname === "/dashboard/settings" ? "" : "group-hover:rotate-12 group-hover:scale-110"
+                }`} />
+                <span className="transition-all duration-200">Settings</span>
               </Link>
             </div>
           </>
         ) : (
           // Regular navigation for other roles
           (navigationItems as NavigationItem[]).map((item) => {
-            const isActive = pathname === item.href || 
+            const isActive = pathname === item.href ||
                             (item.href !== "/dashboard" && pathname.startsWith(item.href))
-            
+
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive 
-                    ? "bg-primary text-primary-foreground shadow-sm" 
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                className={`group flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                    : "text-muted-foreground hover:bg-gradient-to-r hover:from-primary/20 hover:to-primary/10 hover:text-primary hover:shadow-md hover:shadow-primary/15 hover:scale-[1.02] hover:translate-x-1"
                 }`}
                 onClick={() => setSidebarOpen(false)}
               >
-                <item.icon className="h-4 w-4" />
-                <span>{item.name}</span>
+                <item.icon className={`h-4 w-4 transition-all duration-200 ${
+                  isActive ? "" : "group-hover:rotate-12 group-hover:scale-110"
+                }`} />
+                <span className="transition-all duration-200">{item.name}</span>
               </Link>
             )
           })
@@ -376,10 +387,14 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
       </nav>
 
       {/* Footer */}
-      <div className="border-t p-4">
-        <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-muted-foreground">
-          <LogOut className="mr-3 h-4 w-4" />
-          Sign Out
+      <div className="border-t border-border/50 p-4">
+        <Button
+          variant="ghost"
+          onClick={handleLogout}
+          className="group w-full justify-start text-muted-foreground hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:text-red-600 hover:shadow-md hover:shadow-red-100/50 transition-all duration-200 hover:scale-[1.02]"
+        >
+          <LogOut className="mr-3 h-4 w-4 transition-all duration-200 group-hover:rotate-12 group-hover:scale-110" />
+          <span className="transition-all duration-200">Sign Out</span>
         </Button>
       </div>
     </div>
@@ -388,7 +403,7 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
   return (
     <div className="flex min-h-screen max-h-screen bg-background overflow-hidden">
       {/* Desktop Sidebar */}
-      <div className="hidden lg:flex lg:w-72 lg:flex-col lg:border-r lg:overflow-hidden">
+      <div className="hidden lg:flex lg:w-72 lg:flex-col lg:border-r lg:overflow-hidden lg:shrink-0 lg:relative lg:z-20 bg-background">
         <SidebarContent />
       </div>
 
@@ -400,9 +415,9 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
       </Sheet>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col min-h-0">
+      <div className="flex flex-1 flex-col min-h-0 min-w-0 relative z-0">
         {/* Header */}
-        <header className="flex h-16 items-center justify-between border-b bg-background px-4 sm:px-6 flex-shrink-0">
+        <header className="flex h-16 items-center justify-between border-b bg-background px-4 sm:px-6 flex-shrink-0 relative z-10">
           <div className="flex items-center space-x-4">
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
@@ -441,16 +456,13 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
               </Button>
             )}
 
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500" />
-            </Button>
+            <NotificationBell />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt={user?.name || "User"} />
+                    <AvatarImage src={user?.profile?.avatar || undefined} alt={user?.name || "User"} />
                     <AvatarFallback>
                       {user?.name
                         ? user.name.split(" ").map((n) => n[0]).join("")

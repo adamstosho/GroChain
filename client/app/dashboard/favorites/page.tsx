@@ -78,16 +78,7 @@ export default function FavoritesPage() {
   // Fetch favorites from backend
   useEffect(() => {
     const loadFavorites = async () => {
-      console.log('🔍 Favorites useEffect triggered')
-      console.log('User:', user)
-      console.log('Profile:', profile)
-      
-      // Check authentication token
-      const token = localStorage.getItem('grochain_auth_token')
-      console.log('Auth token available:', !!token)
-      
       if (!user) {
-        console.log('No user found, skipping favorites load')
         setLoading(false)
         return
       }
@@ -98,27 +89,22 @@ export default function FavoritesPage() {
       try {
         setLoading(true)
         setError(null)
-        console.log('🔍 Loading favorites for user:', user._id)
         
         await fetchFavorites()
         
         // Get favorites from the store after fetching
         const storeFavorites = useBuyerStore.getState().favorites
-        console.log('📋 Store favorites:', storeFavorites)
         
         if (Array.isArray(storeFavorites)) {
           setFavorites(storeFavorites)
           setFilteredFavorites(storeFavorites)
         } else {
-          console.warn('⚠️ Favorites data is not an array:', storeFavorites)
           setFavorites([])
           setFilteredFavorites([])
         }
       } catch (error: any) {
-        console.error('❌ Error loading favorites:', error)
         // Don't show error toast for authentication issues, just log them
         if (error.message === 'User not authenticated') {
-          console.log('User not authenticated, showing empty state')
           setFavorites([])
           setFilteredFavorites([])
         } else {
@@ -192,14 +178,12 @@ export default function FavoritesPage() {
 
   const handleAddToFavorites = async (listingId: string, notes?: string) => {
     try {
-      console.log('Adding to favorites from favorites page:', { listingId, notes })
       await addToFavorites(listingId, notes)
       toast({
         title: "Added to favorites",
         description: "Product has been added to your favorites",
       })
     } catch (error: any) {
-      console.error('Error adding to favorites:', error)
       toast({
         title: "Error",
         description: "Failed to add to favorites. Please try again.",
@@ -218,7 +202,6 @@ export default function FavoritesPage() {
         description: "Product has been removed from your favorites",
       })
     } catch (error: any) {
-      console.error('Error removing from favorites:', error)
       toast({
         title: "Error",
         description: "Failed to remove from favorites. Please try again.",
@@ -246,7 +229,6 @@ export default function FavoritesPage() {
         description: "Your favorites have been updated",
       })
     } catch (error: any) {
-      console.error('Error refreshing favorites:', error)
       toast({
         title: "Error",
         description: "Failed to refresh favorites. Please try again.",
@@ -319,16 +301,6 @@ export default function FavoritesPage() {
   return (
     <DashboardLayout pageTitle="My Favorites">
       <div className="space-y-6">
-        {/* Debug Info - Remove in production */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
-            <h3 className="font-semibold text-yellow-800 mb-2">Debug Info:</h3>
-            <p><strong>User:</strong> {user ? `${user.name} (${user._id})` : 'Not authenticated'}</p>
-            <p><strong>Profile:</strong> {profile ? 'Loaded' : 'Not loaded'}</p>
-            <p><strong>Token:</strong> {localStorage.getItem('grochain_auth_token') ? 'Available' : 'Missing'}</p>
-            <p><strong>Favorites Count:</strong> {favorites.length}</p>
-          </div>
-        )}
 
         {/* Header Section */}
         <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">

@@ -3,11 +3,12 @@ const { v4: uuidv4 } = require('uuid')
 const QRCode = require('qrcode')
 const Harvest = require('../models/harvest.model')
 const User = require('../models/user.model')
+const notificationController = require('./notification.controller')
 
 const harvestSchema = Joi.object({
   cropType: Joi.string().required(),
   variety: Joi.string().optional(),
-  quantity: Joi.number().required(),
+  quantity: Joi.number().required().precision(2),
   date: Joi.date().required(),
   geoLocation: Joi.object({ lat: Joi.number().required(), lng: Joi.number().required() }).required(),
   unit: Joi.string().valid('kg','tons','pieces','bundles','bags','crates','liters').default('kg'),
@@ -37,6 +38,14 @@ exports.createHarvest = async (req, res) => {
 
     const { error, value } = harvestSchema.validate(body)
     if (error) return res.status(400).json({ status: 'error', message: error.details[0].message })
+
+    // Validate and round quantity to 2 decimal places
+    value.quantity = Number(Number(value.quantity).toFixed(2))
+
+    // Validate and round price to 2 decimal places if present
+    if (value.price) {
+      value.price = Number(Number(value.price).toFixed(2))
+    }
 
     // Generate unique batch ID
     const batchId = `BATCH-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
@@ -74,6 +83,58 @@ exports.createHarvest = async (req, res) => {
     delete harvestData.organic
 
     const harvest = await Harvest.create(harvestData)
+
+    // Create notification for farmer
+    try {
+      await notificationController.createNotificationForActivity(
+        req.user.id,
+        'farmer',
+        'harvest',
+        'logged',
+        {
+          cropType: harvest.cropType,
+          batchId: harvest.batchId,
+          actionUrl: `/dashboard/harvests/${harvest._id}`
+        }
+      )
+    } catch (notificationError) {
+      console.error('Failed to create harvest logged notification:', notificationError)
+    }
+
+    // Notify admins about new harvest
+    try {
+      await notificationController.notifyAdmins(
+        'farmer',
+        'harvestLogged',
+        {
+          farmerName: farmer.name,
+          cropType: harvest.cropType,
+          batchId: harvest.batchId,
+          actionUrl: `/admin/harvests/${harvest._id}`
+        }
+      )
+    } catch (notificationError) {
+      console.error('Failed to notify admins about harvest:', notificationError)
+    }
+
+    // Notify partner about farmer's harvest
+    try {
+      await notificationController.notifyPartners(
+        req.user.id,
+        'farmer',
+        'harvestLogged',
+        {
+          farmerName: farmer.name,
+          cropType: harvest.cropType,
+          batchId: harvest.batchId,
+          actionUrl: `/partner/harvests/${harvest._id}`
+        }
+      )
+    } catch (notificationError) {
+      console.error('Failed to notify partner about harvest:', notificationError)
+    }
+
+    // Removed automatic approval - harvests now require manual approval by partners/admins
 
     // Generate QR code automatically
     try {

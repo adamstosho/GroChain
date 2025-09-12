@@ -1,18 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { 
-  Heart, 
-  ShoppingCart, 
-  Star, 
-  MapPin, 
-  Leaf, 
-  Scale, 
+import {
+  Heart,
+  ShoppingCart,
+  Star,
+  MapPin,
+  Leaf,
+  Scale,
   Calendar,
   Truck,
   Shield,
@@ -22,6 +22,8 @@ import {
   QrCode
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useBuyerStore } from "@/hooks/use-buyer-store"
+import { useToast } from "@/hooks/use-toast"
 
 export interface MarketplaceProduct {
   id: string
@@ -84,23 +86,59 @@ const gradeColors = {
   C: "bg-gradient-to-r from-gray-400 to-gray-600 text-white"
 }
 
-export function MarketplaceCard({ 
-  product, 
-  onAddToCart, 
-  onAddToWishlist, 
+export function MarketplaceCard({
+  product,
+  onAddToCart,
+  onAddToWishlist,
   onView,
   onContact,
   onShare,
   variant = "default",
-  className 
+  className
 }: MarketplaceCardProps) {
-  const [isWishlisted, setIsWishlisted] = useState(false)
   const [showQR, setShowQR] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const { favorites, addToFavorites, removeFromFavorites, fetchFavorites } = useBuyerStore()
+  const { toast } = useToast()
 
-  const handleWishlist = () => {
-    setIsWishlisted(!isWishlisted)
-    if (onAddToWishlist) {
-      onAddToWishlist(product.id)
+  // Check if product is in favorites
+  const isWishlisted = Array.isArray(favorites) && favorites.some((fav: any) => fav.listingId === product.id || fav._id === product.id)
+
+  // Load favorites on component mount
+  useEffect(() => {
+    fetchFavorites()
+  }, [fetchFavorites])
+
+  const handleWishlist = async () => {
+    if (isProcessing) return // Prevent multiple clicks
+
+    try {
+      setIsProcessing(true)
+
+      if (isWishlisted) {
+        // Remove from favorites
+        await removeFromFavorites(product.id)
+        toast({
+          title: "Removed from favorites",
+          description: `${product.name} has been removed from your favorites.`,
+        })
+      } else {
+        // Add to favorites
+        await addToFavorites(product.id)
+        toast({
+          title: "Added to favorites!",
+          description: `${product.name} has been added to your favorites.`,
+        })
+      }
+    } catch (error: any) {
+      console.error('Failed to toggle favorite:', error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update favorites. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -118,7 +156,7 @@ export function MarketplaceCard({
 
   const handleContact = () => {
     if (onContact) {
-      onContact(product.farmer.id)
+      onContact(typeof product.farmer.id === 'string' ? product.farmer.id : 'unknown')
     }
   }
 
@@ -157,9 +195,11 @@ export function MarketplaceCard({
             {/* Product Info */}
             <div className="flex-1 space-y-2">
               <div>
-                <h4 className="font-semibold text-sm line-clamp-1">{product.name}</h4>
+                <h4 className="font-semibold text-sm line-clamp-1">
+                  {typeof product.name === 'string' ? product.name : 'Unnamed Product'}
+                </h4>
                 <p className="text-xs text-muted-foreground line-clamp-1">
-                  by {product.farmer.name}
+                  by {typeof product.farmer.name === 'string' ? product.farmer.name : 'Unknown Farmer'}
                 </p>
               </div>
 
@@ -177,13 +217,23 @@ export function MarketplaceCard({
                   <span className="text-sm font-bold text-green-600">₦{product.price.toLocaleString()}</span>
                   <span className="text-[10px] text-muted-foreground">per {product.unit}</span>
                 </div>
-                <Button 
-                  size="sm" 
-                  className="h-7 w-7 p-0 bg-green-600 hover:bg-green-700 flex-shrink-0" 
-                  onClick={handleAddToCart}
-                >
-                  <ShoppingCart className="h-3 w-3" />
-                </Button>
+                {product.availableQuantity <= 0 ? (
+                  <Button
+                    size="sm"
+                    className="h-7 px-2 text-xs bg-gray-500 flex-shrink-0"
+                    disabled
+                  >
+                    Out
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="h-7 w-7 p-0 bg-green-600 hover:bg-green-700 flex-shrink-0"
+                    onClick={handleAddToCart}
+                  >
+                    <ShoppingCart className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -222,8 +272,9 @@ export function MarketplaceCard({
             size="sm"
             className="h-7 w-7 p-0 bg-white/90 hover:bg-white"
             onClick={handleWishlist}
+            disabled={isProcessing}
           >
-            <Heart className={cn("h-3 w-3", isWishlisted && "fill-red-500 text-red-500")} />
+            <Heart className={cn("h-3 w-3 transition-colors", isWishlisted ? "fill-red-500 text-red-500" : "text-gray-600 hover:text-red-500")} />
           </Button>
         </div>
       </div>
@@ -266,13 +317,15 @@ export function MarketplaceCard({
           <div className="flex items-center gap-2">
             <Avatar className="h-6 w-6">
               <AvatarFallback className="bg-green-100 text-green-700 text-xs">
-                {product.farmer.name.charAt(0)}
+                {typeof product.farmer.name === 'string' ? product.farmer.name.charAt(0) : 'U'}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
               <div className="flex items-center gap-1">
-                <span className="text-xs font-medium truncate">{product.farmer.name}</span>
-                {product.farmer.verified && (
+                <span className="text-xs font-medium truncate">
+                  {typeof product.farmer.name === 'string' ? product.farmer.name : 'Unknown Farmer'}
+                </span>
+                {product.farmer.verified && typeof product.farmer.verified === 'boolean' && (
                   <Shield className="h-3 w-3 text-green-600 flex-shrink-0" />
                 )}
               </div>
@@ -302,10 +355,17 @@ export function MarketplaceCard({
             <Eye className="h-3 w-3 mr-1" />
             View
           </Button>
-          <Button size="sm" className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700" onClick={handleAddToCart}>
-            <ShoppingCart className="h-3 w-3 mr-1" />
-            Add to Cart
-          </Button>
+          {product.availableQuantity <= 0 ? (
+            <Button size="sm" className="flex-1 h-8 text-xs bg-gray-500" disabled>
+              <ShoppingCart className="h-3 w-3 mr-1" />
+              Out of Stock
+            </Button>
+          ) : (
+            <Button size="sm" className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700" onClick={handleAddToCart}>
+              <ShoppingCart className="h-3 w-3 mr-1" />
+              Add to Cart
+            </Button>
+          )}
         </div>
       </div>
     </Card>

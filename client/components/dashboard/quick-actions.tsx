@@ -28,7 +28,7 @@ export function QuickActions({ actions }: QuickActionsProps) {
             <Button
               key={index}
               variant="outline"
-              className="h-auto p-4 justify-start bg-transparent hover:bg-accent/50"
+              className="h-auto p-4 justify-start bg-transparent hover:bg-primary/10"
               asChild
             >
               <Link href={action.href}>

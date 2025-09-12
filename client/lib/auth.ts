@@ -27,6 +27,7 @@ interface AuthState {
   logout: () => void
   refreshAuth: () => Promise<void>
   updateUser: (userData: Partial<User>) => void
+  updateUserAvatar: (avatarUrl: string) => void
   setLoading: (loading: boolean) => void
   setToken: (token: string) => void
   setUser: (user: User) => void
@@ -73,6 +74,7 @@ export const useAuthStore = create<AuthState>()(
             paymentUpdates: backendPrefs.transaction ?? true,
             weatherAlerts: backendPrefs.weatherAlerts ?? false,
           },
+          profile: backendUser.profile || {}, // Include profile data with avatar
           createdAt: backendUser.createdAt ? new Date(backendUser.createdAt) : new Date(),
           updatedAt: backendUser.updatedAt ? new Date(backendUser.updatedAt) : new Date(),
         }
@@ -105,8 +107,10 @@ export const useAuthStore = create<AuthState>()(
           // Also set HTTP-only cookies for middleware compatibility
           setCookie("auth_token", accessToken)
           setCookie("refresh_token", refreshToken, 60 * 60 * 24 * 30)
+          const normalizedUser = (get() as any).normalizeUser(rawUser)
+
           set({
-            user: (get() as any).normalizeUser(rawUser),
+            user: normalizedUser,
             token: accessToken,
             refreshToken,
             isAuthenticated: true,
@@ -211,6 +215,18 @@ export const useAuthStore = create<AuthState>()(
       updateUser: (userData: Partial<User>) => {
         set((state) => ({
           user: state.user ? { ...state.user, ...userData } : null,
+        }))
+      },
+
+      updateUserAvatar: (avatarUrl: string) => {
+        set((state) => ({
+          user: state.user ? {
+            ...state.user,
+            profile: {
+              ...state.user.profile,
+              avatar: avatarUrl
+            }
+          } : null,
         }))
       },
 

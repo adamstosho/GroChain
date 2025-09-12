@@ -11,7 +11,8 @@ import { Slider } from "@/components/ui/slider"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { MarketplaceCard, type MarketplaceProduct } from "@/components/agricultural"
 import { apiService } from "@/lib/api"
-import { useBuyerStore } from "@/hooks/use-buyer-store"
+import { useBuyerStore, useCartInitialization } from "@/hooks/use-buyer-store"
+import { useMemo } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuthStore } from "@/lib/auth"
 import type { Product } from "@/lib/types"
@@ -32,37 +33,80 @@ export default function MarketplacePage() {
     sortBy: "newest",
   })
 
-  const { addToCart } = useBuyerStore()
+  const { addToCart, fetchFavorites, cart } = useBuyerStore()
   const { toast } = useToast()
   const { user, isAuthenticated } = useAuthStore()
   const router = useRouter()
 
-  useEffect(() => {
-    // Check authentication - only redirect if we're sure the user is not authenticated
-    if (isAuthenticated === false) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to access the marketplace.",
-        variant: "destructive",
-      })
-      router.push('/login')
-      return
-    }
+  // Initialize cart from localStorage
+  useCartInitialization()
 
-    // Only fetch products if authenticated
+  // Load favorites on component mount
+  useEffect(() => {
     if (isAuthenticated) {
-      fetchProducts()
+      fetchFavorites()
     }
-  }, [filters, searchQuery, isAuthenticated, router, toast])
+  }, [isAuthenticated, fetchFavorites])
+
+  // Check for refresh flag and update products if needed
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const needsRefresh = localStorage.getItem('marketplace_refresh_needed')
+      console.log('🔍 Checking for marketplace refresh flag:', needsRefresh)
+
+      if (needsRefresh === 'true') {
+        console.log('🔄 Refreshing marketplace products after checkout...')
+        console.log('📦 Current products before refresh:', products.length)
+
+        localStorage.removeItem('marketplace_refresh_needed')
+        console.log('✅ Refresh flag cleared')
+
+        fetchProducts().then(() => {
+          console.log('✅ Products refreshed successfully')
+        }).catch((error) => {
+          console.error('❌ Failed to refresh products:', error)
+        })
+      }
+    }
+  }, [])
+
+  // Debug cart and products
+  useEffect(() => {
+    console.log('🔍 Debug Info:', {
+      cartLength: cart.length,
+      productsLength: products.length,
+      cartItems: cart.map(item => ({
+        id: item.id,
+        listingId: item.listingId,
+        quantity: item.quantity,
+        name: item.cropName
+      })),
+      sampleProduct: products.length > 0 ? {
+        id: products[0].id,
+        name: products[0].name,
+        quantity: products[0].quantity,
+        availableQuantity: products[0].availableQuantity
+      } : null
+    })
+  }, [cart, products])
+
+  useEffect(() => {
+    // Fetch products for all users (no authentication required)
+    fetchProducts()
+  }, [filters, searchQuery])
 
   const fetchProducts = async () => {
     try {
-      // Only fetch if authenticated
-      if (!isAuthenticated) {
-        return
-      }
-
       setLoading(true)
+
+      // Check if we need to refresh due to recent order completion
+      const needsRefresh = typeof window !== 'undefined' && 
+        localStorage.getItem('marketplace_refresh_needed') === 'true'
+      
+      if (needsRefresh) {
+        console.log('🔄 Refreshing products due to recent order completion')
+        localStorage.removeItem('marketplace_refresh_needed')
+      }
 
       // Map frontend filters to backend parameters
       const params: any = {
@@ -70,6 +114,11 @@ export default function MarketplacePage() {
         limit: 20,
         sortBy: 'createdAt',
         sortOrder: 'desc'
+      }
+
+      // Add cache buster if refresh needed
+      if (needsRefresh) {
+        params._t = Date.now()
       }
 
       // Add search query
@@ -110,6 +159,15 @@ export default function MarketplacePage() {
       const response = await apiService.getMarketplaceListings(params)
       const listings = response.data?.listings || []
 
+      // Debug backend response
+      console.log('🔍 Backend listings:', listings.map(listing => ({
+        _id: listing._id,
+        cropName: listing.cropName,
+        quantity: listing.quantity,
+        availableQuantity: listing.availableQuantity,
+        status: listing.status
+      })))
+
       // Convert backend listing format to frontend product format
       const convertedProducts = listings.map((listing: any) => ({
         id: listing._id,
@@ -142,10 +200,31 @@ export default function MarketplacePage() {
   }
 
   const handleAddToCart = async (productId: string) => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to add items to your cart.",
+        variant: "destructive",
+      })
+      router.push('/login')
+      return
+    }
+
     try {
       // Find the product in the current products list
       const product = products.find(p => p.id === productId)
       if (product) {
+        // Check if product has available quantity
+        if (product.availableQuantity <= 0) {
+          toast({
+            title: "Out of Stock",
+            description: "This product is currently out of stock.",
+            variant: "destructive",
+          })
+          return
+        }
+
         // Use buyer store to add to cart with proper format
         const cartItem = {
           id: product.id,
@@ -157,17 +236,28 @@ export default function MarketplacePage() {
           image: product.images?.[0] || "/placeholder.svg",
           farmer: product.farmer,
           category: product.category,
-          location: product.location
+          location: product.location,
+          availableQuantity: product.availableQuantity
         }
 
-        addToCart(cartItem, 1)
+        await addToCart(cartItem, 1)
 
         toast({
           title: "Added to cart!",
           description: `${product.name} has been added to your cart.`,
         })
 
-        console.log("✅ Product added to cart successfully:", cartItem)
+        // Note: We don't refresh products here because quantities are calculated
+        // on the frontend based on cart items. Backend quantities are only
+        // updated when orders are completed.
+
+        console.log("✅ Product added to cart successfully:", {
+          cartItemId: cartItem.id,
+          cartItemListingId: cartItem.listingId,
+          productId: product.id,
+          productName: product.name,
+          currentCart: cart.map(c => ({ id: c.id, listingId: c.listingId, quantity: c.quantity }))
+        })
       } else {
         toast({
           title: "Product not found",
@@ -185,16 +275,39 @@ export default function MarketplacePage() {
     }
   }
 
-  const handleToggleFavorite = async (productId: string) => {
-    try {
-      // Use the favorites API endpoint
-      await apiService.addToFavorites(productId)
-      console.log("Added to favorites:", productId)
-      // TODO: Update local state or refetch favorites
-    } catch (error) {
-      console.error("Failed to toggle favorite:", error)
-    }
-  }
+  // Favorites are now handled directly in the MarketplaceCard component
+  // using the buyer store, so we don't need this function anymore
+
+  // Use actual product quantities from database (no frontend calculation)
+  const adjustedProducts = useMemo(() => {
+    return products.map(product => {
+      // Use the actual available quantity from the database
+      const availableQuantity = product.availableQuantity || product.quantity || product.stockQuantity || 0
+      
+      // Find cart item for display purposes only (not for quantity calculation)
+      const cartItem = cart.find(item =>
+        item.listingId === product.id ||
+        item.id === product.id ||
+        item.listingId === product._id ||
+        item.id === product._id
+      )
+      const cartQuantity = cartItem ? cartItem.quantity : 0
+
+      // Debug quantity display for this product
+      console.log(`🔢 Product quantity for ${product.name}:`, {
+        productId: product.id,
+        availableQuantity,
+        cartQuantity,
+        cartItemFound: !!cartItem
+      })
+
+      return {
+        ...product,
+        availableQuantity: availableQuantity,
+        cartQuantity: cartQuantity
+      }
+    })
+  }, [products, cart])
 
   // Convert Product type to MarketplaceProduct type for our component
   const convertToMarketplaceProduct = (product: Product): MarketplaceProduct => {
@@ -243,7 +356,7 @@ export default function MarketplacePage() {
         handleAddToCart(productId)
         break
       case "addToWishlist":
-        handleToggleFavorite(productId)
+        // Favorites are now handled directly in MarketplaceCard component
         break
       case "view":
         // Navigate to product detail page
@@ -260,8 +373,8 @@ export default function MarketplacePage() {
     }
   }
 
-  // Show loading state while determining authentication status
-  if (isAuthenticated === null) {
+  // Show loading state
+  if (loading && products.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
         <div className="text-center">
@@ -289,6 +402,7 @@ export default function MarketplacePage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Marketplace</h1>
           <p className="text-gray-600 text-sm">Discover fresh, verified agricultural products from trusted farmers</p>
+
         </div>
 
         {/* Search and Filters */}
@@ -421,7 +535,7 @@ export default function MarketplacePage() {
                 : "space-y-3"
             }
           >
-            {products.map((product) => (
+            {adjustedProducts.map((product) => (
               <MarketplaceCard
                 key={product.id}
                 product={convertToMarketplaceProduct(product)}

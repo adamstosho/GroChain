@@ -133,14 +133,14 @@ export function PartnerDashboard() {
       title: "Onboard Farmers",
       description: "Add new farmers to platform",
       icon: UserPlus,
-      href: "/partners",
+      href: "/dashboard/farmers/add",
       color: "bg-primary/10 text-primary",
     },
     {
       title: "Bulk Upload",
       description: "CSV farmer onboarding",
       icon: Upload,
-      href: "/partners/bulk-onboard",
+      href: "/dashboard/farmers/bulk",
       color: "bg-secondary/10 text-secondary",
     },
     {

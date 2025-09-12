@@ -12,6 +12,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useApprovals } from "@/hooks/use-approvals"
 import { HarvestApproval, ApprovalFilters } from "@/lib/types/approvals"
+import { useAuthStore } from "@/lib/auth"
+import { approvalsService } from "@/lib/approvals-service"
+import { useToast } from "@/hooks/use-toast"
 import { 
   Shield, 
   CheckCircle, 
@@ -56,21 +59,25 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
   const [rejectionReason, setRejectionReason] = useState("")
   const [approvalNotes, setApprovalNotes] = useState("")
 
-  const { 
-    approvals, 
-    stats, 
-    isLoading, 
-    error, 
-    filters, 
-    setFilters, 
-    refreshData, 
-    approveHarvest, 
-    rejectHarvest, 
-    markForReview, 
-    batchProcess, 
-    exportData, 
-    clearCache 
+  const { user } = useAuthStore()
+  const { toast } = useToast()
+
+  const {
+    approvals,
+    stats,
+    isLoading,
+    error,
+    filters,
+    setFilters,
+    refreshData,
+    approveHarvest,
+    rejectHarvest,
+    markForReview,
+    batchProcess,
+    exportData,
+    clearCache
   } = useApprovals()
+
 
   useEffect(() => {
     // Apply filters when they change
@@ -118,44 +125,105 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
   }
 
   const handleApprove = async (approvalId: string) => {
+    console.log('Starting approval process for harvest:', approvalId)
     try {
       await approveHarvest(approvalId, approvalNotes)
+
       setIsApprovalDialogOpen(false)
       setApprovalNotes("")
       setSelectedApproval(null)
-      // Refresh data to show updated status
-      refreshData()
-    } catch (error) {
+
+      toast({
+        title: "Harvest Approved",
+        description: "The harvest has been approved successfully",
+      })
+
+      console.log('Approval completed successfully - UI updated automatically')
+    } catch (error: any) {
       console.error('Error approving harvest:', error)
-      // Show error to user
-      alert('Failed to approve harvest. Please try again.')
+      const errorMessage = error?.message || "Failed to approve harvest. Please try again."
+      toast({
+        title: "Approval Failed",
+        description: errorMessage,
+        variant: "destructive",
+      })
+
+      // If it's a network error, suggest refreshing
+      if (errorMessage.includes('fetch') || errorMessage.includes('Network')) {
+        setTimeout(() => {
+          toast({
+            title: "Network Issue",
+            description: "Please check your connection and try again.",
+            variant: "default",
+          })
+        }, 3000)
+      }
     }
   }
 
   const handleReject = async (approvalId: string) => {
     if (!rejectionReason.trim()) {
-      alert("Please provide a rejection reason")
+      toast({
+        title: "Rejection Reason Required",
+        description: "Please provide a reason for rejecting this harvest.",
+        variant: "destructive",
+      })
       return
     }
 
+    console.log('Starting rejection process for harvest:', approvalId)
     try {
       await rejectHarvest(approvalId, rejectionReason, approvalNotes)
+
       setIsApprovalDialogOpen(false)
       setRejectionReason("")
       setApprovalNotes("")
       setSelectedApproval(null)
-      // Refresh data to show updated status
-      refreshData()
-    } catch (error) {
+
+      toast({
+        title: "Harvest Rejected",
+        description: "The harvest has been rejected with the provided reason",
+      })
+
+      console.log('Rejection completed successfully - UI updated automatically')
+    } catch (error: any) {
       console.error('Error rejecting harvest:', error)
-      // Show error to user
-      alert('Failed to reject harvest. Please try again.')
+      const errorMessage = error?.message || "Failed to reject harvest. Please try again."
+      toast({
+        title: "Rejection Failed",
+        description: errorMessage,
+        variant: "destructive",
+      })
+
+      // If it's a network error, suggest refreshing
+      if (errorMessage.includes('fetch') || errorMessage.includes('Network')) {
+        setTimeout(() => {
+          toast({
+            title: "Network Issue",
+            description: "Please check your connection and try again.",
+            variant: "default",
+          })
+        }, 3000)
+      }
     }
   }
 
   const handleBatchAction = async (action: 'approve' | 'reject') => {
     if (selectedApprovals.length === 0) {
-      alert("Please select approvals to process")
+      toast({
+        title: "No Approvals Selected",
+        description: "Please select at least one approval to process",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (action === 'reject' && !rejectionReason.trim()) {
+      toast({
+        title: "Rejection Reason Required",
+        description: "Please provide a reason for rejecting these harvests",
+        variant: "destructive",
+      })
       return
     }
 
@@ -163,19 +231,25 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
       if (action === 'approve') {
         await batchProcess('approve', selectedApprovals, approvalNotes)
       } else {
-        if (!rejectionReason.trim()) {
-          alert("Please provide a rejection reason")
-          return
-        }
         await batchProcess('reject', selectedApprovals, approvalNotes, rejectionReason)
       }
-      
+
       setSelectedApprovals([])
       setIsBatchDialogOpen(false)
       setApprovalNotes("")
       setRejectionReason("")
-    } catch (error) {
+
+      toast({
+        title: `Batch ${action.charAt(0).toUpperCase() + action.slice(1)} Complete`,
+        description: `${selectedApprovals.length} harvests have been ${action}d successfully`,
+      })
+    } catch (error: any) {
       console.error(`Error in batch ${action}:`, error)
+      toast({
+        title: `Batch ${action} Failed`,
+        description: error.message || `Failed to process batch ${action}`,
+        variant: "destructive",
+      })
     }
   }
 
@@ -218,82 +292,112 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
 
   if (isLoading || !stats) {
     return (
-      <Card className={className}>
-        <CardContent className="p-6">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="h-6 bg-muted rounded w-48" />
-                <div className="h-4 bg-muted rounded w-32" />
-              </div>
-              <div className="h-10 bg-muted rounded w-32" />
+      <div className={className}>
+        <div className="space-y-6">
+          {/* Header Skeleton */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-1">
+              <div className="h-6 bg-muted rounded w-48 animate-pulse" />
+              <div className="h-4 bg-muted rounded w-32 animate-pulse" />
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <div className="h-4 bg-muted rounded w-24" />
-                  <div className="h-8 bg-muted rounded w-16" />
-                  <div className="h-3 bg-muted rounded w-32" />
-                </div>
-              ))}
+            <div className="flex items-center gap-2">
+              <div className="h-10 bg-muted rounded w-20 animate-pulse" />
+              <div className="h-10 bg-muted rounded w-24 animate-pulse" />
+              <div className="h-10 bg-muted rounded w-20 animate-pulse" />
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Stats Cards Skeleton */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardHeader className="space-y-0 pb-2">
+                  <div className="h-4 bg-muted rounded w-24" />
+                  <div className="h-8 bg-muted rounded w-16" />
+                </CardHeader>
+                <CardContent>
+                  <div className="h-3 bg-muted rounded w-32" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Filters Skeleton */}
+          <Card>
+            <CardHeader>
+              <div className="h-5 bg-muted rounded w-32 animate-pulse" />
+              <div className="h-4 bg-muted rounded w-48 animate-pulse" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-5">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-10 bg-muted rounded animate-pulse" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     )
   }
 
   return (
     <div className={className}>
+
       {/* Header Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">Harvest Approvals</h2>
-          <p className="text-muted-foreground">Manage and review farmer harvest submissions</p>
+        <div className="space-y-1 min-w-0 flex-1">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight truncate">Harvest Approvals</h2>
+          <p className="text-muted-foreground text-sm sm:text-base">Manage and review farmer harvest submissions</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setIsBatchDialogOpen(true)} 
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0">
+          <Button
+            variant="outline"
+            onClick={() => setIsBatchDialogOpen(true)}
             disabled={selectedApprovals.length === 0}
+            className="w-full sm:w-auto"
+            size="sm"
           >
             <ThumbsUp className="w-4 h-4 mr-2" />
-            Batch Approve ({selectedApprovals.length})
+            <span className="hidden sm:inline">Batch Approve ({selectedApprovals.length})</span>
+            <span className="sm:hidden">Batch ({selectedApprovals.length})</span>
           </Button>
-          <Button variant="outline" onClick={refreshData}>
+          <Button variant="outline" onClick={refreshData} className="w-full sm:w-auto" size="sm">
             <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
+            <span className="sm:hidden">🔄</span>
           </Button>
-          <Button variant="outline" onClick={() => exportData('csv')}>
+          <Button variant="outline" onClick={() => exportData('csv')} className="w-full sm:w-auto" size="sm">
             <Download className="w-4 h-4 mr-2" />
-            Export
+            <span className="hidden sm:inline">Export</span>
+            <span className="sm:hidden">📥</span>
           </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+{stats.weeklyTrend}%</span> from last week
-            </p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.total || 0}</div>
+              <p className="text-xs text-muted-foreground">
+                Real data from database
+              </p>
+            </CardContent>
+          </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
             <Clock className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pending}</div>
+            <div className="text-2xl font-bold">{stats.pending || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.pending > 0 ? "Requires attention" : "All caught up"}
+              {(stats.pending || 0) > 0 ? "Requires attention" : "All caught up"}
             </p>
           </CardContent>
         </Card>
@@ -303,9 +407,9 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.approved}</div>
+            <div className="text-2xl font-bold">{stats.approved || 0}</div>
             <p className="text-xs text-muted-foreground">
-              ₦{stats.totalValue.toLocaleString()} total value
+              ₦{(stats.totalValue || 0).toLocaleString()} total value
             </p>
           </CardContent>
         </Card>
@@ -315,7 +419,7 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
             <Star className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.averageQualityScore}/10</div>
+            <div className="text-2xl font-bold">{(stats.averageQualityScore || 0).toFixed(1)}/10</div>
             <p className="text-xs text-muted-foreground">
               Quality benchmark met
             </p>
@@ -376,10 +480,10 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
                 <SelectItem value="Yam">Yam</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={clearCache}>
-              <Filter className="w-4 h-4 mr-2" />
-              Clear Cache
-            </Button>
+          <Button variant="outline" onClick={clearCache}>
+            <Filter className="w-4 h-4 mr-2" />
+            Clear Filters
+          </Button>
           </div>
         </CardContent>
       </Card>
@@ -394,10 +498,10 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="all">All ({approvals.length})</TabsTrigger>
-              <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
-              <TabsTrigger value="approved">Approved ({stats.approved})</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected ({stats.rejected})</TabsTrigger>
-              <TabsTrigger value="under_review">Review ({stats.underReview})</TabsTrigger>
+              <TabsTrigger value="pending">Pending ({stats.pending || 0})</TabsTrigger>
+              <TabsTrigger value="approved">Approved ({stats.approved || 0})</TabsTrigger>
+              <TabsTrigger value="rejected">Rejected ({stats.rejected || 0})</TabsTrigger>
+              <TabsTrigger value="under_review">Review ({stats.underReview || 0})</TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab} className="space-y-4 mt-6">
@@ -451,7 +555,7 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
                               </div>
                               <div className="flex items-center space-x-2">
                                 <MapPin className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm">{typeof approval.location === 'string' ? approval.location : `${approval.location?.city || 'Unknown'}, ${approval.location?.state || 'Unknown State'}`}</span>
+                                <span className="text-sm">{typeof approval.location === 'string' ? approval.location : `${(approval.location as any)?.city || 'Unknown'}, ${(approval.location as any)?.state || 'Unknown State'}`}</span>
                               </div>
                               <div className="flex items-center space-x-2">
                                 <Scale className="w-4 h-4 text-muted-foreground" />
@@ -503,9 +607,11 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
                               setSelectedApproval(approval)
                               setIsApprovalDialogOpen(true)
                             }}
+                            className="w-full sm:w-auto"
                           >
                             <Eye className="w-4 h-4 mr-2" />
-                            Review
+                            <span className="hidden sm:inline">Review</span>
+                            <span className="sm:hidden">👁️</span>
                           </Button>
                           
                           {approval.status === 'pending' && (
@@ -514,10 +620,11 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
                                 variant="default"
                                 size="sm"
                                 onClick={() => handleApprove(approval._id)}
-                                className="bg-green-600 hover:bg-green-700"
+                                className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
                               >
                                 <ThumbsUp className="w-4 h-4 mr-2" />
-                                Approve
+                                <span className="hidden sm:inline">Approve</span>
+                                <span className="sm:hidden">👍</span>
                               </Button>
                               <Button
                                 variant="destructive"
@@ -526,16 +633,19 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
                                   setSelectedApproval(approval)
                                   setIsApprovalDialogOpen(true)
                                 }}
+                                className="w-full sm:w-auto"
                               >
                                 <ThumbsDown className="w-4 h-4 mr-2" />
-                                Reject
+                                <span className="hidden sm:inline">Reject</span>
+                                <span className="sm:hidden">👎</span>
                               </Button>
                             </>
                           )}
                           
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="w-full sm:w-auto">
                             <MessageSquare className="w-4 h-4 mr-2" />
-                            Message
+                            <span className="hidden sm:inline">Message</span>
+                            <span className="sm:hidden">💬</span>
                           </Button>
                         </div>
                       </div>
@@ -603,7 +713,7 @@ export function ApprovalsDashboard({ className }: ApprovalsDashboardProps) {
                     <p><strong>Name:</strong> {selectedApproval.farmer.name}</p>
                     <p><strong>Email:</strong> {selectedApproval.farmer.email}</p>
                     <p><strong>Phone:</strong> {selectedApproval.farmer.phone}</p>
-                    <p><strong>Location:</strong> {typeof selectedApproval.location === 'string' ? selectedApproval.location : `${selectedApproval.location?.city || 'Unknown'}, ${selectedApproval.location?.state || 'Unknown State'}`}</p>
+                    <p><strong>Location:</strong> {typeof selectedApproval.location === 'string' ? selectedApproval.location : `${(selectedApproval.location as any)?.city || 'Unknown'}, ${(selectedApproval.location as any)?.state || 'Unknown State'}`}</p>
                   </div>
                 </div>
                 <div>

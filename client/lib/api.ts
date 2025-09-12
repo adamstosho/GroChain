@@ -32,7 +32,6 @@ class ApiService {
   private loadTokenFromStorage() {
     if (typeof window !== "undefined") {
       this.token = localStorage.getItem(APP_CONFIG.auth.tokenKey)
-      console.log('🔑 API Service - Token loaded from localStorage:', !!this.token)
     }
   }
 
@@ -74,17 +73,11 @@ class ApiService {
 
     if (this.token && this.token !== 'undefined') {
       headers["Authorization"] = `Bearer ${this.token}`
-      console.log('🔑 Token included in request:', this.token.substring(0, 20) + '...')
     } else {
-      console.log('❌ No token available for request to:', endpoint)
-      console.log('⚠️ No token found for request - this will cause 401 errors')
-      console.log('Current token value:', this.token)
-      console.log('Token from localStorage:', typeof window !== 'undefined' ? localStorage.getItem(APP_CONFIG.auth.tokenKey) : 'N/A')
-      console.log('Attempting to load token from storage...')
+      // Try to load token from storage
       this.loadTokenFromStorage()
       if (this.token && this.token !== 'undefined') {
         headers["Authorization"] = `Bearer ${this.token}`
-        console.log('✅ Token recovered and added to request')
       }
     }
 
@@ -95,13 +88,6 @@ class ApiService {
     }
 
     try {
-      console.log("[v0] API Request:", {
-        url,
-        method: options.method || "GET",
-        hasAuth: !!headers.Authorization,
-        endpoint: endpoint
-      })
-
       // Add timeout to prevent hanging requests
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
@@ -116,15 +102,18 @@ class ApiService {
 
       clearTimeout(timeoutId)
 
-      console.log("[v0] API Response:", { status: response.status, ok: response.ok })
-
       let data
       const contentType = response.headers.get("content-type")
       if (contentType && contentType.includes("application/json")) {
-        data = await response.json()
+        try {
+          data = await response.json()
+        } catch (jsonError) {
+          console.error('JSON parsing error:', jsonError)
+          const text = await response.text()
+          data = { message: text || "Invalid JSON response" }
+        }
       } else {
         const text = await response.text()
-        console.log("[v0] Non-JSON response:", text)
         data = { message: text || "Unknown error" }
       }
 
@@ -132,14 +121,11 @@ class ApiService {
         let errorMessage = data.message || `HTTP ${response.status}: ${response.statusText}`
 
         // Add more detailed error information for debugging
-        console.error(`❌ API Error [${response.status}]:`, {
-          endpoint,
-          method: options.method || 'GET',
-          errorMessage,
-          timestamp: new Date().toISOString(),
-          userAgent: navigator.userAgent,
-          responseData: this.safeStringify(data),
-          hasAuth: !!headers.Authorization
+        console.error(`API Error [${endpoint}]:`, {
+          status: response.status,
+          statusText: response.statusText,
+          contentType: response.headers.get("content-type"),
+          data: data
         })
 
         if (response.status === 0 || !response.status) {
@@ -164,7 +150,6 @@ class ApiService {
 
       return data
     } catch (error) {
-      console.error("[v0] API Error:", error)
 
       // Handle timeout/abort errors
       if (error instanceof Error) {
@@ -211,17 +196,14 @@ class ApiService {
         localStorage.getItem(APP_CONFIG.auth.refreshTokenKey) : null
 
       if (!refreshToken) {
-        console.log('⚠️ No refresh token available')
         return false
       }
 
       if (this.isRefreshing) {
-        console.log('🔄 Token refresh already in progress, skipping')
         return false
       }
 
       this.isRefreshing = true
-      console.log('🔄 Starting token refresh...')
 
       // Use the async refreshToken method directly to avoid recursion through request()
       const response = await this.refreshToken(refreshToken)
@@ -238,13 +220,11 @@ class ApiService {
         if (newRefreshToken && typeof window !== "undefined") {
           localStorage.setItem(APP_CONFIG.auth.refreshTokenKey, newRefreshToken)
         }
-        console.log('✅ Token refreshed successfully')
         return true
       }
 
       return false
     } catch (error: any) {
-      console.log('❌ Token refresh failed:', error.message)
       this.isRefreshing = false
       this.clearToken()
       return false
@@ -276,7 +256,6 @@ class ApiService {
   async refreshToken(refreshToken: string) {
     // Prevent concurrent refresh calls
     if (this.isRefreshing) {
-      console.log('🔄 Refresh already in progress, waiting...')
       // Wait for current refresh to complete
       while (this.isRefreshing) {
         await new Promise(resolve => setTimeout(resolve, 100))
@@ -396,6 +375,197 @@ class ApiService {
     return this.request("/api/analytics/dashboard")
   }
 
+  // Admin-specific methods
+  async getAdminDashboard() {
+    return this.request("/api/admin/dashboard")
+  }
+
+  async getAdminProfile() {
+    console.log('🚀 API: Calling getAdminProfile endpoint')
+    try {
+      const result = this.request("/api/admin/profile")
+      console.log('🚀 API: getAdminProfile request initiated')
+      return result
+    } catch (error) {
+      console.error('🚀 API: getAdminProfile failed:', error)
+      throw error
+    }
+  }
+
+  async updateAdminProfile(data: any) {
+    return this.request("/api/admin/profile", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getAdminSettings() {
+    return this.request('/api/admin/settings')
+  }
+
+  async updateAdminSettings(settings: any) {
+    return this.request('/api/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    })
+  }
+
+  async getAdminNotificationSettings() {
+    return this.request('/api/admin/settings/notifications')
+  }
+
+  async updateAdminNotificationSettings(settings: any) {
+    return this.request('/api/admin/settings/notifications', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    })
+  }
+
+  async getAdminSecuritySettings() {
+    return this.request('/api/admin/settings/security')
+  }
+
+  async updateAdminSecuritySettings(settings: any) {
+    return this.request('/api/admin/settings/security', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    })
+  }
+
+  async changeAdminPassword(currentPassword: string, newPassword: string) {
+    return this.request('/api/admin/profile/password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    })
+  }
+
+  async getAdminSystemHealth() {
+    return this.request("/api/admin/system/health")
+  }
+
+  async getAdminSystemMetrics() {
+    return this.request("/api/admin/system/metrics")
+  }
+
+  async getAdminRecentUsers(limit = 5) {
+    return this.request(`/api/admin/users/recent?limit=${limit}`)
+  }
+
+  async getAdminUsers(params?: any) {
+    const queryString = params ? `?${new URLSearchParams(params).toString()}` : ''
+    return this.request(`/api/admin/users${queryString}`)
+  }
+
+  async getAdminUserById(id: string) {
+    return this.request(`/api/admin/users/${id}`)
+  }
+
+  async updateAdminUser(id: string, data: any) {
+    return this.request(`/api/admin/users/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteAdminUser(id: string) {
+    return this.request(`/api/admin/users/${id}`, {
+      method: "DELETE",
+    })
+  }
+
+  async activateAdminUser(id: string) {
+    return this.request(`/api/admin/users/${id}/activate`, {
+      method: "POST",
+    })
+  }
+
+  async suspendAdminUser(id: string) {
+    return this.request(`/api/admin/users/${id}/suspend`, {
+      method: "POST",
+    })
+  }
+
+  async verifyAdminUser(id: string) {
+    return this.request(`/api/admin/users/${id}/verify`, {
+      method: "POST",
+    })
+  }
+
+  async resetAdminUserPassword(id: string, newPassword: string) {
+    return this.request(`/api/admin/users/${id}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ newPassword }),
+    })
+  }
+
+  // Admin Analytics
+  async getAdminAnalyticsOverview(period = '30d') {
+    return this.request(`/api/admin/analytics/overview?period=${period}`)
+  }
+
+  async getAdminAnalyticsUsers(period = '30d') {
+    return this.request(`/api/admin/analytics/users?period=${period}`)
+  }
+
+  async getAdminAnalyticsRegional(period = '30d') {
+    return this.request(`/api/admin/analytics/regional?period=${period}`)
+  }
+
+  async getAdminAnalyticsQuality(period = '30d') {
+    return this.request(`/api/admin/analytics/quality?period=${period}`)
+  }
+
+  async getAdminAnalyticsExport(params?: any) {
+    const queryString = params ? `?${new URLSearchParams(params)}` : ''
+    return this.request(`/api/admin/analytics/export${queryString}`)
+  }
+
+  // Admin System Management
+  async getAdminSystemStatus() {
+    return this.request('/api/admin/system/status')
+  }
+
+  async getAdminSystemLogs(params?: any) {
+    const queryString = params ? `?${new URLSearchParams(params)}` : ''
+    return this.request(`/api/admin/system/logs${queryString}`)
+  }
+
+  async getAdminSystemConfig() {
+    return this.request('/api/admin/system/config')
+  }
+
+  async updateAdminSystemConfig(section: string, settings: any) {
+    return this.request('/api/admin/system/config', {
+      method: 'PUT',
+      body: JSON.stringify({ section, settings })
+    })
+  }
+
+  async toggleMaintenanceMode(enabled: boolean, message?: string) {
+    return this.request('/api/admin/system/maintenance', {
+      method: 'POST',
+      body: JSON.stringify({ enabled, message })
+    })
+  }
+
+  async createSystemBackup(type: string = 'full', description?: string) {
+    return this.request('/api/admin/system/backup', {
+      method: 'POST',
+      body: JSON.stringify({ type, description })
+    })
+  }
+
+  async getSystemBackups() {
+    return this.request('/api/admin/system/backups')
+  }
+
+  async restoreSystemBackup(backupId: string, collections?: string[]) {
+    return this.request('/api/admin/system/restore', {
+      method: 'POST',
+      body: JSON.stringify({ backupId, collections })
+    })
+  }
+
   // Harvest Management
   async getHarvests(filters?: Record<string, any>) {
     const params = new URLSearchParams(filters || {})
@@ -403,29 +573,22 @@ class ApiService {
   }
 
   async getHarvestAnalytics(filters?: Record<string, any>) {
-    console.log("🔍 API: Getting harvest analytics with filters:", filters)
     const params = new URLSearchParams(filters || {})
     const url = `/api/harvests/analytics?${params}`
-    console.log("🔗 API: Analytics URL:", url)
 
     try {
       const response = await this.request(url)
-      console.log("📊 API: Analytics response received:", response)
       return response
     } catch (error) {
-      console.error("❌ API: Analytics request failed:", error)
       throw error
     }
   }
 
   async getHarvestStats() {
-    console.log("📊 API: Getting harvest stats")
     try {
       const response = await this.request('/api/harvests/stats')
-      console.log("📈 API: Stats response received:", response)
       return response
     } catch (error) {
-      console.error("❌ API: Stats request failed:", error)
       throw error
     }
   }
@@ -616,18 +779,31 @@ class ApiService {
   }
 
   // Avatar Upload
-  async uploadAvatar(avatarFile: File) {
-    const formData = new FormData()
-    formData.append('avatar', avatarFile)
+  async uploadAvatar(formData: FormData, isAdmin: boolean = false) {
+    const token = localStorage.getItem('grochain_auth_token')
+    const endpoint = isAdmin ? '/api/admin/profile/avatar' : '/api/users/profile/avatar'
 
-    const res: any = await this.request("/api/users/upload-avatar", {
-      method: "POST",
-      body: formData,
-      headers: {
-        Authorization: this.token ? `Bearer ${this.token}` : "",
-      } as any,
-    })
-    return res
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: formData
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      return await response.json()
+    } catch (error: any) {
+      if (error.message.includes('fetch')) {
+        throw new Error('Network error: Unable to connect to server')
+      }
+      throw error
+    }
   }
 
   // Fintech - Credit Score and Loans
@@ -763,16 +939,10 @@ class ApiService {
   }
 
   async getFavorites(userId?: string, params: any = {}) {
-    console.log('🔍 API: getFavorites called with userId:', userId)
-    console.log('🔑 API: Current token:', this.token ? 'Present' : 'Missing')
-    console.log('🔑 API: Token from localStorage:', typeof window !== 'undefined' ? localStorage.getItem('grochain_auth_token') ? 'Present' : 'Missing' : 'N/A')
-
     if (userId && userId !== 'undefined' && userId !== 'null') {
-      console.log('📋 API: Using userId parameter:', userId)
       const queryString = new URLSearchParams(params).toString()
       return this.request(`/api/marketplace/favorites/${userId}?${queryString}`)
     } else {
-      console.log('🔄 API: Using current user fallback')
       // Fallback: get favorites for current authenticated user
       const queryString = new URLSearchParams(params).toString()
       return this.request(`/api/marketplace/favorites/current?${queryString}`)
@@ -782,6 +952,34 @@ class ApiService {
   async removeFromFavorites(userId: string, listingId: string) {
     return this.request(`/api/marketplace/favorites/${userId}/${listingId}`, {
       method: 'DELETE',
+    })
+  }
+
+  // Cart quantity management
+  async reserveCartQuantity(items: Array<{ listingId: string; quantity: number }>) {
+    return this.request('/api/marketplace/cart/reserve', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    })
+  }
+
+  async releaseCartQuantity(items: Array<{ listingId: string; quantity: number }>) {
+    return this.request('/api/marketplace/cart/release', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    })
+  }
+
+  async updateCartItemQuantity(listingId: string, oldQuantity: number, newQuantity: number) {
+    return this.request('/api/marketplace/cart/item-quantity', {
+      method: 'PATCH',
+      body: JSON.stringify({ listingId, oldQuantity, newQuantity }),
+    })
+  }
+
+  async cleanupSoldOutProducts() {
+    return this.request('/api/marketplace/cleanup-sold-out', {
+      method: 'POST',
     })
   }
 
@@ -801,6 +999,12 @@ class ApiService {
 
   async verifyPayment(reference: string) {
     return this.request(`/api/payments/verify/${reference}`)
+  }
+
+  async syncOrderStatus(orderId: string) {
+    return this.request(`/api/payments/sync/${orderId}`, {
+      method: 'POST'
+    })
   }
 
   async getTransactionHistory(params: any = {}) {
@@ -874,7 +1078,7 @@ class ApiService {
 
 
   async getWeatherData(params?: any) {
-    const queryString = params ? new URLSearchParams(params).toString() : ''
+    const queryString = params ? new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString() : ''
     return this.request(`/api/weather${queryString ? '?' + queryString : ''}`)
   }
 
@@ -904,10 +1108,13 @@ class ApiService {
   }
 
   async getFarmerAnalytics(farmerId?: string) {
-    if (farmerId) {
-      return this.request(`/api/analytics/farmers/${farmerId}`)
+    const endpoint = farmerId ? `/api/analytics/farmers/${farmerId}` : '/api/analytics/farmers/me'
+    try {
+      const result = await this.request(endpoint)
+      return result
+    } catch (error) {
+      throw error
     }
-    return this.request('/api/analytics/farmers/me')
   }
 
   // Partner Dashboard Methods
@@ -935,7 +1142,7 @@ class ApiService {
     status?: string
     search?: string
   }) {
-    const queryString = params ? new URLSearchParams(params).toString() : ''
+    const queryString = params ? new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString() : ''
     return this.request<{
       farmers: Array<{
         _id: string
@@ -1017,7 +1224,7 @@ class ApiService {
     sortBy?: string
     sortOrder?: string
   }) {
-    const queryString = params ? new URLSearchParams(params).toString() : ''
+    const queryString = params ? new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString() : ''
     return this.request<{
       commissions: Array<{
         _id: string
@@ -1059,6 +1266,65 @@ class ApiService {
     })
   }
 
+  async getCommissionStats(params?: {
+    partnerId?: string
+    farmerId?: string
+    startDate?: string
+    endDate?: string
+  }) {
+    const queryString = params ? new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString() : ''
+    return this.request<{
+      totalCommissions: number
+      totalAmount: number
+      statusBreakdown: Array<{
+        _id: string
+        count: number
+        totalAmount: number
+      }>
+      monthlyBreakdown: Array<{
+        _id: {
+          year: number
+          month: number
+        }
+        count: number
+        totalAmount: number
+      }>
+      averageCommission: number
+    }>(`/api/commissions/stats?${queryString}`)
+  }
+
+  async getPartnerCommissionSummary(partnerId: string) {
+    return this.request<{
+      summary: {
+        totalCommissions: number
+        pendingCommissions: number
+        paidCommissions: number
+        totalAmount: number
+        pendingAmount: number
+        paidAmount: number
+      }
+      recentCommissions: Array<{
+        _id: string
+        farmer: {
+          name: string
+        }
+        order: {
+          orderNumber: string
+        }
+        amount: number
+        status: string
+        createdAt: string
+      }>
+    }>(`/api/commissions/summary/${partnerId}`)
+  }
+
+  async updateCommissionStatus(id: string, data: { status: string; notes?: string }) {
+    return this.request(`/api/commissions/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  }
+
   // Referral Management
   async getReferrals(params?: {
     page?: number
@@ -1068,7 +1334,7 @@ class ApiService {
     sortBy?: string
     sortOrder?: string
   }) {
-    const queryString = params ? new URLSearchParams(params).toString() : ''
+    const queryString = params ? new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString() : ''
     return this.request<{
       docs: Array<{
         _id: string
@@ -1099,7 +1365,7 @@ class ApiService {
       totalPages: number
       hasNextPage: boolean
       hasPrevPage: boolean
-    }>(`/api/referrals?${queryString}`)
+    }>(`/api/partners/referrals?${queryString}`)
   }
 
   async createReferral(data: {
@@ -1107,18 +1373,18 @@ class ApiService {
     commissionRate?: number
     notes?: string
   }) {
-    return this.request('/api/referrals', {
+    return this.request('/api/partners/referrals', {
       method: 'POST',
       body: JSON.stringify(data)
     })
   }
 
   async getReferralStats() {
-    return this.request('/api/referrals/stats/overview')
+    return this.request('/api/partners/referrals/stats/overview')
   }
 
   async getReferralPerformanceStats(period: string = 'month') {
-    return this.request(`/api/referrals/stats/performance?period=${period}`)
+    return this.request(`/api/partners/referrals/stats/performance?period=${period}`)
   }
 
 
@@ -1187,16 +1453,12 @@ class ApiService {
     }
 
     try {
-      console.log("[v0] Download Request:", { url, hasAuth: !!headers.Authorization })
-
       const response = await fetch(url, {
         method: "GET",
         headers,
         mode: "cors",
         credentials: "include",
       })
-
-      console.log("[v0] Download Response:", { status: response.status, ok: response.ok })
 
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`
@@ -1215,7 +1477,6 @@ class ApiService {
       // Return the response directly for binary data
       return response
     } catch (error) {
-      console.error("[v0] Download Error:", error)
       throw error
     }
   }
@@ -1273,16 +1534,6 @@ class ApiService {
     })
   }
 
-  async getAdminProfile() {
-    return this.request('/api/users/profile/me')
-  }
-
-  async updateAdminProfile(profileData: any) {
-    return this.request('/api/users/profile/me', {
-      method: 'PUT',
-      body: JSON.stringify(profileData),
-    })
-  }
 
 
 
@@ -1366,26 +1617,65 @@ class ApiService {
     return this.request<any>(`/api/approvals/${approvalId}`)
   }
 
-  async getApprovalStats(): Promise<any> {
-    return this.request<any>('/api/approvals/stats')
+  async getPendingHarvests(filters?: any): Promise<any> {
+    const queryString = filters ? new URLSearchParams(Object.entries(filters).map(([k, v]) => [k, String(v)])).toString() : ''
+    return this.request<any>(`/api/harvest-approval/pending?${queryString}`)
   }
 
-  async approveHarvest(approvalId: string, data: { notes?: string; qualityAssessment?: any }): Promise<any> {
-    return this.request<any>(`/api/approvals/${approvalId}/approve`, {
-      method: 'POST',
-      body: JSON.stringify(data)
-    })
+  async getAllHarvests(filters?: any): Promise<any> {
+    const queryString = filters ? new URLSearchParams(Object.entries(filters).map(([k, v]) => [k, String(v)])).toString() : ''
+    return this.request<any>(`/api/harvest-approval/all?${queryString}`)
+  }
+
+  async getApprovalStats(): Promise<any> {
+    return this.request<any>('/api/harvest-approval/stats')
+  }
+
+  async approveHarvest(approvalId: string, data: { quality?: string; notes?: string; agriculturalData?: any }): Promise<any> {
+    console.log('=== API SERVICE: approveHarvest called ===')
+    console.log('Approval ID:', approvalId)
+    console.log('Data:', data)
+    try {
+      const result = await this.request<any>(`/api/harvest-approval/${approvalId}/approve`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      })
+      console.log('=== API SERVICE: approveHarvest success ===')
+      return result
+    } catch (error) {
+      console.log('=== API SERVICE: approveHarvest failed ===')
+      console.log('Error details:', error)
+      throw error
+    }
   }
 
   async rejectHarvest(approvalId: string, data: { reason: string; notes?: string }): Promise<any> {
-    return this.request<any>(`/api/approvals/${approvalId}/reject`, {
+    console.log('=== API SERVICE: rejectHarvest called ===')
+    console.log('Approval ID:', approvalId)
+    console.log('Data:', data)
+    try {
+      const result = await this.request<any>(`/api/harvest-approval/${approvalId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      })
+      console.log('=== API SERVICE: rejectHarvest success ===')
+      return result
+    } catch (error) {
+      console.log('=== API SERVICE: rejectHarvest failed ===')
+      console.log('Error details:', error)
+      throw error
+    }
+  }
+
+  async markForReview(approvalId: string, data: { notes?: string }): Promise<any> {
+    return this.request<any>(`/api/harvest-approval/${approvalId}/revision`, {
       method: 'POST',
       body: JSON.stringify(data)
     })
   }
 
-  async markForReview(approvalId: string, data: { notes?: string }): Promise<any> {
-    return this.request<any>(`/api/approvals/${approvalId}/review`, {
+  async bulkProcessApprovals(data: { approvalIds: string[]; action: string; notes?: string; reason?: string }): Promise<any> {
+    return this.request<any>('/api/harvest-approval/bulk-process', {
       method: 'POST',
       body: JSON.stringify(data)
     })
@@ -1422,74 +1712,6 @@ class ApiService {
     return response.blob()
   }
 
-  async getCommissions(params?: any): Promise<any> {
-    const queryString = new URLSearchParams(params).toString()
-    return this.request<any>(`/api/commissions?${queryString}`)
-  }
-
-  async getCommissionById(id: string): Promise<any> {
-    return this.request<any>(`/api/commissions/${id}`)
-  }
-
-  async getCommissionStats(params?: any): Promise<any> {
-    const queryString = new URLSearchParams(params).toString()
-    return this.request<any>(`/api/commissions/stats?${queryString}`)
-  }
-
-  async getPartnerCommissionSummary(partnerId: string): Promise<any> {
-    return this.request<any>(`/api/commissions/summary/${partnerId}`)
-  }
-
-  async updateCommissionStatus(id: string, data: { status: string; notes?: string }): Promise<any> {
-    return this.request<any>(`/api/commissions/${id}/status`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    })
-  }
-
-  async processCommissionPayout(data: { commissionIds: string[]; payoutMethod: string; payoutDetails: any }): Promise<any> {
-    return this.request<any>('/api/commissions/payout', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    })
-  }
-
-  async getReferrals(params?: any): Promise<any> {
-    const queryString = new URLSearchParams(params).toString()
-    return this.request<any>(`/api/referrals?${queryString}`)
-  }
-
-  async getReferralById(id: string): Promise<any> {
-    return this.request<any>(`/api/referrals/${id}`)
-  }
-
-  async getReferralStats(): Promise<any> {
-    return this.request<any>('/api/referrals/stats/overview')
-  }
-
-  async getReferralPerformanceStats(period: string = 'month'): Promise<any> {
-    return this.request<any>(`/api/referrals/stats/performance?period=${period}`)
-  }
-
-  async createReferral(data: any): Promise<any> {
-    return this.request<any>('/api/referrals', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    })
-  }
-
-  async updateReferral(id: string, data: any): Promise<any> {
-    return this.request<any>(`/api/referrals/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    })
-  }
-
-  async deleteReferral(id: string): Promise<any> {
-    return this.request<any>(`/api/referrals/${id}`, {
-      method: 'DELETE'
-    })
-  }
 
   // QR Code Verification Methods
   async verifyQRCode(batchId: string) {
@@ -1516,28 +1738,40 @@ class ApiService {
     return this.request<any>(`/api/verify/product/${productId}`)
   }
 
-  async recordQRScan(qrCodeId: string, scanData: any) {
-    return this.request<{ status: string; message: string }>('/api/qr-codes/scan', {
+  // Generic HTTP methods
+  async get<T = any>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { ...options, method: 'GET' })
+  }
+
+  async post<T = any>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      ...options,
       method: 'POST',
-      body: JSON.stringify({ qrCodeId, scanData })
+      body: data ? JSON.stringify(data) : undefined,
     })
   }
 
-  async getQRCodeStats() {
-    return this.request<{
-      totalCodes: number
-      activeCodes: number
-      verifiedCodes: number
-      revokedCodes: number
-      expiredCodes: number
-      totalScans: number
-      totalDownloads: number
-      monthlyGrowth: number
-      monthlyTrend: any[]
-      recentActivity: any[]
-      lastUpdated: string
-    }>('/api/qr-codes/stats')
+  async put<T = any>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    })
   }
+
+  async patch<T = any>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
+  async delete<T = any>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { ...options, method: 'DELETE' })
+  }
+
+
 }
 
 export const apiService = new ApiService()

@@ -498,14 +498,17 @@ const fintechController = {
 
       // Check if user exists and is a farmer
       const user = await User.findById(userId)
+
       if (!user) {
+        console.log(`❌ User ${userId} not found in database`)
         return res.status(404).json({
           status: 'error',
-          message: 'User not found'
+          message: 'User not found. Please log in again.'
         })
       }
 
       if (user.role !== 'farmer') {
+        console.log(`❌ User ${user.email} is not a farmer (role: ${user.role})`)
         return res.status(403).json({
           status: 'error',
           message: 'Only farmers have credit scores'

@@ -330,8 +330,21 @@ exports.login = async (req, res) => {
       })
     }
     
-    const accessToken = signAccess({ id: String(user._id), role: user.role })
-    const refreshToken = signRefresh({ id: String(user._id), role: user.role })
+    // Use the getAuthData method for consistent JWT payload
+    const userAuthData = user.getAuthData()
+
+    const accessToken = signAccess({
+      id: userAuthData.id,
+      role: userAuthData.role,
+      email: userAuthData.email,
+      name: userAuthData.name
+    })
+    const refreshToken = signRefresh({
+      id: userAuthData.id,
+      role: userAuthData.role,
+      email: userAuthData.email,
+      name: userAuthData.name
+    })
     
     // Set HTTP-only cookies for authentication
     res.cookie('auth_token', accessToken, {
@@ -413,8 +426,18 @@ exports.refresh = async (req, res) => {
     const { refreshToken } = req.body || {}
     if (!refreshToken) return res.status(400).json({ status: 'error', message: 'refreshToken required' })
     const decoded = verifyRefresh(refreshToken)
-    const accessToken = signAccess({ id: decoded.id, role: decoded.role })
-    const newRefreshToken = signRefresh({ id: decoded.id, role: decoded.role })
+    const accessToken = signAccess({
+      id: decoded.id,
+      role: decoded.role,
+      email: decoded.email,
+      name: decoded.name
+    })
+    const newRefreshToken = signRefresh({
+      id: decoded.id,
+      role: decoded.role,
+      email: decoded.email,
+      name: decoded.name
+    })
     return res.json({ status: 'success', data: { accessToken, refreshToken: newRefreshToken } })
   } catch (e) {
     return res.status(401).json({ status: 'error', message: 'Invalid refresh token' })

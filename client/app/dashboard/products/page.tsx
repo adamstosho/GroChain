@@ -10,7 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
-import { useBuyerStore } from "@/hooks/use-buyer-store"
+import { useBuyerStore, useCartInitialization } from "@/hooks/use-buyer-store"
+import { useAuthStore } from "@/lib/auth"
+import { cn } from "@/lib/utils"
+import { useMemo } from "react"
 import {
   Package,
   Search,
@@ -85,7 +88,30 @@ export default function ProductsPage() {
     sortBy: "newest"
   })
   const { toast } = useToast()
-  const { addToCart, addToFavorites } = useBuyerStore()
+  const { addToCart, addToFavorites, fetchFavorites, cart } = useBuyerStore()
+  const { user } = useAuthStore()
+
+  // Initialize cart from localStorage
+  useCartInitialization()
+
+  // Load favorites on component mount
+  useEffect(() => {
+    if (user) {
+      fetchFavorites()
+    }
+  }, [user, fetchFavorites])
+
+  // Check for refresh flag and update products if needed
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const needsRefresh = localStorage.getItem('marketplace_refresh_needed')
+      if (needsRefresh === 'true') {
+        console.log('🔄 Refreshing dashboard products after checkout...')
+        localStorage.removeItem('marketplace_refresh_needed')
+        fetchProducts()
+      }
+    }
+  }, [])
 
   useEffect(() => {
     fetchProducts()
@@ -95,12 +121,26 @@ export default function ProductsPage() {
     try {
       setLoading(true)
 
+      // Check if we need to refresh due to recent order completion
+      const needsRefresh = typeof window !== 'undefined' && 
+        localStorage.getItem('marketplace_refresh_needed') === 'true'
+      
+      if (needsRefresh) {
+        console.log('🔄 Refreshing products due to recent order completion')
+        localStorage.removeItem('marketplace_refresh_needed')
+      }
+
       // Map frontend filters to backend parameters
       const params: any = {
         page: 1,
         limit: 50,
         sortBy: 'createdAt',
         sortOrder: 'desc'
+      }
+
+      // Add cache buster if refresh needed
+      if (needsRefresh) {
+        params._t = Date.now()
       }
 
       // Add search query
@@ -216,11 +256,21 @@ export default function ProductsPage() {
   // No client-side filtering needed since we filter on the backend
   // The filteredProducts are set directly from the API response
 
-  const handleAddToCart = (product: ProductListing) => {
+  const handleAddToCart = async (product: ProductListing) => {
     try {
       // Validate product data before processing
       if (!product || !product._id || !product.cropName) {
         throw new Error('Invalid product data')
+      }
+
+      // Check if product has available quantity
+      if (product.availableQuantity <= 0) {
+        toast({
+          title: "Out of Stock",
+          description: "This product is currently out of stock.",
+          variant: "destructive",
+        })
+        return
       }
 
       // Convert ProductListing to the format expected by the buyer store
@@ -241,12 +291,16 @@ export default function ProductsPage() {
       }
 
       // Add to cart through the buyer store
-      addToCart(cartItem, 1)
+      await addToCart(cartItem, 1)
 
       toast({
         title: "Added to cart",
         description: `${product.cropName} has been added to your cart`,
       })
+
+      // Note: We don't refresh products here because quantities are calculated
+      // on the frontend based on cart items. Backend quantities are only
+      // updated when orders are completed.
     } catch (error) {
       console.error('Failed to add to cart:', error)
       toast({
@@ -257,30 +311,39 @@ export default function ProductsPage() {
     }
   }
 
-  const handleAddToFavorites = async (product: ProductListing) => {
-    try {
-      console.log('🔍 handleAddToFavorites - Product data:', {
-        _id: product._id,
-        cropName: product.cropName,
-        fullProduct: product
-      })
-      
-      // Add to favorites through the buyer store
-      await addToFavorites(product._id)
+  // Favorites are now handled directly in the ProductCard component
+  // using the buyer store, so we don't need this function anymore
 
-      toast({
-        title: "Added to favorites",
-        description: `${product.cropName} has been added to your favorites`,
+  // Use actual product quantities from database (no frontend calculation)
+  const adjustedProducts = useMemo(() => {
+    return filteredProducts.map(product => {
+      // Use the actual available quantity from the database
+      const availableQuantity = product.availableQuantity || product.stockQuantity || product.quantity || 0
+      
+      // Find cart item for display purposes only (not for quantity calculation)
+      const cartItem = cart.find(item =>
+        item.listingId === product._id ||
+        item.id === product._id ||
+        item.listingId === product.id ||
+        item.id === product.id
+      )
+      const cartQuantity = cartItem ? cartItem.quantity : 0
+
+      console.log('🔍 Dashboard product quantity:', {
+        productId: product._id,
+        productName: product.cropName,
+        availableQuantity,
+        cartQuantity,
+        cartItemFound: !!cartItem
       })
-    } catch (error: any) {
-      console.error('Failed to add to favorites:', error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add product to favorites. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
+
+      return {
+        ...product,
+        availableQuantity: availableQuantity,
+        cartQuantity: cartQuantity
+      }
+    })
+  }, [filteredProducts, cart])
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -531,13 +594,12 @@ export default function ProductsPage() {
           </Card>
         ) : (
           <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4' : 'space-y-4'}>
-            {filteredProducts.map((product) => (
+            {adjustedProducts.map((product) => (
               <ProductCard
                 key={product._id}
                 product={product}
                 viewMode={viewMode}
                 onAddToCart={handleAddToCart}
-                onAddToFavorites={handleAddToFavorites}
                 formatPrice={formatPrice}
                 getQualityColor={getQualityColor}
               />
@@ -553,19 +615,61 @@ interface ProductCardProps {
   product: ProductListing
   viewMode: 'grid' | 'list'
   onAddToCart: (product: ProductListing) => void
-  onAddToFavorites: (product: ProductListing) => void
   formatPrice: (price: number) => string
   getQualityColor: (quality: string) => string
 }
 
-function ProductCard({ 
-  product, 
-  viewMode, 
-  onAddToCart, 
-  onAddToFavorites, 
-  formatPrice, 
-  getQualityColor 
+function ProductCard({
+  product,
+  viewMode,
+  onAddToCart,
+  formatPrice,
+  getQualityColor
 }: ProductCardProps) {
+  const [isProcessing, setIsProcessing] = useState(false)
+  const { favorites, addToFavorites, removeFromFavorites, fetchFavorites } = useBuyerStore()
+  const { toast } = useToast()
+
+  // Check if product is in favorites
+  const isWishlisted = Array.isArray(favorites) && favorites.some((fav: any) => fav.listingId === product._id || fav._id === product._id)
+
+  // Load favorites on component mount
+  useEffect(() => {
+    fetchFavorites()
+  }, [fetchFavorites])
+
+  const handleWishlist = async () => {
+    if (isProcessing) return // Prevent multiple clicks
+
+    try {
+      setIsProcessing(true)
+
+      if (isWishlisted) {
+        // Remove from favorites
+        await removeFromFavorites(product._id)
+        toast({
+          title: "Removed from favorites",
+          description: `${product.cropName} has been removed from your favorites.`,
+        })
+      } else {
+        // Add to favorites
+        await addToFavorites(product._id)
+        toast({
+          title: "Added to favorites!",
+          description: `${product.cropName} has been added to your favorites.`,
+        })
+      }
+    } catch (error: any) {
+      console.error('Failed to toggle favorite:', error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update favorites. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
   if (viewMode === 'list') {
     return (
       <Card className="hover:shadow-md transition-shadow">
@@ -604,10 +708,11 @@ function ProductCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onAddToFavorites(product)}
+                    onClick={handleWishlist}
                     className="h-8 w-8 p-0"
+                    disabled={isProcessing}
                   >
-                    <Heart className="h-4 w-4" />
+                    <Heart className={cn("h-4 w-4 transition-colors", isWishlisted ? "fill-red-500 text-red-500" : "text-gray-600 hover:text-red-500")} />
                   </Button>
                 </div>
               </div>
@@ -656,14 +761,25 @@ function ProductCard({
               </div>
 
               <div className="flex items-center space-x-3 mt-4">
-                <Button
-                  onClick={() => onAddToCart(product)}
-                  className="flex-1"
-                  size="sm"
-                >
-                  <ShoppingCart className="h-4 w-4 mr-2" />
-                  Add to Cart
-                </Button>
+                {product.availableQuantity <= 0 ? (
+                  <Button
+                    className="flex-1 bg-gray-500"
+                    size="sm"
+                    disabled
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Out of Stock
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => onAddToCart(product)}
+                    className="flex-1"
+                    size="sm"
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Add to Cart
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" asChild>
                   <Link href={`/dashboard/products/${product._id}`}>
                     <Eye className="h-4 w-4 mr-2" />
@@ -750,21 +866,33 @@ function ProductCard({
 
         <div className="space-y-2 pt-2 border-t">
           <div className="flex items-center space-x-2">
-            <Button
-              onClick={() => onAddToCart(product)}
-              className="flex-1 h-8 text-xs"
-              size="sm"
-            >
-              <ShoppingCart className="h-3 w-3 mr-1.5" />
-              Add to Cart
-            </Button>
+            {product.availableQuantity <= 0 ? (
+              <Button
+                className="flex-1 h-8 text-xs bg-gray-500"
+                size="sm"
+                disabled
+              >
+                <ShoppingCart className="h-3 w-3 mr-1.5" />
+                Out of Stock
+              </Button>
+            ) : (
+              <Button
+                onClick={() => onAddToCart(product)}
+                className="flex-1 h-8 text-xs"
+                size="sm"
+              >
+                <ShoppingCart className="h-3 w-3 mr-1.5" />
+                Add to Cart
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onAddToFavorites(product)}
+              onClick={handleWishlist}
               className="h-8 w-8 p-0"
+              disabled={isProcessing}
             >
-              <Heart className="h-3 w-3" />
+              <Heart className={cn("h-3 w-3 transition-colors", isWishlisted ? "fill-red-500 text-red-500" : "text-gray-600 hover:text-red-500")} />
             </Button>
           </div>
 

@@ -26,13 +26,21 @@ import {
 interface Commission {
   _id: string
   farmer: {
+    _id: string
     name: string
-    id: string
+    email: string
+    phone: string
   }
   order: {
-    id: string
-    amount: number
-    date: Date
+    _id: string
+    orderNumber: string
+    total: number
+    status: string
+  }
+  listing: {
+    _id: string
+    cropName: string
+    price: number
   }
   amount: number
   rate: number
@@ -41,6 +49,10 @@ interface Commission {
   orderDate: Date
   paidAt?: Date
   withdrawalId?: string
+  notes?: string
+  metadata?: any
+  createdAt: Date
+  updatedAt: Date
 }
 
 interface CommissionSummary {
@@ -184,7 +196,7 @@ export default function CommissionsPage() {
             <CardContent>
               <div className="text-2xl font-bold">₦{(summary?.summary.totalAmount || 0).toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-green-600">+15%</span> from last month
+                Real data from database
               </p>
             </CardContent>
           </Card>
@@ -208,7 +220,7 @@ export default function CommissionsPage() {
             <CardContent>
               <div className="text-2xl font-bold">5.0%</div>
               <p className="text-xs text-muted-foreground">
-                Per transaction
+                Standard commission rate
               </p>
             </CardContent>
           </Card>
@@ -218,9 +230,9 @@ export default function CommissionsPage() {
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{summary?.summary.totalCommissions || 0}</div>
+              <div className="text-2xl font-bold">{stats?.totalCommissions || 0}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-green-600">+8%</span> from last month
+                Total commission transactions
               </p>
             </CardContent>
           </Card>
@@ -247,7 +259,7 @@ export default function CommissionsPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Pending</span>
-                    <span className="font-medium text-yellow-600">₦{totalPendingAmount.toLocaleString()}</span>
+                    <span className="font-medium text-yellow-600">₦{(summary?.summary.pendingAmount || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Average Commission</span>
@@ -261,15 +273,21 @@ export default function CommissionsPage() {
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Monthly Performance</h3>
                 <div className="space-y-3">
-                  {stats?.monthlyBreakdown.map((month, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>{new Date(month._id.year, month._id.month - 1, 1).toLocaleDateString('en-US', { month: 'short' })}</span>
-                        <span>₦{month.totalAmount.toLocaleString()}</span>
+                  {stats?.monthlyBreakdown && stats.monthlyBreakdown.length > 0 ? (
+                    stats.monthlyBreakdown.slice(0, 6).map((month, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>{new Date(month._id.year, month._id.month - 1, 1).toLocaleDateString('en-US', { month: 'short' })}</span>
+                          <span>₦{month.totalAmount.toLocaleString()}</span>
+                        </div>
+                        <Progress value={(month.totalAmount / (stats.totalAmount || 1)) * 100} className="h-2" />
                       </div>
-                      <Progress value={(month.totalAmount / (stats.totalAmount || 1)) * 100} className="h-2" />
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-muted-foreground">No monthly data available</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
@@ -299,9 +317,9 @@ export default function CommissionsPage() {
                           <DollarSign className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{commission.farmer.name}</p>
+                          <p className="font-medium">{commission.farmer?.name || 'Unknown Farmer'}</p>
                           <p className="text-sm text-muted-foreground">
-                            Order #{commission.order.orderNumber} • ₦{commission.order.total.toLocaleString()}
+                            Order #{commission.order?.orderNumber || commission.order?._id || 'N/A'} • ₦{commission.orderAmount.toLocaleString()}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {new Date(commission.orderDate).toLocaleDateString()}
@@ -338,9 +356,9 @@ export default function CommissionsPage() {
                           <Clock className="h-5 w-5 text-yellow-600" />
                         </div>
                         <div>
-                          <p className="font-medium">{commission.farmer.name}</p>
+                          <p className="font-medium">{commission.farmer?.name || 'Unknown Farmer'}</p>
                           <p className="text-sm text-muted-foreground">
-                            Order #{commission.order.orderNumber} • ₦{commission.order.total.toLocaleString()}
+                            Order #{commission.order?.orderNumber || commission.order?._id || 'N/A'} • ₦{commission.orderAmount.toLocaleString()}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {new Date(commission.orderDate).toLocaleDateString()}
@@ -378,9 +396,9 @@ export default function CommissionsPage() {
                           <CheckCircle className="h-5 w-5 text-green-600" />
                         </div>
                         <div>
-                          <p className="font-medium">{commission.farmer.name}</p>
+                          <p className="font-medium">{commission.farmer?.name || 'Unknown Farmer'}</p>
                           <p className="text-sm text-muted-foreground">
-                            Order #{commission.order.orderNumber} • ₦{commission.order.total.toLocaleString()}
+                            Order #{commission.order?.orderNumber || commission.order?._id || 'N/A'} • ₦{commission.orderAmount.toLocaleString()}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             Paid on {commission.paidAt ? new Date(commission.paidAt).toLocaleDateString() : 'N/A'}

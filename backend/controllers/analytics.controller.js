@@ -132,10 +132,14 @@ exports.getFarmerAnalytics = async (req, res) => {
 
     // Get farmer's orders (as seller) - correctly calculate revenue from payments
     const listingIds = listings.map(l => l._id)
+    console.log('🔍 Farmer listings:', listings.length, 'Listing IDs:', listingIds)
+    
     const orders = await Order.find({
       'items.listing': { $in: listingIds },
       status: { $in: ['paid', 'delivered'] } // Only include paid orders for revenue calculation
     }).populate('items.listing')
+
+    console.log('🛒 Found orders for farmer:', orders.length)
 
     // Calculate total revenue from paid orders where farmer is the seller
     let totalRevenue = 0
@@ -146,12 +150,14 @@ exports.getFarmerAnalytics = async (req, res) => {
         // Sum up revenue from this farmer's listings in the order
         let farmerOrderRevenue = 0
         order.items?.forEach(item => {
-          if (item.listing && listingIds.includes(item.listing._id)) {
+          if (item.listing && listingIds.some(listingId => listingId.toString() === item.listing._id.toString())) {
             farmerOrderRevenue += item.total || 0
+            console.log('💰 Adding revenue from item:', item.total, 'for listing:', item.listing._id)
           }
         })
         totalRevenue += farmerOrderRevenue
         totalOrders += 1
+        console.log('🛒 Order revenue:', farmerOrderRevenue, 'Total so far:', totalRevenue)
       }
     })
 
@@ -172,7 +178,7 @@ exports.getFarmerAnalytics = async (req, res) => {
         // Sum up revenue from this farmer's listings in the order
         let farmerOrderRevenue = 0
         order.items?.forEach(item => {
-          if (item.listing && listingIds.includes(item.listing._id)) {
+          if (item.listing && listingIds.some(listingId => listingId.toString() === item.listing._id.toString())) {
             farmerOrderRevenue += item.total || 0
           }
         })
@@ -230,6 +236,7 @@ exports.getFarmerAnalytics = async (req, res) => {
       monthlyTrends: monthlyTrends
     }
 
+    console.log('📊 Final metrics for farmer:', metrics)
     return res.json({ status: 'success', data: metrics })
   } catch (error) {
     return res.status(500).json({ status: 'error', message: 'Server error' })

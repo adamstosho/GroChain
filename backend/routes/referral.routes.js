@@ -43,14 +43,20 @@ router.get('/stats/performance',
 )
 
 // Commission Management
-router.get('/commissions/pending', 
-  authorize(['partner', 'admin']), 
+router.get('/commissions/pending',
+  authorize(['partner', 'admin']),
   referralController.getPendingCommissions
 )
 
-router.get('/commissions/paid', 
-  authorize(['partner', 'admin']), 
+router.get('/commissions/paid',
+  authorize(['partner', 'admin']),
   referralController.getPaidCommissions
+)
+
+// Sync farmer-partner relationships
+router.post('/sync-partners',
+  authorize(['partner', 'admin']),
+  referralController.syncFarmerPartners
 )
 
 module.exports = router

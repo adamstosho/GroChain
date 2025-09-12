@@ -37,16 +37,20 @@ export function FarmerDashboard() {
         setIsLoading(true)
 
         // Fetch all dashboard data in parallel
-        const [dashboardResponse, harvestsResponse, creditResp] = await Promise.all([
+        const [dashboardResponse, harvestsResponse, creditResp, farmerAnalytics] = await Promise.all([
           apiService.getDashboard(),
           apiService.getHarvests({ limit: 5 }),
           apiService.getMyCreditScore().catch(() => ({
             data: { score: "N/A", status: "Calculating..." }
           })),
+          apiService.getFarmerAnalytics().catch(() => ({ data: {} }))
         ])
 
         // Handle dashboard stats
         if (dashboardResponse.status === 'success') {
+          console.log('📊 Dashboard Response Data:', dashboardResponse.data)
+          console.log('📊 Dashboard Total Revenue:', dashboardResponse.data?.totalRevenue)
+          console.log('📊 Dashboard Monthly Revenue:', dashboardResponse.data?.monthlyRevenue)
           setStats(dashboardResponse.data)
         }
 
@@ -68,6 +72,37 @@ export function FarmerDashboard() {
           }
         }
 
+        // Update stats with farmer analytics data for accurate revenue
+        console.log('🔍 Raw Farmer Analytics Response:', farmerAnalytics)
+        console.log('🔍 Farmer Analytics Status:', farmerAnalytics?.status)
+        console.log('🔍 Farmer Analytics Data:', farmerAnalytics?.data)
+        
+        if (farmerAnalytics.status === 'success' && farmerAnalytics.data) {
+          const analyticsData = farmerAnalytics.data
+          console.log('🔍 Farmer Analytics Data:', analyticsData)
+          console.log('💰 Total Revenue from Analytics:', analyticsData.totalRevenue)
+          console.log('📊 Monthly Trends:', analyticsData.monthlyTrends)
+          
+          setStats(prevStats => {
+            const updatedStats = {
+              ...prevStats,
+              totalRevenue: analyticsData.totalRevenue || 0,
+              monthlyRevenue: analyticsData.monthlyTrends?.length > 0 
+                ? analyticsData.monthlyTrends[analyticsData.monthlyTrends.length - 1]?.revenue || 0
+                : 0,
+              totalOrders: analyticsData.totalOrders || 0,
+              activeListings: analyticsData.totalListings || 0
+            }
+            console.log('📊 Updated stats with analytics:', updatedStats)
+            return updatedStats
+          })
+          
+          console.log('✅ Stats updated with analytics data')
+        } else {
+          console.warn('⚠️ Farmer Analytics not available:', farmerAnalytics)
+          console.log('📊 Using fallback stats from dashboard response')
+        }
+
       } catch (error: any) {
         console.error('Dashboard fetch error:', error)
         toast({
@@ -81,7 +116,9 @@ export function FarmerDashboard() {
           totalHarvests: 0,
           pendingApprovals: 0,
           activeListings: 0,
-          monthlyRevenue: 0
+          monthlyRevenue: 0,
+          totalRevenue: 0,
+          totalOrders: 0
         })
         setRecentHarvests([])
         setCredit(null)
@@ -101,13 +138,13 @@ export function FarmerDashboard() {
       href: "/dashboard/harvests/new",
       color: "bg-primary/10 text-primary",
     },
-    {
-      title: "View QR Codes",
-      description: "Manage your QR codes",
-      icon: QrCode,
-      href: "/dashboard/qr-codes",
-      color: "bg-secondary/10 text-secondary",
-    },
+    // {
+    //   title: "View QR Codes",
+    //   description: "Manage your QR codes",
+    //   icon: QrCode,
+    //   href: "/dashboard/qr-codes",
+    //   color: "bg-secondary/10 text-secondary",
+    // },
     {
       title: "Check Analytics",
       description: "View your performance",
@@ -181,8 +218,8 @@ export function FarmerDashboard() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          {[...Array(5)].map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader className="space-y-0 pb-2">
                 <div className="h-4 bg-muted rounded w-1/2" />
@@ -198,7 +235,7 @@ export function FarmerDashboard() {
   return (
     <div className="space-y-6">
       {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <StatsCard
           title="Total Harvests"
           value={stats?.totalHarvests || 0}
@@ -226,6 +263,13 @@ export function FarmerDashboard() {
           description="From sales"
           icon={DollarSign}
           trend={stats?.monthlyRevenue > 0 ? { value: 15, isPositive: true } : undefined}
+        />
+        <StatsCard
+          title="Total Revenue"
+          value={stats?.totalRevenue ? `₦${stats.totalRevenue.toLocaleString()}` : "₦0"}
+          description="All time earnings"
+          icon={DollarSign}
+          trend={stats?.totalRevenue > 0 ? { value: 25, isPositive: true } : undefined}
         />
       </div>
 

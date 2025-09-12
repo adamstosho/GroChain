@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { CheckCircle, XCircle, Loader2, CreditCard, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,7 @@ interface VerificationResult {
   reference?: string
 }
 
-export default function PaymentVerificationPage() {
+function PaymentVerificationContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { toast } = useToast()
@@ -28,6 +28,7 @@ export default function PaymentVerificationPage() {
 
   const reference = searchParams.get('reference')
   const trxref = searchParams.get('trxref') || reference
+  const testMode = searchParams.get('test_mode') === 'true'
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -42,93 +43,225 @@ export default function PaymentVerificationPage() {
 
         // Try manual verification first
         console.log('🔄 Attempting manual payment verification...')
-        const response = await apiService.request(`/api/payments/verify/${trxref}`)
+        const verifyUrl = testMode 
+          ? `/api/payments/verify/${trxref}?test_mode=true`
+          : `/api/payments/verify/${trxref}`
+        const response = await apiService.request(verifyUrl)
 
         if (response && response.status === 'success') {
           console.log('✅ Payment verification successful:', response.data)
 
           // Check if we have order information
           const transaction = response.data?.transaction
+          const orderData = response.data?.order
           const orderId = transaction?.orderId || transaction?.metadata?.order_id
 
-          setVerificationResult({
-            status: 'success',
-            transaction: transaction,
-            verification: response.data?.verification,
-            orderId: orderId,
-            reference: trxref
-          })
+          // Check if the order status was properly updated
+          if (orderData && (orderData.status === 'paid' || orderData.paymentStatus === 'paid')) {
+            console.log('✅ Order status already updated to paid')
 
-          toast({
-            title: "Payment Successful!",
-            description: "Your payment has been processed successfully.",
-          })
-
-          // Redirect to order details after a short delay
-          setTimeout(() => {
-            if (orderId) {
-              router.push(`/dashboard/orders/${orderId}`)
-            } else {
-              router.push('/dashboard/orders')
-            }
-          }, 3000)
-
-        } else {
-          // If manual verification fails, try to check if webhook already processed it
-          console.log('⚠️ Manual verification failed, checking if webhook processed it...')
-
-          // Try to fetch the order directly to see if it was updated by webhook
-          try {
-            // We'll need to get the order ID from somewhere - let's try a different approach
-            // For now, we'll show a message that payment is being processed
             setVerificationResult({
-              status: 'pending',
+              status: 'success',
+              transaction: transaction,
+              verification: response.data?.verification,
+              orderId: orderId,
               reference: trxref
             })
 
             toast({
-              title: "Payment Processing",
-              description: "Your payment is being processed. Please wait...",
+              title: "Payment Successful!",
+              description: "Your payment has been processed successfully.",
             })
 
-            // Check again after a delay
-            setTimeout(async () => {
+            // Redirect to order details after a short delay
+            setTimeout(() => {
+              if (orderId) {
+                router.push(`/dashboard/orders/${orderId}?from_payment=true&payment_ref=${trxref}`)
+              } else {
+                router.push(`/dashboard/orders?from_payment=true&payment_ref=${trxref}`)
+              }
+            }, 3000)
+          } else {
+            // Order status not properly updated, try to sync it
+            console.log('⚠️ Order status not updated, attempting to sync...')
+
+            if (orderId) {
               try {
-                const retryResponse = await apiService.request(`/api/payments/verify/${trxref}`)
-                if (retryResponse && retryResponse.status === 'success') {
-                  const transaction = retryResponse.data?.transaction
-                  const orderId = transaction?.orderId || transaction?.metadata?.order_id
+                console.log('🔄 Syncing order status for orderId:', orderId)
+                const syncResponse = await apiService.syncOrderStatus(orderId)
+
+                if (syncResponse && syncResponse.status === 'success') {
+                  console.log('✅ Order status synced successfully')
 
                   setVerificationResult({
                     status: 'success',
                     transaction: transaction,
-                    verification: retryResponse.data?.verification,
+                    verification: response.data?.verification,
                     orderId: orderId,
                     reference: trxref
                   })
 
                   toast({
                     title: "Payment Confirmed!",
-                    description: "Your payment has been confirmed successfully.",
+                    description: "Your payment has been confirmed and order updated.",
+                  })
+
+                  setTimeout(() => {
+                    router.push(`/dashboard/orders/${orderId}?from_payment=true&payment_ref=${trxref}`)
+                  }, 2000)
+                } else {
+                  // Sync failed, but transaction was successful
+                  console.log('⚠️ Order sync failed, but payment was successful')
+
+                  setVerificationResult({
+                    status: 'success',
+                    transaction: transaction,
+                    verification: response.data?.verification,
+                    orderId: orderId,
+                    reference: trxref
+                  })
+
+                  toast({
+                    title: "Payment Successful!",
+                    description: "Payment processed. Order status will update shortly.",
                   })
 
                   setTimeout(() => {
                     if (orderId) {
-                      router.push(`/dashboard/orders/${orderId}`)
+                      router.push(`/dashboard/orders/${orderId}?from_payment=true&payment_ref=${trxref}`)
                     } else {
-                      router.push('/dashboard/orders')
+                      router.push(`/dashboard/orders?from_payment=true&payment_ref=${trxref}`)
                     }
-                  }, 2000)
+                  }, 3000)
                 }
-              } catch (retryError) {
-                console.log('⚠️ Retry also failed, payment might still be processing')
-              }
-            }, 5000)
+              } catch (syncError) {
+                console.error('❌ Order sync failed:', syncError)
 
-          } catch (webhookError) {
-            console.error('❌ Webhook check failed:', webhookError)
-            throw new Error('Payment verification failed - please contact support')
+                // Still show success since payment was processed
+                setVerificationResult({
+                  status: 'success',
+                  transaction: transaction,
+                  verification: response.data?.verification,
+                  orderId: orderId,
+                  reference: trxref
+                })
+
+                toast({
+                  title: "Payment Successful!",
+                  description: "Payment processed. Please refresh your orders page.",
+                })
+
+                setTimeout(() => {
+                  router.push(`/dashboard/orders?from_payment=true&payment_ref=${trxref}`)
+                }, 3000)
+              }
+            } else {
+              // No order ID available
+              console.log('⚠️ No order ID found in transaction')
+
+              setVerificationResult({
+                status: 'success',
+                transaction: transaction,
+                verification: response.data?.verification,
+                orderId: null,
+                reference: trxref
+              })
+
+              toast({
+                title: "Payment Successful!",
+                description: "Your payment has been processed successfully.",
+              })
+
+              setTimeout(() => {
+                router.push(`/dashboard/orders?from_payment=true&payment_ref=${trxref}`)
+              }, 3000)
+            }
           }
+
+        } else {
+          // If manual verification fails, try to check if webhook already processed it
+          console.log('⚠️ Manual verification failed, checking if webhook processed it...')
+
+          setVerificationResult({
+            status: 'pending',
+            reference: trxref
+          })
+
+          toast({
+            title: "Payment Processing",
+            description: "Your payment is being processed. Please wait...",
+          })
+
+          // Check again after a delay with retry logic
+          let retryCount = 0
+          const maxRetries = 3
+
+          const retryVerification = async () => {
+            retryCount++
+            console.log(`🔄 Retry attempt ${retryCount}/${maxRetries}`)
+
+            try {
+              const retryResponse = await apiService.request(`/api/payments/verify/${trxref}`)
+              if (retryResponse && retryResponse.status === 'success') {
+                const transaction = retryResponse.data?.transaction
+                const orderData = retryResponse.data?.order
+                const orderId = transaction?.orderId || transaction?.metadata?.order_id
+
+                console.log('✅ Retry verification successful')
+
+                setVerificationResult({
+                  status: 'success',
+                  transaction: transaction,
+                  verification: retryResponse.data?.verification,
+                  orderId: orderId,
+                  reference: trxref
+                })
+
+                toast({
+                  title: "Payment Confirmed!",
+                  description: "Your payment has been confirmed successfully.",
+                })
+
+                setTimeout(() => {
+                  if (orderId) {
+                    router.push(`/dashboard/orders/${orderId}?from_payment=true&payment_ref=${trxref}`)
+                  } else {
+                    router.push(`/dashboard/orders?from_payment=true&payment_ref=${trxref}`)
+                  }
+                }, 2000)
+              } else if (retryCount < maxRetries) {
+                // Try again
+                setTimeout(retryVerification, 3000)
+              } else {
+                // Max retries reached
+                console.log('❌ Max retries reached, showing pending status')
+                setVerificationResult({
+                  status: 'pending',
+                  reference: trxref
+                })
+
+                toast({
+                  title: "Payment Processing",
+                  description: "Payment is still being processed. Please check your orders page later.",
+                })
+
+                setTimeout(() => {
+                  router.push(`/dashboard/orders?from_payment=true&payment_ref=${trxref}`)
+                }, 5000)
+              }
+            } catch (retryError) {
+              console.error(`❌ Retry ${retryCount} failed:`, retryError)
+
+              if (retryCount < maxRetries) {
+                setTimeout(retryVerification, 3000)
+              } else {
+                throw new Error('Payment verification failed after multiple attempts')
+              }
+            }
+          }
+
+          // Start retry process after initial delay
+          setTimeout(retryVerification, 3000)
         }
 
       } catch (error: any) {
@@ -307,10 +440,32 @@ export default function PaymentVerificationPage() {
             Unable to verify payment status.
           </p>
           <Button onClick={() => router.push('/dashboard/orders')} className="w-full">
+            <Eye className="h-4 w-4 mr-2" />
             View Orders
+          </Button>
+          <Button variant="outline" asChild className="w-full">
+            <Link href={`/dashboard/orders?from_payment=true&payment_ref=${reference}`}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh Orders
+            </Link>
           </Button>
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function PaymentVerificationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Verifying payment...</p>
+        </div>
+      </div>
+    }>
+      <PaymentVerificationContent />
+    </Suspense>
   )
 }

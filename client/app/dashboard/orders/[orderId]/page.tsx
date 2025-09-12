@@ -63,6 +63,8 @@ export default function OrderDetailsPage() {
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [hasSynced, setHasSynced] = useState(false)
 
   const orderId = params.orderId as string
   const paymentMethod = searchParams.get('payment_method')
@@ -98,6 +100,55 @@ export default function OrderDetailsPage() {
 
     fetchOrderDetails()
   }, [orderId, toast])
+
+  // Auto-sync order status when coming back from payment or when order remains pending
+  useEffect(() => {
+    if (!orderId) return
+    if (syncing) return
+
+    const fromPayment = searchParams.get('from_payment') === 'true'
+    const paymentRef = searchParams.get('payment_ref')
+    const shouldSync = fromPayment || !!paymentRef || (order && order.paymentStatus === 'pending')
+
+    if (!shouldSync || hasSynced) return
+
+    const syncNow = async () => {
+      try {
+        setSyncing(true)
+        console.log('🔄 Syncing order status for order:', orderId)
+        
+        try {
+          const syncRes = await apiService.syncOrderStatus(orderId)
+          console.log('✅ Sync response:', syncRes)
+        } catch (syncError) {
+          console.log('⚠️ Sync endpoint failed, continuing with refetch:', syncError)
+          // Don't fail completely if sync endpoint has issues
+        }
+
+        // Always try to refetch order details to get latest status
+        const refreshed = await apiService.getOrder(orderId)
+        if (refreshed && refreshed.status === 'success' && refreshed.data) {
+          setOrder(refreshed.data)
+          if (refreshed.data.paymentStatus === 'paid' || refreshed.data.status === 'paid') {
+            toast({
+              title: 'Payment Confirmed',
+              description: 'Your order has been marked as paid.',
+            })
+          }
+        }
+      } catch (e) {
+        console.log('ℹ️ Order sync process failed:', e)
+      } finally {
+        setSyncing(false)
+        setHasSynced(true)
+      }
+    }
+
+    // Small delay to allow backend/webhook to finish if just returned from payment
+    const delay = fromPayment ? 1200 : 0
+    const timer = setTimeout(syncNow, delay)
+    return () => clearTimeout(timer)
+  }, [orderId, order, searchParams, syncing, hasSynced, toast])
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -311,12 +362,28 @@ export default function OrderDetailsPage() {
                   <span>Subtotal</span>
                   <span>₦{order.subtotal.toLocaleString()}</span>
                 </div>
+
+                {/* Only show shipping when there's a cost */}
+                {order.shipping > 0 && (
+                  <div className="flex justify-between">
+                    <span>Shipping</span>
+                    <span>₦{order.shipping.toLocaleString()}</span>
+                  </div>
+                )}
+
+                {/* Show free shipping indicator */}
+                {order.shipping === 0 && order.subtotal > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-green-600 font-medium">Shipping</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-green-600 font-medium">FREE</span>
+                      <span className="text-xs text-green-500">🎉</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-between">
-                  <span>Shipping</span>
-                  <span>{order.shipping === 0 ? "Free" : `₦${order.shipping.toLocaleString()}`}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Tax (7.5% VAT)</span>
+                  <span className="text-gray-600">VAT (7.5% - Nigerian Govt Tax)</span>
                   <span>₦{order.tax.toLocaleString()}</span>
                 </div>
                 <Separator />

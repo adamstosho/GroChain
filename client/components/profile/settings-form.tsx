@@ -479,25 +479,29 @@ export function SettingsForm() {
                     />
                   ) : user?.profile?.avatar ? (
                     <img
-                      src={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/users/avatar/${user.profile.avatar.split('/').pop()}?t=${Date.now()}`}
+                      src={user.profile.avatar.startsWith('http')
+                        ? `${user.profile.avatar}?t=${Date.now()}`
+                        : `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/users/avatar/${user.profile.avatar}?t=${Date.now()}`
+                      }
                       alt="Profile"
                       className="w-full h-full object-cover"
                       key={`${user.profile.avatar}-${Date.now()}`} // Force re-render when avatar changes
                       onError={(e) => {
                         console.error('Avatar failed to load:', e.currentTarget.src)
-                        // Try fallback to direct static URL
                         const target = e.currentTarget as HTMLImageElement
-                        if (!target.src.includes('/api/users/avatar/')) {
-                          return // Already tried fallback
+
+                        // If it's already a Cloudinary URL, don't try fallback
+                        if (user.profile.avatar.startsWith('http') && target.src.includes('cloudinary')) {
+                          console.log('Cloudinary URL failed, no fallback available')
+                          return
                         }
 
-                        // Fallback to direct static URL
-                        const fallbackSrc = user.profile.avatar.startsWith('http')
-                          ? `${user.profile.avatar}?t=${Date.now()}`
-                          : `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}${user.profile.avatar}?t=${Date.now()}`
-
-                        console.log('Trying fallback URL:', fallbackSrc)
-                        target.src = fallbackSrc
+                        // Try fallback to direct static URL if it's not already a full URL
+                        if (!user.profile.avatar.startsWith('http') && !target.src.includes('/api/users/avatar/')) {
+                          const fallbackSrc = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/users/avatar/${user.profile.avatar}?t=${Date.now()}`
+                          console.log('Trying fallback URL:', fallbackSrc)
+                          target.src = fallbackSrc
+                        }
                       }}
                       onLoad={() => {
                         console.log('Avatar loaded successfully:', user.profile.avatar)

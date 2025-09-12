@@ -5,21 +5,73 @@ const helmet = require('helmet')
 const morgan = require('morgan')
 const compression = require('compression')
 const cookieParser = require('cookie-parser')
+const http = require('http')
 require('dotenv').config()
 
 const app = express()
 
+// Import auto-verify middleware
+const { autoVerifyPayments } = require('./middlewares/auto-verify.middleware')
+
 // Middleware
-app.use(helmet())
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  credentials: true
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
 }))
-app.use(morgan('combined'))
+
+// CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = process.env.CORS_ORIGIN ? 
+      process.env.CORS_ORIGIN.split(',') : 
+      [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:3002',
+        'http://localhost:4000',
+        'http://localhost:5000',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:3001',
+        'http://127.0.0.1:3002',
+        'http://127.0.0.1:4000',
+        'http://127.0.0.1:5000'
+      ]
+    
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true)
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200
+}
+
+app.use(cors(corsOptions))
+
+// Logging
+if (process.env.NODE_ENV === 'production') {
+  app.use(morgan('combined'))
+} else {
+  app.use(morgan('dev'))
+}
+
 app.use(compression())
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 app.use(cookieParser())
+
+// Auto-verify payments middleware
+app.use(autoVerifyPayments)
 
 // Static file serving for uploaded images with CORS headers
 app.use('/uploads', express.static('uploads', {
@@ -153,6 +205,11 @@ const initializeApp = async () => {
       console.error('❌ Failed to connect to database. Exiting...');
       process.exit(1);
     }
+
+    // Initialize inventory cleanup service
+    const inventoryService = require('./services/inventory.service')
+    inventoryService.startCleanupService(30) // Clean up every 30 minutes
+    console.log('🧹 Inventory cleanup service started')
     
     // Setup routes only after database connection
     console.log('📡 Setting up API routes...');
@@ -176,25 +233,48 @@ const initializeApp = async () => {
     app.use('/api/shipments', require('./routes/shipment.routes'));
     app.use('/api/export-import', require('./routes/exportImport.routes'));
     app.use('/api/auth/google', require('./routes/googleAuth.routes'));
+    app.use('/api/admin', require('./routes/admin'));
+    app.use('/api/inventory', require('./routes/inventory.routes'));
     
     // Health check endpoint
     app.get('/api/health', (req, res) => {
-      res.json({ 
-        status: 'success', 
+      res.json({
+        status: 'success',
         message: 'GroChain Backend is running',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development',
-        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        websocket: {
+          enabled: !!webSocketService,
+          connections: webSocketService ? webSocketService.getConnectionStats().totalConnections : 0
+        }
       })
     });
     
+    // Health check endpoint
+    app.get('/api/health', (req, res) => {
+      res.status(200).json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || 'development',
+        version: '1.0.0',
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        memory: {
+          used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+          total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+        }
+      })
+    });
+
     // Root endpoint
     app.get('/', (req, res) => {
       res.json({ 
         status: 'success', 
         message: 'Welcome to GroChain Backend API',
         version: '1.0.0',
-        documentation: '/api/health'
+        documentation: '/api/health',
+        environment: process.env.NODE_ENV || 'development'
       })
     });
     
@@ -209,12 +289,30 @@ const initializeApp = async () => {
     
     console.log('✅ Application initialized successfully');
     
+    // Create HTTP server for Socket.IO
+    const server = http.createServer(app);
+
+    // Initialize WebSocket service before starting the server
+    const webSocketService = require('./services/websocket.service');
+    
+    // WebSocket endpoint is handled by Socket.IO service at /notifications path
+    
+    // Initialize WebSocket with server
+    webSocketService.initialize(server);
+    
+    // Initialize inventory cleanup service
+    const inventoryCleanupService = require('./services/inventory-cleanup.service');
+    inventoryCleanupService.start();
+    
     // Start the server only after everything is set up
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`🚀 GroChain Backend server listening on port ${PORT}`);
       console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
       console.log(`📚 API Documentation: http://localhost:${PORT}/swagger.json`);
+      console.log(`🔌 WebSocket server initialized`);
+      console.log(`🔔 Notifications WebSocket endpoint: ws://localhost:${PORT}/notifications`);
+      console.log(`🧹 Inventory cleanup service started`);
     });
     
   } catch (error) {

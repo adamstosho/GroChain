@@ -78,83 +78,7 @@ export interface CommissionFilters {
   sortOrder?: 'asc' | 'desc'
 }
 
-// Mock data for development
-const mockCommissions: Commission[] = [
-  {
-    _id: "1",
-    partner: { _id: "partner1", name: "Sample Partner", organization: "Sample Org" },
-    farmer: { _id: "farmer1", name: "John Doe", email: "john@example.com", phone: "+2348000000001" },
-    order: { _id: "order1", orderNumber: "ORD001", total: 50000, status: "completed" },
-    listing: { _id: "listing1", cropName: "Rice", price: 50000 },
-    amount: 2500,
-    rate: 0.05,
-    status: "paid",
-    orderAmount: 50000,
-    orderDate: new Date("2024-01-20"),
-    paidAt: new Date("2024-01-25"),
-    createdAt: new Date("2024-01-20"),
-    updatedAt: new Date("2024-01-25")
-  },
-  {
-    _id: "2",
-    partner: { _id: "partner1", name: "Sample Partner", organization: "Sample Org" },
-    farmer: { _id: "farmer2", name: "Jane Smith", email: "jane@example.com", phone: "+2348000000002" },
-    order: { _id: "order2", orderNumber: "ORD002", total: 35000, status: "completed" },
-    listing: { _id: "listing2", cropName: "Maize", price: 35000 },
-    amount: 1750,
-    rate: 0.05,
-    status: "pending",
-    orderAmount: 35000,
-    orderDate: new Date("2024-01-18"),
-    createdAt: new Date("2024-01-18"),
-    updatedAt: new Date("2024-01-18")
-  },
-  {
-    _id: "3",
-    partner: { _id: "partner1", name: "Sample Partner", organization: "Sample Org" },
-    farmer: { _id: "farmer3", name: "Mike Johnson", email: "mike@example.com", phone: "+2348000000003" },
-    order: { _id: "order3", orderNumber: "ORD003", total: 42000, status: "completed" },
-    listing: { _id: "listing3", cropName: "Cassava", price: 42000 },
-    amount: 2100,
-    rate: 0.05,
-    status: "approved",
-    orderAmount: 42000,
-    orderDate: new Date("2024-01-15"),
-    createdAt: new Date("2024-01-15"),
-    updatedAt: new Date("2024-01-15")
-  }
-]
-
-const mockCommissionStats: CommissionStats = {
-  totalCommissions: 156,
-  totalAmount: 285000,
-  statusBreakdown: [
-    { _id: 'pending', count: 12, totalAmount: 17500 },
-    { _id: 'approved', count: 8, totalAmount: 12000 },
-    { _id: 'paid', count: 136, totalAmount: 255500 }
-  ],
-  monthlyBreakdown: [
-    { _id: { year: 2024, month: 1 }, count: 45, totalAmount: 45000 },
-    { _id: { year: 2024, month: 2 }, count: 52, totalAmount: 52000 },
-    { _id: { year: 2024, month: 3 }, count: 48, totalAmount: 48000 },
-    { _id: { year: 2024, month: 4 }, count: 50, totalAmount: 50000 },
-    { _id: { year: 2024, month: 5 }, count: 45, totalAmount: 45000 },
-    { _id: { year: 2024, month: 6 }, count: 45, totalAmount: 45000 }
-  ],
-  averageCommission: 1827
-}
-
-const mockCommissionSummary: CommissionSummary = {
-  summary: {
-    totalCommissions: 156,
-    pendingCommissions: 12,
-    paidCommissions: 136,
-    totalAmount: 285000,
-    pendingAmount: 17500,
-    paidAmount: 255500
-  },
-  recentCommissions: mockCommissions
-}
+// REAL DATA ONLY - No mock data fallbacks
 
 export class CommissionService {
   private static instance: CommissionService
@@ -201,7 +125,7 @@ export class CommissionService {
   async getCommissions(filters: CommissionFilters = {}): Promise<{ commissions: Commission[]; pagination: any }> {
     const cacheKey = `commissions_${JSON.stringify(filters)}`
     const cached = this.getCache(cacheKey)
-    
+
     if (cached) {
       return cached
     }
@@ -215,26 +139,16 @@ export class CommissionService {
       this.setCache(cacheKey, result)
       return result
     } catch (error) {
-      console.warn('API call failed, using mock data:', error)
-      // Fallback to mock data
-      const result = {
-        commissions: mockCommissions,
-        pagination: {
-          currentPage: 1,
-          totalPages: 1,
-          totalItems: mockCommissions.length,
-          itemsPerPage: mockCommissions.length
-        }
-      }
-      this.setCache(cacheKey, result)
-      return result
+      console.error('Failed to fetch commissions:', error)
+      // No mock data fallback - throw error
+      throw new Error('Failed to fetch commissions from server')
     }
   }
 
   async getCommissionById(id: string): Promise<Commission> {
     const cacheKey = `commission_${id}`
     const cached = this.getCache(cacheKey)
-    
+
     if (cached) {
       return cached
     }
@@ -245,21 +159,15 @@ export class CommissionService {
       this.setCache(cacheKey, commission)
       return commission
     } catch (error) {
-      console.warn('API call failed, using mock data:', error)
-      // Fallback to mock data
-      const commission = mockCommissions.find(c => c._id === id)
-      if (commission) {
-        this.setCache(cacheKey, commission)
-        return commission
-      }
-      throw new Error('Commission not found')
+      console.error('Failed to fetch commission:', error)
+      throw new Error('Failed to fetch commission from server')
     }
   }
 
   async getCommissionStats(filters: any = {}): Promise<CommissionStats> {
     const cacheKey = `stats_${JSON.stringify(filters)}`
     const cached = this.getCache(cacheKey)
-    
+
     if (cached) {
       return cached
     }
@@ -270,17 +178,15 @@ export class CommissionService {
       this.setCache(cacheKey, stats)
       return stats
     } catch (error) {
-      console.warn('API call failed, using mock data:', error)
-      // Fallback to mock data
-      this.setCache(cacheKey, mockCommissionStats)
-      return mockCommissionStats
+      console.error('Failed to fetch commission stats:', error)
+      throw new Error('Failed to fetch commission stats from server')
     }
   }
 
   async getPartnerCommissionSummary(partnerId: string): Promise<CommissionSummary> {
     const cacheKey = `summary_${partnerId}`
     const cached = this.getCache(cacheKey)
-    
+
     if (cached) {
       return cached
     }
@@ -291,10 +197,8 @@ export class CommissionService {
       this.setCache(cacheKey, summary)
       return summary
     } catch (error) {
-      console.warn('API call failed, using mock data:', error)
-      // Fallback to mock data
-      this.setCache(cacheKey, mockCommissionSummary)
-      return mockCommissionSummary
+      console.error('Failed to fetch commission summary:', error)
+      throw new Error('Failed to fetch commission summary from server')
     }
   }
 

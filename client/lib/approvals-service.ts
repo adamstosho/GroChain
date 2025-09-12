@@ -670,3 +670,14 @@ export class ApprovalsService {
 }
 
 export const approvalsService = ApprovalsService.getInstance()
+
+// Re-export types for external use
+export type {
+  HarvestApproval,
+  ApprovalStats,
+  ApprovalFilters,
+  ApprovalAction,
+  BatchApprovalAction,
+  QualityAssessment,
+  ApprovalMetrics
+} from "./types/approvals"

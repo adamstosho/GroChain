@@ -297,15 +297,6 @@ class AdminApiService {
     return this.request('/api/admin/analytics/business')
   }
 
-  async getUserAnalytics(filters: any = {}): Promise<AdminApiResponse<any>> {
-    const queryString = new URLSearchParams(filters).toString()
-    return this.request(`/api/admin/analytics/users?${queryString}`)
-  }
-
-  async getFinancialAnalytics(filters: any = {}): Promise<AdminApiResponse<any>> {
-    const queryString = new URLSearchParams(filters).toString()
-    return this.request(`/api/admin/analytics/financial?${queryString}`)
-  }
 
   async generateCustomReport(reportData: any): Promise<AdminApiResponse<any>> {
     return this.request('/api/admin/analytics/reports', {

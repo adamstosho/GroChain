@@ -1,5 +1,5 @@
 // jest.setup.js
-import '@testing-library/jest-dom/extend-expect'
+require('@testing-library/jest-dom/extend-expect')
 
 // Mock global browser APIs
 Object.defineProperty(window, 'localStorage', {

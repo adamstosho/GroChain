@@ -35,6 +35,11 @@ class ApiService {
     }
   }
 
+  // Public method to get base URL
+  getBaseUrl(): string {
+    return this.baseUrl
+  }
+
   // Public method to manually set token
   setToken(token: string | null) {
     this.token = token

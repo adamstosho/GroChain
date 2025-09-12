@@ -127,7 +127,7 @@ export class ReferralService {
     this.cacheExpiry.set(cacheKey, Date.now() + this.CACHE_DURATION)
   }
 
-  private clearCache(): void {
+  clearCache(): void {
     this.cache.clear()
     this.cacheExpiry.clear()
   }
@@ -334,3 +334,12 @@ export class ReferralService {
 }
 
 export const referralService = ReferralService.getInstance()
+
+// Re-export types for external use
+export type {
+  Referral,
+  ReferralStats,
+  ReferralFilters,
+  CreateReferralData,
+  UpdateReferralData
+} from './types/referrals'

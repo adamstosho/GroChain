@@ -117,7 +117,7 @@ export class CommissionService {
     this.cacheExpiry.set(cacheKey, Date.now() + this.CACHE_DURATION)
   }
 
-  private clearCache(): void {
+  clearCache(): void {
     this.cache.clear()
     this.cacheExpiry.clear()
   }

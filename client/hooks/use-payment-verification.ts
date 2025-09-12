@@ -96,7 +96,7 @@ export function usePaymentVerification(options: UsePaymentVerificationOptions = 
     setState(prev => ({ ...prev, isVerifying: true, error: null }))
 
     try {
-      const response = await fetch(`${apiService.baseUrl}/api/payments/batch-verify`, {
+      const response = await fetch(`${apiService.getBaseUrl()}/api/payments/batch-verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useAuthStore } from "@/lib/auth"
 import { apiService } from "@/lib/api"
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../../components/ui/card"
+import { Button } from "../../../../components/ui/button"
 
 function GoogleCallbackContent() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')

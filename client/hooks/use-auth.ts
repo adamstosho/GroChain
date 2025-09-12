@@ -16,6 +16,7 @@ export const useAuth = () => {
   const authGuard = useAuthGuard()
 
   return {
+    ...authGuard,
     user,
     token,
     isAuthenticated,
@@ -24,7 +25,6 @@ export const useAuth = () => {
     register,
     refreshAuth,
     updateUser,
-    updateUserAvatar,
-    ...authGuard
+    updateUserAvatar
   }
 }

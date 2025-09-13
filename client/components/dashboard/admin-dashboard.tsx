@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -11,7 +11,8 @@ import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
-import { Users, TrendingUp, DollarSign, Database, UserCheck, Settings, BarChart3, FileText } from "lucide-react"
+import { useDashboardRefresh } from "@/hooks/use-dashboard-refresh"
+import { Users, TrendingUp, Banknote, Database, UserCheck, Settings, BarChart3, FileText, RefreshCw } from "lucide-react"
 import Link from "next/link"
 
 export function AdminDashboard() {
@@ -19,87 +20,39 @@ export function AdminDashboard() {
   const [systemHealth, setSystemHealth] = useState<any>(null)
   const [recentUsers, setRecentUsers] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const { toast } = useToast()
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        // Fetch admin dashboard data, system health, and recent users in parallel
-        const [dashboardResponse, systemHealthResponse, recentUsersResponse] = await Promise.allSettled([
-          apiService.getAdminDashboard(),
-          apiService.getAdminSystemHealth(),
-          apiService.getAdminRecentUsers(5)
-        ])
+  const fetchDashboardData = useCallback(async (reason: string = 'manual') => {
+    try {
+      setIsLoading(true)
+      console.log(`🔄 Fetching admin dashboard data (${reason})...`)
 
-        // Process dashboard data
-        if (dashboardResponse.status === 'fulfilled') {
-          const dashboardData = dashboardResponse.value.data as any
-          setStats({
-            totalUsers: dashboardData?.totalUsers || 0,
-            totalRevenue: dashboardData?.totalRevenue || 0,
-            activeTransactions: dashboardData?.activeTransactions || 0,
-            totalHarvests: dashboardData?.totalHarvests || 0,
-            pendingApprovals: dashboardData?.pendingApprovals || 0,
-            activeListings: dashboardData?.totalListings || 0,
-            monthlyRevenue: dashboardData?.monthlyRevenue || 0,
-            userDistribution: dashboardData?.userDistribution || {},
-            approvalRate: dashboardData?.approvalRate || 0,
-            ...dashboardData
-          })
-        } else {
-          console.error('Dashboard data error:', dashboardResponse.reason)
-          // Set fallback data
-          setStats({
-            totalUsers: 0,
-            totalRevenue: 0,
-            activeTransactions: 0,
-            totalHarvests: 0,
-            pendingApprovals: 0,
-            activeListings: 0,
-            monthlyRevenue: 0,
-            userDistribution: {},
-            approvalRate: 0,
-          })
-        }
+      // Use Promise.allSettled for better error handling
+      const [dashboardResponse, systemHealthResponse, recentUsersResponse] = await Promise.allSettled([
+        apiService.getAdminDashboard(),
+        apiService.getAdminSystemHealth(),
+        apiService.getAdminRecentUsers(5)
+      ])
 
-        // Process system health data
-        if (systemHealthResponse.status === 'fulfilled') {
-          const healthData = systemHealthResponse.value.data as any
-          setSystemHealth({
-            uptime: `${(healthData.uptime / 3600).toFixed(1)}h`,
-            responseTime: "120ms", // This would come from monitoring
-            activeUsers: stats?.totalUsers || 0,
-            errorRate: "0.1%", // This would come from monitoring
-            status: healthData.status,
-            memory: healthData.memory,
-            timestamp: healthData.timestamp
-          })
-        } else {
-          console.error('System health error:', systemHealthResponse.reason)
-          setSystemHealth({
-            uptime: "99.9%",
-            responseTime: "120ms",
-            activeUsers: stats?.totalUsers || 0,
-            errorRate: "0.1%",
-          })
-        }
-
-        // Process recent users data
-        if (recentUsersResponse.status === 'fulfilled') {
-          const usersData = recentUsersResponse.value.data as any
-          setRecentUsers(usersData?.users || [])
-        } else {
-          console.error('Recent users error:', recentUsersResponse.reason)
-          setRecentUsers([])
-        }
-
-      } catch (error: any) {
-        console.error('Dashboard error:', error)
-        toast({
-          title: "Error loading dashboard",
-          description: error.message,
-          variant: "destructive",
+      // Process dashboard data
+      if (dashboardResponse.status === 'fulfilled') {
+        const dashboardData = dashboardResponse.value.data as any
+        setStats({
+          totalUsers: dashboardData?.totalUsers || 0,
+          totalRevenue: dashboardData?.totalRevenue || 0,
+          activeTransactions: dashboardData?.activeTransactions || 0,
+          totalHarvests: dashboardData?.totalHarvests || 0,
+          pendingApprovals: dashboardData?.pendingApprovals || 0,
+          activeListings: dashboardData?.totalListings || 0,
+          monthlyRevenue: dashboardData?.monthlyRevenue || 0,
+          userDistribution: dashboardData?.userDistribution || {},
+          approvalRate: dashboardData?.approvalRate || 0,
+          ...dashboardData
         })
+      } else {
+        console.error('❌ Dashboard data failed:', dashboardResponse.reason)
         // Set fallback data
         setStats({
           totalUsers: 0,
@@ -112,13 +65,93 @@ export function AdminDashboard() {
           userDistribution: {},
           approvalRate: 0,
         })
-      } finally {
-        setIsLoading(false)
       }
-    }
 
-    fetchDashboardData()
+      // Process system health data
+      if (systemHealthResponse.status === 'fulfilled') {
+        const healthData = systemHealthResponse.value.data as any
+        setSystemHealth({
+          uptime: `${(healthData.uptime / 3600).toFixed(1)}h`,
+          responseTime: "120ms",
+          activeUsers: stats?.totalUsers || 0,
+          errorRate: "0.1%",
+          status: healthData.status,
+          memory: healthData.memory,
+          timestamp: healthData.timestamp
+        })
+      } else {
+        console.error('❌ System health failed:', systemHealthResponse.reason)
+        setSystemHealth({
+          uptime: "99.9%",
+          responseTime: "120ms",
+          activeUsers: stats?.totalUsers || 0,
+          errorRate: "0.1%",
+        })
+      }
+
+      // Process recent users data
+      if (recentUsersResponse.status === 'fulfilled') {
+        const usersData = recentUsersResponse.value.data as any
+        setRecentUsers(usersData?.users || [])
+      } else {
+        console.error('❌ Recent users failed:', recentUsersResponse.reason)
+        setRecentUsers([])
+      }
+
+      setLastUpdated(new Date())
+
+    } catch (error: any) {
+      console.error('❌ Dashboard error:', error)
+      toast({
+        title: "Error loading dashboard",
+        description: error.message,
+        variant: "destructive",
+      })
+      // Set fallback data
+      setStats({
+        totalUsers: 0,
+        totalRevenue: 0,
+        activeTransactions: 0,
+        totalHarvests: 0,
+        pendingApprovals: 0,
+        activeListings: 0,
+        monthlyRevenue: 0,
+        userDistribution: {},
+        approvalRate: 0,
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }, [toast])
+
+  // Smart event-driven refresh system
+  const { refresh } = useDashboardRefresh({
+    onRefresh: fetchDashboardData
+  })
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [fetchDashboardData])
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await fetchDashboardData('manual')
+      toast({
+        title: "Dashboard refreshed",
+        description: "Admin dashboard data has been updated",
+        variant: "default",
+      })
+    } catch (error) {
+      toast({
+        title: "Refresh failed",
+        description: "Could not refresh dashboard data",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   const quickActions = [
     {
@@ -170,6 +203,38 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Dashboard Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Admin Dashboard</h2>
+          <p className="text-muted-foreground">Manage platform users and monitor system performance</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {lastUpdated && (
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </div>
+          )}
+          {isLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+              Loading...
+            </div>
+          )}
+          <Button 
+            onClick={handleManualRefresh} 
+            disabled={isRefreshing || isLoading}
+            variant="outline" 
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
+      </div>
+
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
@@ -183,7 +248,7 @@ export function AdminDashboard() {
           title="Platform Revenue"
           value={`₦${(stats?.totalRevenue || 0).toLocaleString()}`}
           description="Total earnings"
-          icon={DollarSign}
+          icon={Banknote}
           trend={{ value: 18, isPositive: true }}
         />
         <StatsCard

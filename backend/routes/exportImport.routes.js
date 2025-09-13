@@ -47,7 +47,7 @@ router.post('/export/transactions',
 
 router.post('/export/analytics', 
   authenticate, 
-  authorize('admin'), 
+  authorize('admin', 'buyer', 'farmer', 'partner'), 
   ExportImportController.exportAnalytics
 )
 

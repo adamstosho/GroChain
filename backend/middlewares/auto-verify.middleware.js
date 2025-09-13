@@ -35,7 +35,7 @@ const autoVerifyPayments = async (req, res, next) => {
               await transaction.save()
 
               // Update order
-              order.status = 'paid'
+              order.status = 'confirmed'
               order.paymentStatus = 'paid'
               order.paymentReference = transaction.reference
               await order.save()

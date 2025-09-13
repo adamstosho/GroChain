@@ -14,12 +14,12 @@ const paymentSchema = new mongoose.Schema({
   currency: {
     type: String,
     default: 'NGN',
-    enum: ['NGN', 'USD', 'EUR', 'GBP']
+    enum: ['NGN']
   },
   paymentMethod: {
     type: String,
     required: true,
-    enum: ['paystack', 'flutterwave', 'stripe', 'bank_transfer', 'ussd', 'cash']
+    enum: ['card', 'bank_transfer', 'ussd', 'mobile_money', 'cash']
   },
   provider: {
     type: String,

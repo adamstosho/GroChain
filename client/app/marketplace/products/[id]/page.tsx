@@ -2,15 +2,19 @@
 
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
-import { ArrowLeft, Star, MapPin, Calendar, Shield, Heart, ShoppingCart, MessageCircle, Share2 } from "lucide-react"
+import { ArrowLeft, Star, MapPin, Calendar, Shield, Heart, ShoppingCart, MessageCircle, Share2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { apiService } from "@/lib/api"
 import { useBuyerStore, useCartInitialization } from "@/hooks/use-buyer-store"
 import { useToast } from "@/hooks/use-toast"
+import { useAuthStore } from "@/lib/auth"
+import { ReviewForm } from "@/components/reviews/review-form"
+import { ReviewList } from "@/components/reviews/review-list"
 import type { Product, Review } from "@/lib/types"
 import Link from "next/link"
 import Image from "next/image"
@@ -18,6 +22,7 @@ import Image from "next/image"
 export default function ProductDetailPage() {
   const params = useParams()
   const { addToCart } = useBuyerStore()
+  const { user } = useAuthStore()
 
   // Initialize cart from localStorage
   useCartInitialization()
@@ -27,18 +32,57 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
   const [addingToCart, setAddingToCart] = useState(false)
+  const [showReviewForm, setShowReviewForm] = useState(false)
+  const [userOrders, setUserOrders] = useState<any[]>([])
 
   useEffect(() => {
     if (params.id) {
       fetchProduct()
       fetchReviews()
+      if (user) {
+        fetchUserOrders()
+      }
     }
-  }, [params.id])
+  }, [params.id, user])
 
   const fetchProduct = async () => {
     try {
       const response = await apiService.request(`/api/marketplace/listings/${params.id}`)
-      setProduct(response.data)
+      const listing = response.data
+      
+      // Convert Listing to Product format for consistency
+      const productData = {
+        _id: listing._id,
+        cropName: listing.cropName,
+        name: listing.cropName, // For compatibility
+        category: listing.category,
+        variety: listing.variety,
+        description: listing.description,
+        basePrice: listing.basePrice,
+        price: listing.basePrice, // For compatibility
+        unit: listing.unit,
+        quantity: listing.quantity,
+        availableQuantity: listing.availableQuantity,
+        location: listing.location,
+        images: listing.images || [],
+        tags: listing.tags || [],
+        status: listing.status,
+        views: listing.views || 0,
+        rating: listing.rating || 0,
+        reviewCount: listing.reviewCount || 0,
+        organic: listing.organic || false,
+        qualityGrade: listing.qualityGrade || 'standard',
+        certifications: listing.certifications || [],
+        farmer: listing.farmer,
+        harvest: listing.harvest,
+        harvestDate: listing.harvest?.harvestDate || listing.createdAt,
+        isVerified: listing.farmer?.emailVerified || false,
+        isOrganic: listing.organic || false,
+        createdAt: listing.createdAt,
+        updatedAt: listing.updatedAt
+      }
+      
+      setProduct(productData)
     } catch (error) {
       console.error("Failed to fetch product:", error)
     } finally {
@@ -48,46 +92,37 @@ export default function ProductDetailPage() {
 
   const fetchReviews = async () => {
     try {
-      // Mock reviews data since backend doesn't have reviews endpoint yet
-      const mockReviews = [
-        {
-          id: '1',
-          user: {
-            name: 'John Farmer',
-            avatar: '/placeholder.svg'
-          },
-          rating: 5,
-          comment: 'Excellent quality product! Fresh and well-packaged.',
-          createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // 1 week ago
-        },
-        {
-          id: '2',
-          user: {
-            name: 'Sarah Buyer',
-            avatar: '/placeholder.svg'
-          },
-          rating: 4,
-          comment: 'Good product, fast delivery. Will buy again.',
-          createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString() // 2 weeks ago
-        },
-        {
-          id: '3',
-          user: {
-            name: 'Mike Consumer',
-            avatar: '/placeholder.svg'
-          },
-          rating: 5,
-          comment: 'Verified authentic product. Great farming practices!',
-          createdAt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString() // 3 weeks ago
-        }
-      ]
-      setReviews(mockReviews)
+      const response = await apiService.getListingReviews(params.id as string)
+      const reviewsData = response.data || response
+      setReviews(reviewsData.reviews || [])
     } catch (error) {
       console.error("Failed to fetch reviews:", error)
-      // Set empty array as fallback
       setReviews([])
     }
   }
+
+  const fetchUserOrders = async () => {
+    try {
+      const response = await apiService.getOrders()
+      const orders = response.data?.orders || response.orders || []
+      // Filter orders for this specific listing that are delivered
+      const relevantOrders = orders.filter((order: any) => 
+        order.items?.some((item: any) => item.listing === params.id) && 
+        order.status === 'delivered'
+      )
+      setUserOrders(relevantOrders)
+    } catch (error) {
+      console.error("Failed to fetch user orders:", error)
+      setUserOrders([])
+    }
+  }
+
+  const handleReviewSubmitted = () => {
+    setShowReviewForm(false)
+    fetchReviews() // Refresh reviews
+  }
+
+  const canReview = user && userOrders.length > 0
 
   const handleAddToCart = async () => {
     if (!product) {
@@ -365,42 +400,35 @@ export default function ProductDetailPage() {
           </TabsList>
 
           <TabsContent value="reviews" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Customer Reviews</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {reviews.map((review) => (
-                  <div key={review.id} className="border-b pb-4 last:border-b-0">
-                    <div className="flex items-start gap-4">
-                      <Avatar>
-                        <AvatarImage src={review.user?.avatar || "/placeholder.svg"} />
-                        <AvatarFallback>{review.user?.name?.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold">{review.user?.name}</span>
-                          <div className="flex items-center gap-1">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`h-3 w-3 ${
-                                  i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-sm text-gray-500">
-                            {new Date(review.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <p className="text-gray-600">{review.comment}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+            {/* Write Review Button */}
+            {canReview && (
+              <div className="flex justify-end">
+                <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Write a Review
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Write a Review</DialogTitle>
+                    </DialogHeader>
+                    <ReviewForm
+                      listingId={params.id as string}
+                      listingName={product?.cropName || 'Product'}
+                      farmerName={typeof product?.farmer?.name === 'string' ? product.farmer.name : 'Farmer'}
+                      orderId={userOrders[0]?._id}
+                      onReviewSubmitted={handleReviewSubmitted}
+                      onCancel={() => setShowReviewForm(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )}
+
+            {/* Reviews List */}
+            <ReviewList listingId={params.id as string} />
           </TabsContent>
 
           <TabsContent value="details">
@@ -445,6 +473,14 @@ export default function ProductDetailPage() {
                         <dt className="text-gray-600">Organic:</dt>
                         <dd>{product.isOrganic ? "Yes" : "No"}</dd>
                       </div>
+                      <div className="flex justify-between">
+                        <dt className="text-gray-600">Quality Grade:</dt>
+                        <dd className="capitalize">{product.qualityGrade}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-gray-600">Available Stock:</dt>
+                        <dd>{product.availableQuantity} {product.unit}s</dd>
+                      </div>
                     </dl>
                   </div>
                 </div>
@@ -465,36 +501,72 @@ export default function ProductDetailPage() {
                     </div>
                     <div>
                       <h4 className="font-semibold">Farm Registration</h4>
-                      <p className="text-sm text-gray-600">Farm verified and registered in the system</p>
+                      <p className="text-sm text-gray-600">
+                        Farm verified and registered in the system
+                        {product.farmer?.emailVerified && (
+                          <span className="ml-2 text-green-600">✓ Verified</span>
+                        )}
+                      </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 p-4 bg-green-50 rounded-lg">
-                    <div className="h-8 w-8 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
-                      2
+                  
+                  {product.harvest && (
+                    <div className="flex items-center gap-4 p-4 bg-green-50 rounded-lg">
+                      <div className="h-8 w-8 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
+                        2
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">Harvest Logged</h4>
+                        <p className="text-sm text-gray-600">
+                          Harvest details recorded with batch ID: {product.harvest.batchId}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Harvest Date: {new Date(product.harvest.harvestDate || product.harvestDate).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold">Harvest Logged</h4>
-                      <p className="text-sm text-gray-600">Harvest details recorded with QR code generation</p>
-                    </div>
-                  </div>
+                  )}
+                  
                   <div className="flex items-center gap-4 p-4 bg-green-50 rounded-lg">
                     <div className="h-8 w-8 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
                       3
                     </div>
                     <div>
                       <h4 className="font-semibold">Quality Verification</h4>
-                      <p className="text-sm text-gray-600">Product quality verified by certified partners</p>
+                      <p className="text-sm text-gray-600">
+                        Product quality grade: {product.qualityGrade}
+                        {product.organic && <span className="ml-2 text-green-600">✓ Organic Certified</span>}
+                      </p>
                     </div>
                   </div>
+                  
                   <div className="flex items-center gap-4 p-4 bg-yellow-50 rounded-lg">
                     <div className="h-8 w-8 bg-yellow-600 rounded-full flex items-center justify-center text-white font-bold">
                       4
                     </div>
                     <div>
                       <h4 className="font-semibold">Marketplace Listing</h4>
-                      <p className="text-sm text-gray-600">Product listed on marketplace for buyers</p>
+                      <p className="text-sm text-gray-600">
+                        Product listed on marketplace for buyers
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Listed: {new Date(product.createdAt).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
+                  
+                  {product.certifications && product.certifications.length > 0 && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                      <h4 className="font-semibold mb-2">Certifications</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {product.certifications.map((cert, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {cert}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

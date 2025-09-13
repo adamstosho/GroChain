@@ -13,7 +13,7 @@ import {
   TrendingUp, 
   TrendingDown, 
   Users, 
-  DollarSign, 
+  Banknote, 
   MapPin,
   Calendar,
   Download,
@@ -236,7 +236,7 @@ export function AnalyticsDashboard({ className }: AnalyticsDashboardProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <Banknote className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">₦{(data.overview.totalRevenue / 1000000).toFixed(1)}M</div>
@@ -266,7 +266,7 @@ export function AnalyticsDashboard({ className }: AnalyticsDashboardProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Commission</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <Banknote className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">₦{data.overview.averageCommission.toLocaleString()}</div>

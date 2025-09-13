@@ -1,5 +1,7 @@
 const ExportImportService = require('../services/exportImport.service')
 const { validateExportRequest, validateImportRequest } = require('../middlewares/validation.middleware')
+const path = require('path')
+const fs = require('fs').promises
 
 class ExportImportController {
   // Export harvests
@@ -134,11 +136,149 @@ class ExportImportController {
     }
   }
 
+  // Export buyer-specific analytics
+  async exportBuyerAnalytics(req, res) {
+    try {
+      const { format = 'csv', filters = {}, options = {} } = req.body
+      const userId = req.user._id
+
+      // Validate format
+      if (!['csv', 'excel', 'json'].includes(format)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid format. Supported formats: csv, excel, json'
+        })
+      }
+
+      // Validate user ID
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'User ID is required'
+        })
+      }
+
+      const result = await ExportImportService.exportBuyerData(userId, filters, format, options)
+
+      res.json({
+        success: true,
+        message: 'Buyer analytics exported successfully',
+        data: result
+      })
+    } catch (error) {
+      console.error('Export buyer analytics error:', error)
+      
+      // Handle specific error types
+      if (error.message.includes('No data to export')) {
+        return res.status(404).json({
+          success: false,
+          message: 'No buyer data found for export',
+          error: error.message
+        })
+      }
+      
+      if (error.message.includes('Unsupported format')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Unsupported export format',
+          error: error.message
+        })
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to export buyer analytics',
+        error: error.message
+      })
+    }
+  }
+
+  // Export farmer-specific analytics
+  async exportFarmerAnalytics(req, res) {
+    try {
+      const { format = 'csv', filters = {}, options = {} } = req.body
+      const userId = req.user._id
+
+      const result = await ExportImportService.exportFarmerData(userId, filters, format, options)
+
+      res.json({
+        success: true,
+        message: 'Farmer analytics exported successfully',
+        data: result
+      })
+    } catch (error) {
+      console.error('Export farmer analytics error:', error)
+      res.status(500).json({
+        success: false,
+        message: 'Failed to export farmer analytics',
+        error: error.message
+      })
+    }
+  }
+
+  // Export partner-specific analytics
+  async exportPartnerAnalytics(req, res) {
+    try {
+      const { format = 'csv', filters = {}, options = {} } = req.body
+      const userId = req.user._id
+
+      const result = await ExportImportService.exportPartnerData(userId, filters, format, options)
+
+      res.json({
+        success: true,
+        message: 'Partner analytics exported successfully',
+        data: result
+      })
+    } catch (error) {
+      console.error('Export partner analytics error:', error)
+      res.status(500).json({
+        success: false,
+        message: 'Failed to export partner analytics',
+        error: error.message
+      })
+    }
+  }
+
   // Export analytics
   async exportAnalytics(req, res) {
     try {
       const { format = 'csv', filters = {}, options = {} } = req.body
+      const user = req.user
 
+      // Validate format
+      if (!['csv', 'excel', 'json'].includes(format)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid format. Supported formats: csv, excel, json'
+        })
+      }
+
+      // Validate user authentication
+      if (!user || !user._id) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required'
+        })
+      }
+
+      // For non-admin users, we'll export user-specific data instead of system analytics
+      if (user.role !== 'admin') {
+        // Redirect to appropriate user-specific export based on role
+        if (user.role === 'buyer') {
+          return await this.exportBuyerAnalytics(req, res)
+        } else if (user.role === 'farmer') {
+          return await this.exportFarmerAnalytics(req, res)
+        } else if (user.role === 'partner') {
+          return await this.exportPartnerAnalytics(req, res)
+        } else {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied. Invalid user role for analytics export'
+          })
+        }
+      }
+
+      // Admin users can export system-wide analytics
       const result = await ExportImportService.exportAnalytics(filters, format, options)
 
       res.json({
@@ -148,6 +288,24 @@ class ExportImportController {
       })
     } catch (error) {
       console.error('Export analytics error:', error)
+      
+      // Handle specific error types
+      if (error.message.includes('No data to export')) {
+        return res.status(404).json({
+          success: false,
+          message: 'No analytics data found for the specified criteria',
+          error: error.message
+        })
+      }
+      
+      if (error.message.includes('Unsupported format')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Unsupported export format',
+          error: error.message
+        })
+      }
+
       res.status(500).json({
         success: false,
         message: 'Failed to export analytics',

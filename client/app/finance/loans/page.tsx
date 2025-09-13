@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Search, Calendar, DollarSign, Clock, CheckCircle, XCircle } from "lucide-react"
+import { Plus, Search, Calendar, Banknote, Clock, CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -185,7 +185,7 @@ export default function LoansPage() {
                           Applied: {new Date(loan.appliedDate).toLocaleDateString()}
                         </div>
                         <div className="flex items-center gap-1">
-                          <DollarSign className="h-4 w-4" />
+                          <Banknote className="h-4 w-4" />
                           {loan.interestRate}% interest
                         </div>
                         <span>{loan.term} months term</span>
@@ -233,7 +233,7 @@ export default function LoansPage() {
         {loans.length === 0 && !loading && (
           <div className="text-center py-12">
             <div className="text-gray-400 mb-4">
-              <DollarSign className="h-16 w-16 mx-auto" />
+              <Banknote className="h-16 w-16 mx-auto" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No loans found</h3>
             <p className="text-gray-600 mb-4">Start by applying for your first agricultural loan</p>

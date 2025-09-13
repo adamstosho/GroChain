@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -12,7 +12,8 @@ import { QuickActions } from "@/components/dashboard/quick-actions"
 import { HarvestCard, type HarvestData } from "@/components/agricultural"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
-import { Leaf, Package, TrendingUp, DollarSign, Plus, Eye, QrCode, BarChart3 } from "lucide-react"
+import { useDashboardRefresh } from "@/hooks/use-dashboard-refresh"
+import { Leaf, Package, TrendingUp, Banknote, Plus, Eye, QrCode, BarChart3, RefreshCw } from "lucide-react"
 import Link from "next/link"
 
 // Helper function to determine credit score status
@@ -28,107 +29,120 @@ export function FarmerDashboard() {
   const [stats, setStats] = useState<any>(null)
   const [recentHarvests, setRecentHarvests] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const { toast } = useToast()
   const [credit, setCredit] = useState<any>(null)
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setIsLoading(true)
+  const fetchDashboardData = useCallback(async (reason: string = 'manual') => {
+    try {
+      setIsLoading(true)
+      console.log(`🔄 Fetching farmer dashboard data (${reason})...`)
 
-        // Fetch all dashboard data in parallel
-        const [dashboardResponse, harvestsResponse, creditResp, farmerAnalytics] = await Promise.all([
-          apiService.getDashboard(),
-          apiService.getHarvests({ limit: 5 }),
-          apiService.getMyCreditScore().catch(() => ({
-            data: { score: "N/A", status: "Calculating..." }
-          })),
-          apiService.getFarmerAnalytics().catch(() => ({ data: {} }))
-        ])
+      // Use Promise.allSettled for better error handling
+      const [dashboardResponse, harvestsResponse, creditResp, farmerAnalytics] = await Promise.allSettled([
+        apiService.getDashboard(),
+        apiService.getHarvests({ limit: 5 }),
+        apiService.getMyCreditScore().catch(() => ({
+          data: { score: "N/A", status: "Calculating..." }
+        })),
+        apiService.getFarmerAnalytics().catch(() => ({ data: {} }))
+      ])
 
-        // Handle dashboard stats
-        if (dashboardResponse.status === 'success') {
-          console.log('📊 Dashboard Response Data:', dashboardResponse.data)
-          console.log('📊 Dashboard Total Revenue:', dashboardResponse.data?.totalRevenue)
-          console.log('📊 Dashboard Monthly Revenue:', dashboardResponse.data?.monthlyRevenue)
-          setStats(dashboardResponse.data)
-        }
-
-        // Handle harvests data
-        if (harvestsResponse.status === 'success') {
-          const harvestData = harvestsResponse.harvests || harvestsResponse.data || []
-          setRecentHarvests(Array.isArray(harvestData) ? harvestData : [])
-        }
-
-        // Handle credit score data
-        if (creditResp && creditResp.data) {
-          console.log('📊 Credit score data received:', creditResp.data)
-          setCredit(creditResp.data)
-        } else {
-          console.log('⚠️  No credit score data received, will retry...')
-          // Try to get credit score from dashboard data as fallback
-          if (dashboardResponse.data && dashboardResponse.data.creditScore) {
-            setCredit(dashboardResponse.data.creditScore)
-          }
-        }
-
-        // Update stats with farmer analytics data for accurate revenue
-        console.log('🔍 Raw Farmer Analytics Response:', farmerAnalytics)
-        console.log('🔍 Farmer Analytics Status:', farmerAnalytics?.status)
-        console.log('🔍 Farmer Analytics Data:', farmerAnalytics?.data)
-        
-        if (farmerAnalytics.status === 'success' && farmerAnalytics.data) {
-          const analyticsData = farmerAnalytics.data
-          console.log('🔍 Farmer Analytics Data:', analyticsData)
-          console.log('💰 Total Revenue from Analytics:', analyticsData.totalRevenue)
-          console.log('📊 Monthly Trends:', analyticsData.monthlyTrends)
-          
-          setStats(prevStats => {
-            const updatedStats = {
-              ...prevStats,
-              totalRevenue: analyticsData.totalRevenue || 0,
-              monthlyRevenue: analyticsData.monthlyTrends?.length > 0 
-                ? analyticsData.monthlyTrends[analyticsData.monthlyTrends.length - 1]?.revenue || 0
-                : 0,
-              totalOrders: analyticsData.totalOrders || 0,
-              activeListings: analyticsData.totalListings || 0
-            }
-            console.log('📊 Updated stats with analytics:', updatedStats)
-            return updatedStats
-          })
-          
-          console.log('✅ Stats updated with analytics data')
-        } else {
-          console.warn('⚠️ Farmer Analytics not available:', farmerAnalytics)
-          console.log('📊 Using fallback stats from dashboard response')
-        }
-
-      } catch (error: any) {
-        console.error('Dashboard fetch error:', error)
-        toast({
-          title: "Error loading dashboard",
-          description: error.message || "Failed to load dashboard data. Please try again.",
-          variant: "destructive",
-        })
-
-        // Set fallback data
-        setStats({
-          totalHarvests: 0,
-          pendingApprovals: 0,
-          activeListings: 0,
-          monthlyRevenue: 0,
-          totalRevenue: 0,
-          totalOrders: 0
-        })
-        setRecentHarvests([])
-        setCredit(null)
-      } finally {
-        setIsLoading(false)
+      // Handle dashboard stats
+      if (dashboardResponse.status === 'fulfilled') {
+        console.log('✅ Dashboard data received:', dashboardResponse.value.data)
+        setStats(dashboardResponse.value.data)
+      } else {
+        console.error('❌ Dashboard data failed:', dashboardResponse.reason)
       }
-    }
 
-    fetchDashboardData()
+      // Handle harvests data
+      if (harvestsResponse.status === 'fulfilled') {
+        const harvestData = harvestsResponse.value.harvests || harvestsResponse.value.data || []
+        setRecentHarvests(Array.isArray(harvestData) ? harvestData : [])
+      } else {
+        console.error('❌ Harvests data failed:', harvestsResponse.reason)
+      }
+
+      // Handle credit score data
+      if (creditResp.status === 'fulfilled') {
+        console.log('✅ Credit score data received:', creditResp.value.data)
+        setCredit(creditResp.value.data)
+      } else {
+        console.error('❌ Credit score failed:', creditResp.reason)
+      }
+
+      // Update stats with farmer analytics data
+      if (farmerAnalytics.status === 'fulfilled' && farmerAnalytics.value.data) {
+        const analyticsData = farmerAnalytics.value.data
+        setStats(prevStats => ({
+          ...prevStats,
+          totalRevenue: analyticsData.totalRevenue || 0,
+          monthlyRevenue: analyticsData.monthlyTrends?.length > 0 
+            ? analyticsData.monthlyTrends[analyticsData.monthlyTrends.length - 1]?.revenue || 0
+            : 0,
+          totalOrders: analyticsData.totalOrders || 0,
+          activeListings: analyticsData.totalListings || 0
+        }))
+      } else {
+        console.error('❌ Analytics data failed:', farmerAnalytics.reason)
+      }
+
+      setLastUpdated(new Date())
+
+    } catch (error: any) {
+      console.error('❌ Dashboard fetch error:', error)
+      toast({
+        title: "Error loading dashboard",
+        description: error.message || "Failed to load dashboard data. Please try again.",
+        variant: "destructive",
+      })
+
+      // Set fallback data
+      setStats({
+        totalHarvests: 0,
+        pendingApprovals: 0,
+        activeListings: 0,
+        monthlyRevenue: 0,
+        totalRevenue: 0,
+        totalOrders: 0
+      })
+      setRecentHarvests([])
+      setCredit(null)
+    } finally {
+      setIsLoading(false)
+    }
   }, [toast])
+
+  // Smart event-driven refresh system
+  const { refresh } = useDashboardRefresh({
+    onRefresh: fetchDashboardData
+  })
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [fetchDashboardData])
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await fetchDashboardData('manual')
+      toast({
+        title: "Dashboard refreshed",
+        description: "Your dashboard data has been updated",
+        variant: "default",
+      })
+    } catch (error) {
+      toast({
+        title: "Refresh failed",
+        description: "Could not refresh dashboard data",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   const quickActions = [
     {
@@ -234,6 +248,38 @@ export function FarmerDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Dashboard Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Farmer Dashboard</h2>
+          <p className="text-muted-foreground">Manage your harvests and track your performance</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {lastUpdated && (
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </div>
+          )}
+          {isLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+              Loading...
+            </div>
+          )}
+          <Button 
+            onClick={handleManualRefresh} 
+            disabled={isRefreshing || isLoading}
+            variant="outline" 
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
+      </div>
+
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <StatsCard
@@ -261,14 +307,14 @@ export function FarmerDashboard() {
           title="Revenue This Month"
           value={stats?.monthlyRevenue ? `₦${stats.monthlyRevenue.toLocaleString()}` : "₦0"}
           description="From sales"
-          icon={DollarSign}
+          icon={Banknote}
           trend={stats?.monthlyRevenue > 0 ? { value: 15, isPositive: true } : undefined}
         />
         <StatsCard
           title="Total Revenue"
           value={stats?.totalRevenue ? `₦${stats.totalRevenue.toLocaleString()}` : "₦0"}
           description="All time earnings"
-          icon={DollarSign}
+          icon={Banknote}
           trend={stats?.totalRevenue > 0 ? { value: 25, isPositive: true } : undefined}
         />
       </div>

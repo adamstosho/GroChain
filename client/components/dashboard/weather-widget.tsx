@@ -194,7 +194,7 @@ export function WeatherWidget() {
 
         console.log('🌤️ Fetching weather for:', { lat, lng, city, state, country })
 
-        const response = await apiService.getCurrentWeather({ lat, lng, city, state, country })
+        const response = await apiService.getCurrentWeather(lat, lng, city, state, country)
 
         if (response.status === 'success' && response.data) {
           const d = response.data
@@ -303,7 +303,7 @@ export function WeatherWidget() {
 
       console.log('🌤️ Fetching forecast for:', { lat, lng, city, state, country })
 
-      const response = await apiService.getWeatherForecast({ lat, lng, city, state, country, days: 5 })
+      const response = await apiService.getWeatherForecast(lat, lng, 5)
 
       if (response.status === 'success' && response.data) {
         console.log('🌤️ Forecast data received:', response.data)

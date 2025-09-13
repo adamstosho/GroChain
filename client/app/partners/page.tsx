@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useAuthStore } from "@/lib/auth"
 import { useNotifications } from "@/hooks/use-notifications"
 import { NotificationBell } from "@/components/notifications/notification-bell"
-import { Users, Plus, Search, Download, TrendingUp, DollarSign, CheckCircle, Clock, Bell, Settings, LogOut, Home, BarChart3, FileText, User, ChevronDown, RefreshCw, XCircle, Leaf } from "lucide-react"
+import { Users, Plus, Search, Download, TrendingUp, Banknote, CheckCircle, Clock, Bell, Settings, LogOut, Home, BarChart3, FileText, User, ChevronDown, RefreshCw, XCircle, Leaf } from "lucide-react"
 import { api } from "@/lib/api"
 import Link from "next/link"
 
@@ -225,7 +225,7 @@ export default function PartnersPage() {
                   Approvals
                 </Link>
                 <Link href="/dashboard/commissions" className="text-muted-foreground hover:text-primary px-3 py-2 rounded-md text-sm font-medium flex items-center transition-colors">
-                  <DollarSign className="h-4 w-4 mr-2" />
+                  <Banknote className="h-4 w-4 mr-2" />
                   Commissions
                 </Link>
                 <Link href="/dashboard/analytics" className="text-muted-foreground hover:text-primary px-3 py-2 rounded-md text-sm font-medium flex items-center transition-colors">
@@ -358,7 +358,7 @@ export default function PartnersPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Monthly Commission</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <Banknote className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">₦{(stats.monthlyCommissions || stats.monthlyCommission || 0).toLocaleString()}</div>
@@ -620,7 +620,7 @@ export default function PartnersPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
+                  <Banknote className="h-5 w-5" />
                   Commission Tracking
                 </CardTitle>
                 <CardDescription>Your earnings and commission breakdown</CardDescription>

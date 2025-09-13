@@ -26,7 +26,7 @@ import {
   Lock,
   MapPin,
   Wheat,
-  DollarSign,
+  Banknote,
   Upload,
   Camera
 } from "lucide-react"
@@ -670,9 +670,6 @@ export function SettingsForm() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="NGN">Nigerian Naira (₦)</SelectItem>
-                  <SelectItem value="USD">US Dollar ($)</SelectItem>
-                  <SelectItem value="EUR">Euro (€)</SelectItem>
-                  <SelectItem value="GBP">British Pound (£)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

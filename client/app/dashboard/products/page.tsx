@@ -87,8 +87,9 @@ export default function ProductsPage() {
     organic: false,
     sortBy: "newest"
   })
+  const [favoriteProcessing, setFavoriteProcessing] = useState<Set<string>>(new Set())
   const { toast } = useToast()
-  const { addToCart, addToFavorites, fetchFavorites, cart } = useBuyerStore()
+  const { addToCart, addToFavorites, removeFromFavorites, fetchFavorites, cart, favorites } = useBuyerStore()
   const { user } = useAuthStore()
 
   // Initialize cart from localStorage
@@ -100,6 +101,61 @@ export default function ProductsPage() {
       fetchFavorites()
     }
   }, [user, fetchFavorites])
+
+  // Centralized favorite handler to prevent race conditions
+  const handleFavoriteToggle = async (productId: string, productName: string) => {
+    // Prevent multiple operations on the same product
+    if (favoriteProcessing.has(productId)) {
+      console.log('Operation already in progress for product:', productId)
+      return
+    }
+
+    try {
+      // Add to processing set
+      setFavoriteProcessing(prev => new Set(prev).add(productId))
+
+      // Check if product is currently favorited
+      const isCurrentlyFavorited = Array.isArray(favorites) && favorites.some((fav: any) => {
+        const listingId = fav.listingId || fav.listing?._id || fav.listing
+        return listingId === productId
+      })
+
+      console.log('Toggling favorite for product:', productId, 'Currently favorited:', isCurrentlyFavorited)
+
+      if (isCurrentlyFavorited) {
+        // Remove from favorites
+        await removeFromFavorites(productId)
+        toast({
+          title: "Removed from favorites",
+          description: `${productName} has been removed from your favorites.`,
+        })
+      } else {
+        // Add to favorites
+        await addToFavorites(productId)
+        toast({
+          title: "Added to favorites!",
+          description: `${productName} has been added to your favorites.`,
+        })
+      }
+
+      // Refresh favorites once after the operation
+      await fetchFavorites()
+    } catch (error: any) {
+      console.error('Failed to toggle favorite:', error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update favorites. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      // Remove from processing set
+      setFavoriteProcessing(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(productId)
+        return newSet
+      })
+    }
+  }
 
   // Check for refresh flag and update products if needed
   useEffect(() => {
@@ -203,7 +259,7 @@ export default function ProductsPage() {
       console.log('🔄 Fetching products with params:', params)
 
       const response = await apiService.getMarketplaceListings(params)
-      const listings = response.data?.listings || []
+      const listings = (response.data as any)?.listings || []
 
       console.log('📦 Received listings:', listings.length)
       console.log('📦 First listing sample:', listings[0])
@@ -318,14 +374,14 @@ export default function ProductsPage() {
   const adjustedProducts = useMemo(() => {
     return filteredProducts.map(product => {
       // Use the actual available quantity from the database
-      const availableQuantity = product.availableQuantity || product.stockQuantity || product.quantity || 0
+      const availableQuantity = product.availableQuantity || (product as any).stockQuantity || product.quantity || 0
       
       // Find cart item for display purposes only (not for quantity calculation)
       const cartItem = cart.find(item =>
         item.listingId === product._id ||
         item.id === product._id ||
-        item.listingId === product.id ||
-        item.id === product.id
+        item.listingId === (product as any).id ||
+        item.id === (product as any).id
       )
       const cartQuantity = cartItem ? cartItem.quantity : 0
 
@@ -427,7 +483,7 @@ export default function ProductsPage() {
 
             {/* Filter Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-              <Select value={filters.category} onValueChange={(value) => setFilters({ ...filters, category: value })}>
+              <Select value={filters.category} onValueChange={(value) => setFilters({ ...filters, category: value as any })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
@@ -441,7 +497,7 @@ export default function ProductsPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={filters.location} onValueChange={(value) => setFilters({ ...filters, location: value })}>
+              <Select value={filters.location} onValueChange={(value) => setFilters({ ...filters, location: value as any })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Location" />
                 </SelectTrigger>
@@ -457,7 +513,7 @@ export default function ProductsPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={filters.priceRange} onValueChange={(value) => setFilters({ ...filters, priceRange: value })}>
+              <Select value={filters.priceRange} onValueChange={(value) => setFilters({ ...filters, priceRange: value as any })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Price Range" />
                 </SelectTrigger>
@@ -471,7 +527,7 @@ export default function ProductsPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={filters.quality} onValueChange={(value) => setFilters({ ...filters, quality: value })}>
+              <Select value={filters.quality} onValueChange={(value) => setFilters({ ...filters, quality: value as any })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Quality" />
                 </SelectTrigger>
@@ -483,7 +539,7 @@ export default function ProductsPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={filters.sortBy} onValueChange={(value) => setFilters({ ...filters, sortBy: value })}>
+              <Select value={filters.sortBy} onValueChange={(value) => setFilters({ ...filters, sortBy: value as any })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sort By" />
                 </SelectTrigger>
@@ -600,8 +656,11 @@ export default function ProductsPage() {
                 product={product}
                 viewMode={viewMode}
                 onAddToCart={handleAddToCart}
+                onToggleFavorite={handleFavoriteToggle}
                 formatPrice={formatPrice}
                 getQualityColor={getQualityColor}
+                favorites={favorites}
+                isProcessing={favoriteProcessing.has(product._id)}
               />
             ))}
           </div>
@@ -615,60 +674,52 @@ interface ProductCardProps {
   product: ProductListing
   viewMode: 'grid' | 'list'
   onAddToCart: (product: ProductListing) => void
+  onToggleFavorite: (productId: string, productName: string) => Promise<void>
   formatPrice: (price: number) => string
   getQualityColor: (quality: string) => string
+  favorites: any[]
+  isProcessing: boolean
 }
 
 function ProductCard({
   product,
   viewMode,
   onAddToCart,
+  onToggleFavorite,
   formatPrice,
-  getQualityColor
+  getQualityColor,
+  favorites,
+  isProcessing
 }: ProductCardProps) {
-  const [isProcessing, setIsProcessing] = useState(false)
-  const { favorites, addToFavorites, removeFromFavorites, fetchFavorites } = useBuyerStore()
   const { toast } = useToast()
 
-  // Check if product is in favorites
-  const isWishlisted = Array.isArray(favorites) && favorites.some((fav: any) => fav.listingId === product._id || fav._id === product._id)
-
-  // Load favorites on component mount
-  useEffect(() => {
-    fetchFavorites()
-  }, [fetchFavorites])
-
-  const handleWishlist = async () => {
-    if (isProcessing) return // Prevent multiple clicks
-
-    try {
-      setIsProcessing(true)
-
-      if (isWishlisted) {
-        // Remove from favorites
-        await removeFromFavorites(product._id)
-        toast({
-          title: "Removed from favorites",
-          description: `${product.cropName} has been removed from your favorites.`,
-        })
-      } else {
-        // Add to favorites
-        await addToFavorites(product._id)
-        toast({
-          title: "Added to favorites!",
-          description: `${product.cropName} has been added to your favorites.`,
-        })
-      }
-    } catch (error: any) {
-      console.error('Failed to toggle favorite:', error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update favorites. Please try again.",
-        variant: "destructive",
+  // Check if product is in favorites - improved detection
+  const isWishlisted = Array.isArray(favorites) && favorites.some((fav: any) => {
+    // Check both possible ID fields and handle different data structures
+    const listingId = fav.listingId || fav.listing?._id || fav.listing
+    const productId = product._id
+    const isMatch = listingId === productId
+    
+    // Debug logging (remove in production)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Favorite check:', {
+        productId,
+        listingId,
+        isMatch,
+        favorite: fav
       })
-    } finally {
-      setIsProcessing(false)
     }
+    
+    return isMatch
+  })
+
+  // Simple handler that calls the centralized function with debouncing
+  const handleWishlist = () => {
+    if (isProcessing) {
+      console.log('Click ignored - operation in progress')
+      return
+    }
+    onToggleFavorite(product._id, product.cropName)
   }
   if (viewMode === 'list') {
     return (
@@ -711,8 +762,20 @@ function ProductCard({
                     onClick={handleWishlist}
                     className="h-8 w-8 p-0"
                     disabled={isProcessing}
+                    title={isWishlisted ? "Remove from favorites" : "Add to favorites"}
                   >
-                    <Heart className={cn("h-4 w-4 transition-colors", isWishlisted ? "fill-red-500 text-red-500" : "text-gray-600 hover:text-red-500")} />
+                    {isProcessing ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-red-500" />
+                    ) : (
+                      <Heart 
+                        className={cn(
+                          "h-4 w-4 transition-all duration-200", 
+                          isWishlisted 
+                            ? "fill-red-500 text-red-500 scale-110" 
+                            : "text-gray-600 hover:text-red-500 hover:scale-105"
+                        )} 
+                      />
+                    )}
                   </Button>
                 </div>
               </div>
@@ -834,7 +897,7 @@ function ProductCard({
             <div className="flex items-center space-x-1">
               <MapPin className="h-3 w-3 text-muted-foreground" />
               <span className="text-muted-foreground truncate">
-                {typeof product.location === 'string' ? product.location.split(',')[0] : product.location?.city || 'Unknown'}
+                {typeof product.location === 'string' ? (product.location as any).split(',')[0] : (product.location as any)?.city || 'Unknown'}
               </span>
             </div>
             <div className="flex items-center space-x-1">
@@ -891,8 +954,20 @@ function ProductCard({
               onClick={handleWishlist}
               className="h-8 w-8 p-0"
               disabled={isProcessing}
+              title={isWishlisted ? "Remove from favorites" : "Add to favorites"}
             >
-              <Heart className={cn("h-3 w-3 transition-colors", isWishlisted ? "fill-red-500 text-red-500" : "text-gray-600 hover:text-red-500")} />
+              {isProcessing ? (
+                <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-red-500" />
+              ) : (
+                <Heart 
+                  className={cn(
+                    "h-3 w-3 transition-all duration-200", 
+                    isWishlisted 
+                      ? "fill-red-500 text-red-500 scale-110" 
+                      : "text-gray-600 hover:text-red-500 hover:scale-105"
+                  )} 
+                />
+              )}
             </Button>
           </div>
 

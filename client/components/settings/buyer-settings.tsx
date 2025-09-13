@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { apiService } from "@/lib/api"
+import { useExportService } from "@/lib/export-utils"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import {
   Settings,
@@ -41,7 +42,7 @@ import {
   BellRing,
   ShoppingCart,
   Truck,
-  DollarSign,
+  Banknote,
   Package,
   Store,
   TrendingUp
@@ -113,10 +114,7 @@ const languages = [
 ]
 
 const currencies = [
-  { code: 'NGN', name: 'Nigerian Naira', symbol: '₦' },
-  { code: 'USD', name: 'US Dollar', symbol: '$' },
-  { code: 'EUR', name: 'Euro', symbol: '€' },
-  { code: 'GBP', name: 'British Pound', symbol: '£' }
+  { code: 'NGN', name: 'Nigerian Naira', symbol: '₦' }
 ]
 
 const timezones = [
@@ -168,6 +166,7 @@ export function BuyerSettings() {
   const [importing, setImporting] = useState(false)
 
   const { toast } = useToast()
+  const exportService = useExportService()
 
   useEffect(() => {
     fetchSettings()
@@ -346,43 +345,17 @@ export function BuyerSettings() {
   }
 
   const handleExportData = async () => {
+    setExporting(true)
     try {
-      setExporting(true)
-      
-      // Export buyer data using the custom export endpoint
-      const response = await apiService.request('/api/export-import/export/custom', {
-        method: 'POST',
-        body: JSON.stringify({
-          format: settings?.data.exportFormat || 'csv',
-          dataType: 'buyer-data',
-          filters: {
-            includeOrders: true,
-            includePayments: true,
-            includeShipments: true
-          }
-        })
-      })
-      
-      if (response.data?.url) {
-        window.open(response.data.url, '_blank')
-        toast({
-          title: "Export Successful! 📊",
-          description: "Your purchasing data has been exported.",
-          variant: "default"
-        })
-      } else {
-        toast({
-          title: "Export Successful! 📊",
-          description: "Your purchasing data has been exported.",
-          variant: "default"
-        })
-      }
-    } catch (error) {
-      console.error("Failed to export data:", error)
-      toast({
-        title: "Export Not Available",
-        description: "Data export feature is coming soon. Please contact support for data requests.",
-        variant: "destructive"
+      await exportService.exportCustomData([], {
+        format: settings?.data?.exportFormat || 'csv',
+        dataType: 'buyer-data',
+        filename: `purchasing-data-${new Date().toISOString().split('T')[0]}.csv`,
+        filters: {
+          includeOrders: true,
+          includePayments: true,
+          includeShipments: true
+        }
       })
     } finally {
       setExporting(false)

@@ -16,7 +16,7 @@ import {
   Upload,
   Tag,
   MapPin,
-  DollarSign,
+  Banknote,
   Package,
   Info,
   CheckCircle,
@@ -133,8 +133,8 @@ export default function EditListingPage() {
       setLoadingListing(true)
       console.log('Loading listing data for ID:', id)
 
-      const response = await apiService.getListingById(id)
-      const listingData = response.listing || response.data
+      const response = await apiService.getListingForEdit(id)
+      const listingData = (response as any)?.listing || response.data || response
 
       if (!listingData) {
         toast({
@@ -180,7 +180,7 @@ export default function EditListingPage() {
   }
 
   const validateForm = () => {
-    const newErrors: Partial<ListingFormData> = {}
+    const newErrors: Record<string, string> = {}
 
     if (!formData.cropName.trim()) {
       newErrors.cropName = 'Crop name is required'
@@ -239,7 +239,7 @@ export default function EditListingPage() {
         location: formData.location,
         images: formData.images,
         tags: formData.tags,
-        status: formData.status
+        status: (formData.status === 'draft' ? 'inactive' : formData.status) as 'active' | 'inactive' | 'sold_out'
       }
 
       await apiService.updateListing(listingId, updateData)

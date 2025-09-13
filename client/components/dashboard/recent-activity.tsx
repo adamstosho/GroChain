@@ -4,13 +4,13 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Leaf, ShoppingCart, Users, DollarSign, Loader2 } from "lucide-react"
+import { Leaf, ShoppingCart, Users, Banknote, Loader2, Heart } from "lucide-react"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
 interface Activity {
   _id: string
-  type: "harvest" | "order" | "payment" | "user"
+  type: "harvest" | "order" | "payment" | "user" | "favorite"
   description: string
   timestamp: Date
   user?: string
@@ -26,55 +26,59 @@ export function RecentActivity() {
     const fetchActivities = async () => {
       try {
         setIsLoading(true)
+        console.log('🔄 Fetching recent activities...')
+        
         const response = await apiService.getRecentActivities(5)
 
         if (response.status === 'success') {
           const activityData = response.data || []
+          console.log('✅ Activities data received:', activityData.length, 'activities')
           setActivities(activityData.map(activity => ({
             ...activity,
             timestamp: new Date(activity.timestamp)
           })))
+        } else {
+          console.warn('⚠️ Activities response not successful:', response)
+          setActivities([])
         }
       } catch (error: any) {
-        console.error('Failed to fetch activities:', error)
+        console.error('❌ Failed to fetch activities:', error)
 
-        // Fallback to mock data if API fails
-        setActivities([
+        // Create user-specific fallback data instead of generic mock data
+        const fallbackActivities = [
           {
-            _id: "1",
-            type: "harvest",
-            description: "New harvest submitted for approval",
-            timestamp: new Date(Date.now() - 1000 * 60 * 30),
-            user: "You",
-          },
-          {
-            _id: "2",
+            _id: "fallback-1",
             type: "order",
-            description: "Order #12345 completed",
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-            user: "Jane Buyer",
+            description: "Welcome to GroChain! Start browsing fresh produce",
+            timestamp: new Date(Date.now() - 1000 * 60 * 5),
+            user: "System",
           },
           {
-            _id: "3",
+            _id: "fallback-2",
             type: "payment",
-            description: "Payment of ₦25,000 processed",
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4),
-            user: "Mike Partner",
-          },
-        ])
+            description: "Your account is ready for purchases",
+            timestamp: new Date(Date.now() - 1000 * 60 * 60),
+            user: "System",
+          }
+        ]
 
-        toast({
-          title: "Failed to load recent activities",
-          description: "Showing sample data instead",
-          variant: "default",
-        })
+        setActivities(fallbackActivities)
+
+        // Only show toast if component is still mounted
+        if (typeof window !== 'undefined') {
+          toast({
+            title: "Activities temporarily unavailable",
+            description: "Recent activities will appear here as you use the platform",
+            variant: "default",
+          })
+        }
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchActivities()
-  }, [toast])
+  }, []) // Remove toast dependency to prevent re-renders
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -83,9 +87,11 @@ export function RecentActivity() {
       case "order":
         return ShoppingCart
       case "payment":
-        return DollarSign
+        return Banknote
       case "user":
         return Users
+      case "favorite":
+        return Heart
       default:
         return Leaf
     }
@@ -101,6 +107,8 @@ export function RecentActivity() {
         return "bg-success/10 text-success"
       case "user":
         return "bg-accent/10 text-accent"
+      case "favorite":
+        return "bg-pink-100 text-pink-600"
       default:
         return "bg-muted/10 text-muted-foreground"
     }

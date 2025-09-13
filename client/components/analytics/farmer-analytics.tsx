@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   TrendingUp,
   TrendingDown,
-  DollarSign,
+  Banknote,
   Package,
   Leaf,
   Calendar,
@@ -34,6 +34,7 @@ import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPi
 import { cn } from "@/lib/utils"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { useExportService } from "@/lib/export-utils"
 
 interface FarmerAnalyticsData {
   totalHarvests: number
@@ -88,6 +89,7 @@ export function FarmerAnalytics() {
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
+  const exportService = useExportService()
 
   // Fetch analytics data from backend
   const fetchAnalytics = useCallback(async (period?: string) => {
@@ -180,42 +182,9 @@ export function FarmerAnalytics() {
       return
     }
 
+    setIsExporting(true)
     try {
-      setIsExporting(true)
-      toast({
-        title: "Export initiated",
-        description: `Preparing your ${exportFormat.toUpperCase()} analytics report for download...`,
-      })
-
-      // Use the export API method - it handles the download automatically
-      await apiService.exportAnalyticsData('user', timeRange, exportFormat)
-
-      toast({
-        title: "Export completed",
-        description: `Your ${exportFormat.toUpperCase()} analytics report has been downloaded successfully.`,
-      })
-    } catch (error: any) {
-      console.error('Export error:', error)
-
-      let errorMessage = "Failed to export analytics data. Please try again."
-
-      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-        errorMessage = "Authentication required. Please log in again."
-      } else if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
-        errorMessage = "You don't have permission to export this data."
-      } else if (error.message?.includes('404') || error.message?.includes('Not Found')) {
-        errorMessage = "No data found for the selected time period."
-      } else if (error.message?.includes('500') || error.message?.includes('Server Error')) {
-        errorMessage = "Server error occurred. Please try again later."
-      } else if (error.message?.includes('Network') || error.message?.includes('fetch')) {
-        errorMessage = "Network error. Please check your internet connection."
-      }
-
-      toast({
-        title: "Export failed",
-        description: errorMessage,
-        variant: "destructive",
-      })
+      await exportService.exportAnalytics('farmer', timeRange, exportFormat)
     } finally {
       setIsExporting(false)
     }
@@ -535,7 +504,7 @@ export function FarmerAnalytics() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
             <div className="p-2 bg-green-50 rounded-full">
-              <DollarSign className="h-4 w-4 text-green-600" />
+              <Banknote className="h-4 w-4 text-green-600" />
             </div>
           </CardHeader>
           <CardContent>

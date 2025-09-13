@@ -40,7 +40,7 @@ interface Farmer {
   location: string
   status: 'active' | 'inactive' | 'suspended'
   joinedAt: Date
-  lastActivity: Date
+  lastActivity?: Date
   totalHarvests: number
   totalEarnings: number
   partner: string

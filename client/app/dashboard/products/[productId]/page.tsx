@@ -104,7 +104,7 @@ export default function ProductDetailPage() {
 
       // The API response structure might be different
       // Let's check both response.data and response.data.data
-      const productData = response.data?.data || response.data
+      const productData = (response.data as any)?.data || response.data
 
       if (productData && productData._id) {
         console.log('✅ Product found:', productData.cropName || productData.name)
@@ -119,12 +119,12 @@ export default function ProductDetailPage() {
 
           // Handle the new API response structure: { status: 'success', data: { favorites: [...] } }
           let favoritesData = []
-          if (userFavorites.data?.favorites) {
-            favoritesData = userFavorites.data.favorites
+          if ((userFavorites.data as any)?.favorites) {
+            favoritesData = (userFavorites.data as any).favorites
           } else if (Array.isArray(userFavorites.data)) {
             favoritesData = userFavorites.data
-          } else if (userFavorites.favorites) {
-            favoritesData = userFavorites.favorites
+          } else if ((userFavorites as any).favorites) {
+            favoritesData = (userFavorites as any).favorites
           }
           
           console.log('📋 Product detail: Favorites data structure:', favoritesData)
@@ -144,7 +144,7 @@ export default function ProductDetailPage() {
           }
         } catch (favError) {
           console.error('❌ Product detail: Could not fetch favorites:', favError)
-          console.error('Error details:', favError.response?.data || favError.message)
+          console.error('Error details:', (favError as any)?.response?.data || (favError as any)?.message)
           // Don't show error for favorites - it's not critical functionality
           setIsFavorite(false)
         }
@@ -352,7 +352,7 @@ export default function ProductDetailPage() {
               <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                 <Image
                   src={(product.images && product.images.length > 0) ? product.images[selectedImage] : "/placeholder.svg"}
-                  alt={product.cropName}
+                  alt={product.cropName || product.name || 'Product'}
                   fill
                   className="object-cover"
                   priority
@@ -490,7 +490,7 @@ export default function ProductDetailPage() {
                       variant="ghost"
                       size="sm"
                       onClick={incrementQuantity}
-                      disabled={quantity >= product.availableQuantity}
+                      disabled={quantity >= (product.availableQuantity || 0)}
                     >
                       <Plus className="h-4 w-4" />
                     </Button>

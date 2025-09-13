@@ -618,22 +618,70 @@ router.get('/recent-activities', authenticate, async (req, res) => {
     // Get recent orders for buyers
     if (userRole === 'buyer') {
       const Order = require('../models/order.model')
+      const Favorite = require('../models/favorite.model')
+      
+      // Get recent orders
       const recentOrders = await Order.find({ buyer: userId })
         .sort({ createdAt: -1 })
-        .limit(limit)
+        .limit(Math.ceil(limit * 0.7)) // 70% of activities from orders
         .populate('buyer', 'name')
+        .populate('items.listing', 'cropName')
 
-      activities = recentOrders.map(order => ({
-        _id: order._id,
-        type: 'order',
-        description: `Order #${order._id.toString().slice(-6)} placed`,
-        timestamp: order.createdAt,
-        user: order.buyer?.name || 'You',
+      // Get recent favorites
+      const recentFavorites = await Favorite.find({ user: userId })
+        .sort({ createdAt: -1 })
+        .limit(Math.ceil(limit * 0.3)) // 30% of activities from favorites
+        .populate('listing', 'cropName')
+        .populate('user', 'name')
+
+      // Map orders to activities
+      const orderActivities = recentOrders.map(order => {
+        const totalAmount = order.totalAmount || order.total || 0
+        const orderNumber = order.orderNumber || order._id.toString().slice(-6)
+        
+        let description = ''
+        if (order.items && order.items.length > 0) {
+          const firstItem = order.items[0]
+          const cropName = firstItem.listing?.cropName || 'product'
+          description = `Order #${orderNumber} for ${cropName}`
+          if (order.items.length > 1) {
+            description += ` and ${order.items.length - 1} other item${order.items.length > 2 ? 's' : ''}`
+          }
+        } else {
+          description = `Order #${orderNumber} placed`
+        }
+
+        return {
+          _id: order._id,
+          type: 'order',
+          description: description,
+          timestamp: order.createdAt,
+          user: 'You',
+          metadata: {
+            amount: totalAmount,
+            status: order.status,
+            orderNumber: orderNumber
+          }
+        }
+      })
+
+      // Map favorites to activities
+      const favoriteActivities = recentFavorites.map(favorite => ({
+        _id: favorite._id,
+        type: 'favorite',
+        description: `Added ${favorite.listing?.cropName || 'product'} to favorites`,
+        timestamp: favorite.createdAt,
+        user: 'You',
         metadata: {
-          amount: order.totalAmount,
-          status: order.status
+          listingId: favorite.listing?._id,
+          cropName: favorite.listing?.cropName
         }
       }))
+
+      // Combine and sort activities by timestamp
+      activities = [...orderActivities, ...favoriteActivities]
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, limit)
     }
 
     // Get recent activities for partners

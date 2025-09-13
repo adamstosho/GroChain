@@ -317,6 +317,217 @@ class ExportImportService {
     }
   }
 
+  // Export buyer-specific data
+  async exportBuyerData(userId, filters = {}, format = 'csv', options = {}) {
+    try {
+      const Order = require('../models/order.model')
+      const Payment = require('../models/payment.model')
+      
+      // Get buyer's orders
+      const orders = await Order.find({ buyer: userId })
+        .populate('items.listing', 'cropName price')
+        .sort({ createdAt: -1 })
+        .lean()
+
+      // Get buyer's payments
+      const payments = await Payment.find({ userId })
+        .sort({ createdAt: -1 })
+        .lean()
+
+      // Create flat array for CSV export
+      const exportData = []
+      
+      // Add orders data
+      orders.forEach(order => {
+        exportData.push({
+          type: 'order',
+          id: order._id,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          paymentStatus: order.paymentStatus,
+          totalAmount: order.total,
+          itemCount: order.items.length,
+          createdAt: order.createdAt,
+          // Flatten items for better CSV structure
+          items: order.items.map(item => ({
+            cropName: item.listing?.cropName || 'Unknown',
+            quantity: item.quantity,
+            price: item.price,
+            total: item.total
+          }))
+        })
+      })
+
+      // Add payments data
+      payments.forEach(payment => {
+        exportData.push({
+          type: 'payment',
+          id: payment._id,
+          amount: payment.amount,
+          currency: payment.currency,
+          status: payment.status,
+          method: payment.paymentMethod,
+          reference: payment.reference,
+          createdAt: payment.createdAt
+        })
+      })
+
+      // Add summary data
+      const totalOrders = orders.length
+      const totalSpent = orders.reduce((sum, order) => sum + (order.total || 0), 0)
+      const totalPayments = payments.length
+      const averageOrderValue = totalOrders > 0 ? totalSpent / totalOrders : 0
+
+      exportData.push({
+        type: 'summary',
+        totalOrders,
+        totalSpent,
+        totalPayments,
+        averageOrderValue,
+        generatedAt: new Date().toISOString()
+      })
+
+      return await this.exportData(exportData, { format, ...options })
+    } catch (error) {
+      console.error('Export buyer data error:', error)
+      throw error
+    }
+  }
+
+  // Export farmer-specific data
+  async exportFarmerData(userId, filters = {}, format = 'csv', options = {}) {
+    try {
+      const Harvest = require('../models/harvest.model')
+      const Listing = require('../models/listing.model')
+      
+      // Get farmer's harvests
+      const harvests = await Harvest.find({ farmer: userId })
+        .sort({ createdAt: -1 })
+        .lean()
+
+      // Get farmer's listings
+      const listings = await Listing.find({ farmer: userId })
+        .sort({ createdAt: -1 })
+        .lean()
+
+      // Create flat array for CSV export
+      const exportData = []
+      
+      // Add harvests data
+      harvests.forEach(harvest => {
+        exportData.push({
+          type: 'harvest',
+          id: harvest._id,
+          cropType: harvest.cropType,
+          quantity: harvest.quantity,
+          unit: harvest.unit,
+          quality: harvest.quality,
+          status: harvest.status,
+          location: harvest.location,
+          createdAt: harvest.createdAt
+        })
+      })
+
+      // Add listings data
+      listings.forEach(listing => {
+        exportData.push({
+          type: 'listing',
+          id: listing._id,
+          cropName: listing.cropName,
+          price: listing.price,
+          quantity: listing.quantity,
+          unit: listing.unit,
+          status: listing.status,
+          createdAt: listing.createdAt
+        })
+      })
+
+      // Add summary data
+      const totalHarvests = harvests.length
+      const totalListings = listings.length
+      const totalRevenue = listings.reduce((sum, listing) => sum + (listing.price || 0), 0)
+
+      exportData.push({
+        type: 'summary',
+        totalHarvests,
+        totalListings,
+        totalRevenue,
+        generatedAt: new Date().toISOString()
+      })
+
+      return await this.exportData(exportData, { format, ...options })
+    } catch (error) {
+      console.error('Export farmer data error:', error)
+      throw error
+    }
+  }
+
+  // Export partner-specific data
+  async exportPartnerData(userId, filters = {}, format = 'csv', options = {}) {
+    try {
+      const User = require('../models/user.model')
+      const Commission = require('../models/commission.model')
+      
+      // Get partner's farmers
+      const farmers = await User.find({ partner: userId })
+        .select('name email phone location createdAt')
+        .lean()
+
+      // Get partner's commissions
+      const commissions = await Commission.find({ partner: userId })
+        .populate('order', 'orderNumber total')
+        .sort({ createdAt: -1 })
+        .lean()
+
+      // Create flat array for CSV export
+      const exportData = []
+      
+      // Add farmers data
+      farmers.forEach(farmer => {
+        exportData.push({
+          type: 'farmer',
+          id: farmer._id,
+          name: farmer.name,
+          email: farmer.email,
+          phone: farmer.phone,
+          location: farmer.location,
+          joinedDate: farmer.createdAt
+        })
+      })
+
+      // Add commissions data
+      commissions.forEach(commission => {
+        exportData.push({
+          type: 'commission',
+          id: commission._id,
+          amount: commission.amount,
+          status: commission.status,
+          orderNumber: commission.order?.orderNumber,
+          orderTotal: commission.order?.total,
+          createdAt: commission.createdAt
+        })
+      })
+
+      // Add summary data
+      const totalFarmers = farmers.length
+      const totalCommissions = commissions.length
+      const totalEarned = commissions.reduce((sum, commission) => sum + (commission.amount || 0), 0)
+
+      exportData.push({
+        type: 'summary',
+        totalFarmers,
+        totalCommissions,
+        totalEarned,
+        generatedAt: new Date().toISOString()
+      })
+
+      return await this.exportData(exportData, { format, ...options })
+    } catch (error) {
+      console.error('Export partner data error:', error)
+      throw error
+    }
+  }
+
   // Export to CSV format
   async exportToCSV(data, filename, includeHeaders = true) {
     try {
@@ -325,7 +536,10 @@ class ExportImportService {
       }
 
       const filePath = path.join(this.exportDir, filename)
-      const headers = Object.keys(data[0])
+      
+      // Flatten complex objects for CSV export
+      const flattenedData = data.map(item => this.flattenObject(item))
+      const headers = Object.keys(flattenedData[0])
 
       const csvWriter = createCsvWriter({
         path: filePath,
@@ -335,7 +549,7 @@ class ExportImportService {
         }))
       })
 
-      await csvWriter.writeRecords(data)
+      await csvWriter.writeRecords(flattenedData)
 
       const stats = await fs.stat(filePath)
       return {
@@ -346,6 +560,30 @@ class ExportImportService {
       console.error('CSV export error:', error)
       throw error
     }
+  }
+
+  // Helper method to flatten objects for CSV export
+  flattenObject(obj, prefix = '') {
+    const flattened = {}
+    
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const newKey = prefix ? `${prefix}_${key}` : key
+        
+        if (obj[key] !== null && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+          // Recursively flatten nested objects
+          Object.assign(flattened, this.flattenObject(obj[key], newKey))
+        } else if (Array.isArray(obj[key])) {
+          // Convert arrays to JSON strings for CSV
+          flattened[newKey] = JSON.stringify(obj[key])
+        } else {
+          // Keep primitive values as is
+          flattened[newKey] = obj[key]
+        }
+      }
+    }
+    
+    return flattened
   }
 
   // Export to Excel format
@@ -359,9 +597,12 @@ class ExportImportService {
       const workbook = new ExcelJS.Workbook()
       const worksheet = workbook.addWorksheet('Data')
 
+      // Flatten complex objects for Excel export
+      const flattenedData = data.map(item => this.flattenObject(item))
+
       // Add headers
-      if (includeHeaders && data.length > 0) {
-        const headers = Object.keys(data[0])
+      if (includeHeaders && flattenedData.length > 0) {
+        const headers = Object.keys(flattenedData[0])
         worksheet.addRow(headers)
         
         // Style headers
@@ -375,7 +616,7 @@ class ExportImportService {
       }
 
       // Add data rows
-      data.forEach(row => {
+      flattenedData.forEach(row => {
         const values = Object.values(row)
         worksheet.addRow(values)
       })

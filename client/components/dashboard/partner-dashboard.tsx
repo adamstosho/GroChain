@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,7 +10,8 @@ import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 import { api } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
-import { Users, Shield, TrendingUp, DollarSign, UserPlus, FileCheck, BarChart3, Upload, RefreshCw, AlertCircle } from "lucide-react"
+import { useDashboardRefresh } from "@/hooks/use-dashboard-refresh"
+import { Users, Shield, TrendingUp, Banknote, UserPlus, FileCheck, BarChart3, Upload, RefreshCw, AlertCircle } from "lucide-react"
 import Link from "next/link"
 
 export function PartnerDashboard() {
@@ -22,19 +23,18 @@ export function PartnerDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [usingFallbackData, setUsingFallbackData] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const { toast } = useToast()
 
   // Fetch REAL DATABASE DATA ONLY - No fallback/demo data
-  const fetchDashboardData = async (showRefreshIndicator = false) => {
+  const fetchDashboardData = useCallback(async (reason: string = 'manual') => {
     try {
-      if (showRefreshIndicator) {
+      if (reason === 'manual') {
         setIsRefreshing(true)
       } else {
         setIsLoading(true)
       }
       setError(null)
-      setUsingFallbackData(false)
 
       // Fetch all data in parallel for better performance
       const [
@@ -90,12 +90,14 @@ export function PartnerDashboard() {
       }
 
       // Show success message on manual refresh
-      if (showRefreshIndicator) {
+      if (reason === 'manual') {
         toast({
           title: "Dashboard Updated",
           description: "Real data has been refreshed from the database.",
         })
       }
+
+      setLastUpdated(new Date())
 
     } catch (error: any) {
       console.error('Dashboard fetch error:', error)
@@ -110,22 +112,20 @@ export function PartnerDashboard() {
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }
+  }, [toast])
 
-  // Auto-refresh data every 5 minutes
+  // Smart event-driven refresh system
+  const { refresh } = useDashboardRefresh({
+    onRefresh: fetchDashboardData
+  })
+
   useEffect(() => {
     fetchDashboardData()
-
-    const interval = setInterval(() => {
-      fetchDashboardData()
-    }, 5 * 60 * 1000) // 5 minutes
-
-    return () => clearInterval(interval)
-  }, [])
+  }, [fetchDashboardData])
 
   // Manual refresh handler
   const handleRefresh = () => {
-    fetchDashboardData(true)
+    fetchDashboardData('manual')
   }
 
   const quickActions = [
@@ -327,7 +327,13 @@ export function PartnerDashboard() {
             </div>
           )}
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex items-center gap-3">
+          {lastUpdated && (
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </div>
+          )}
           <Button onClick={handleRefresh} disabled={isRefreshing} size="sm" className="w-full sm:w-auto">
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
@@ -362,7 +368,7 @@ export function PartnerDashboard() {
           title="Commission Earned"
           value={`₦${(commissionData?.summary?.thisMonth || 0).toLocaleString()}`}
           description="This month"
-          icon={DollarSign}
+          icon={Banknote}
           trend={{
             value: commissionData?.summary?.thisMonth ?
               Math.round((commissionData.summary.thisMonth / Math.max(commissionData.summary.totalEarned || commissionData.summary.thisMonth, 1)) * 100) : 0,
@@ -558,7 +564,7 @@ export function PartnerDashboard() {
                 </div>
               ) : (
                 <div className="text-center py-6 sm:py-8">
-                  <DollarSign className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+                  <Banknote className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground text-sm">Unable to load commission data</p>
                 </div>
               )}

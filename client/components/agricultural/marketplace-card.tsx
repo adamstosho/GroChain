@@ -183,7 +183,7 @@ export function MarketplaceCard({
                 className="w-full h-20 object-cover rounded-lg"
               />
               {product.organic && (
-                <Badge className="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 bg-green-600 text-white">
+                <Badge className="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 bg-primary text-primary-foreground">
                   Organic
                 </Badge>
               )}
@@ -214,7 +214,7 @@ export function MarketplaceCard({
               {/* Price and Action */}
               <div className="flex items-center justify-between pt-2 border-t">
                 <div className="flex flex-col">
-                  <span className="text-sm font-bold text-green-600">₦{product.price.toLocaleString()}</span>
+                  <span className="text-sm font-bold text-primary">₦{product.price.toLocaleString()}</span>
                   <span className="text-[10px] text-muted-foreground">per {product.unit}</span>
                 </div>
                 {product.availableQuantity <= 0 ? (
@@ -228,7 +228,7 @@ export function MarketplaceCard({
                 ) : (
                   <Button
                     size="sm"
-                    className="h-7 w-7 p-0 bg-green-600 hover:bg-green-700 flex-shrink-0"
+                    className="h-7 w-7 p-0 bg-primary hover:bg-primary/90 flex-shrink-0"
                     onClick={handleAddToCart}
                   >
                     <ShoppingCart className="h-3 w-3" />
@@ -258,7 +258,7 @@ export function MarketplaceCard({
             Grade {product.grade}
           </Badge>
           {product.organic && (
-            <Badge className="bg-green-600 text-white text-xs px-2 py-1">
+            <Badge className="bg-primary text-primary-foreground text-xs px-2 py-1">
               <Leaf className="h-3 w-3 mr-1" />
               Organic
             </Badge>
@@ -289,7 +289,7 @@ export function MarketplaceCard({
         {/* Price */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
-            <span className="text-lg font-bold text-green-600">
+            <span className="text-lg font-bold text-primary">
               ₦{product.price.toLocaleString()}
             </span>
             <span className="text-xs text-muted-foreground">/{product.unit}</span>
@@ -316,7 +316,7 @@ export function MarketplaceCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Avatar className="h-6 w-6">
-              <AvatarFallback className="bg-green-100 text-green-700 text-xs">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs">
                 {typeof product.farmer.name === 'string' ? product.farmer.name.charAt(0) : 'U'}
               </AvatarFallback>
             </Avatar>
@@ -326,7 +326,7 @@ export function MarketplaceCard({
                   {typeof product.farmer.name === 'string' ? product.farmer.name : 'Unknown Farmer'}
                 </span>
                 {product.farmer.verified && typeof product.farmer.verified === 'boolean' && (
-                  <Shield className="h-3 w-3 text-green-600 flex-shrink-0" />
+                  <Shield className="h-3 w-3 text-primary flex-shrink-0" />
                 )}
               </div>
             </div>
@@ -361,7 +361,7 @@ export function MarketplaceCard({
               Out of Stock
             </Button>
           ) : (
-            <Button size="sm" className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700" onClick={handleAddToCart}>
+            <Button size="sm" className="flex-1 h-8 text-xs bg-primary hover:bg-primary/90" onClick={handleAddToCart}>
               <ShoppingCart className="h-3 w-3 mr-1" />
               Add to Cart
             </Button>

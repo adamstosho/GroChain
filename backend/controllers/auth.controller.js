@@ -1,16 +1,19 @@
 const Joi = require('joi')
 const User = require('../models/user.model')
+const SMSVerification = require('../models/sms-verification.model')
 const { signAccess, signRefresh, verifyRefresh } = require('../utils/jwt')
 const nodemailer = require('nodemailer')
+const SMSUtil = require('../utils/sms.util')
 // crypto is built-in to Node.js, no need to require it
 
 const registerSchema = Joi.object({
   name: Joi.string().required(),
   email: Joi.string().email().required(),
-  phone: Joi.string().optional(),
+  phone: Joi.string().required(),
   password: Joi.string().min(8).required(),
   role: Joi.string().valid('admin','partner','farmer','buyer').default('farmer'),
   location: Joi.string().optional(),
+  smsCode: Joi.string().length(6).optional(),
 }).unknown(true)
 
 const tempTokens = new Map()
@@ -164,7 +167,43 @@ exports.register = async (req, res) => {
     const exists = await User.findOne({ email: value.email })
     if (exists) return res.status(409).json({ status: 'error', message: 'Email already exists' })
     
-    const user = await User.create(value)
+    // Check if phone already exists
+    const phoneExists = await User.findOne({ phone: value.phone })
+    if (phoneExists) return res.status(409).json({ status: 'error', message: 'Phone number already exists' })
+    
+    // If SMS code is provided, verify it first
+    if (value.smsCode) {
+      const smsVerification = await SMSVerification.findOne({
+        phone: value.phone,
+        purpose: 'registration',
+        verified: false
+      }).sort({ createdAt: -1 })
+      
+      if (!smsVerification) {
+        return res.status(400).json({ 
+          status: 'error', 
+          message: 'No SMS verification code found for this phone number. Please request a new code.' 
+        })
+      }
+      
+      try {
+        await smsVerification.verifyCode(value.smsCode)
+      } catch (verifyError) {
+        return res.status(400).json({ 
+          status: 'error', 
+          message: verifyError.message 
+        })
+      }
+    }
+    
+    // Create user with phone verification status
+    const userData = {
+      ...value,
+      phoneVerified: !!value.smsCode
+    }
+    delete userData.smsCode // Remove SMS code from user data
+    
+    const user = await User.create(userData)
     const token = require('crypto').randomBytes(32).toString('hex')
     tempTokens.set(token, { id: user._id, email: user.email, exp: Date.now() + 1000 * 60 * 60 })
     
@@ -200,7 +239,14 @@ exports.register = async (req, res) => {
       status: 'success', 
       message: 'Registration successful! Please check your email to verify your account.',
       requiresVerification: true,
-      user: { _id: user._id, email: user.email, role: user.role, emailVerified: false } 
+      user: { 
+        _id: user._id, 
+        email: user.email, 
+        phone: user.phone,
+        role: user.role, 
+        emailVerified: false,
+        phoneVerified: user.phoneVerified || false
+      } 
     })
   } catch (e) {
     console.error('Registration error:', e)
@@ -269,33 +315,137 @@ exports.verifyEmailGet = async (req, res) => {
 
 exports.sendSmsOtp = async (req, res) => {
   try {
-    const { phone } = req.body || {}
-    if (!phone) return res.status(400).json({ status: 'error', message: 'Phone required' })
-    const code = (Math.floor(100000 + Math.random() * 900000)).toString()
-    tempSmsOtps.set(phone, { code, exp: Date.now() + 5 * 60 * 1000, attempts: 0 })
-    const sms = require('../utils/sms.util')
-    await sms.sendSMS(phone, `Your GroChain verification code is ${code}`)
-    return res.json({ status: 'success', message: 'OTP sent' })
+    const { phone, purpose = 'registration' } = req.body || {}
+    if (!phone) return res.status(400).json({ status: 'error', message: 'Phone number required' })
+    
+    // Validate phone number format
+    const smsUtil = new SMSUtil()
+    const validatedPhone = smsUtil.validatePhoneNumber(phone)
+    if (!validatedPhone) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'Invalid phone number format. Please use a valid Nigerian phone number.' 
+      })
+    }
+    
+    // Check if phone is already verified for this purpose
+    const isVerified = await SMSVerification.isPhoneVerified(validatedPhone, purpose)
+    if (isVerified) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'Phone number already verified for this purpose' 
+      })
+    }
+    
+    // Check verification status
+    const status = await SMSVerification.getVerificationStatus(validatedPhone, purpose)
+    if (status.status === 'blocked') {
+      return res.status(429).json({ 
+        status: 'error', 
+        message: status.message 
+      })
+    }
+    
+    // Create new verification record
+    const verification = await SMSVerification.createVerification(validatedPhone, purpose, null, req)
+    
+    // Send SMS
+    const smsMessage = `Your GroChain verification code is: ${verification.code}. Valid for 10 minutes. Do not share this code with anyone.`
+    
+    try {
+      const smsResult = await smsUtil.sendSMS(validatedPhone, smsMessage, {
+        type: 'verification',
+        priority: 'high'
+      })
+      
+      if (!smsResult.success) {
+        throw new Error(smsResult.message || 'Failed to send SMS')
+      }
+      
+      return res.json({ 
+        status: 'success', 
+        message: 'Verification code sent successfully',
+        data: {
+          phone: validatedPhone,
+          expiresAt: verification.expiresAt,
+          attempts: verification.attempts
+        }
+      })
+    } catch (smsError) {
+      // Clean up verification record if SMS fails
+      await SMSVerification.findByIdAndDelete(verification._id)
+      throw smsError
+    }
   } catch (e) {
-    return res.status(500).json({ status: 'error', message: 'Server error' })
+    console.error('Send SMS OTP error:', e)
+    return res.status(500).json({ 
+      status: 'error', 
+      message: e.message || 'Failed to send verification code' 
+    })
   }
 }
 
 exports.verifySmsOtp = async (req, res) => {
   try {
-    const { phone, code } = req.body || {}
-    if (!phone || !code) return res.status(400).json({ status: 'error', message: 'Phone and code required' })
-    const entry = tempSmsOtps.get(phone)
-    if (!entry) return res.status(400).json({ status: 'error', message: 'OTP not found' })
-    if (entry.exp < Date.now()) return res.status(400).json({ status: 'error', message: 'OTP expired' })
-    entry.attempts += 1
-    if (entry.attempts > 5) return res.status(429).json({ status: 'error', message: 'Too many attempts' })
-    if (entry.code !== code) return res.status(400).json({ status: 'error', message: 'Invalid code' })
-    await User.findOneAndUpdate({ phone }, { phoneVerified: true })
-    tempSmsOtps.delete(phone)
-    return res.json({ status: 'success', message: 'Phone verified' })
+    const { phone, code, purpose = 'registration' } = req.body || {}
+    if (!phone || !code) return res.status(400).json({ 
+      status: 'error', 
+      message: 'Phone number and verification code required' 
+    })
+    
+    // Validate phone number format
+    const smsUtil = new SMSUtil()
+    const validatedPhone = smsUtil.validatePhoneNumber(phone)
+    if (!validatedPhone) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'Invalid phone number format' 
+      })
+    }
+    
+    // Find verification record
+    const verification = await SMSVerification.findOne({
+      phone: validatedPhone,
+      purpose,
+      verified: false
+    }).sort({ createdAt: -1 })
+    
+    if (!verification) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'No verification code found for this phone number' 
+      })
+    }
+    
+    // Verify the code
+    try {
+      await verification.verifyCode(code)
+      
+      // If this is for an existing user (login, password reset, etc.)
+      if (verification.userId) {
+        await User.findByIdAndUpdate(verification.userId, { phoneVerified: true })
+      }
+      
+      return res.json({ 
+        status: 'success', 
+        message: 'Phone number verified successfully',
+        data: {
+          phone: validatedPhone,
+          verifiedAt: verification.verifiedAt
+        }
+      })
+    } catch (verifyError) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: verifyError.message 
+      })
+    }
   } catch (e) {
-    return res.status(500).json({ status: 'error', message: 'Server error' })
+    console.error('Verify SMS OTP error:', e)
+    return res.status(500).json({ 
+      status: 'error', 
+      message: e.message || 'Failed to verify code' 
+    })
   }
 }
 

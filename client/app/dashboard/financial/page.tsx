@@ -13,7 +13,7 @@ import {
   TrendingUp,
   Shield,
   Target,
-  DollarSign,
+  Banknote,
   PiggyBank,
   Calculator,
   Plus,
@@ -108,22 +108,22 @@ export default function FinancialServicesPage() {
       ])
 
       if (financialResponse.status === 'success' && financialResponse.data) {
-        const data = financialResponse.data
+        const data = financialResponse.data as any
 
         // Transform the data to match frontend interface
         const overviewData: FinancialOverview = {
-          creditScore: data.overview?.creditScore || 0,
-          totalEarnings: farmerAnalytics.data?.totalRevenue || data.overview?.totalEarnings || 0,
-          pendingPayments: data.overview?.pendingPayments || 0,
-          activeLoans: data.overview?.activeLoans || 0,
-          insurancePolicies: data.overview?.insurancePolicies || 0,
-          totalSavings: data.overview?.totalSavings || 0,
-          financialGoals: data.overview?.financialGoals || 0,
-          riskLevel: data.overview?.riskLevel || 'medium'
+          creditScore: data?.overview?.creditScore || 0,
+          totalEarnings: (farmerAnalytics.data as any)?.totalRevenue || data?.overview?.totalEarnings || 0,
+          pendingPayments: data?.overview?.pendingPayments || 0,
+          activeLoans: data?.overview?.activeLoans || 0,
+          insurancePolicies: data?.overview?.insurancePolicies || 0,
+          totalSavings: data?.overview?.totalSavings || 0,
+          financialGoals: data?.overview?.financialGoals || 0,
+          riskLevel: data?.overview?.riskLevel || 'medium'
         }
 
         // Transform transactions
-        const transactionsData: RecentTransaction[] = (data.recentTransactions || []).map((transaction: any) => ({
+        const transactionsData: RecentTransaction[] = (data?.recentTransactions || []).map((transaction: any) => ({
           _id: transaction._id,
           type: transaction.type === 'payment' || transaction.type === 'commission' ? 'income' :
                 transaction.type === 'withdrawal' ? 'expense' : transaction.type,
@@ -134,7 +134,7 @@ export default function FinancialServicesPage() {
         }))
 
         // Transform active loans
-        const loansData: ActiveLoan[] = (data.activeLoans || []).map((loan: any) => ({
+        const loansData: ActiveLoan[] = (data?.activeLoans || []).map((loan: any) => ({
           _id: loan._id,
           amount: loan.amount,
           purpose: loan.purpose,
@@ -147,7 +147,7 @@ export default function FinancialServicesPage() {
         }))
 
         // Transform insurance policies
-        const policiesData: InsurancePolicy[] = (data.insurancePolicies || []).map((policy: any) => ({
+        const policiesData: InsurancePolicy[] = (data?.insurancePolicies || []).map((policy: any) => ({
           _id: policy._id,
           type: policy.type,
           provider: policy.provider,
@@ -205,7 +205,7 @@ export default function FinancialServicesPage() {
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'income': return <TrendingUp className="h-4 w-4 text-emerald-500" />
-      case 'expense': return <DollarSign className="h-4 w-4 text-red-500" />
+      case 'expense': return <Banknote className="h-4 w-4 text-red-500" />
       case 'loan': return <CreditCard className="h-4 w-4 text-blue-500" />
       case 'insurance': return <Shield className="h-4 w-4 text-purple-500" />
       default: return <Activity className="h-4 w-4 text-gray-500" />
@@ -539,7 +539,7 @@ export default function FinancialServicesPage() {
                           View Details
                         </Button>
                         <Button size="sm">
-                          <DollarSign className="h-4 w-4 mr-1" />
+                          <Banknote className="h-4 w-4 mr-1" />
                           Make Payment
                         </Button>
                       </div>

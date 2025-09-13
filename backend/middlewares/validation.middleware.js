@@ -170,7 +170,7 @@ const marketplaceSchemas = {
   createListing: Joi.object({
     harvestId: commonSchemas.id,
     price: Joi.number().positive().required(),
-    currency: Joi.string().valid('NGN', 'USD', 'EUR').default('NGN'),
+    currency: Joi.string().valid('NGN').default('NGN'),
     quantity: Joi.number().positive().required(),
     unit: Joi.string().valid('kg', 'tonnes', 'bags', 'pieces').required(),
     description: Joi.string().max(1000).optional(),
@@ -252,7 +252,7 @@ const orderSchemas = {
 const paymentSchemas = {
   initialize: Joi.object({
     amount: Joi.number().positive().required(),
-    currency: Joi.string().valid('NGN', 'USD', 'EUR').default('NGN'),
+    currency: Joi.string().valid('NGN').default('NGN'),
     paymentMethod: Joi.string().valid('paystack', 'flutterwave', 'card', 'bank_transfer', 'ussd').required(),
     reference: Joi.string().optional(),
     callbackUrl: Joi.string().uri().optional(),

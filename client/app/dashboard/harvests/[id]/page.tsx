@@ -28,10 +28,9 @@ interface HarvestDetail {
   images?: string[]
   qrCode?: string
   qrCodeData?: any
-    organic?: boolean
+  organic?: boolean
   description?: string
   moistureContent?: number
-  price?: number
   agriculturalData?: {
     soilType?: string
     irrigationMethod?: string
@@ -337,7 +336,7 @@ export default function HarvestDetailPage() {
               <label className="text-sm font-medium text-gray-600">Location</label>
               <p className="flex items-center gap-2 mt-1">
                 <MapPin className="h-4 w-4" />
-                {typeof harvest.location === 'string' ? harvest.location : harvest.location ? `${harvest.location.city || 'Unknown'}, ${harvest.location.state || 'Unknown State'}` : 'Location not specified'}
+                {typeof harvest.location === 'string' ? harvest.location : harvest.location ? `${(harvest.location as any)?.city || 'Unknown'}, ${(harvest.location as any)?.state || 'Unknown State'}` : 'Location not specified'}
               </p>
             </div>
 

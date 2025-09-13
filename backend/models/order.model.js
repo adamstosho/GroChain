@@ -27,7 +27,7 @@ const OrderSchema = new mongoose.Schema({
     enum: ['pending', 'paid', 'failed', 'refunded'], 
     default: 'pending' 
   },
-  paymentMethod: { type: String, enum: ['paystack', 'bank_transfer', 'cash'], default: 'paystack' },
+  paymentMethod: { type: String, enum: ['paystack', 'flutterwave', 'card', 'bank_transfer', 'ussd', 'cash'], default: 'paystack' },
   paymentReference: { type: String },
   shippingAddress: {
     street: { type: String, required: true },

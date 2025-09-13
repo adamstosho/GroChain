@@ -251,10 +251,61 @@ class ApiService {
     password: string
     role: string
     location?: string
+    smsCode?: string
   }) {
     return this.request<{ user: User; token: string; refreshToken: string }>("/api/auth/register", {
       method: "POST",
       body: JSON.stringify(userData),
+    })
+  }
+
+  // Weather API methods
+  async getCurrentWeather(lat: number, lng: number, city: string, state: string, country: string = 'Nigeria') {
+    return this.request(`/api/weather/current/${lat},${lng}`, {
+      method: "GET",
+      params: { city, state, country }
+    })
+  }
+
+  async getWeatherForecast(lat: number, lng: number, days: number = 5) {
+    return this.request(`/api/weather/forecast/${lat},${lng}`, {
+      method: "GET",
+      params: { days }
+    })
+  }
+
+  async getWeatherAlerts(lat?: number, lng?: number, severity?: string, type?: string, cropType?: string) {
+    const params: any = {}
+    if (lat && lng) {
+      params.lat = lat
+      params.lng = lng
+    }
+    if (severity) params.severity = severity
+    if (type) params.type = type
+    if (cropType) params.cropType = cropType
+
+    return this.request("/api/weather/alerts", {
+      method: "GET",
+      params
+    })
+  }
+
+  async getAgriculturalInsights(lat: number, lng: number, cropType?: string) {
+    return this.request("/api/weather/agricultural-insights", {
+      method: "GET",
+      params: { lat, lng, cropType }
+    })
+  }
+
+  async subscribeToWeatherAlerts(lat: number, lng: number, alertTypes?: string[], cropTypes?: string[]) {
+    return this.request("/api/weather/subscribe", {
+      method: "POST",
+      body: JSON.stringify({
+        lat,
+        lng,
+        alertTypes: alertTypes || ['weather', 'agricultural'],
+        cropTypes: cropTypes || []
+      })
     })
   }
 
@@ -634,6 +685,10 @@ class ApiService {
     return this.request<Listing>(`/api/marketplace/listings/${id}`)
   }
 
+  async getListingForEdit(id: string) {
+    return this.request<Listing>(`/api/marketplace/listings/${id}/edit`)
+  }
+
   async updateListing(id: string, listingData: Partial<Listing>) {
     return this.request<Listing>(`/api/marketplace/listings/${id}`, {
       method: "PUT",
@@ -652,6 +707,26 @@ class ApiService {
     return this.request<Order>("/api/marketplace/orders", {
       method: "POST",
       body: JSON.stringify(orderData),
+    })
+  }
+
+  async downloadOrderReceipt(orderId: string) {
+    return this.request(`/api/marketplace/orders/${orderId}/receipt`, {
+      method: "GET",
+    })
+  }
+
+  async cancelOrder(orderId: string) {
+    return this.request(`/api/marketplace/orders/${orderId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: 'cancelled' }),
+    })
+  }
+
+  async updateOrderStatus(orderId: string, status: string) {
+    return this.request(`/api/marketplace/orders/${orderId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
     })
   }
 
@@ -685,6 +760,53 @@ class ApiService {
     return this.request(`/api/marketplace/listings/${id}/unpublish`, {
       method: 'PATCH'
     })
+  }
+
+  // Review Management
+  async getListingReviews(listingId: string, params?: Record<string, any>) {
+    const queryString = new URLSearchParams(params).toString()
+    return this.request(`/api/reviews/listings/${listingId}?${queryString}`)
+  }
+
+  async createReview(listingId: string, reviewData: {
+    rating: number
+    comment?: string
+    images?: string[]
+    orderId?: string
+  }) {
+    return this.request(`/api/reviews/listings/${listingId}`, {
+      method: 'POST',
+      body: JSON.stringify(reviewData)
+    })
+  }
+
+  async updateReview(reviewId: string, reviewData: {
+    rating?: number
+    comment?: string
+    images?: string[]
+  }) {
+    return this.request(`/api/reviews/${reviewId}`, {
+      method: 'PUT',
+      body: JSON.stringify(reviewData)
+    })
+  }
+
+  async deleteReview(reviewId: string) {
+    return this.request(`/api/reviews/${reviewId}`, {
+      method: 'DELETE'
+    })
+  }
+
+  async respondToReview(reviewId: string, response: string) {
+    return this.request(`/api/reviews/${reviewId}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ comment: response })
+    })
+  }
+
+  async getFarmerReviews(params?: Record<string, any>) {
+    const queryString = new URLSearchParams(params).toString()
+    return this.request(`/api/reviews/farmer?${queryString}`)
   }
 
 
@@ -1120,6 +1242,21 @@ class ApiService {
     } catch (error) {
       throw error
     }
+  }
+
+  // Farmer-specific marketplace data
+  async getFarmerListings(params?: Record<string, any>) {
+    const queryString = new URLSearchParams(params).toString()
+    return this.request(`/api/farmers/listings?${queryString}`)
+  }
+
+  async getFarmerOrders(params?: Record<string, any>) {
+    const queryString = new URLSearchParams(params).toString()
+    return this.request(`/api/farmers/orders?${queryString}`)
+  }
+
+  async getFarmerDashboard() {
+    return this.request('/api/farmers/dashboard')
   }
 
   // Partner Dashboard Methods

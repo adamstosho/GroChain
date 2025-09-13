@@ -19,7 +19,7 @@ import {
   Search,
   Filter,
   Calendar,
-  DollarSign,
+  Banknote,
   AlertTriangle,
   CheckCircle,
   Clock,
@@ -124,7 +124,9 @@ const statusColors = {
   expired: 'bg-red-100 text-red-800 border-red-200',
   pending: 'bg-amber-100 text-amber-800 border-amber-200',
   cancelled: 'bg-gray-100 text-gray-800 border-gray-200',
-  claimed: 'bg-blue-100 text-blue-800 border-blue-200'
+  claimed: 'bg-blue-100 text-blue-800 border-blue-200',
+  approved: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  rejected: 'bg-red-100 text-red-800 border-red-200'
 }
 
 export default function InsurancePoliciesPage() {
@@ -155,7 +157,7 @@ export default function InsurancePoliciesPage() {
       ])
 
       if (policiesResponse.status === 'success' && policiesResponse.data) {
-        const policiesData = policiesResponse.data.policies || []
+        const policiesData = (policiesResponse.data as any)?.policies || []
 
         // Transform backend data to match frontend interface
         const transformedPolicies: InsurancePolicy[] = policiesData.map((policy: any) => ({
@@ -248,8 +250,8 @@ export default function InsurancePoliciesPage() {
       } else {
         // Fallback to dashboard data if insurance policies API fails
         if (dashboardResponse.status === 'success' && dashboardResponse.data) {
-          const dashboardData = dashboardResponse.data
-          const insurancePolicies = dashboardData.insurancePolicies || []
+          const dashboardData = dashboardResponse.data as any
+          const insurancePolicies = dashboardData?.insurancePolicies || []
 
           const transformedPolicies: InsurancePolicy[] = insurancePolicies.map((policy: any) => ({
             id: policy._id,
@@ -646,7 +648,7 @@ export default function InsurancePoliciesPage() {
                       {policy.riskFactors.slice(0, 3).map((risk, index) => (
                         <div key={index} className="flex items-center justify-between">
                           <span className="text-xs text-gray-600">{risk.factor}</span>
-                          <Badge className={riskLevelColors[risk.level]} variant="outline" size="sm">
+                          <Badge className={riskLevelColors[risk.level]} variant="outline">
                             {risk.level}
                           </Badge>
                         </div>

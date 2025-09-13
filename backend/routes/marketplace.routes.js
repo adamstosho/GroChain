@@ -422,10 +422,21 @@ router.post('/orders', authenticate, authorize('buyer','farmer','partner','admin
     const tax = Math.round(subtotal * 0.075) // 7.5% VAT
     const total = subtotal + shipping + tax
 
+    // Get seller from the first listing
+    const seller = items[0]?.listing ? await getSellerFromListing(items[0].listing) : null
+    
+    // Validate that we have a seller
+    if (!seller) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'Unable to determine seller from listing. Please ensure the listing exists and has a valid farmer.' 
+      })
+    }
+
     // Prepare order data
     const orderData = {
       buyer: req.user.id,
-      seller: items[0]?.listing ? await getSellerFromListing(items[0].listing) : null,
+      seller: seller,
       items: items.map(item => ({
         listing: item.listing,
         quantity: Number(item.quantity),
@@ -459,14 +470,14 @@ router.post('/orders', authenticate, authorize('buyer','farmer','partner','admin
     const populatedOrder = await Order.findById(order._id)
       .populate({
         path: 'buyer',
-        select: 'name email profile.phone'
+        select: 'name email phone profile.phone'
       })
       .populate({
         path: 'items.listing',
         select: 'cropName images farmer',
         populate: {
           path: 'farmer',
-          select: 'name email profile.phone profile.farmName'
+          select: 'name email phone location profile.phone profile.farmName'
         }
       })
 
@@ -515,14 +526,14 @@ router.get('/orders', authenticate, async (req, res) => {
     const orders = await Order.find(filter)
       .populate({
         path: 'buyer',
-        select: 'name email profile.phone profile.avatar'
+        select: 'name email phone profile.phone profile.avatar'
       })
       .populate({
         path: 'items.listing',
         select: 'cropName images farmer category unit',
         populate: {
           path: 'farmer',
-          select: 'name email profile.phone profile.farmName'
+          select: 'name email phone location profile.phone profile.farmName'
         }
       })
       .sort({ createdAt: -1 })
@@ -667,6 +678,118 @@ router.get('/orders/:id', authenticate, async (req, res) => {
   return res.json({ status: 'success', data: order })
 })
 
+// Download order receipt
+router.get('/orders/:id/receipt', authenticate, async (req, res) => {
+  try {
+    console.log('📄 Generating receipt for order:', req.params.id)
+    
+    const order = await Order.findById(req.params.id)
+      .populate({
+        path: 'buyer',
+        select: 'name email phone profile.phone'
+      })
+      .populate({
+        path: 'items.listing',
+        select: 'cropName images farmer',
+        populate: {
+          path: 'farmer',
+          select: 'name email phone location profile.phone profile.farmName'
+        }
+      })
+
+    if (!order) {
+      console.log('❌ Order not found:', req.params.id)
+      return res.status(404).json({ status: 'error', message: 'Order not found' })
+    }
+
+    console.log('✅ Order found:', {
+      orderId: order._id,
+      buyerId: order.buyer._id,
+      userId: req.user.id,
+      orderNumber: order.orderNumber
+    })
+
+    // Debug farmer data
+    if (order.items && order.items.length > 0) {
+      console.log('🔍 Farmer data debug:', {
+        farmerName: order.items[0].listing?.farmer?.name,
+        farmerPhone: order.items[0].listing?.farmer?.phone,
+        farmerProfilePhone: order.items[0].listing?.farmer?.profile?.phone,
+        farmerLocation: order.items[0].listing?.farmer?.location,
+        farmerProfileFarmName: order.items[0].listing?.farmer?.profile?.farmName,
+        farmerEmail: order.items[0].listing?.farmer?.email
+      })
+    }
+
+    // Check if user has access to this order
+    if (order.buyer._id.toString() !== req.user.id && req.user.role !== 'admin') {
+      console.log('❌ Access denied for order:', req.params.id)
+      return res.status(403).json({ status: 'error', message: 'Forbidden' })
+    }
+
+    // Generate receipt data
+    const receiptData = {
+      orderNumber: order.orderNumber || `ORD-${order._id.toString().slice(-6).toUpperCase()}`,
+      orderDate: new Date(order.createdAt).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }),
+      buyer: {
+        name: order.buyer.name,
+        email: order.buyer.email,
+        phone: order.buyer.phone || order.buyer.profile?.phone || 'Not provided'
+      },
+      items: order.items.map(item => ({
+        cropName: item.listing?.cropName || 'Unknown Product',
+        quantity: item.quantity,
+        unit: item.unit,
+        price: item.price,
+        total: item.total,
+        farmer: {
+          name: item.listing?.farmer?.name || 'Unknown Farmer',
+          farmName: item.listing?.farmer?.profile?.farmName || item.listing?.farmer?.location || 'Farm location not specified',
+          phone: item.listing?.farmer?.phone || item.listing?.farmer?.profile?.phone || 'Not provided',
+          email: item.listing?.farmer?.email || 'Not provided'
+        }
+      })),
+      subtotal: order.subtotal,
+      shipping: order.shipping,
+      tax: order.tax,
+      total: order.total,
+      paymentStatus: order.paymentStatus,
+      status: order.status,
+      shippingAddress: order.shippingAddress,
+      deliveryInstructions: order.deliveryInstructions
+    }
+
+    console.log('✅ Receipt data generated successfully for order:', receiptData.orderNumber)
+
+    // For now, return JSON data that can be used to generate PDF on frontend
+    // In production, you'd use a library like pdfkit or puppeteer
+    res.setHeader('Content-Type', 'application/json')
+    res.setHeader('Content-Disposition', `attachment; filename=receipt-${receiptData.orderNumber}-${Date.now()}.json`)
+    return res.json({
+      status: 'success',
+      data: receiptData,
+      message: 'Receipt data generated successfully'
+    })
+  } catch (error) {
+    console.error('❌ Receipt generation error:', error)
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      orderId: req.params.id,
+      userId: req.user?.id
+    })
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Failed to generate receipt'
+    })
+  }
+})
+
 router.get('/orders/buyer/:buyerId', authenticate, async (req, res) => {
   if (req.user.id !== req.params.buyerId && req.user.role !== 'admin') {
     return res.status(403).json({ status: 'error', message: 'Forbidden' })
@@ -675,18 +798,53 @@ router.get('/orders/buyer/:buyerId', authenticate, async (req, res) => {
   return res.json({ status: 'success', data: orders })
 })
 
-router.patch('/orders/:id/status', authenticate, authorize('admin','farmer','partner'), async (req, res) => {
-  const order = await Order.findById(req.params.id).populate('items.listing', 'farmer')
-  if (!order) return res.status(404).json({ status: 'error', message: 'Order not found' })
-  if (req.user.role === 'farmer') {
-    const hasListing = order.items.some(i => i.listing?.farmer?.toString() === req.user.id)
-    if (!hasListing) return res.status(403).json({ status: 'error', message: 'Forbidden' })
+router.patch('/orders/:id/status', authenticate, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate('items.listing', 'farmer')
+    if (!order) return res.status(404).json({ status: 'error', message: 'Order not found' })
+    
+    const { status } = req.body || {}
+    if (!status) return res.status(400).json({ status: 'error', message: 'status required' })
+    
+    // Check permissions based on user role and status change
+    if (req.user.role === 'farmer') {
+      // Farmers can only update orders for their listings
+      const hasListing = order.items.some(i => i.listing?.farmer?.toString() === req.user.id)
+      if (!hasListing) return res.status(403).json({ status: 'error', message: 'Forbidden' })
+    } else if (req.user.role === 'buyer') {
+      // Buyers can only cancel their own orders (and only if status is pending)
+      if (order.buyer.toString() !== req.user.id) {
+        return res.status(403).json({ status: 'error', message: 'Forbidden' })
+      }
+      if (status === 'cancelled' && order.status !== 'pending') {
+        return res.status(400).json({ 
+          status: 'error', 
+          message: 'Only pending orders can be cancelled' 
+        })
+      }
+      // Buyers can only cancel orders, not change to other statuses
+      if (status !== 'cancelled') {
+        return res.status(403).json({ 
+          status: 'error', 
+          message: 'Buyers can only cancel orders' 
+        })
+      }
+    } else if (req.user.role !== 'admin' && req.user.role !== 'partner') {
+      return res.status(403).json({ status: 'error', message: 'Insufficient permissions' })
+    }
+    
+    // Update order status
+    order.status = status
+    order.updatedAt = new Date()
+    await order.save()
+    
+    console.log(`✅ Order ${order._id} status updated to ${status} by ${req.user.role}`)
+    
+    return res.json({ status: 'success', data: order })
+  } catch (error) {
+    console.error('Error updating order status:', error)
+    return res.status(500).json({ status: 'error', message: 'Failed to update order status' })
   }
-  const { status } = req.body || {}
-  if (!status) return res.status(400).json({ status: 'error', message: 'status required' })
-  order.status = status
-  await order.save()
-  return res.json({ status: 'success', data: order })
 })
 
 router.get('/orders/:id/tracking', authenticate, async (req, res) => {

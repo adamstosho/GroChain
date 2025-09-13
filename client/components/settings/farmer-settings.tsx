@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { apiService } from "@/lib/api"
+import { useExportService } from "@/lib/export-utils"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Save, Bell, Shield, Globe, Lock, Download } from "lucide-react"
 
@@ -47,9 +48,7 @@ const languages = [
 ]
 
 const currencies = [
-  { code: 'NGN', name: 'Nigerian Naira', symbol: '₦' },
-  { code: 'USD', name: 'US Dollar', symbol: '$' },
-  { code: 'EUR', name: 'Euro', symbol: '€' }
+  { code: 'NGN', name: 'Nigerian Naira', symbol: '₦' }
 ]
 
 const timezones = [
@@ -69,6 +68,7 @@ export function FarmerSettings() {
   const [exporting, setExporting] = useState(false)
 
   const { toast } = useToast()
+  const exportService = useExportService()
 
   useEffect(() => {
     fetchSettings()
@@ -214,36 +214,12 @@ export function FarmerSettings() {
   }
 
   const handleExportData = async () => {
+    setExporting(true)
     try {
-      setExporting(true)
-      
-      const response = await apiService.request('/api/export-import/export/custom', {
-        method: 'POST',
-        body: JSON.stringify({
-          format: 'csv',
-          dataType: 'farmer-data'
-        })
-      })
-      
-      if (response.data?.url) {
-        window.open(response.data.url, '_blank')
-        toast({
-          title: "Export Successful!",
-          description: "Your farming data has been exported.",
-        })
-      } else {
-        toast({
-          title: "Export Not Available",
-          description: "Data export feature is coming soon.",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error("Failed to export data:", error)
-      toast({
-        title: "Export Not Available",
-        description: "Data export feature is coming soon.",
-        variant: "destructive"
+      await exportService.exportCustomData([], {
+        format: 'csv',
+        dataType: 'farmer-data',
+        filename: `farming-data-${new Date().toISOString().split('T')[0]}.csv`
       })
     } finally {
       setExporting(false)

@@ -42,7 +42,7 @@ import {
   Calendar,
   Activity,
   TrendingUp,
-  DollarSign,
+  Banknote,
   Package,
   Settings,
   MoreVertical

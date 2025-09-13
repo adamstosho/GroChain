@@ -17,7 +17,7 @@ import {
   XCircle,
   AlertCircle,
   TrendingUp,
-  DollarSign,
+  Banknote,
   Calendar,
   FileText,
   Download,
@@ -110,7 +110,7 @@ export default function LoansPage() {
       ])
 
       if (applicationsResponse.status === 'success' && applicationsResponse.data) {
-        const applicationsData = applicationsResponse.data.applications || []
+        const applicationsData = (applicationsResponse.data as any)?.applications || []
 
         // Transform applications data
         const transformedApplications: LoanApplication[] = applicationsData.map((app: any) => ({
@@ -132,10 +132,10 @@ export default function LoansPage() {
       }
 
       if (financialDashboardResponse.status === 'success' && financialDashboardResponse.data) {
-        const dashboardData = financialDashboardResponse.data
+        const dashboardData = financialDashboardResponse.data as any
 
         // Transform active loans data
-        const transformedActiveLoans: ActiveLoan[] = (dashboardData.activeLoans || []).map((loan: any) => ({
+        const transformedActiveLoans: ActiveLoan[] = (dashboardData?.activeLoans || []).map((loan: any) => ({
           id: loan._id,
           applicationId: loan.applicationId || loan._id,
           amount: loan.amount,
@@ -152,8 +152,8 @@ export default function LoansPage() {
 
         // Calculate stats from real data
         const stats: LoanStats = {
-          totalApplications: applicationsResponse.data?.applications?.length || 0,
-          approvedLoans: applicationsResponse.data?.applications?.filter((app: any) => app.status === 'approved').length || 0,
+          totalApplications: (applicationsResponse.data as any)?.applications?.length || 0,
+          approvedLoans: (applicationsResponse.data as any)?.applications?.filter((app: any) => app.status === 'approved').length || 0,
           totalBorrowed: transformedActiveLoans.reduce((sum, loan) => sum + loan.amount, 0),
           totalRepaid: transformedActiveLoans.reduce((sum, loan) => sum + (loan.amount - loan.remainingBalance), 0),
           activeLoans: transformedActiveLoans.length,
@@ -626,7 +626,7 @@ export default function LoansPage() {
                             View Details
                           </Button>
                           <Button size="sm">
-                            <DollarSign className="h-4 w-4 mr-2" />
+                            <Banknote className="h-4 w-4 mr-2" />
                             Make Payment
                           </Button>
                           <Button variant="outline" size="sm">

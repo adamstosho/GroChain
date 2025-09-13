@@ -77,7 +77,13 @@ app.use(autoVerifyPayments)
 app.use('/uploads', express.static('uploads', {
   setHeaders: (res, path) => {
     // Set comprehensive CORS headers for all static files
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000')
+    const allowedOrigins = process.env.CORS_ORIGIN ? 
+      process.env.CORS_ORIGIN.split(',') : 
+      ['http://localhost:3000']
+    const origin = res.req.headers.origin
+    if (allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range')
     res.setHeader('Access-Control-Allow-Credentials', 'true')
@@ -100,7 +106,13 @@ app.get('/uploads/avatars/*', (req, res) => {
   }
 
   // Set comprehensive CORS headers
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000')
+  const allowedOrigins = process.env.CORS_ORIGIN ? 
+    process.env.CORS_ORIGIN.split(',') : 
+    ['http://localhost:3000']
+  const origin = req.headers.origin
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range')
   res.setHeader('Access-Control-Allow-Credentials', 'true')
@@ -123,7 +135,13 @@ app.get('/uploads/avatars/*', (req, res) => {
 
 // Handle OPTIONS requests for avatar images
 app.options('/uploads/avatars/*', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000')
+  const allowedOrigins = process.env.CORS_ORIGIN ? 
+    process.env.CORS_ORIGIN.split(',') : 
+    ['http://localhost:3000']
+  const origin = req.headers.origin
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range')
   res.setHeader('Access-Control-Allow-Credentials', 'true')
@@ -172,7 +190,10 @@ const connectDB = async () => {
 
     await mongoose.connect(process.env.MONGODB_URI, options);
     console.log('✅ MongoDB connected successfully');
-    console.log("MONGODB_URI:", process.env.MONGODB_URI);
+    // Don't log sensitive connection string in production
+    if (process.env.NODE_ENV !== 'production') {
+      console.log("MONGODB_URI:", process.env.MONGODB_URI);
+    }
     
     // Handle connection events
     mongoose.connection.on('error', (err) => {
@@ -235,21 +256,7 @@ const initializeApp = async () => {
     app.use('/api/auth/google', require('./routes/googleAuth.routes'));
     app.use('/api/admin', require('./routes/admin'));
     app.use('/api/inventory', require('./routes/inventory.routes'));
-    
-    // Health check endpoint
-    app.get('/api/health', (req, res) => {
-      res.json({
-        status: 'success',
-        message: 'GroChain Backend is running',
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development',
-        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-        websocket: {
-          enabled: !!webSocketService,
-          connections: webSocketService ? webSocketService.getConnectionStats().totalConnections : 0
-        }
-      })
-    });
+    app.use('/api/reviews', require('./routes/review.routes'));
     
     // Health check endpoint
     app.get('/api/health', (req, res) => {
@@ -260,6 +267,10 @@ const initializeApp = async () => {
         environment: process.env.NODE_ENV || 'development',
         version: '1.0.0',
         database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        websocket: {
+          enabled: !!webSocketService,
+          connections: webSocketService ? webSocketService.getConnectionStats().totalConnections : 0
+        },
         memory: {
           used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
           total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'

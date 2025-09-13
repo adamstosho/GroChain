@@ -9,14 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   TrendingUp,
   TrendingDown,
-  DollarSign,
+  Banknote,
   ShoppingCart,
   Heart,
   Calendar,
   BarChart3,
   PieChart,
   Activity,
-  Download,
   RefreshCw,
   MapPin,
   Package,
@@ -126,29 +125,6 @@ export function BuyerAnalytics() {
     }
   }
 
-  const handleExport = async () => {
-    try {
-      const exportData = {
-        type: 'buyer-analytics',
-        period: timeRange,
-        data: analyticsData,
-        timestamp: new Date().toISOString()
-      }
-
-      const response = await apiService.exportOrderData(exportData)
-
-      toast({
-        title: "Export successful",
-        description: "Your analytics report has been downloaded.",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Export failed",
-        description: error.message || "Failed to export analytics data",
-        variant: "destructive",
-      })
-    }
-  }
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -282,10 +258,6 @@ export function BuyerAnalytics() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
         </div>
       </div>
 
@@ -308,7 +280,7 @@ export function BuyerAnalytics() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
+            <Banknote className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">

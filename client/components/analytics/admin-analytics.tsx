@@ -10,7 +10,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { 
   TrendingUp, 
   TrendingDown, 
-  DollarSign, 
+  Banknote, 
   Users, 
   Package,
   Calendar,
@@ -47,6 +47,7 @@ import {
 import { cn } from "@/lib/utils"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { useExportService } from "@/lib/export-utils"
 
 interface AdminAnalyticsData {
   totalUsers: number
@@ -108,6 +109,7 @@ export function AdminAnalytics() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
   const { toast } = useToast()
+  const exportService = useExportService()
 
   useEffect(() => {
     fetchAllAnalytics()
@@ -209,38 +211,7 @@ export function AdminAnalytics() {
   }
 
   const handleExport = async () => {
-    try {
-      const response = await apiService.getAdminAnalyticsExport({
-        type: 'all',
-        format: 'json',
-        period: timeRange
-      })
-      
-      if (response.status === 'success') {
-        // Create download link
-        const dataStr = JSON.stringify(response.data, null, 2)
-        const dataBlob = new Blob([dataStr], { type: 'application/json' })
-        const url = URL.createObjectURL(dataBlob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `admin-analytics-${timeRange}-${new Date().toISOString().split('T')[0]}.json`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
-        
-        toast({
-          title: "Export successful",
-          description: "Analytics data has been downloaded",
-        })
-      }
-    } catch (error: any) {
-      toast({
-        title: "Export failed",
-        description: error.message || "Failed to export analytics data",
-        variant: "destructive",
-      })
-    }
+    await exportService.exportAnalytics('all', timeRange, 'json')
   }
 
   const formatCurrency = (value: number) => {
@@ -377,7 +348,7 @@ export function AdminAnalytics() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
+            <Banknote className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">

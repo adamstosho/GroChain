@@ -236,7 +236,7 @@ export default function QRCodesPage() {
       const statsResponse = await apiService.getQRCodeStats()
 
       if (statsResponse?.status === 'success' && statsResponse?.data) {
-        const statsData = statsResponse.data
+        const statsData = statsResponse.data as any
         const formattedStats: QRStats = {
           totalCodes: statsData.totalCodes || 0,
           activeCodes: statsData.activeCodes || 0,
@@ -890,7 +890,7 @@ export default function QRCodesPage() {
                 </div>
 
                 {/* QR Code Image */}
-                {selectedQRCode.qrImage && (
+                {(selectedQRCode as any).qrImage && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-base">QR Code Image</CardTitle>
@@ -898,7 +898,7 @@ export default function QRCodesPage() {
                     <CardContent className="flex justify-center">
                       <div className="p-2 sm:p-4 bg-white border border-gray-200 rounded-lg">
                         <img
-                          src={selectedQRCode.qrImage}
+                          src={(selectedQRCode as any).qrImage}
                           alt={`QR Code ${selectedQRCode.code}`}
                           className="w-32 h-32 sm:w-48 sm:h-48"
                         />
@@ -916,7 +916,7 @@ export default function QRCodesPage() {
                     <CardContent className="space-y-3">
                       <div className="flex justify-between">
                         <span className="font-medium">Batch ID:</span>
-                        <span>{selectedQRCode.metadata?.batchNumber || selectedQRCode.batchId || 'Unknown'}</span>
+                        <span>{selectedQRCode.metadata?.batchNumber || (selectedQRCode as any).batchId || 'Unknown'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium">Crop Type:</span>
@@ -924,7 +924,7 @@ export default function QRCodesPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium">Quantity:</span>
-                        <span>{selectedQRCode.quantity} {selectedQRCode.unit || 'kg'}</span>
+                        <span>{selectedQRCode.quantity} {(selectedQRCode as any).unit || 'kg'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium">Quality:</span>
@@ -958,7 +958,7 @@ export default function QRCodesPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium">Download Count:</span>
-                        <span>{selectedQRCode.downloadCount || 0}</span>
+                        <span>{(selectedQRCode as any).downloadCount || 0}</span>
                       </div>
                       {selectedQRCode.lastScanned && (
                         <div className="flex justify-between">
@@ -975,14 +975,14 @@ export default function QRCodesPage() {
                 </div>
 
                 {/* Scan History */}
-                {selectedQRCode.scans && selectedQRCode.scans.length > 0 && (
+                {(selectedQRCode as any).scans && (selectedQRCode as any).scans.length > 0 && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-base">Recent Scans</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3 max-h-60 overflow-y-auto">
-                        {selectedQRCode.scans.slice(0, 10).map((scan: any, index: number) => (
+                        {(selectedQRCode as any).scans.slice(0, 10).map((scan: any, index: number) => (
                           <div key={index} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
                             <div className="space-y-1">
                               <div className="text-sm font-medium">
@@ -1018,7 +1018,7 @@ export default function QRCodesPage() {
                   </CardHeader>
                   <CardContent>
                     <pre className="text-xs bg-gray-50 p-3 rounded border overflow-x-auto">
-                      {JSON.stringify(selectedQRCode.qrData, null, 2)}
+                      {JSON.stringify((selectedQRCode as any).qrData, null, 2)}
                     </pre>
                   </CardContent>
                 </Card>

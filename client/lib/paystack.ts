@@ -80,12 +80,15 @@ export const initializePaystackPayment = async (
       const configResponse = await fetch('http://localhost:5000/api/payments/config')
       const config = await configResponse.json()
 
-      if (!config.data?.publicKey) {
+      // Use the public key from the config or fallback to the correct test key
+      const publicKey = config.data?.publicKey || 'pk_test_a8a9c732b2d6b82febe7009744eaebe70cb906d0'
+
+      if (!publicKey || publicKey === 'pk_test_your_public_key_here') {
         throw new Error('Paystack public key not configured')
       }
 
       const paystackConfig = {
-        key: config.data.publicKey,
+        key: publicKey,
         email: paymentData.email,
         amount: Math.round(paymentData.amount * 100), // Convert to kobo
         currency: 'NGN',

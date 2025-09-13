@@ -2,11 +2,11 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useAuthStore } from "@/lib/auth"
 import { useBuyerStore } from "@/hooks/use-buyer-store"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { MemoizedAvatar } from "@/components/ui/memoized-avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,7 +42,8 @@ import {
   Wallet,
   FileText,
   BarChart,
-  DollarSign,
+  Banknote,
+  MessageCircle,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
@@ -81,7 +82,21 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
 
-  const handleLogout = async () => {
+  // Memoize user data to prevent unnecessary re-renders
+  const userData = useMemo(() => ({
+    name: user?.name,
+    role: user?.role,
+    emailVerified: user?.emailVerified,
+    avatar: user?.profile?.avatar,
+    initials: user?.name ? user.name.split(" ").map((n) => n[0]).join("") : "U"
+  }), [user?.name, user?.role, user?.emailVerified, user?.profile?.avatar])
+
+  // Memoize cart count to prevent unnecessary re-renders
+  const cartCount = useMemo(() => {
+    return cart?.reduce((total, item) => total + (item.quantity || 0), 0) || 0
+  }, [cart])
+
+  const handleLogout = useCallback(async () => {
     try {
       // Clear auth state
       logout()
@@ -102,15 +117,15 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
       // Fallback: force redirect to login
       router.push("/login")
     }
-  }
+  }, [logout, router])
 
-  const toggleSection = (section: string) => {
+  const toggleSection = useCallback((section: string) => {
     setExpandedSections(prev => 
       prev.includes(section) 
         ? prev.filter(s => s !== section)
         : [...prev, section]
     )
-  }
+  }, [])
 
   const getNavigationItems = (): NavigationItems => {
     const baseItems = [
@@ -130,6 +145,7 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
           ...baseItems.slice(0, 1),
           { name: "Harvests", href: "/dashboard/harvests", icon: Leaf },
           { name: "Marketplace", href: "/dashboard/marketplace", icon: Package },
+          { name: "Reviews", href: "/dashboard/reviews", icon: MessageCircle },
           // { name: "QR Codes", href: "/dashboard/qr-codes", icon: QrCode },
           { name: "Financial", href: "/dashboard/financial", icon: CreditCard },
           { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
@@ -174,7 +190,7 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
           ...baseItems.slice(0, 1),
           { name: "Farmers", href: "/dashboard/farmers", icon: Users },
           { name: "Referrals", href: "/dashboard/referrals", icon: TrendingUp },
-          { name: "Commissions", href: "/dashboard/commissions", icon: DollarSign },
+          { name: "Commissions", href: "/dashboard/commissions", icon: Banknote },
           { name: "Approvals", href: "/dashboard/approvals", icon: Shield },
           { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
           { name: "Onboarding", href: "/dashboard/onboarding", icon: TrendingUp },
@@ -226,21 +242,19 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
       {/* User Info */}
       <div className="border-b p-6">
         <div className="flex items-center space-x-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={user?.profile?.avatar || undefined} alt={user?.name || "User"} />
-            <AvatarFallback>
-              {user?.name
-                ? user.name.split(" ").map((n) => n[0]).join("")
-                : "U"}
-            </AvatarFallback>
-          </Avatar>
+          <MemoizedAvatar
+            src={userData.avatar}
+            alt={userData.name || "User"}
+            initials={userData.initials}
+            size="md"
+          />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user?.name}</p>
+            <p className="text-sm font-medium truncate">{userData.name}</p>
             <div className="flex items-center space-x-2">
               <Badge variant="secondary" className="text-xs capitalize">
-                {user?.role || "user"}
+                {userData.role || "user"}
               </Badge>
-              {user?.emailVerified && <div className="h-2 w-2 rounded-full bg-success" />}
+              {userData.emailVerified && <div className="h-2 w-2 rounded-full bg-success" />}
             </div>
           </div>
         </div>
@@ -430,26 +444,28 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
             <div className="min-w-0 flex-1">
               <h1 className="text-base sm:text-lg font-semibold truncate">
                 {pageTitle || (() => {
-                  if (user && user.role === "farmer") return "Farmer Dashboard"
-                  if (user && user.role === "buyer") return "Buyer Dashboard"
-                  if (user && user.role === "partner") return "Partner Dashboard"
-                  if (user && user.role === "admin") return "Admin Dashboard"
+                  if (userData.role === "farmer") return "Farmer Dashboard"
+                  if (userData.role === "buyer") return "Buyer Dashboard"
+                  if (userData.role === "partner") return "Partner Dashboard"
+                  if (userData.role === "admin") return "Admin Dashboard"
                   return "Dashboard"
                 })()}
               </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground truncate">Welcome back, {user?.name ? user.name.split(" ")[0] : "User"}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                Welcome back, {userData.name ? userData.name.split(" ")[0] : "User"}
+              </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-4">
             {/* Cart Icon for Buyers */}
-            {user?.role === "buyer" && (
+            {userData.role === "buyer" && (
               <Button variant="ghost" size="icon" className="relative" asChild>
                 <Link href="/dashboard/cart">
                   <ShoppingCart className="h-5 w-5" />
-                  {cart.length > 0 && (
+                  {cartCount > 0 && (
                     <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-xs text-primary-foreground flex items-center justify-center font-medium">
-                      {cart.length > 99 ? '99+' : cart.length}
+                      {cartCount > 99 ? '99+' : cartCount}
                     </span>
                   )}
                 </Link>
@@ -461,20 +477,18 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.profile?.avatar || undefined} alt={user?.name || "User"} />
-                    <AvatarFallback>
-                      {user?.name
-                        ? user.name.split(" ").map((n) => n[0]).join("")
-                        : "U"}
-                    </AvatarFallback>
-                  </Avatar>
+                  <MemoizedAvatar
+                    src={userData.avatar}
+                    alt={userData.name || "User"}
+                    initials={userData.initials}
+                    size="sm"
+                  />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user?.name || "User"}</p>
+                    <p className="text-sm font-medium leading-none">{userData.name || "User"}</p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user?.email || "No email"}
                     </p>

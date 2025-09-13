@@ -52,5 +52,16 @@ router.get('/earnings/summary',
   farmerController.getEarningsSummary
 )
 
+// Farmer's marketplace data
+router.get('/listings', 
+  authorize(['farmer']), 
+  farmerController.getMyListings
+)
+
+router.get('/orders', 
+  authorize(['farmer']), 
+  farmerController.getMyOrders
+)
+
 module.exports = router
 

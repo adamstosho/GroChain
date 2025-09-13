@@ -259,6 +259,163 @@ const farmerController = {
     }
   },
 
+  // Get farmer's own listings
+  async getMyListings(req, res) {
+    try {
+      const farmerId = req.user.id
+      const { 
+        page = 1, 
+        limit = 20, 
+        status = 'all',
+        category = 'all',
+        search = ''
+      } = req.query
+
+      const query = { farmer: farmerId }
+
+      // Apply filters
+      if (status !== 'all') {
+        query.status = status
+      }
+      if (category !== 'all') {
+        query.category = category
+      }
+      if (search) {
+        query.$or = [
+          { cropName: new RegExp(search, 'i') },
+          { description: new RegExp(search, 'i') }
+        ]
+      }
+
+      const skip = (parseInt(page) - 1) * parseInt(limit)
+
+      const [listings, total] = await Promise.all([
+        Listing.find(query)
+          .populate('harvest', 'batchId cropType quality harvestDate')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(parseInt(limit)),
+        Listing.countDocuments(query)
+      ])
+
+      // Parse location strings into objects for each listing
+      const processedListings = listings.map(listing => {
+        let locationObject = null
+        if (listing.location) {
+          if (typeof listing.location === 'string') {
+            const locationParts = listing.location.split(',').map(part => part.trim())
+            locationObject = {
+              city: locationParts[0] || 'Unknown City',
+              state: locationParts[1] || 'Unknown State',
+              country: locationParts[2] || 'Nigeria'
+            }
+          } else if (typeof listing.location === 'object') {
+            locationObject = listing.location
+          }
+        }
+
+        return {
+          ...listing.toObject(),
+          location: locationObject
+        }
+      })
+
+      res.json({
+        status: 'success',
+        data: {
+          listings: processedListings,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            pages: Math.ceil(total / parseInt(limit))
+          }
+        }
+      })
+    } catch (error) {
+      console.error('Error getting farmer listings:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to get farmer listings'
+      })
+    }
+  },
+
+  // Get farmer's orders
+  async getMyOrders(req, res) {
+    try {
+      const farmerId = req.user.id
+      const { 
+        page = 1, 
+        limit = 20, 
+        status = 'all'
+      } = req.query
+
+      const query = { seller: farmerId }
+
+      // Apply status filter
+      if (status !== 'all') {
+        query.status = status
+      }
+
+      const skip = (parseInt(page) - 1) * parseInt(limit)
+
+      const [orders, total] = await Promise.all([
+        Order.find(query)
+          .populate('buyer', 'name email phone')
+          .populate('items.listing', 'cropName category unit')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(parseInt(limit)),
+        Order.countDocuments(query)
+      ])
+
+      // Process orders to include farmer-specific data
+      const processedOrders = orders.map(order => ({
+        _id: order._id,
+        orderNumber: order.orderNumber || `ORD-${order._id.toString().slice(-6).toUpperCase()}`,
+        customer: {
+          name: order.buyer?.name || 'Unknown Customer',
+          email: order.buyer?.email || '',
+          phone: order.buyer?.phone || ''
+        },
+        products: order.items?.map(item => ({
+          listingId: item.listing?._id,
+          cropName: item.listing?.cropName || 'Unknown Product',
+          quantity: item.quantity,
+          unit: item.unit || 'kg',
+          price: item.price
+        })) || [],
+        totalAmount: order.total,
+        status: order.status,
+        orderDate: order.createdAt,
+        expectedDelivery: order.estimatedDelivery || '',
+        paymentStatus: order.paymentStatus,
+        deliveryAddress: order.deliveryAddress,
+        notes: order.notes
+      }))
+
+      res.json({
+        status: 'success',
+        data: {
+          orders: processedOrders,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            pages: Math.ceil(total / parseInt(limit))
+          }
+        }
+      })
+    } catch (error) {
+      console.error('Error getting farmer orders:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to get farmer orders'
+      })
+    }
+  },
+
   // Get farmer dashboard data
   async getDashboardData(req, res) {
     try {

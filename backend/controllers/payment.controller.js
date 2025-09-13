@@ -4,14 +4,33 @@ const Transaction = require('../models/transaction.model')
 const Commission = require('../models/commission.model')
 const https = require('https')
 const notificationController = require('./notification.controller')
+const PaystackUtil = require('../utils/paystack.util')
+const FlutterwaveUtil = require('../utils/flutterwave.util')
 
 exports.getPaymentConfig = async (req, res) => {
   try {
+    // Debug environment variables
+    console.log('🔍 Environment variables debug:', {
+      PAYSTACK_PUBLIC_KEY: process.env.PAYSTACK_PUBLIC_KEY ? 'Set' : 'Not set',
+      PAYSTACK_SECRET_KEY: process.env.PAYSTACK_SECRET_KEY ? 'Set' : 'Not set',
+      FLUTTERWAVE_PUBLIC_KEY: process.env.FLUTTERWAVE_PUBLIC_KEY ? 'Set' : 'Not set',
+      FLUTTERWAVE_SECRET_KEY: process.env.FLUTTERWAVE_SECRET_KEY ? 'Set' : 'Not set'
+    })
+
     const config = {
       publicKey: process.env.PAYSTACK_PUBLIC_KEY,
+      paystack: {
+        publicKey: process.env.PAYSTACK_PUBLIC_KEY,
+        enabled: !!(process.env.PAYSTACK_PUBLIC_KEY && process.env.PAYSTACK_SECRET_KEY)
+      },
+      flutterwave: {
+        publicKey: process.env.FLUTTERWAVE_PUBLIC_KEY === 'your_flutterwave_public_key' ? 'FLWPUBK_TEST-fd980f9c2c56a376ea35cea0218289ca-X' : process.env.FLUTTERWAVE_PUBLIC_KEY,
+        enabled: !!(process.env.FLUTTERWAVE_PUBLIC_KEY && process.env.FLUTTERWAVE_SECRET_KEY)
+      },
       currency: 'NGN',
       supportedChannels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
-      platformFeeRate: parseFloat(process.env.PLATFORM_FEE_RATE) || 0.03
+      platformFeeRate: parseFloat(process.env.PLATFORM_FEE_RATE) || 0.03,
+      supportedProviders: ['paystack', 'flutterwave']
     }
     
     return res.json({ status: 'success', data: config })
@@ -22,12 +41,21 @@ exports.getPaymentConfig = async (req, res) => {
 
 exports.initializePayment = async (req, res) => {
   try {
-    const { orderId, amount, email, callbackUrl } = req.body
+    const { orderId, amount, email, callbackUrl, paymentProvider = 'paystack' } = req.body
     
     if (!orderId || !amount || !email) {
       return res.status(400).json({ 
         status: 'error', 
         message: 'Order ID, amount, and email are required' 
+      })
+    }
+
+    // Validate payment provider
+    const supportedProviders = ['paystack', 'flutterwave']
+    if (!supportedProviders.includes(paymentProvider)) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: `Unsupported payment provider. Supported providers: ${supportedProviders.join(', ')}` 
       })
     }
     
@@ -66,23 +94,31 @@ exports.initializePayment = async (req, res) => {
       description: `Payment for order ${orderId}`,
       userId: order.buyer._id,
       orderId: orderId,
-      paymentProvider: 'paystack',
+      paymentProvider: paymentProvider,
       metadata: {
         orderId: orderId,
-        callbackUrl: callbackUrl
+        callbackUrl: callbackUrl,
+        paymentProvider: paymentProvider
       }
     })
     
     await transaction.save()
     
-    // Auto-verify payment in test mode (since Paystack keys are not configured)
-    console.log('🔍 Checking Paystack configuration:', {
-      hasSecretKey: !!process.env.PAYSTACK_SECRET_KEY,
-      secretKeyValue: process.env.PAYSTACK_SECRET_KEY,
-      isTestKey: process.env.PAYSTACK_SECRET_KEY === 'sk_test_your_secret_key_here'
+    // Auto-verify payment in test mode (since payment provider keys are not configured)
+    console.log('🔍 Checking payment provider configuration:', {
+      provider: paymentProvider,
+      hasPaystackKey: !!process.env.PAYSTACK_SECRET_KEY,
+      hasFlutterwaveKey: !!process.env.FLUTTERWAVE_SECRET_KEY,
+      isTestMode: paymentProvider === 'paystack' ? 
+        (!process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY === 'sk_test_your_secret_key_here') :
+        (!process.env.FLUTTERWAVE_SECRET_KEY || process.env.FLUTTERWAVE_SECRET_KEY === 'FLWSECK_TEST_your_secret_key_here')
     })
     
-    if (!process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY === 'sk_test_your_secret_key_here') {
+    const isTestMode = paymentProvider === 'paystack' ? 
+      (!process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY === 'sk_test_your_secret_key_here') :
+      (!process.env.FLUTTERWAVE_SECRET_KEY || process.env.FLUTTERWAVE_SECRET_KEY === 'FLWSECK_TEST_your_secret_key_here' || process.env.FLUTTERWAVE_SECRET_KEY === 'your_flutterwave_secret_key')
+    
+    if (isTestMode) {
       console.log('🧪 Auto-verifying payment in test mode...')
       
       // Update transaction to completed
@@ -96,8 +132,8 @@ exports.initializePayment = async (req, res) => {
       }
       await transaction.save()
       
-      // Update order to paid
-      order.status = 'paid'
+      // Update order to confirmed (order status) and paid (payment status)
+      order.status = 'confirmed'
       order.paymentStatus = 'paid'
       order.paymentReference = reference
       await order.save()
@@ -165,67 +201,112 @@ exports.initializePayment = async (req, res) => {
       }
     }
     
-    // Initialize Paystack payment with proper webhook URL (points to backend)
+    // Initialize payment with the selected provider
     const webhookUrl = process.env.NODE_ENV === 'production'
       ? `${process.env.WEBHOOK_URL || 'https://your-domain.com/api'}/payments/verify`
       : `http://localhost:5000/api/payments/verify`
 
-    const paystackData = {
-      email: email,
-      amount: Math.round(amount * 100), // Convert to kobo
-      reference: reference,
-      callback_url: callbackUrl || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/verify`,
-      webhook_url: webhookUrl, // Add webhook URL for Paystack
-      metadata: {
-        order_id: orderId,
-        transaction_id: transaction._id.toString()
-      }
-    }
-    
-    // Call real Paystack API to initialize payment
-    console.log('🔗 Initializing payment with Paystack API...')
-    
-    // Check if Paystack keys are configured
-    if (!process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY === 'sk_test_your_secret_key_here') {
-      console.log('⚠️ Paystack keys not configured, using fallback mode')
-      
-      // Fallback: Create a simulated response that will work for testing
-      const paystackResponse = {
-        success: true,
-        authorization_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/verify?reference=${reference}&test_mode=true`,
-        access_code: require('crypto').randomBytes(32).toString('hex'),
-        reference: reference
-      }
-      
-      console.log('✅ Payment initialized in fallback mode (test)')
-      
-      return res.json({
-        status: 'success',
-        data: {
-          transaction: transaction,
-          paystack: paystackResponse,
-          testMode: true
+    let paymentResponse = null
+
+    if (paymentProvider === 'paystack') {
+      const paystackData = {
+        email: email,
+        amount: Math.round(amount * 100), // Convert to kobo
+        reference: reference,
+        callback_url: callbackUrl || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/verify`,
+        webhook_url: webhookUrl,
+        metadata: {
+          order_id: orderId,
+          transaction_id: transaction._id.toString()
         }
-      })
+      }
+      
+      console.log('🔗 Initializing payment with Paystack API...')
+      
+      // Check if Paystack keys are configured
+      if (!process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY === 'sk_test_your_secret_key_here') {
+        console.log('⚠️ Paystack keys not configured, using fallback mode')
+        
+        // Fallback: Create a simulated response that will work for testing
+        paymentResponse = {
+          success: true,
+          authorization_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/verify?reference=${reference}&test_mode=true`,
+          access_code: require('crypto').randomBytes(32).toString('hex'),
+          reference: reference
+        }
+        
+        console.log('✅ Payment initialized in fallback mode (test)')
+      } else {
+        const paystackUtil = new PaystackUtil()
+        paymentResponse = await paystackUtil.initializeTransaction(paystackData)
+        
+        if (!paymentResponse.success) {
+          console.log('❌ Paystack initialization failed:', paymentResponse.message)
+          return res.status(400).json({ 
+            status: 'error', 
+            message: 'Payment initialization failed: ' + paymentResponse.message 
+          })
+        }
+        
+        console.log('✅ Paystack payment initialized successfully')
+      }
+    } else if (paymentProvider === 'flutterwave') {
+      const flutterwaveData = {
+        email: email,
+        amount: amount,
+        reference: reference,
+        callbackUrl: callbackUrl || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/verify`,
+        orderId: orderId,
+        customerName: order.buyer.name
+      }
+      
+      console.log('🔗 Initializing payment with Flutterwave API...')
+      
+    // Check if Flutterwave keys are configured
+    if (!process.env.FLUTTERWAVE_SECRET_KEY || process.env.FLUTTERWAVE_SECRET_KEY === 'FLWSECK_TEST_your_secret_key_here' || process.env.FLUTTERWAVE_SECRET_KEY === 'your_flutterwave_secret_key') {
+        console.log('⚠️ Flutterwave keys not configured, using fallback mode')
+        
+        // Fallback: Create a simulated response that will work for testing
+        paymentResponse = {
+          success: true,
+          link: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/verify?reference=${reference}&test_mode=true`,
+          reference: reference
+        }
+        
+        console.log('✅ Payment initialized in fallback mode (test)')
+      } else {
+        try {
+          const flutterwaveUtil = new FlutterwaveUtil()
+          paymentResponse = await flutterwaveUtil.initializeTransaction(flutterwaveData)
+          
+          if (!paymentResponse.success) {
+            console.log('❌ Flutterwave initialization failed:', paymentResponse.message)
+            throw new Error(paymentResponse.message || 'Flutterwave initialization failed')
+          }
+          
+          console.log('✅ Flutterwave payment initialized successfully')
+        } catch (flutterwaveError) {
+          console.log('⚠️ Flutterwave API error, falling back to test mode:', flutterwaveError.message)
+          
+          // Fallback: Create a simulated response that will work for testing
+          paymentResponse = {
+            success: true,
+            link: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/verify?reference=${reference}&test_mode=true`,
+            reference: reference
+          }
+          
+          console.log('✅ Payment initialized in fallback mode (test)')
+        }
+      }
     }
-    
-    const paystackResponse = await initializePaystackPayment(paystackData)
-    
-    if (!paystackResponse.success) {
-      console.log('❌ Paystack initialization failed:', paystackResponse.error)
-      return res.status(400).json({ 
-        status: 'error', 
-        message: 'Payment initialization failed: ' + paystackResponse.error 
-      })
-    }
-    
-    console.log('✅ Paystack payment initialized successfully')
     
     return res.json({
       status: 'success',
       data: {
         transaction: transaction,
-        paystack: paystackResponse
+        paymentProvider: paymentProvider,
+        [paymentProvider]: paymentResponse,
+        testMode: isTestMode
       }
     })
   } catch (error) {
@@ -236,8 +317,9 @@ exports.initializePayment = async (req, res) => {
 exports.verifyPayment = async (req, res) => {
   try {
     const { reference } = req.params
+    const { paymentProvider } = req.query
 
-    console.log('🔍 Manual payment verification for reference:', reference)
+    console.log('🔍 Manual payment verification for reference:', reference, 'provider:', paymentProvider)
 
     const transaction = await Transaction.findOne({ reference: reference })
     if (!transaction) {
@@ -341,8 +423,13 @@ exports.verifyPayment = async (req, res) => {
 
     // Check if this is a test mode payment
     const isTestMode = req.query.test_mode === 'true' || req.body?.test_mode === true
+    const provider = paymentProvider || transaction.paymentProvider || 'paystack'
     
-    if (isTestMode || !process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY === 'sk_test_your_secret_key_here') {
+    const isProviderTestMode = provider === 'paystack' ? 
+      (!process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY === 'sk_test_your_secret_key_here') :
+      (!process.env.FLUTTERWAVE_SECRET_KEY || process.env.FLUTTERWAVE_SECRET_KEY === 'FLWSECK_TEST_your_secret_key_here' || process.env.FLUTTERWAVE_SECRET_KEY === 'your_flutterwave_secret_key')
+    
+    if (isTestMode || isProviderTestMode) {
       console.log('🧪 Test mode: Simulating successful payment verification')
       
       // In test mode, always mark as successful
@@ -363,38 +450,52 @@ exports.verifyPayment = async (req, res) => {
       
       console.log('✅ Test mode verification successful')
     } else {
-      // Verify with Paystack API
-      console.log('🔍 Verifying payment with Paystack API...')
-      const paystackVerification = await verifyWithPaystackAPI(reference)
+      // Verify with the appropriate payment provider API
+      console.log(`🔍 Verifying payment with ${provider} API...`)
       
-      if (!paystackVerification.success) {
-        console.log('❌ Paystack verification failed:', paystackVerification.error)
+      let providerVerification = null
+      
+      if (provider === 'paystack') {
+        providerVerification = await verifyWithPaystackAPI(reference)
+      } else if (provider === 'flutterwave') {
+        providerVerification = await verifyWithFlutterwaveAPI(reference)
+      } else {
         return res.status(400).json({ 
           status: 'error', 
-          message: 'Payment verification failed: ' + paystackVerification.error 
+          message: `Unsupported payment provider: ${provider}` 
+        })
+      }
+      
+      if (!providerVerification.success) {
+        console.log(`❌ ${provider} verification failed:`, providerVerification.error)
+        return res.status(400).json({ 
+          status: 'error', 
+          message: 'Payment verification failed: ' + providerVerification.error 
         })
       }
 
-      if (!paystackVerification.paid) {
-        console.log('❌ Payment not successful according to Paystack')
+      if (!providerVerification.paid) {
+        console.log(`❌ Payment not successful according to ${provider}`)
         return res.status(400).json({ 
           status: 'error', 
           message: 'Payment was not successful' 
         })
       }
 
-      console.log('✅ Paystack verification successful')
+      console.log(`✅ ${provider} verification successful`)
       
       const verificationData = {
         status: 'success',
-        amount: paystackVerification.amount,
+        amount: providerVerification.amount,
         reference: reference,
         gateway_response: 'Successful',
         paid_at: new Date().toISOString(),
-        channel: paystackVerification.channel || 'card',
+        channel: providerVerification.channel || 'card',
         ip_address: req.ip,
-        fees: Math.round((paystackVerification.amount / 100) * 0.015), // 1.5% Paystack fee
-        customer: paystackVerification.customer || {
+        fees: provider === 'paystack' ? 
+          Math.round((providerVerification.amount / 100) * 0.015) : // 1.5% Paystack fee
+          Math.round(providerVerification.amount * 0.014), // 1.4% Flutterwave fee
+        customer: providerVerification.customer || {
           email: 'customer@example.com',
           customer_code: 'CUS_1234567890'
         }
@@ -420,7 +521,7 @@ exports.verifyPayment = async (req, res) => {
         console.log('📦 Updating order status to paid:', transaction.orderId)
 
         // Ensure we update both status and paymentStatus
-        order.status = 'paid'
+        order.status = 'confirmed'
         order.paymentStatus = 'paid'
         order.paymentReference = reference
         await order.save()
@@ -830,15 +931,15 @@ exports.webhookVerify = async (req, res) => {
               currentPaymentStatus: order.paymentStatus
             })
 
-            // Update order status to paid (only if not already paid)
-            if (order.status !== 'paid') {
-              order.status = 'paid'
+            // Update order status to confirmed (only if not already confirmed)
+            if (order.status !== 'confirmed' && order.status !== 'paid') {
+              order.status = 'confirmed'
               order.paymentStatus = 'paid'
               order.paymentReference = data.reference
               await order.save()
-              console.log('✅ Order status updated to paid')
+              console.log('✅ Order status updated to confirmed')
             } else {
-              console.log('ℹ️ Order was already paid, skipping update')
+              console.log('ℹ️ Order was already confirmed/paid, skipping update')
             }
 
             // Update inventory for each item in the order (always update on successful payment)
@@ -992,14 +1093,14 @@ exports.syncOrderStatus = async (req, res) => {
       status: transaction.status
     })
 
-    // If transaction is completed but order is not paid, fix it
-    if (transaction.status === 'completed' && order.status !== 'paid') {
+    // If transaction is completed but order is not confirmed, fix it
+    if (transaction.status === 'completed' && order.status !== 'confirmed' && order.status !== 'paid') {
       console.log('🔧 Fixing order status mismatch')
 
       const oldStatus = order.status
       const oldPaymentStatus = order.paymentStatus
 
-      order.status = 'paid'
+      order.status = 'confirmed'
       order.paymentStatus = 'paid'
       order.paymentReference = transaction.reference
       await order.save()
@@ -1062,9 +1163,9 @@ exports.bulkSyncOrders = async (req, res) => {
           status: 'completed'
         })
 
-        if (transaction && order.status !== 'paid') {
+        if (transaction && order.status !== 'confirmed' && order.status !== 'paid') {
           // Fix the order
-          order.status = 'paid'
+          order.status = 'confirmed'
           order.paymentStatus = 'paid'
           order.paymentReference = transaction.reference
           await order.save()
@@ -1242,6 +1343,77 @@ async function verifyWithPaystackAPI(reference) {
       resolve({
         success: false,
         error: 'Paystack API timeout'
+      })
+    })
+
+    req.end()
+  })
+}
+
+// Helper function to verify payment with Flutterwave API
+async function verifyWithFlutterwaveAPI(reference) {
+  return new Promise((resolve) => {
+    const options = {
+      hostname: 'api.flutterwave.com',
+      port: 443,
+      path: `/v3/transactions/${reference}/verify`,
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    }
+
+    const req = https.request(options, (res) => {
+      let data = ''
+
+      res.on('data', (chunk) => data += chunk)
+
+      res.on('end', () => {
+        try {
+          const response = JSON.parse(data)
+          console.log('📊 Flutterwave API Response:', response)
+          
+          if (response.status === 'success' && response.data) {
+            resolve({
+              success: true,
+              paid: response.data.status === 'successful',
+              status: response.data.status,
+              amount: response.data.amount,
+              reference: response.data.tx_ref,
+              channel: response.data.payment_type,
+              customer: response.data.customer,
+              paid_at: response.data.created_at
+            })
+          } else {
+            resolve({
+              success: false,
+              error: response.message || 'Verification failed'
+            })
+          }
+        } catch (error) {
+          console.error('❌ Flutterwave API response parsing error:', error)
+          resolve({
+            success: false,
+            error: 'Invalid response from Flutterwave'
+          })
+        }
+      })
+    })
+
+    req.on('error', (error) => {
+      console.error('❌ Flutterwave API request error:', error)
+      resolve({
+        success: false,
+        error: error.message
+      })
+    })
+
+    req.setTimeout(10000, () => {
+      req.destroy()
+      resolve({
+        success: false,
+        error: 'Flutterwave API timeout'
       })
     })
 

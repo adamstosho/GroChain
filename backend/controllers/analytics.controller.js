@@ -146,7 +146,7 @@ exports.getFarmerAnalytics = async (req, res) => {
     let totalOrders = 0
 
     orders.forEach(order => {
-      if (order.status === 'paid' || order.status === 'delivered') {
+      if (order.status === 'confirmed' || order.status === 'paid' || order.status === 'delivered') {
         // Sum up revenue from this farmer's listings in the order
         let farmerOrderRevenue = 0
         order.items?.forEach(item => {
@@ -383,7 +383,7 @@ exports.getBuyerAnalytics = async (req, res) => {
               name: farmerName,
               orders: 0,
               totalSpent: 0,
-              rating: 4.2 + Math.random() * 0.8 // Mock rating
+              rating: 4.0 // Default rating, can be enhanced later with real ratings
             }
           }
           supplierData[farmerId].orders += 1
@@ -428,7 +428,7 @@ exports.getBuyerAnalytics = async (req, res) => {
       totalSpent,
       averageOrderValue: Math.round(averageOrderValue * 100) / 100,
       completionRate,
-      favoriteProducts: Math.floor(Math.random() * 20) + 5, // Mock data
+      favoriteProducts: orders.filter(o => o.status === 'delivered').length, // Real delivered orders count
       pendingDeliveries: orders.filter(o => o.status === 'shipped').length,
       spendingByCategory,
       monthlySpending,
@@ -575,8 +575,8 @@ exports.getFarmerMarketplaceAnalytics = async (req, res) => {
     const totalOrders = currentOrders.length
     const previousTotalOrders = previousOrders.length
 
-    const paidOrders = currentOrders.filter(order => order.status === 'paid')
-    const previousPaidOrders = previousOrders.filter(order => order.status === 'paid')
+    const paidOrders = currentOrders.filter(order => order.status === 'confirmed' || order.status === 'paid')
+    const previousPaidOrders = previousOrders.filter(order => order.status === 'confirmed' || order.status === 'paid')
 
     const totalRevenue = paidOrders.reduce((sum, order) => sum + (order.total || 0), 0)
     const previousRevenue = previousPaidOrders.reduce((sum, order) => sum + (order.total || 0), 0)

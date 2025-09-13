@@ -9,6 +9,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useToast } from "@/hooks/use-toast"
 import { useBuyerStore } from "@/hooks/use-buyer-store"
 import { useAuthStore } from "@/lib/auth"
+import { useExportService } from "@/lib/export-utils"
 import {
   Heart,
   Search,
@@ -29,6 +30,12 @@ import {
   Package,
   Leaf
 } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -71,9 +78,11 @@ export default function FavoritesPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
   const { toast } = useToast()
   const { addToCart, removeFromFavorites, fetchFavorites, addToFavorites, profile } = useBuyerStore()
   const { user } = useAuthStore()
+  const exportService = useExportService()
 
   // Fetch favorites from backend
   useEffect(() => {
@@ -151,9 +160,9 @@ export default function FavoritesPage() {
         _id: product.listing._id,
         listingId: product.listing._id,
         cropName: product.listing.cropName,
-        price: product.listing.basePrice,
+        price: product.listing.price,
         unit: product.listing.unit,
-        availableQuantity: product.listing.availableQuantity || product.listing.quantity,
+        availableQuantity: product.listing.quantity,
         farmer: product.listing.farmer.name,
         location: typeof product.listing.location === 'string' 
           ? product.listing.location 
@@ -239,6 +248,63 @@ export default function FavoritesPage() {
     }
   }
 
+  const handleExportFavorites = async () => {
+    if (isExporting) return
+    
+    if (favorites.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "You don't have any favorites to export yet.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setIsExporting(true)
+      
+      // Transform favorites data for export
+      const exportData = favorites.map(favorite => ({
+        'Product Name': favorite.listing.cropName,
+        'Category': favorite.listing.category,
+        'Description': favorite.listing.description,
+        'Price': favorite.listing.price,
+        'Unit': favorite.listing.unit,
+        'Quantity Available': favorite.listing.quantity,
+        'Quality': favorite.listing.quality,
+        'Organic': favorite.listing.organic ? 'Yes' : 'No',
+        'Farmer Name': favorite.listing.farmer?.name || 'Unknown',
+        'Location': typeof favorite.listing.location === 'string' 
+          ? favorite.listing.location 
+          : `${favorite.listing.location?.city || 'Unknown'}, ${favorite.listing.location?.state || 'Unknown State'}`,
+        'Added Date': new Date(favorite.addedAt).toLocaleDateString(),
+        'Notes': favorite.notes || '',
+        'Product ID': favorite.listing._id,
+        'Farmer ID': favorite.listing.farmer?._id || ''
+      }))
+
+      await exportService.exportCustomData(exportData, {
+        format: 'csv',
+        dataType: 'favorites',
+        filename: `my-favorites-${new Date().toISOString().split('T')[0]}.csv`
+      })
+
+      toast({
+        title: "Export successful",
+        description: `Your ${favorites.length} favorites have been exported successfully.`,
+      })
+    } catch (error: any) {
+      console.error('Export error:', error)
+      toast({
+        title: "Export failed",
+        description: error.message || "Failed to export favorites. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -321,10 +387,36 @@ export default function FavoritesPage() {
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
-            <Button variant="outline" size="sm" className="flex-shrink-0">
-              <Download className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Export</span>
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-shrink-0"
+                    onClick={handleExportFavorites}
+                    disabled={isExporting || favorites.length === 0}
+                  >
+                    {isExporting ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {isExporting ? 'Exporting...' : 'Export'}
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {favorites.length === 0 
+                      ? 'No favorites to export' 
+                      : `Export ${favorites.length} favorites to CSV`
+                    }
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button size="sm" asChild className="flex-shrink-0">
               <Link href="/dashboard/products">
                 <Plus className="h-4 w-4 mr-2" />
@@ -357,7 +449,7 @@ export default function FavoritesPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {new Set(favorites.map(fav => fav.listing?.farmer?._id || fav.listing?.farmer?.id)).size}
+                {new Set(favorites.map(fav => fav.listing?.farmer?._id)).size}
               </div>
               <p className="text-xs text-muted-foreground">
                 Different farmers
@@ -435,10 +527,39 @@ export default function FavoritesPage() {
                     size="sm"
                     onClick={handleRefresh}
                     className="h-8 px-3"
+                    disabled={loading}
                   >
-                    <RefreshCw className="h-4 w-4 mr-1" />
+                    <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
                     Refresh
                   </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleExportFavorites}
+                          className="h-8 px-3"
+                          disabled={isExporting || favorites.length === 0}
+                        >
+                          {isExporting ? (
+                            <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4 mr-1" />
+                          )}
+                          {isExporting ? 'Exporting...' : 'Export'}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {favorites.length === 0 
+                            ? 'No favorites to export' 
+                            : `Export ${favorites.length} favorites to CSV`
+                          }
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <Button
                     variant={viewMode === 'grid' ? 'default' : 'outline'}
                     size="sm"
@@ -531,7 +652,7 @@ function FavoriteCard({
   getQualityGrade
 }: FavoriteCardProps) {
   const listing = product.listing
-  const qualityGrade = getQualityGrade(listing.qualityGrade || listing.quality)
+  const qualityGrade = getQualityGrade(listing.quality)
 
   if (viewMode === 'list') {
     return (
@@ -577,7 +698,7 @@ function FavoriteCard({
                 <div className="flex items-center space-x-2 ml-4">
                   <div className="text-right">
                     <div className="text-base font-bold text-foreground">
-                      {formatPrice(listing.basePrice)}
+                      {formatPrice(listing.price)}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       per {listing.unit}
@@ -600,7 +721,7 @@ function FavoriteCard({
                   <span>{typeof listing.location === 'string' ? listing.location : `${listing.location?.city || 'Unknown'}, ${listing.location?.state || 'Unknown State'}`}</span>
                 </div>
                 <div className="text-xs">
-                  {listing.availableQuantity || listing.quantity} {listing.unit} available
+                  {listing.quantity} {listing.unit} available
                 </div>
               </div>
 
@@ -670,7 +791,7 @@ function FavoriteCard({
           {/* Price overlay */}
           <div className="absolute bottom-1.5 right-1.5 bg-white/95 backdrop-blur-sm rounded-md px-1.5 py-1">
             <div className="text-sm font-bold text-gray-900">
-              {formatPrice(listing.basePrice)}
+              {formatPrice(listing.price)}
             </div>
             <div className="text-[10px] text-gray-600 text-center leading-none">
               per {listing.unit}
@@ -706,7 +827,7 @@ function FavoriteCard({
 
           {/* Availability */}
           <div className="text-xs text-muted-foreground">
-            {listing.availableQuantity || listing.quantity} {listing.unit} available
+            {listing.quantity} {listing.unit} available
           </div>
         </div>
 

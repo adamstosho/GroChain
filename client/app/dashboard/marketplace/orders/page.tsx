@@ -21,7 +21,7 @@ import {
   Filter,
   RefreshCw,
   Calendar,
-  DollarSign,
+  Banknote,
   MapPin,
   Phone,
   Mail,
@@ -177,40 +177,44 @@ export default function MarketplaceOrdersPage() {
       setLoading(true)
       console.log("🔄 Fetching orders...")
 
-      // Fetch orders from backend
-      const response = await apiService.getOrders()
-      console.log("📋 Orders API Response:", response)
+      // Fetch farmer's orders from backend
+      const response = await apiService.getFarmerOrders()
+      console.log("📋 Farmer Orders API Response:", response)
 
-      if (response?.status === 'success' && response?.data) {
-        const ordersData = response.data
-        console.log("✅ Orders data:", ordersData)
+      if (response?.status === 'success' && (response.data as any)?.orders) {
+        const ordersData = (response.data as any)?.orders
+        console.log("✅ Farmer orders data:", ordersData)
 
-        // Process and format orders
+        // Process and format farmer's orders
         const processedOrders = ordersData.map((order: any) => ({
           _id: order._id,
           orderNumber: order.orderNumber || `ORD-${order._id.toString().slice(-6).toUpperCase()}`,
-          buyer: order.buyer || {
+          buyer: {
             name: order.customer?.name || 'Unknown Customer',
             email: order.customer?.email || '',
             phone: order.customer?.phone || ''
           },
-          seller: order.seller || { _id: '', name: 'You' },
-          items: order.items?.map((item: any) => ({
-            listing: item.listing || { _id: '', cropName: item.cropName || 'Unknown Product', images: [] },
-            quantity: item.quantity || 0,
-            price: item.price || 0,
-            unit: item.unit || 'kg',
-            total: (item.quantity || 0) * (item.price || 0)
+          seller: { _id: '', name: 'You' },
+          items: order.products?.map((product: any) => ({
+            listing: { 
+              _id: product.listingId || '', 
+              cropName: product.cropName || 'Unknown Product', 
+              images: [] 
+            },
+            quantity: product.quantity || 0,
+            price: product.price || 0,
+            unit: product.unit || 'kg',
+            total: (product.quantity || 0) * (product.price || 0)
           })) || [],
-          total: order.total || 0,
-          subtotal: order.subtotal || order.total || 0,
-          tax: order.tax || 0,
-          shipping: order.shipping || 0,
-          discount: order.discount || 0,
+          total: order.totalAmount || 0,
+          subtotal: order.totalAmount || 0,
+          tax: 0,
+          shipping: 0,
+          discount: 0,
           status: order.status || 'pending',
           paymentStatus: order.paymentStatus || 'pending',
-          paymentMethod: order.paymentMethod || 'paystack',
-          shippingAddress: order.shippingAddress || {
+          paymentMethod: 'paystack',
+          shippingAddress: order.deliveryAddress || {
             street: '',
             city: '',
             state: '',
@@ -218,14 +222,14 @@ export default function MarketplaceOrdersPage() {
             postalCode: '',
             phone: ''
           },
-          deliveryInstructions: order.deliveryInstructions || '',
-          estimatedDelivery: order.estimatedDelivery || '',
-          actualDelivery: order.actualDelivery || '',
-          trackingNumber: order.trackingNumber || '',
+          deliveryInstructions: order.notes || '',
+          estimatedDelivery: order.expectedDelivery || '',
+          actualDelivery: '',
+          trackingNumber: '',
           notes: order.notes || '',
-          orderDate: order.createdAt || order.orderDate || new Date().toISOString(),
-          createdAt: order.createdAt || new Date().toISOString(),
-          updatedAt: order.updatedAt || new Date().toISOString()
+          orderDate: order.orderDate || new Date().toISOString(),
+          createdAt: order.orderDate || new Date().toISOString(),
+          updatedAt: order.orderDate || new Date().toISOString()
         }))
 
         setOrders(processedOrders)
@@ -460,7 +464,7 @@ export default function MarketplaceOrdersPage() {
         </div>
 
         {/* Order Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="border border-gray-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
@@ -503,7 +507,7 @@ export default function MarketplaceOrdersPage() {
           <Card className="border border-gray-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-emerald-500" />
+                <Banknote className="h-4 w-4 text-emerald-500" />
                 Total Revenue
               </CardTitle>
             </CardHeader>
@@ -517,7 +521,7 @@ export default function MarketplaceOrdersPage() {
         {/* Filters */}
         <Card className="border border-gray-200">
           <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -526,13 +530,13 @@ export default function MarketplaceOrdersPage() {
                     placeholder="Search orders by number, customer, or product..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 w-full"
                   />
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-full sm:w-32">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -548,7 +552,7 @@ export default function MarketplaceOrdersPage() {
                 </Select>
 
                 <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-full sm:w-32">
                     <SelectValue placeholder="Date" />
                   </SelectTrigger>
                   <SelectContent>
@@ -592,21 +596,23 @@ export default function MarketplaceOrdersPage() {
           ) : (
             filteredOrders.map((order) => (
               <Card key={order._id} className="border border-gray-200 hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {order.orderNumber}
                         </h3>
-                        <Badge className={getStatusColor(order.status)}>
-                          {order.status}
-                        </Badge>
-                        <Badge className={getPaymentStatusColor(order.paymentStatus)}>
-                          {order.paymentStatus}
-                        </Badge>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge className={getStatusColor(order.status)}>
+                            {order.status}
+                          </Badge>
+                          <Badge className={getPaymentStatusColor(order.paymentStatus)}>
+                            {order.paymentStatus}
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           <span>{formatDate(order.orderDate)}</span>
@@ -617,7 +623,7 @@ export default function MarketplaceOrdersPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <div className="text-xl font-bold text-gray-900">
                         {formatCurrency(order.total)}
                       </div>
@@ -641,11 +647,12 @@ export default function MarketplaceOrdersPage() {
                     )}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleViewOrderDetails(order)}
+                      className="w-full sm:w-auto"
                     >
                       <Eye className="h-4 w-4 mr-1" />
                       View Details
@@ -656,6 +663,7 @@ export default function MarketplaceOrdersPage() {
                         size="sm"
                         onClick={() => handleUpdateOrderStatus(order._id, 'confirmed')}
                         disabled={updatingOrder === order._id}
+                        className="w-full sm:w-auto"
                       >
                         {updatingOrder === order._id ? (
                           <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
@@ -671,6 +679,7 @@ export default function MarketplaceOrdersPage() {
                         size="sm"
                         onClick={() => handleUpdateOrderStatus(order._id, 'shipped')}
                         disabled={updatingOrder === order._id}
+                        className="w-full sm:w-auto"
                       >
                         {updatingOrder === order._id ? (
                           <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
@@ -687,6 +696,7 @@ export default function MarketplaceOrdersPage() {
                         size="sm"
                         onClick={() => handleUpdateOrderStatus(order._id, 'delivered')}
                         disabled={updatingOrder === order._id}
+                        className="w-full sm:w-auto"
                       >
                         {updatingOrder === order._id ? (
                           <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
@@ -705,11 +715,11 @@ export default function MarketplaceOrdersPage() {
 
         {/* Order Details Modal */}
         {showOrderDetails && selectedOrder && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              <div className="p-4 sm:p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
                     Order Details - {selectedOrder.orderNumber}
                   </h2>
                   <Button
@@ -722,7 +732,7 @@ export default function MarketplaceOrdersPage() {
                 </div>
               </div>
 
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                 {/* Order Status */}
                 <div className="flex items-center gap-4">
                   <Badge className={getStatusColor(selectedOrder.status)}>
@@ -765,7 +775,7 @@ export default function MarketplaceOrdersPage() {
                   <CardContent>
                     <div className="space-y-3">
                       {selectedOrder.items.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
+                        <div key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border border-gray-100 rounded-lg gap-3">
                           <div className="flex items-center gap-3">
                             <div className="text-2xl">🌾</div>
                             <div>
@@ -775,7 +785,7 @@ export default function MarketplaceOrdersPage() {
                               </div>
                             </div>
                           </div>
-                          <div className="font-medium">{formatCurrency(item.total)}</div>
+                          <div className="font-medium text-right sm:text-left">{formatCurrency(item.total)}</div>
                         </div>
                       ))}
                     </div>

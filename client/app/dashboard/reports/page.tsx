@@ -17,7 +17,7 @@ import {
   Calendar,
   BarChart3,
   TrendingUp,
-  DollarSign,
+  Banknote,
   Leaf,
   Crop,
   Package,
@@ -52,7 +52,7 @@ interface GeneratedReport {
 
 const reportCategories = [
   { value: 'harvest', label: 'Harvest Reports', icon: Crop, color: 'text-green-600' },
-  { value: 'financial', label: 'Financial Reports', icon: DollarSign, color: 'text-blue-600' },
+  { value: 'financial', label: 'Financial Reports', icon: Banknote, color: 'text-blue-600' },
   { value: 'marketplace', label: 'Marketplace Reports', icon: Package, color: 'text-purple-600' },
   { value: 'weather', label: 'Weather Reports', icon: Cloud, color: 'text-cyan-600' },
   { value: 'comprehensive', label: 'Comprehensive Reports', icon: BarChart3, color: 'text-orange-600' }

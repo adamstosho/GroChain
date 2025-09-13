@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { useExportService } from "@/lib/export-utils"
 import {
-  DollarSign,
+  Banknote,
   TrendingUp,
   TrendingDown,
   Download,
@@ -18,7 +19,6 @@ import {
   Search,
   Calendar,
   CreditCard,
-  Banknote,
   Wallet,
   ArrowUpRight,
   ArrowDownLeft,
@@ -114,6 +114,7 @@ export default function TransactionsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
   const { toast } = useToast()
+  const exportService = useExportService()
 
   useEffect(() => {
     fetchTransactions()
@@ -130,7 +131,7 @@ export default function TransactionsPage() {
       ])
 
       if (transactionHistoryResponse.status === 'success' && transactionHistoryResponse.data) {
-        const transactionsData = transactionHistoryResponse.data.transactions || []
+        const transactionsData = (transactionHistoryResponse.data as any)?.transactions || []
 
         // Transform transactions data
         const transformedTransactions: Transaction[] = transactionsData.map((txn: any) => ({
@@ -203,8 +204,8 @@ export default function TransactionsPage() {
       } else {
         // Fallback to dashboard data if transaction history fails
         if (financialDashboardResponse.status === 'success' && financialDashboardResponse.data) {
-          const dashboardData = financialDashboardResponse.data
-          const recentTransactions = dashboardData.recentTransactions || []
+          const dashboardData = financialDashboardResponse.data as any
+          const recentTransactions = dashboardData?.recentTransactions || []
 
           const transformedTransactions: Transaction[] = recentTransactions.map((txn: any) => ({
             id: txn._id,
@@ -225,11 +226,11 @@ export default function TransactionsPage() {
 
           // Basic stats from dashboard
           const stats: TransactionStats = {
-            totalIncome: dashboardData.overview?.totalEarnings || 0,
+            totalIncome: dashboardData?.overview?.totalEarnings || 0,
             totalExpenses: 0, // Not available in dashboard
-            netAmount: dashboardData.overview?.totalEarnings || 0,
+            netAmount: dashboardData?.overview?.totalEarnings || 0,
             transactionCount: recentTransactions.length,
-            pendingAmount: dashboardData.overview?.pendingPayments || 0,
+            pendingAmount: dashboardData?.overview?.pendingPayments || 0,
             monthlyTrend: []
           }
 
@@ -249,22 +250,7 @@ export default function TransactionsPage() {
   }
 
   const handleExport = async () => {
-    try {
-      // Mock export - replace with actual API call
-      console.log('Exporting transactions...')
-      
-      toast({
-        title: "Export Started",
-        description: "Your transaction report is being prepared for download.",
-        variant: "default"
-      })
-    } catch (error) {
-      toast({
-        title: "Export Failed",
-        description: "Failed to export transactions. Please try again.",
-        variant: "destructive"
-      })
-    }
+    await exportService.exportTransactions(filters, 'csv')
   }
 
   const handleSort = (field: string) => {

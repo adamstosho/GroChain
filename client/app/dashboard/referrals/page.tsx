@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useReferrals } from "@/hooks/use-referrals"
+import { useExportService } from "@/lib/export-utils"
 import { 
   Users, 
   TrendingUp, 
@@ -40,6 +41,7 @@ export default function ReferralsPage() {
 
   const [activeTab, setActiveTab] = useState("overview")
   const [searchTerm, setSearchTerm] = useState("")
+  const exportService = useExportService()
 
   const filteredReferrals = referrals.filter(referral => 
     referral.farmer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,9 +53,12 @@ export default function ReferralsPage() {
     console.log("Create referral")
   }
 
-  const handleExportReferrals = () => {
-    // TODO: Implement export functionality
-    console.log("Export referrals")
+  const handleExportReferrals = async () => {
+    await exportService.exportCustomData(referrals, {
+      format: 'csv',
+      dataType: 'referrals',
+      filename: `referrals-report-${new Date().toISOString().split('T')[0]}.csv`
+    })
   }
 
   if (isLoading) {

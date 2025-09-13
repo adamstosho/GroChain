@@ -11,7 +11,7 @@ import {
   TrendingDown,
   Calendar,
   Scale,
-  DollarSign,
+  Banknote,
   Leaf,
   BarChart3,
   PieChart,
@@ -276,7 +276,7 @@ export function HarvestAnalytics({ farmerId, className }: HarvestAnalyticsProps)
                 <p className="text-sm font-medium text-muted-foreground">Total Value</p>
                 <p className="text-2xl font-bold">{formatCurrency(analytics.totalValue)}</p>
               </div>
-              <DollarSign className="h-8 w-8 text-yellow-500" />
+              <Banknote className="h-8 w-8 text-yellow-500" />
             </div>
             <p className="text-sm text-muted-foreground mt-2">
               Avg: {analytics.totalHarvests > 0 ? formatCurrency(analytics.totalValue / analytics.totalHarvests) : formatCurrency(0)} per harvest

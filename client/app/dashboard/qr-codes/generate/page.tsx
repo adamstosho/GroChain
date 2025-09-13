@@ -174,7 +174,7 @@ export default function GenerateQRCodePage() {
     if (!generatedQR) return
     
     try {
-      await apiService.downloadQRCode(generatedQR._id, format)
+      await apiService.downloadQRCode(generatedQR._id)
       toast({
         title: "Download Started",
         description: `QR code downloaded as ${format.toUpperCase()}`,
@@ -279,7 +279,7 @@ export default function GenerateQRCodePage() {
                           {new Date(harvest.harvestDate).toLocaleDateString()}
                         </div>
                         <div className="text-sm text-gray-600">
-                          {typeof harvest.location === 'string' ? harvest.location : `${harvest.location?.city || 'Unknown'}, ${harvest.location?.state || 'Unknown State'}`}
+                          {typeof harvest.location === 'string' ? harvest.location : `${(harvest.location as any)?.city || 'Unknown'}, ${(harvest.location as any)?.state || 'Unknown State'}`}
                         </div>
                       </div>
                     </CardContent>

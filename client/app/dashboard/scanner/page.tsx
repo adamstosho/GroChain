@@ -1,11 +1,14 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
+import QrScanner from 'qr-scanner'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import QRGenerator from "@/components/qr-generator"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useToast } from "@/hooks/use-toast"
 import { apiService } from "@/lib/api"
@@ -32,7 +35,22 @@ import {
   History,
   Upload,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  User,
+  Calendar,
+  Leaf,
+  Award,
+  Globe,
+  Phone,
+  Mail,
+  Building,
+  Navigation,
+  Zap,
+  AlertCircle,
+  CheckCircle2,
+  X,
+  Maximize2,
+  Minimize2
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -41,22 +59,43 @@ interface ScannedProduct {
   _id: string
   batchId: string
   cropType: string
+  variety?: string
   harvestDate: string
   quantity: number
   unit: string
   quality: string
-  location: any
-  farmer: string
+  location: {
+    city: string
+    state: string
+    country: string
+    coordinates?: {
+      lat: number
+      lng: number
+    }
+  }
+  farmer: {
+    id: string
+    name: string
+    farmName?: string
+    phone?: string
+    email?: string
+  }
   status: string
-    verified: boolean
+  verified: boolean
   scannedAt: Date
   message?: string
+  images?: string[]
+  organic?: boolean
+  price?: number
+  verificationUrl?: string
+  timestamp?: string
 }
 
 interface ScanHistoryItem {
   _id: string
   batchId: string
   cropType: string
+  variety?: string
   verified: boolean
   scannedAt: Date
   location?: string
@@ -66,6 +105,17 @@ interface ScanHistoryItem {
   quality?: string
   status?: string
   message?: string
+  images?: string[]
+  organic?: boolean
+  price?: number
+}
+
+interface ScanStats {
+  totalScans: number
+  verifiedScans: number
+  failedScans: number
+  uniqueProducts: number
+  lastScanDate?: Date
 }
 
 export default function QRScannerPage() {
@@ -77,19 +127,29 @@ export default function QRScannerPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(false)
   const [currentScan, setCurrentScan] = useState<ScannedProduct | null>(null)
+  const [scanStats, setScanStats] = useState<ScanStats>({
+    totalScans: 0,
+    verifiedScans: 0,
+    failedScans: 0,
+    uniqueProducts: 0
+  })
+  const [showFullScreen, setShowFullScreen] = useState(false)
+  const [lastScanError, setLastScanError] = useState<string | null>(null)
+  
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
-    // Load scan history from localStorage
     loadScanHistory()
-    
-    // Check camera permission
     checkCameraPermission()
+    return () => {
+      stopCamera()
+    }
   }, [])
 
-  const loadScanHistory = () => {
+  const loadScanHistory = useCallback(() => {
     try {
       const saved = localStorage.getItem('grochain-scan-history')
       if (saved) {
@@ -98,21 +158,34 @@ export default function QRScannerPage() {
           scannedAt: new Date(item.scannedAt)
         }))
         setScanHistory(history)
+        calculateStats(history)
       }
     } catch (error) {
       console.error('Error loading scan history:', error)
     }
+  }, [])
+
+  const calculateStats = (history: ScanHistoryItem[]) => {
+    const stats = {
+      totalScans: history.length,
+      verifiedScans: history.filter(item => item.verified).length,
+      failedScans: history.filter(item => !item.verified).length,
+      uniqueProducts: new Set(history.map(item => item.batchId)).size,
+      lastScanDate: history.length > 0 ? history[0].scannedAt : undefined
+    }
+    setScanStats(stats)
   }
 
-  const saveScanHistory = (newItem: ScanHistoryItem) => {
+  const saveScanHistory = useCallback((newItem: ScanHistoryItem) => {
     try {
       const updatedHistory = [newItem, ...scanHistory]
       setScanHistory(updatedHistory)
       localStorage.setItem('grochain-scan-history', JSON.stringify(updatedHistory))
+      calculateStats(updatedHistory)
     } catch (error) {
       console.error('Error saving scan history:', error)
     }
-  }
+  }, [scanHistory])
 
   const checkCameraPermission = async () => {
     try {
@@ -125,19 +198,17 @@ export default function QRScannerPage() {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
-      })
+      setLastScanError(null)
+      setScanning(true)
+      setCameraPermission('granted')
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        streamRef.current = stream
-        setScanning(true)
-        setCameraPermission('granted')
-      }
+      // Start QR code detection directly - QrScanner handles camera access
+      await startQRDetection()
     } catch (error) {
       console.error('Error accessing camera:', error)
       setCameraPermission('denied')
+      setLastScanError('Camera access denied. Please allow camera access to scan QR codes.')
+      setScanning(false)
       toast({
         title: "Camera access denied",
         description: "Please allow camera access to scan QR codes",
@@ -152,9 +223,53 @@ export default function QRScannerPage() {
       streamRef.current = null
     }
     if (videoRef.current) {
+      // Stop QR scanner if it exists
+      if ((videoRef.current as any).qrScanner) {
+        (videoRef.current as any).qrScanner.stop()
+        (videoRef.current as any).qrScanner.destroy()
+        ;(videoRef.current as any).qrScanner = null
+      }
       videoRef.current.srcObject = null
     }
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current)
+      scanIntervalRef.current = null
+    }
     setScanning(false)
+  }
+
+  const startQRDetection = async () => {
+    if (!videoRef.current) return
+    
+    try {
+      const qrScanner = new QrScanner(
+        videoRef.current,
+        (result) => {
+          console.log('QR Code detected:', result.data)
+          processScannedData(result.data)
+          qrScanner.stop()
+          stopCamera()
+        },
+        {
+          onDecodeError: (error) => {
+            // Silently handle decode errors - they're very common
+            // console.log('QR decode error:', error)
+          },
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
+        }
+      )
+      
+      // Store the scanner instance for cleanup
+      ;(videoRef.current as any).qrScanner = qrScanner
+      
+      await qrScanner.start()
+    } catch (error) {
+      console.error('QR Scanner start error:', error)
+      setLastScanError('Failed to start QR scanner. Please check camera permissions.')
+      setScanning(false)
+      setCameraPermission('denied')
+    }
   }
 
   const handleManualInput = async () => {
@@ -172,6 +287,7 @@ export default function QRScannerPage() {
   const processScannedData = async (data: string) => {
     setLoading(true)
     setCurrentScan(null)
+    setLastScanError(null)
     
     try {
       console.log('🔍 Processing scanned data:', data)
@@ -181,21 +297,23 @@ export default function QRScannerPage() {
         const response = await apiService.verifyQRCode(data)
         console.log('✅ QR verification response:', response)
         
-        if (response.verified) {
+        if (response?.status === 'success' && response?.data) {
+          const verificationData = response.data
           const scannedProduct: ScannedProduct = {
             _id: Date.now().toString(),
-            batchId: response.batchId,
-            cropType: response.cropType,
-            harvestDate: response.harvestDate,
-            quantity: response.quantity,
-            unit: response.unit,
-            quality: response.quality,
-            location: response.location,
-            farmer: response.farmer,
-            status: response.status,
+            batchId: verificationData.batchId,
+            cropType: verificationData.cropType,
+            variety: (verificationData as any).variety,
+            harvestDate: verificationData.harvestDate,
+            quantity: verificationData.quantity,
+            unit: verificationData.unit,
+            quality: verificationData.quality,
+            location: verificationData.location,
+            farmer: typeof verificationData.farmer === 'string' ? { id: verificationData.farmer, name: 'Unknown Farmer' } : verificationData.farmer,
+            status: verificationData.status,
             verified: true,
             scannedAt: new Date(),
-            message: response.message
+            message: verificationData.message || 'Product verified successfully'
           }
           
           setCurrentScan(scannedProduct)
@@ -203,43 +321,46 @@ export default function QRScannerPage() {
           // Save to history
           const historyItem: ScanHistoryItem = {
             _id: Date.now().toString(),
-            batchId: response.batchId,
-            cropType: response.cropType,
+            batchId: verificationData.batchId,
+            cropType: verificationData.cropType,
+            variety: (verificationData as any).variety,
             verified: true,
             scannedAt: new Date(),
-            location: typeof response.location === 'string' ? response.location : `${response.location?.city || 'Unknown'}, ${response.location?.state || 'Unknown State'}`,
-            farmer: response.farmer,
-            quantity: response.quantity,
-            unit: response.unit,
-            quality: response.quality,
-            status: response.status,
-            message: response.message
+            location: typeof verificationData.location === 'string' 
+              ? verificationData.location 
+              : `${verificationData.location?.city || 'Unknown'}, ${verificationData.location?.state || 'Unknown State'}`,
+            farmer: typeof verificationData.farmer === 'object' ? (verificationData.farmer as any)?.name || 'Unknown Farmer' : 'Unknown Farmer',
+            quantity: verificationData.quantity,
+            unit: verificationData.unit,
+            quality: verificationData.quality,
+            status: verificationData.status,
+            message: verificationData.message || 'Product verified successfully'
           }
           
           saveScanHistory(historyItem)
           
           toast({
             title: "Product verified successfully",
-            description: `${response.cropType} from batch ${response.batchId} has been verified`,
+            description: `${verificationData.cropType} from batch ${verificationData.batchId} has been verified`,
           })
         } else {
           throw new Error('Verification failed')
         }
       } catch (verifyError) {
-        console.log('❌ QR verification failed, trying as tracking number...')
+        console.log('❌ QR verification failed:', verifyError)
         
-        // If QR verification fails, try as tracking number
-        // For now, we'll create a mock tracking response
-        const mockTracking: ScanHistoryItem = {
+        // Create a failed verification entry
+        const failedItem: ScanHistoryItem = {
           _id: Date.now().toString(),
           batchId: data,
           cropType: 'Unknown Product',
           verified: false,
           scannedAt: new Date(),
-          message: 'Tracking number not found in system'
+          message: 'QR code or tracking number not found in system'
         }
         
-        saveScanHistory(mockTracking)
+        saveScanHistory(failedItem)
+        setLastScanError('This QR code or tracking number was not found in our system')
         
         toast({
           title: "Verification failed",
@@ -249,47 +370,12 @@ export default function QRScannerPage() {
       }
     } catch (error) {
       console.error('❌ Error processing scanned data:', error)
-      
-      // Create a mock response for demonstration purposes
-      const mockProduct: ScannedProduct = {
-        _id: Date.now().toString(),
-        batchId: data,
-        cropType: 'Demo Maize',
-        harvestDate: new Date().toISOString(),
-        quantity: 50,
-        unit: 'kg',
-        quality: 'Premium',
-        location: 'Lagos, Nigeria',
-        farmer: 'Demo Farmer',
-        status: 'verified',
-        verified: true,
-        scannedAt: new Date(),
-        message: 'This is a demo verification for testing purposes'
-      }
-      
-      setCurrentScan(mockProduct)
-      
-      const historyItem: ScanHistoryItem = {
-        _id: Date.now().toString(),
-        batchId: data,
-        cropType: 'Demo Maize',
-        verified: true,
-        scannedAt: new Date(),
-        location: 'Lagos, Nigeria',
-        farmer: 'Demo Farmer',
-        quantity: 50,
-        unit: 'kg',
-        quality: 'Premium',
-        status: 'verified',
-        message: 'This is a demo verification for testing purposes'
-      }
-      
-      saveScanHistory(historyItem)
+      setLastScanError('An error occurred while processing the scan')
       
       toast({
-        title: "Demo Mode",
-        description: "Backend not available. Showing demo verification result.",
-        variant: "default"
+        title: "Scan failed",
+        description: "An error occurred while processing the scan. Please try again.",
+        variant: "destructive"
       })
     } finally {
       setLoading(false)
@@ -330,11 +416,37 @@ export default function QRScannerPage() {
     }).format(new Date(date))
   }
 
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price)
+  }
+
   const filteredHistory = scanHistory.filter(item => {
     if (!searchQuery) return true
     return item.batchId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           item.cropType.toLowerCase().includes(searchQuery.toLowerCase())
+           item.cropType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           (item.farmer && item.farmer.toLowerCase().includes(searchQuery.toLowerCase()))
   })
+
+  const exportHistory = () => {
+    const dataStr = JSON.stringify(scanHistory, null, 2)
+    const dataBlob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `grochain-scan-history-${new Date().toISOString().split('T')[0]}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    
+    toast({
+      title: "History exported",
+      description: "Your scan history has been downloaded",
+    })
+  }
 
   return (
     <DashboardLayout pageTitle="QR Scanner">
@@ -348,21 +460,12 @@ export default function QRScannerPage() {
             </p>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={() => {
-              const dataStr = JSON.stringify(scanHistory, null, 2)
-              const dataBlob = new Blob([dataStr], { type: 'application/json' })
-              const url = URL.createObjectURL(dataBlob)
-              const link = document.createElement('a')
-              link.href = url
-              link.download = 'grochain-scan-history.json'
-              link.click()
-              URL.revokeObjectURL(url)
-            }}>
+            <Button variant="outline" size="sm" onClick={exportHistory} disabled={scanHistory.length === 0}>
               <Download className="h-4 w-4 mr-2" />
               Export History
             </Button>
             <Button size="sm" asChild>
-              <Link href="/dashboard/products">
+              <Link href="/dashboard/marketplace">
                 <Package className="h-4 w-4 mr-2" />
                 Browse Products
               </Link>
@@ -370,11 +473,60 @@ export default function QRScannerPage() {
           </div>
         </div>
 
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <Scan className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Scans</p>
+                  <p className="text-2xl font-bold">{scanStats.totalScans}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Verified</p>
+                  <p className="text-2xl font-bold">{scanStats.verifiedScans}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <XCircle className="h-5 w-5 text-red-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Failed</p>
+                  <p className="text-2xl font-bold">{scanStats.failedScans}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <Package className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Unique Products</p>
+                  <p className="text-2xl font-bold">{scanStats.uniqueProducts}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Main Scanner Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="scanner">QR Scanner</TabsTrigger>
             <TabsTrigger value="manual">Manual Input</TabsTrigger>
+            <TabsTrigger value="generator">QR Generator</TabsTrigger>
             <TabsTrigger value="history">Scan History</TabsTrigger>
           </TabsList>
 
@@ -382,7 +534,18 @@ export default function QRScannerPage() {
           <TabsContent value="scanner" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Camera Scanner</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Camera Scanner</span>
+                  {scanning && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowFullScreen(!showFullScreen)}
+                    >
+                      {showFullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                    </Button>
+                  )}
+                </CardTitle>
                 <CardDescription>
                   Use your device camera to scan QR codes on products and shipments
                 </CardDescription>
@@ -403,16 +566,29 @@ export default function QRScannerPage() {
                   </div>
                 )}
 
+                {/* Last Scan Error */}
+                {lastScanError && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <AlertCircle className="h-5 w-5 text-red-600" />
+                      <div>
+                        <p className="font-medium text-red-800">Scan Error</p>
+                        <p className="text-sm text-red-600">{lastScanError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Camera Controls */}
                 <div className="flex items-center justify-center space-x-4">
                   {!scanning ? (
-                    <Button onClick={startCamera} disabled={cameraPermission === 'denied'}>
-                      <Camera className="h-4 w-4 mr-2" />
+                    <Button onClick={startCamera} disabled={cameraPermission === 'denied'} size="lg">
+                      <Camera className="h-5 w-5 mr-2" />
                       Start Camera
                     </Button>
                   ) : (
-                    <Button onClick={stopCamera} variant="outline">
-                      <CameraOff className="h-4 w-4 mr-2" />
+                    <Button onClick={stopCamera} variant="outline" size="lg">
+                      <CameraOff className="h-5 w-5 mr-2" />
                       Stop Camera
                     </Button>
                   )}
@@ -420,18 +596,35 @@ export default function QRScannerPage() {
 
                 {/* Camera View */}
                 {scanning && (
-                  <div className="relative">
+                  <div className={`relative ${showFullScreen ? 'fixed inset-0 z-50 bg-black' : ''}`}>
+                    {showFullScreen && (
+                      <div className="absolute top-4 right-4 z-10">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowFullScreen(false)}
+                          className="bg-white/90 hover:bg-white"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                     <video
                       ref={videoRef}
                       autoPlay
                       playsInline
-                      className="w-full max-w-md mx-auto rounded-lg border-2 border-primary"
+                      className={`${showFullScreen 
+                        ? 'w-full h-full object-cover' 
+                        : 'w-full max-w-md mx-auto rounded-lg border-2 border-primary'
+                      }`}
                     />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="border-2 border-white border-dashed w-48 h-48 rounded-lg flex items-center justify-center">
-                        <QrCode className="h-16 w-16 text-white opacity-50" />
+                    {!showFullScreen && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="border-2 border-white border-dashed w-48 h-48 rounded-lg flex items-center justify-center">
+                          <QrCode className="h-16 w-16 text-white opacity-50" />
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
@@ -469,7 +662,7 @@ export default function QRScannerPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="text-muted-foreground">Crop Type: </span>
                           <span className="font-medium">{currentScan.cropType}</span>
@@ -499,6 +692,18 @@ export default function QRScannerPage() {
                             }
                           </span>
                         </div>
+                        {currentScan.farmer && (
+                          <div>
+                            <span className="text-muted-foreground">Farmer: </span>
+                            <span>{currentScan.farmer.name}</span>
+                          </div>
+                        )}
+                        {currentScan.price && (
+                          <div>
+                            <span className="text-muted-foreground">Price: </span>
+                            <span>{formatPrice(currentScan.price)}</span>
+                          </div>
+                        )}
                       </div>
                       {currentScan.message && (
                         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -537,11 +742,11 @@ export default function QRScannerPage() {
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <Button onClick={handleManualInput} disabled={!scannedData.trim() || loading}>
+                  <Button onClick={handleManualInput} disabled={!scannedData.trim() || loading} size="lg">
                     {loading ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
-                    <Search className="h-4 w-4 mr-2" />
+                      <Search className="h-4 w-4 mr-2" />
                     )}
                     Verify & Track
                   </Button>
@@ -565,6 +770,14 @@ export default function QRScannerPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* QR Generator Tab */}
+          <TabsContent value="generator" className="mt-6">
+            <QRGenerator onQRGenerated={(qrData) => {
+              setScannedData(qrData)
+              setActiveTab("manual")
+            }} />
           </TabsContent>
 
           {/* Scan History Tab */}
@@ -653,7 +866,7 @@ export default function QRScannerPage() {
 
                           <div className="flex items-center justify-between">
                             <Button variant="outline" size="sm" asChild>
-                              <Link href={`/dashboard/products/${item.batchId}`}>
+                              <Link href={`/verify/${item.batchId}`}>
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </Link>
@@ -662,10 +875,10 @@ export default function QRScannerPage() {
                               <FileText className="h-4 w-4 mr-2" />
                               Certificate
                             </Button>
-                        </div>
+                          </div>
                         </CardContent>
                       </Card>
-                      ))}
+                    ))}
                   </div>
                 )}
               </CardContent>

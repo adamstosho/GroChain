@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   TrendingUp, 
   TrendingDown, 
-  DollarSign, 
+  Banknote, 
   Users, 
   Handshake,
   Calendar,
@@ -27,6 +27,7 @@ import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPi
 import { cn } from "@/lib/utils"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { useExportService } from "@/lib/export-utils"
 
 interface PartnerAnalyticsData {
   totalFarmers: number
@@ -49,6 +50,7 @@ export function PartnerAnalytics() {
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "1y">("30d")
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+  const exportService = useExportService()
 
   // Mock data for charts (replace with real API calls)
   const mockFarmerGrowth: ChartData[] = [
@@ -108,12 +110,8 @@ export function PartnerAnalytics() {
     window.location.reload()
   }
 
-  const handleExport = () => {
-    // Export analytics data
-    toast({
-      title: "Export initiated",
-      description: "Your analytics report is being prepared for download.",
-    })
+  const handleExport = async () => {
+    await exportService.exportAnalytics('partner', timeRange, 'csv')
   }
 
   const formatCurrency = (value: number) => {
@@ -329,7 +327,7 @@ export function PartnerAnalytics() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Commissions</CardTitle>
-            <DollarSign className="h-4 w-4 text-purple-600" />
+            <Banknote className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -647,7 +645,7 @@ export function PartnerAnalytics() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
+                  <Banknote className="h-5 w-5 text-primary" />
                   Commission Breakdown
                 </CardTitle>
                 <CardDescription>

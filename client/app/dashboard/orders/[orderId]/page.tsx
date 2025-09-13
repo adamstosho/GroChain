@@ -80,7 +80,7 @@ export default function OrderDetailsPage() {
         const response = await apiService.getOrder(orderId)
 
         if (response && response.status === 'success' && response.data) {
-          setOrder(response.data)
+          setOrder(response.data as any)
           console.log('✅ Order details loaded:', response.data)
         } else {
           throw new Error(response?.message || 'Failed to fetch order details')
@@ -128,8 +128,8 @@ export default function OrderDetailsPage() {
         // Always try to refetch order details to get latest status
         const refreshed = await apiService.getOrder(orderId)
         if (refreshed && refreshed.status === 'success' && refreshed.data) {
-          setOrder(refreshed.data)
-          if (refreshed.data.paymentStatus === 'paid' || refreshed.data.status === 'paid') {
+          setOrder(refreshed.data as any)
+          if ((refreshed.data as any).paymentStatus === 'paid' || (refreshed.data as any).status === 'paid') {
             toast({
               title: 'Payment Confirmed',
               description: 'Your order has been marked as paid.',

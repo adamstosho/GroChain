@@ -7,12 +7,15 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { Skeleton } from "@/components/ui/skeleton"
+import { SkeletonCard, SkeletonStats, SkeletonFilters } from "@/components/ui/enhanced-skeleton"
 import { Separator } from "@/components/ui/separator"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { useBuyerStore } from "@/hooks/use-buyer-store"
+import { ReceiptGenerator } from "@/lib/receipt-generator"
 import {
   Package,
   Search,
@@ -33,10 +36,11 @@ import {
   Mail,
   FileText,
   TrendingUp,
-  DollarSign,
+  Banknote,
   ShoppingBag,
   ArrowRight,
   ChevronRight,
+  ChevronDown,
   TruckIcon,
   MapPinIcon,
   ClockIcon,
@@ -46,7 +50,8 @@ import {
   Loader2,
   Receipt,
   User,
-  Building
+  Building,
+  FileSpreadsheet
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -164,9 +169,8 @@ const calculateStatsFromOrders = (orders: Order[]): OrderStats => {
     else if (order.status === 'delivered') stats.delivered++
     else if (order.status === 'cancelled') stats.cancelled++
     
-    // Count confirmed orders by payment status (paid orders)
+    // Calculate total spent from paid orders only
     if (order.paymentStatus === 'paid') {
-      stats.confirmed++
       stats.totalSpent += order.total
     }
   })
@@ -200,6 +204,7 @@ export default function OrdersPage() {
     dateRange: "all",
     searchQuery: ""
   })
+  const [exporting, setExporting] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -242,8 +247,8 @@ export default function OrdersPage() {
 
       if (response?.status === 'success' && response?.data) {
         // Handle the structured response from backend
-        const ordersData = response.data.orders || []
-        let statsData = response.data.stats || {
+        const ordersData = (response.data as any)?.orders || []
+        let statsData = (response.data as any)?.stats || {
           total: 0,
           pending: 0,
           confirmed: 0,
@@ -254,12 +259,12 @@ export default function OrdersPage() {
         }
         
         // If backend stats are not available or all zeros, calculate from orders data
-        if (!response.data.stats || (statsData.confirmed === 0 && statsData.totalSpent === 0 && ordersData.length > 0)) {
+        if (!(response.data as any)?.stats || (statsData.confirmed === 0 && statsData.totalSpent === 0 && ordersData.length > 0)) {
           console.log('📊 Calculating stats from orders data...')
           statsData = calculateStatsFromOrders(ordersData)
         }
         
-        const paginationData = response.data.pagination || {
+        const paginationData = (response.data as any)?.pagination || {
           page: 1,
           limit: 20,
           total: 0,
@@ -292,8 +297,8 @@ export default function OrdersPage() {
       try {
         console.log('🔄 Attempting to fetch orders from alternative endpoint...')
         const fallbackResponse = await apiService.getUserOrders({ page: '1', limit: '100' })
-        if (fallbackResponse?.data?.orders) {
-          const ordersData = fallbackResponse.data.orders
+        if ((fallbackResponse.data as any)?.orders) {
+          const ordersData = (fallbackResponse.data as any).orders
           const statsData = calculateStatsFromOrders(ordersData)
           setOrders(ordersData)
           setStats(statsData)
@@ -338,6 +343,275 @@ export default function OrdersPage() {
     } finally {
       setRefreshing(false)
     }
+  }
+
+  const handleOrderUpdate = (orderId: string, newStatus: string) => {
+    // Update the order in the local state
+    setOrders(prevOrders => 
+      prevOrders.map(order => 
+        order._id === orderId 
+          ? { ...order, status: newStatus as OrderStatus }
+          : order
+      )
+    )
+    
+    // Recalculate stats
+    const updatedOrders = orders.map(order => 
+      order._id === orderId 
+        ? { ...order, status: newStatus as OrderStatus }
+        : order
+    )
+    const newStats = calculateStatsFromOrders(updatedOrders)
+    setStats(newStats)
+  }
+
+  const exportOrders = async (format: 'csv' | 'json' | 'pdf' = 'csv') => {
+    try {
+      setExporting(true)
+      
+      // Use filtered orders for export
+      const ordersToExport = filteredOrders
+      
+      if (ordersToExport.length === 0) {
+        toast({
+          title: "No orders to export",
+          description: "There are no orders matching your current filters to export.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const timestamp = new Date().toISOString().split('T')[0]
+      const filename = `grochain-orders-${timestamp}`
+
+      switch (format) {
+        case 'csv':
+          exportToCSV(ordersToExport, filename)
+          break
+        case 'json':
+          exportToJSON(ordersToExport, filename)
+          break
+        case 'pdf':
+          await exportToPDF(ordersToExport, filename)
+          break
+      }
+
+      toast({
+        title: "Export successful",
+        description: `${ordersToExport.length} orders exported as ${format.toUpperCase()} successfully`,
+      })
+    } catch (error) {
+      console.error('Export error:', error)
+      toast({
+        title: "Export failed",
+        description: "Failed to export orders. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const exportToCSV = (orders: Order[], filename: string) => {
+    // Add summary information at the top
+    const summary = [
+      ['GroChain Orders Export'],
+      [`Export Date: ${new Date().toLocaleDateString()}`],
+      [`Total Orders: ${orders.length}`],
+      [`Filter Applied: ${activeTab !== 'all' ? activeTab : 'All orders'}`],
+      [''],
+      ['Order Details:'],
+      ['']
+    ]
+
+    const headers = [
+      'Order Number',
+      'Status',
+      'Payment Status',
+      'Total Amount (₦)',
+      'Subtotal (₦)',
+      'Tax (₦)',
+      'Shipping (₦)',
+      'Discount (₦)',
+      'Order Date',
+      'Items Count',
+      'Crop Types',
+      'Seller Name',
+      'Seller Email',
+      'Delivery Address',
+      'Delivery Instructions'
+    ]
+
+    const csvData = orders.map(order => [
+      order.orderNumber || `ORD-${order._id.slice(-6).toUpperCase()}`,
+      order.status,
+      order.paymentStatus,
+      order.total.toLocaleString(),
+      order.subtotal.toLocaleString(),
+      order.tax.toLocaleString(),
+      order.shipping.toLocaleString(),
+      order.discount.toLocaleString(),
+      new Date(order.createdAt).toLocaleDateString(),
+      order.items.length,
+      order.items.map(item => item.listing?.cropName).join('; '),
+      order.items[0]?.listing?.farmer?.name || 'Unknown',
+      order.items[0]?.listing?.farmer?.email || 'Unknown',
+      `"${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.state}"`,
+      `"${order.deliveryInstructions || 'None'}"`
+    ])
+
+    const csvContent = [
+      ...summary.map(row => row.join(',')),
+      headers.join(','),
+      ...csvData.map(row => row.join(','))
+    ].join('\n')
+
+    downloadFile(csvContent, `${filename}.csv`, 'text/csv')
+  }
+
+  const exportToJSON = (orders: Order[], filename: string) => {
+    const exportData = {
+      exportInfo: {
+        exportDate: new Date().toISOString(),
+        exportFormat: 'JSON',
+        totalOrders: orders.length,
+        appliedFilters: {
+          status: filters.status,
+          paymentStatus: filters.paymentStatus,
+          dateRange: filters.dateRange,
+          searchQuery: filters.searchQuery,
+          activeTab: activeTab
+        },
+        stats: {
+          total: stats.total,
+          pending: stats.pending,
+          confirmed: stats.confirmed,
+          shipped: stats.shipped,
+          delivered: stats.delivered,
+          cancelled: stats.cancelled,
+          totalSpent: stats.totalSpent
+        }
+      },
+      orders: orders.map(order => ({
+        orderId: order._id,
+        orderNumber: order.orderNumber || `ORD-${order._id.slice(-6).toUpperCase()}`,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        paymentMethod: order.paymentMethod,
+        total: order.total,
+        subtotal: order.subtotal,
+        tax: order.tax,
+        shipping: order.shipping,
+        discount: order.discount,
+        orderDate: order.createdAt,
+        updatedAt: order.updatedAt,
+        items: order.items.map(item => ({
+          itemId: item._id,
+          cropName: item.listing?.cropName,
+          quantity: item.quantity,
+          unit: item.unit,
+          price: item.price,
+          total: item.total,
+          listingId: item.listing?._id
+        })),
+        seller: {
+          id: order.items[0]?.listing?.farmer?._id,
+          name: order.items[0]?.listing?.farmer?.name,
+          email: order.items[0]?.listing?.farmer?.email,
+          phone: order.items[0]?.listing?.farmer?.profile?.phone,
+          farmName: order.items[0]?.listing?.farmer?.profile?.farmName
+        },
+        buyer: {
+          id: order.buyer._id,
+          name: order.buyer.name,
+          email: order.buyer.email,
+          phone: order.buyer.profile?.phone
+        },
+        shippingAddress: order.shippingAddress,
+        deliveryInstructions: order.deliveryInstructions,
+        estimatedDelivery: order.estimatedDelivery,
+        actualDelivery: order.actualDelivery,
+        trackingNumber: order.trackingNumber
+      }))
+    }
+
+    downloadFile(JSON.stringify(exportData, null, 2), `${filename}.json`, 'application/json')
+  }
+
+  const exportToPDF = async (orders: Order[], filename: string) => {
+    // For PDF export, we'll create a simple HTML table and convert it
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>GroChain Orders Export</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { color: #2563eb; margin-bottom: 20px; }
+          .summary { background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
+          th { background-color: #f1f5f9; font-weight: bold; }
+          .status-verified { color: #059669; }
+          .status-pending { color: #d97706; }
+          .status-cancelled { color: #dc2626; }
+        </style>
+      </head>
+      <body>
+        <h1>GroChain Orders Export</h1>
+        <div class="summary">
+          <p><strong>Export Date:</strong> ${new Date().toLocaleDateString()}</p>
+          <p><strong>Total Orders:</strong> ${orders.length}</p>
+          <p><strong>Filter Applied:</strong> ${activeTab !== 'all' ? activeTab : 'All orders'}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Order Number</th>
+              <th>Status</th>
+              <th>Payment Status</th>
+              <th>Total Amount</th>
+              <th>Order Date</th>
+              <th>Items</th>
+              <th>Seller</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${orders.map(order => `
+              <tr>
+                <td>${order.orderNumber || `ORD-${order._id.slice(-6).toUpperCase()}`}</td>
+                <td class="status-${order.status}">${order.status}</td>
+                <td>${order.paymentStatus}</td>
+                <td>₦${order.total.toLocaleString()}</td>
+                <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                <td>${order.items.length} items</td>
+                <td>${order.items[0]?.listing?.farmer?.name || 'Unknown'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `
+
+    // Create a blob and download
+    const blob = new Blob([htmlContent], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${filename}.html`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const downloadFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
     // Use useMemo for filtered orders to prevent infinite loops
@@ -477,58 +751,51 @@ export default function OrdersPage() {
             </div>
           </div>
 
-          {/* Loading Stats Cards */}
+          {/* Enhanced Loading Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {[...Array(5)].map((_, i) => (
-              <Card key={i} className="border border-gray-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center space-x-2">
-                    <Skeleton className="h-5 w-5 rounded" />
-                    <div className="flex-1">
-                      <Skeleton className="h-4 w-20 mb-2" />
-                      <Skeleton className="h-6 w-12" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div key={i} className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Skeleton className="h-5 w-5 rounded" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+                <Skeleton className="h-6 w-12" />
+                <Skeleton className="h-3 w-16" />
+              </div>
             ))}
           </div>
 
-          {/* Loading Filters */}
-          <Card className="border border-gray-200">
-            <CardContent className="pt-6">
-              <Skeleton className="h-10 w-full mb-4" />
-              <div className="flex gap-2">
-                <Skeleton className="h-10 w-32" />
-                <Skeleton className="h-10 w-32" />
-                <Skeleton className="h-10 w-32" />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Enhanced Loading Filters */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-32" />
+            </div>
+          </div>
 
-          {/* Loading Orders */}
+          {/* Enhanced Loading Orders */}
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
-              <Card key={i} className="border border-gray-200">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="space-y-2 flex-1">
-                      <Skeleton className="h-6 w-32" />
-                      <Skeleton className="h-4 w-48" />
-                      <div className="flex gap-2">
-                        <Skeleton className="h-6 w-16" />
-                        <Skeleton className="h-6 w-20" />
-                      </div>
+              <div key={i} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-6 w-32" />
+                    <Skeleton className="h-4 w-48" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-6 w-16" />
+                      <Skeleton className="h-6 w-20" />
                     </div>
-                    <Skeleton className="h-6 w-24" />
                   </div>
-                  <Skeleton className="h-4 w-full mb-4" />
-                  <div className="flex gap-2">
-                    <Skeleton className="h-8 w-24" />
-                    <Skeleton className="h-8 w-32" />
-                  </div>
-                </CardContent>
-              </Card>
+                  <Skeleton className="h-6 w-24" />
+                </div>
+                <Skeleton className="h-4 w-full" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-8 w-32" />
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -561,10 +828,40 @@ export default function OrdersPage() {
               )}
               {refreshing ? 'Refreshing...' : 'Refresh'}
             </Button>
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export Orders
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => exportOrders('csv')}
+              disabled={exporting || filteredOrders.length === 0}
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+              )}
+              Export CSV ({filteredOrders.length})
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" disabled={exporting || filteredOrders.length === 0}>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => exportOrders('csv')}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportOrders('json')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export as JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportOrders('pdf')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export as HTML
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button size="sm" asChild>
               <Link href="/dashboard/marketplace">
                 <ShoppingBag className="h-4 w-4 mr-2" />
@@ -623,7 +920,7 @@ export default function OrdersPage() {
           <Card className="hover:shadow-md transition-shadow">
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
-                <DollarSign className="h-5 w-5 text-green-600" />
+                <Banknote className="h-5 w-5 text-green-600" />
                 <div>
                   <p className="text-sm text-muted-foreground">Total Spent</p>
                   <p className="text-2xl font-bold">{formatPrice(stats.totalSpent)}</p>
@@ -788,6 +1085,7 @@ export default function OrdersPage() {
                         getStatusIcon={getStatusIcon}
                         formatPrice={formatPrice}
                         formatDate={formatDate}
+                        onOrderUpdate={handleOrderUpdate}
                       />
                     ))}
                   </div>
@@ -808,6 +1106,7 @@ interface OrderCardProps {
   getStatusIcon: (status: OrderStatus) => React.ReactNode
   formatPrice: (price: number) => string
   formatDate: (date: Date) => string
+  onOrderUpdate?: (orderId: string, newStatus: string) => void
 }
 
 function OrderCard({
@@ -816,8 +1115,88 @@ function OrderCard({
   getPaymentStatusColor,
   getStatusIcon,
   formatPrice,
-  formatDate
+  formatDate,
+  onOrderUpdate
 }: OrderCardProps) {
+  const { toast } = useToast()
+  const [cancelling, setCancelling] = useState(false)
+
+  const handleCancelOrder = async () => {
+    try {
+      setCancelling(true)
+      console.log('🚫 Cancelling order:', order._id)
+      
+      const response = await apiService.cancelOrder(order._id)
+      
+      if (response?.status === 'success') {
+        toast({
+          title: "Order Cancelled",
+          description: "Your order has been cancelled successfully.",
+        })
+        
+        // Update the order status in the parent component
+        if (onOrderUpdate) {
+          onOrderUpdate(order._id, 'cancelled')
+        } else {
+          // Fallback to page reload if no callback provided
+          window.location.reload()
+        }
+      } else {
+        throw new Error(response?.message || 'Failed to cancel order')
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to cancel order:', error)
+      toast({
+        title: "Failed to Cancel Order",
+        description: error.message || "Please try again later.",
+        variant: "destructive",
+      })
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  const handleDownloadReceipt = async () => {
+    try {
+      console.log('📄 Starting receipt generation for order:', order._id)
+      
+      toast({
+        title: "Generating receipt...",
+        description: "Please wait while we prepare your receipt.",
+      })
+
+      const response = await apiService.downloadOrderReceipt(order._id)
+      
+      console.log('📄 Receipt API response:', response)
+      
+      if (response?.status === 'success' && response?.data) {
+        console.log('📄 Generating PDF with data:', response.data)
+        await ReceiptGenerator.generatePDF(response.data as any)
+        
+        toast({
+          title: "Receipt generated!",
+          description: "Your receipt has been prepared for download.",
+        })
+      } else {
+        console.error('❌ Receipt generation failed - invalid response:', response)
+        throw new Error(response?.message || 'Failed to generate receipt')
+      }
+    } catch (error: any) {
+      console.error('❌ Receipt generation failed:', error)
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        endpoint: error.endpoint,
+        orderId: order._id
+      })
+      
+      toast({
+        title: "Failed to generate receipt",
+        description: error.message || "Please try again later.",
+        variant: "destructive",
+      })
+    }
+  }
   return (
     <Card className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-primary/20">
       <CardContent className="p-6">
@@ -891,11 +1270,11 @@ function OrderCard({
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Building className="h-3 w-3" />
-                    <span>{order.items[0].listing.farmer.profile?.farmName || 'Farm'}</span>
+                    <span>{order.items[0].listing.farmer.profile?.farmName || (order.items[0].listing.farmer as any)?.location || 'Farm'}</span>
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Phone className="h-3 w-3" />
-                    <span>{order.items[0].listing.farmer.profile?.phone || 'Not provided'}</span>
+                    <span>{(order.items[0].listing.farmer as any)?.phone || order.items[0].listing.farmer.profile?.phone || 'Phone not provided'}</span>
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Mail className="h-3 w-3" />
@@ -1019,9 +1398,18 @@ function OrderCard({
           )}
 
           {order.status === 'pending' && (
-            <Button variant="destructive" size="sm">
-              <XCircle className="h-4 w-4 mr-2" />
-              Cancel Order
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={handleCancelOrder}
+              disabled={cancelling}
+            >
+              {cancelling ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <XCircle className="h-4 w-4 mr-2" />
+              )}
+              {cancelling ? 'Cancelling...' : 'Cancel Order'}
             </Button>
           )}
 
@@ -1032,7 +1420,7 @@ function OrderCard({
             </Button>
           )}
 
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleDownloadReceipt}>
             <FileText className="h-4 w-4 mr-2" />
             Download Receipt
           </Button>

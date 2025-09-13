@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { apiService } from "@/lib/api"
 import { processOrderPayment, loadPaystackScript } from "@/lib/paystack"
+import { processFlutterwaveOrderPayment, loadFlutterwaveScript } from "@/lib/flutterwave"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -26,6 +27,7 @@ export default function CheckoutPage() {
 
   const [processing, setProcessing] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState("paystack")
+  const [paymentProvider, setPaymentProvider] = useState("paystack")
   const [shippingInfo, setShippingInfo] = useState({
     fullName: user?.name || "",
     email: user?.email || "",
@@ -68,16 +70,27 @@ export default function CheckoutPage() {
     }
   }, [user, mounted])
 
-  // Ensure Paystack script is loaded
+  // Ensure payment scripts are loaded
   useEffect(() => {
     if (mounted && typeof window !== 'undefined') {
-      console.log('🔄 Checkout page mounted, loading Paystack script...')
+      console.log('🔄 Checkout page mounted, loading payment scripts...')
+      
+      // Load Paystack script
       loadPaystackScript()
         .then(() => {
           console.log('✅ Paystack script loaded successfully in checkout')
         })
         .catch(error => {
           console.warn('⚠️ Paystack script loading failed:', error.message)
+        })
+      
+      // Load Flutterwave script
+      loadFlutterwaveScript()
+        .then(() => {
+          console.log('✅ Flutterwave script loaded successfully in checkout')
+        })
+        .catch(error => {
+          console.warn('⚠️ Flutterwave script loading failed:', error.message)
         })
     }
   }, [mounted])
@@ -127,9 +140,26 @@ export default function CheckoutPage() {
         throw new Error('Please enter a valid Nigerian phone number.')
       }
 
+      // Basic validation - just check that fields are not empty
+      if (!shippingInfo.address.trim()) {
+        throw new Error('Please enter your address.')
+      }
+      
+      if (!shippingInfo.city.trim()) {
+        throw new Error('Please enter your city.')
+      }
+      
+      if (!shippingInfo.state.trim()) {
+        throw new Error('Please enter your state.')
+      }
+
       // Handle different payment methods
       if (paymentMethod === 'paystack') {
+        setPaymentProvider('paystack')
         await handlePaystackPayment()
+      } else if (paymentMethod === 'flutterwave') {
+        setPaymentProvider('flutterwave')
+        await handleFlutterwavePayment()
       } else if (paymentMethod === 'bank_transfer') {
         await handleBankTransferOrder()
       } else if (paymentMethod === 'cash') {
@@ -147,6 +177,108 @@ export default function CheckoutPage() {
       })
     } finally {
       setProcessing(false)
+    }
+  }
+
+  const handleFlutterwavePayment = async () => {
+    try {
+      // First, create the order
+      const orderData = {
+        items: cart.map((item) => ({
+          listing: item.listingId || item.id,
+          quantity: item.quantity,
+          price: item.price,
+          unit: item.unit
+        })),
+        shippingAddress: {
+          street: shippingInfo.address,
+          city: shippingInfo.city,
+          state: shippingInfo.state,
+          country: "Nigeria",
+          phone: shippingInfo.phone
+        },
+        deliveryInstructions: shippingInfo.notes,
+        paymentMethod: paymentMethod,
+        notes: shippingInfo.notes
+      }
+
+      console.log('🛒 Creating order before Flutterwave payment...')
+      console.log('📤 Order data:', orderData)
+
+      const orderResponse = await apiService.createOrder(orderData)
+      console.log('📥 Order creation response:', orderResponse)
+
+      if (!orderResponse || orderResponse.status !== 'success' || !orderResponse.data) {
+        throw new Error(orderResponse?.message || 'Failed to create order')
+      }
+
+      const order = orderResponse.data
+      console.log('✅ Order created:', order._id)
+
+      // Now initialize Flutterwave payment
+      console.log('💳 Initializing Flutterwave payment...')
+
+      const paymentResult = await processFlutterwaveOrderPayment(
+        order._id,
+        total, // Use the calculated total
+        shippingInfo.email,
+        // Success callback
+        async (response) => {
+          console.log('✅ Flutterwave payment successful:', response)
+
+          console.log('✅ Flutterwave payment successful - starting post-payment cleanup')
+          console.log('📦 Order details:', { orderId: order._id, totalItems: (order as any).items?.length || 0 })
+
+          toast({
+            title: "Payment successful!",
+            description: "Your payment has been processed. Redirecting to order confirmation...",
+          })
+
+          // Clear cart after successful payment
+          console.log('🗑️ Clearing cart...')
+          clearCart()
+
+          // Force refresh of marketplace products by clearing cache
+          try {
+            console.log('🔄 Setting marketplace refresh flag...')
+            // Clear any cached product data
+            if (typeof window !== 'undefined') {
+              // Force a hard refresh of the marketplace page data
+              localStorage.setItem('marketplace_refresh_needed', 'true')
+              console.log('✅ Refresh flag set successfully')
+            }
+          } catch (error) {
+            console.log('❌ Could not set refresh flag:', error)
+          }
+
+          console.log('🚀 Post-payment cleanup completed')
+
+          // Redirect to order success page first
+          setTimeout(() => {
+            router.push(`/marketplace/order-success/${order._id}`)
+          }, 2000)
+        },
+        // Close callback
+        () => {
+          console.log('❌ Flutterwave payment cancelled by user')
+          toast({
+            title: "Payment cancelled",
+            description: "You cancelled the payment. Your order has been saved and you can pay later.",
+            variant: "destructive",
+          })
+        }
+      )
+
+      // Handle payment result
+      if (paymentResult.status === 'cancelled') {
+        console.log('Flutterwave payment was cancelled')
+      } else if (paymentResult.status === 'failed') {
+        throw new Error('Flutterwave payment failed. Please try again.')
+      }
+
+    } catch (error: any) {
+      console.error('❌ Flutterwave payment error:', error)
+      throw error
     }
   }
 
@@ -198,7 +330,7 @@ export default function CheckoutPage() {
           console.log('✅ Payment successful:', response)
 
           console.log('✅ Payment successful - starting post-payment cleanup')
-          console.log('📦 Order details:', { orderId: order._id, totalItems: order.items?.length || 0 })
+          console.log('📦 Order details:', { orderId: order._id, totalItems: (order as any).items?.length || 0 })
 
           toast({
             title: "Payment successful!",
@@ -342,11 +474,11 @@ export default function CheckoutPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50" suppressHydrationWarning>
         <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-32"></div>
+          <div className="space-y-6">
+            <div className="h-8 bg-gray-100 animate-pulse rounded w-32"></div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="h-96 bg-gray-200 rounded"></div>
-              <div className="h-96 bg-gray-200 rounded"></div>
+              <div className="h-96 bg-gray-100 animate-pulse rounded"></div>
+              <div className="h-96 bg-gray-100 animate-pulse rounded"></div>
             </div>
           </div>
         </div>
@@ -359,15 +491,15 @@ export default function CheckoutPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50" suppressHydrationWarning>
         <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-64"></div>
+          <div className="space-y-6">
+            <div className="h-8 bg-gray-100 animate-pulse rounded w-64"></div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-6">
-                <div className="h-64 bg-gray-200 rounded"></div>
-                <div className="h-48 bg-gray-200 rounded"></div>
-                <div className="h-32 bg-gray-200 rounded"></div>
+                <div className="h-64 bg-gray-100 animate-pulse rounded"></div>
+                <div className="h-48 bg-gray-100 animate-pulse rounded"></div>
+                <div className="h-32 bg-gray-100 animate-pulse rounded"></div>
               </div>
-              <div className="h-96 bg-gray-200 rounded"></div>
+              <div className="h-96 bg-gray-100 animate-pulse rounded"></div>
             </div>
           </div>
         </div>
@@ -526,6 +658,19 @@ export default function CheckoutPage() {
                         <div>
                           <p className="font-medium">Paystack (Recommended)</p>
                           <p className="text-sm text-gray-500">Pay securely with card, bank transfer, or USSD</p>
+                        </div>
+                      </div>
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <RadioGroupItem value="flutterwave" id="flutterwave" />
+                    <Label htmlFor="flutterwave" className="flex-1 cursor-pointer">
+                      <div className="flex items-center gap-3">
+                        <CreditCard className="h-5 w-5 text-purple-600" />
+                        <div>
+                          <p className="font-medium">Flutterwave</p>
+                          <p className="text-sm text-gray-500">Pay with card, mobile money, or bank transfer</p>
                         </div>
                       </div>
                     </Label>

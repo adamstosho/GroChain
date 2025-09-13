@@ -140,7 +140,7 @@ export default function DebugPage() {
       }
     } catch (error) {
       console.error('API Test Error:', error)
-      alert(`❌ API call error: ${error.message}`)
+      alert(`❌ API call error: ${(error as any)?.message}`)
     }
   }
 
@@ -170,7 +170,7 @@ export default function DebugPage() {
       }
     } catch (error) {
       console.error('Farmers API Test Error:', error)
-      alert(`❌ Farmers API call error: ${error.message}`)
+      alert(`❌ Farmers API call error: ${(error as any)?.message}`)
     }
   }
 

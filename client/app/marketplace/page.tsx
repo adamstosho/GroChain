@@ -82,10 +82,10 @@ export default function MarketplacePage() {
         name: item.cropName
       })),
       sampleProduct: products.length > 0 ? {
-        id: products[0].id,
-        name: products[0].name,
-        quantity: products[0].quantity,
-        availableQuantity: products[0].availableQuantity
+        id: (products[0] as any).id || (products[0] as any)._id,
+        name: (products[0] as any).name || (products[0] as any).cropName,
+        quantity: (products[0] as any).quantity,
+        availableQuantity: (products[0] as any).availableQuantity
       } : null
     })
   }, [cart, products])
@@ -157,10 +157,10 @@ export default function MarketplacePage() {
       }
 
       const response = await apiService.getMarketplaceListings(params)
-      const listings = response.data?.listings || []
+      const listings = (response.data as any)?.listings || []
 
       // Debug backend response
-      console.log('🔍 Backend listings:', listings.map(listing => ({
+      console.log('🔍 Backend listings:', listings.map((listing: any) => ({
         _id: listing._id,
         cropName: listing.cropName,
         quantity: listing.quantity,
@@ -213,10 +213,10 @@ export default function MarketplacePage() {
 
     try {
       // Find the product in the current products list
-      const product = products.find(p => p.id === productId)
+      const product = products.find(p => (p as any).id === productId || (p as any)._id === productId)
       if (product) {
         // Check if product has available quantity
-        if (product.availableQuantity <= 0) {
+        if ((product as any).availableQuantity <= 0) {
           toast({
             title: "Out of Stock",
             description: "This product is currently out of stock.",
@@ -227,24 +227,24 @@ export default function MarketplacePage() {
 
         // Use buyer store to add to cart with proper format
         const cartItem = {
-          id: product.id,
-          listingId: product.id,
-          cropName: product.name,
+          id: (product as any).id || (product as any)._id,
+          listingId: (product as any).id || (product as any)._id,
+          cropName: (product as any).name || (product as any).cropName,
           quantity: 1,
-          unit: product.unit,
-          price: product.price,
-          image: product.images?.[0] || "/placeholder.svg",
-          farmer: product.farmer,
-          category: product.category,
-          location: product.location,
-          availableQuantity: product.availableQuantity
+          unit: (product as any).unit,
+          price: (product as any).price,
+          image: (product as any).images?.[0] || "/placeholder.svg",
+          farmer: (product as any).farmer,
+          category: (product as any).category,
+          location: (product as any).location,
+          availableQuantity: (product as any).availableQuantity
         }
 
         await addToCart(cartItem, 1)
 
         toast({
           title: "Added to cart!",
-          description: `${product.name} has been added to your cart.`,
+          description: `${(product as any).name || (product as any).cropName} has been added to your cart.`,
         })
 
         // Note: We don't refresh products here because quantities are calculated
@@ -254,8 +254,8 @@ export default function MarketplacePage() {
         console.log("✅ Product added to cart successfully:", {
           cartItemId: cartItem.id,
           cartItemListingId: cartItem.listingId,
-          productId: product.id,
-          productName: product.name,
+          productId: (product as any).id || (product as any)._id,
+          productName: (product as any).name || (product as any).cropName,
           currentCart: cart.map(c => ({ id: c.id, listingId: c.listingId, quantity: c.quantity }))
         })
       } else {
@@ -378,7 +378,7 @@ export default function MarketplacePage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-gray-600">Loading marketplace...</p>
         </div>
       </div>

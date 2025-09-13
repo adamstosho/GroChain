@@ -18,7 +18,7 @@ import {
   Filter,
   RefreshCw,
   Calendar,
-  DollarSign,
+  Banknote,
   MapPin,
   TrendingUp,
   TrendingDown,
@@ -127,19 +127,18 @@ export default function MarketplaceListingsPage() {
       setLoading(true)
       console.log("🔄 Fetching listings...")
 
-      // Fetch listings from backend
-      const response = await apiService.getListings()
-      console.log("📦 Listings API Response:", response)
+      // Fetch farmer's listings from backend
+      const response = await apiService.getFarmerListings()
+      console.log("📦 Farmer Listings API Response:", response)
 
-      if (response && Array.isArray(response)) {
-        const listingsData = response
-        console.log("✅ Listings data:", listingsData)
+      if (response?.status === 'success' && (response.data as any)?.listings) {
+        const listingsData = (response.data as any)?.listings
+        console.log("✅ Farmer listings data:", listingsData)
 
-        // Filter listings for current farmer (since backend returns all active listings)
-        // For now, we'll show all listings, but in production you'd filter by farmer
+        // Process farmer's listings
         const processedListings = listingsData.map((listing: any) => ({
           _id: listing._id,
-          farmer: listing.farmer || { _id: '', name: 'Unknown Farmer', email: '' },
+          farmer: listing.farmer || { _id: '', name: 'You', email: '' },
           cropName: listing.cropName || 'Unknown Crop',
           category: listing.category || 'General',
           description: listing.description || '',
@@ -481,7 +480,7 @@ export default function MarketplaceListingsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="border border-gray-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
@@ -524,7 +523,7 @@ export default function MarketplaceListingsPage() {
           <Card className="border border-gray-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-green-500" />
+                <Banknote className="h-4 w-4 text-green-500" />
                 Revenue
               </CardTitle>
             </CardHeader>
@@ -536,7 +535,7 @@ export default function MarketplaceListingsPage() {
         </div>
 
         {/* Performance Insights */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card className="border border-gray-200">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-gray-600">Top Category</CardTitle>
@@ -583,7 +582,7 @@ export default function MarketplaceListingsPage() {
         {/* Filters */}
         <Card className="border border-gray-200">
           <CardContent className="pt-6">
-            <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -592,13 +591,13 @@ export default function MarketplaceListingsPage() {
                     placeholder="Search listings by crop, category, or description..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 w-full"
                   />
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-full sm:w-32">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -612,7 +611,7 @@ export default function MarketplaceListingsPage() {
                 </Select>
 
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-full sm:w-32">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -624,7 +623,7 @@ export default function MarketplaceListingsPage() {
                 </Select>
 
                 <Select value={priceFilter} onValueChange={setPriceFilter}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-full sm:w-32">
                     <SelectValue placeholder="Price Range" />
                   </SelectTrigger>
                   <SelectContent>
@@ -668,8 +667,8 @@ export default function MarketplaceListingsPage() {
           ) : (
             filteredListings.map((listing) => (
               <Card key={listing._id} className="border border-gray-200 hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                     {/* Product Image */}
                     <div className="flex-shrink-0">
                       <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
@@ -691,33 +690,35 @@ export default function MarketplaceListingsPage() {
 
                     {/* Product Details */}
                     <div className="flex-1 space-y-2">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                        <div className="space-y-1 flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                             <h3 className="text-lg font-semibold text-gray-900">
                               {listing.cropName}
                             </h3>
-                            <Badge className={getStatusColor(listing.status)}>
-                              {listing.status}
-                            </Badge>
-                            {listing.organic && (
-                              <Badge className="bg-green-50 text-green-700 border-green-200">
-                                Organic
+                            <div className="flex flex-wrap gap-2">
+                              <Badge className={getStatusColor(listing.status)}>
+                                {listing.status}
                               </Badge>
-                            )}
+                              {listing.organic && (
+                                <Badge className="bg-green-50 text-green-700 border-green-200">
+                                  Organic
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600">
                             <span>{listing.category}</span>
-                            <span>•</span>
+                            <span className="hidden sm:inline">•</span>
                             <span>{listing.qualityGrade}</span>
-                            <span>•</span>
+                            <span className="hidden sm:inline">•</span>
                             <div className="flex items-center gap-1">
                               <MapPin className="h-3 w-3" />
                               <span>{typeof listing.location === 'string' ? listing.location : `${listing.location?.city || 'Unknown'}, ${listing.location?.state || 'Unknown State'}`}</span>
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-left sm:text-right">
                           <div className="text-xl font-bold text-gray-900">
                             {formatCurrency(listing.basePrice)}
                           </div>
@@ -732,7 +733,7 @@ export default function MarketplaceListingsPage() {
                       </p>
 
                       {/* Stats */}
-                      <div className="flex items-center gap-6 text-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-sm">
                         <div className="flex items-center gap-1 text-gray-600">
                           <Eye className="h-3 w-3" />
                           <span>{listing.views || 0} views</span>
@@ -768,11 +769,12 @@ export default function MarketplaceListingsPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-col gap-2 lg:flex-row lg:flex-shrink-0">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:flex-shrink-0">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleViewListingDetails(listing)}
+                        className="w-full sm:w-auto"
                       >
                         <Eye className="h-4 w-4 mr-1" />
                         View
@@ -782,6 +784,7 @@ export default function MarketplaceListingsPage() {
                         variant="outline"
                         size="sm"
                         asChild
+                        className="w-full sm:w-auto"
                       >
                         <Link href={`/dashboard/marketplace/listings/${listing._id}/edit`}>
                           <Edit className="h-4 w-4 mr-1" />
@@ -795,6 +798,7 @@ export default function MarketplaceListingsPage() {
                           size="sm"
                           onClick={() => handleUnpublishListing(listing._id)}
                           disabled={updatingListing === listing._id}
+                          className="w-full sm:w-auto"
                         >
                           {updatingListing === listing._id ? (
                             <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
@@ -810,6 +814,7 @@ export default function MarketplaceListingsPage() {
                           size="sm"
                           onClick={() => handleUpdateListingStatus(listing._id, 'active')}
                           disabled={updatingListing === listing._id}
+                          className="w-full sm:w-auto"
                         >
                           {updatingListing === listing._id ? (
                             <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
@@ -829,11 +834,11 @@ export default function MarketplaceListingsPage() {
 
         {/* Listing Details Modal */}
         {showListingDetails && selectedListing && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              <div className="p-4 sm:p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
                     {selectedListing.cropName} Details
                   </h2>
                   <Button
@@ -846,7 +851,7 @@ export default function MarketplaceListingsPage() {
                 </div>
               </div>
 
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                 {/* Status and Actions */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -901,7 +906,7 @@ export default function MarketplaceListingsPage() {
                 )}
 
                 {/* Product Information */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-base">Product Details</CardTitle>

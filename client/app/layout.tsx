@@ -7,6 +7,9 @@ import { Toaster } from "@/components/ui/toaster"
 import { DatadogSuppressor } from "@/components/datadog-suppressor"
 import { NotificationProvider } from "@/components/notifications/notification-provider"
 import { NotificationContainer } from "@/components/notifications/notification-toast"
+import { OfflineIndicator, OfflineBanner, OfflineToast } from "@/components/ui/offline-indicator"
+import { PWAInstallPrompt, PWAStatusIndicator } from "@/components/ui/pwa-install-prompt"
+import "@/lib/sw-register"
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -32,12 +35,26 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
     apple: "/favicon.ico",
   },
+  manifest: "/manifest.json",
   openGraph: {
     title: "GroChain - Digital Agriculture Platform",
     description: "Building trust in Nigeria's food chain through transparent digital platform",
     type: "website",
     locale: "en_US",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "GroChain",
+  },
+}
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#16a34a",
 }
 
 export default function RootLayout({
@@ -56,10 +73,19 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <NotificationProvider>
             <NotificationContainer>
+              {process.env.NODE_ENV === 'production' && <OfflineBanner />}
               {children}
             </NotificationContainer>
           </NotificationProvider>
           <Toaster />
+          {process.env.NODE_ENV === 'production' && (
+            <>
+              <OfflineIndicator />
+              <PWAInstallPrompt />
+              <PWAStatusIndicator />
+              <OfflineToast />
+            </>
+          )}
         </ThemeProvider>
       </body>
     </html>

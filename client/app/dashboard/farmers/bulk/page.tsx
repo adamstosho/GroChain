@@ -177,7 +177,7 @@ export default function BulkUploadPage() {
 
         toast({
           title: "Upload completed!",
-          description: data.message || `${data.successfulRows} farmers onboarded successfully`,
+          description: `${data?.successfulRows || 0} farmers onboarded successfully`,
         })
 
         // Reset form

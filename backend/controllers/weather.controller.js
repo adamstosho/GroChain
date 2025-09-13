@@ -1,6 +1,8 @@
 const WeatherData = require('../models/weather.model')
+const WeatherAlert = require('../models/weather-alert.model')
 const Notification = require('../models/notification.model')
 const User = require('../models/user.model')
+const WeatherService = require('../services/weather.service')
 
 // Use node-fetch for consistent behavior across Node.js versions
 const fetch = require('node-fetch')
@@ -44,73 +46,20 @@ const weatherController = {
         })
       }
 
-      const apiKey = process.env.OPENWEATHER_API_KEY
-
-      // Check if API key exists
-      if (!apiKey) {
-        return res.status(500).json({
-          status: 'error',
-          message: 'Weather API key not configured'
-        })
-      }
-      
-      // Fetch current weather from OpenWeather API
-      const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${finalLat}&lon=${finalLng}&appid=${apiKey}&units=metric`
-      const currentResponse = await fetch(currentUrl)
-      const currentData = await currentResponse.json()
-      
-      if (currentData.cod !== 200) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Failed to fetch weather data'
-        })
-      }
-      
-      // Fetch 5-day forecast
-      const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${finalLat}&lon=${finalLng}&appid=${apiKey}&units=metric`
-      const forecastResponse = await fetch(forecastUrl)
-      const forecastData = await forecastResponse.json()
-      
-      // Process current weather data
-      const weatherInfo = {
-        location: {
-          lat: Number(finalLat),
-          lng: Number(finalLng),
-          city: finalCity,
-          state: finalState,
-          country: finalCountry
-        },
-        current: {
-          temperature: currentData.main?.temp || 0,
-          humidity: currentData.main?.humidity || 0,
-          windSpeed: currentData.wind?.speed || 0,
-          windDirection: this.getWindDirection(currentData.wind?.deg || 0),
-          pressure: currentData.main?.pressure || 0,
-          visibility: currentData.visibility || 0,
-          uvIndex: 0, // OpenWeather doesn't provide UV index in free tier
-          weatherCondition: currentData.weather?.[0]?.main || 'Clear',
-          weatherIcon: currentData.weather?.[0]?.icon || '01d',
-          feelsLike: currentData.main?.feels_like || 0,
-          dewPoint: this.calculateDewPoint(currentData.main?.temp || 0, currentData.main?.humidity || 0),
-          cloudCover: currentData.clouds?.all || 0
-        },
-        forecast: this.processForecastData(forecastData),
-        alerts: [],
-        agricultural: this.generateAgriculturalInsights(currentData, forecastData),
-        metadata: {
-          source: 'OpenWeather',
-          lastUpdated: new Date(),
-          dataQuality: 'high',
-          nextUpdate: new Date(Date.now() + 3600 * 1000)
-        }
-      }
-      
-      // Store weather data
-      await WeatherData.findOneAndUpdate(
-        { 'location.lat': Number(lat), 'location.lng': Number(lng) },
-        weatherInfo,
-        { upsert: true, new: true }
+      // Use the enhanced weather service
+      const weatherService = new WeatherService()
+      const weatherInfo = await weatherService.getComprehensiveWeatherData(
+        finalLat, 
+        finalLng, 
+        finalCity, 
+        finalState, 
+        finalCountry
       )
+
+      // Send alerts to farmers if any
+      if (weatherInfo.alerts && weatherInfo.alerts.length > 0) {
+        await weatherService.sendWeatherAlerts(weatherInfo.alerts, weatherInfo.location)
+      }
       
       res.json({
         status: 'success',
@@ -118,8 +67,6 @@ const weatherController = {
       })
     } catch (error) {
       console.error('Error fetching current weather:', error)
-      
-      // NO MOCK DATA - Only real weather data is returned
       
       res.status(500).json({
         status: 'error',
@@ -256,40 +203,202 @@ const weatherController = {
   // Get weather alerts
   async getWeatherAlerts(req, res) {
     try {
-      const { lat, lng, severity, type } = req.query
+      const { lat, lng, severity, type, cropType, status = 'active' } = req.query
       
-      const query = {}
+      let location = null
       if (lat && lng) {
-        query['location.lat'] = Number(lat)
-        query['location.lng'] = Number(lng)
+        location = { lat: Number(lat), lng: Number(lng) }
       }
-      if (severity) query['alerts.severity'] = severity
-      if (type) query['alerts.type'] = type
       
-      const alerts = await WeatherData.find(query)
-        .select('location alerts')
-        .sort({ 'metadata.lastUpdated': -1 })
+      const alerts = await WeatherAlert.findActiveAlerts(location, cropType)
+        .populate('farmersNotified', 'name email phone')
+        .sort({ severity: -1, startTime: -1 })
         .limit(50)
       
-      const allAlerts = alerts.reduce((acc, weather) => {
-        if (weather.alerts && weather.alerts.length > 0) {
-          acc.push(...weather.alerts.map(alert => ({
-            ...alert.toObject(),
-            location: weather.location
-          })))
-        }
-        return acc
-      }, [])
+      // Filter by severity and type if specified
+      let filteredAlerts = alerts
+      if (severity) {
+        filteredAlerts = filteredAlerts.filter(alert => alert.severity === severity)
+      }
+      if (type) {
+        filteredAlerts = filteredAlerts.filter(alert => alert.type === type)
+      }
       
       res.json({
         status: 'success',
-        data: { alerts: allAlerts }
+        data: { 
+          alerts: filteredAlerts,
+          total: filteredAlerts.length,
+          active: filteredAlerts.filter(a => a.isActive()).length
+        }
       })
     } catch (error) {
       console.error('Error getting weather alerts:', error)
       res.status(500).json({
         status: 'error',
         message: 'Failed to get weather alerts'
+      })
+    }
+  },
+
+  // Create weather alert (admin only)
+  async createWeatherAlert(req, res) {
+    try {
+      const {
+        location,
+        type,
+        severity,
+        title,
+        description,
+        startTime,
+        endTime,
+        affectedCrops,
+        weatherConditions,
+        recommendations
+      } = req.body
+
+      // Validate required fields
+      if (!location || !type || !severity || !title || !description || !startTime || !endTime) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Missing required fields: location, type, severity, title, description, startTime, endTime'
+        })
+      }
+
+      const alert = new WeatherAlert({
+        location,
+        type,
+        severity,
+        title,
+        description,
+        startTime: new Date(startTime),
+        endTime: new Date(endTime),
+        affectedCrops: affectedCrops || [],
+        weatherConditions: weatherConditions || {},
+        recommendations: recommendations || [],
+        metadata: {
+          createdBy: req.user.id,
+          dataQuality: 'high'
+        }
+      })
+
+      await alert.save()
+
+      // Send notifications to affected farmers
+      const weatherService = new WeatherService()
+      await weatherService.sendWeatherAlerts([alert], location)
+
+      res.status(201).json({
+        status: 'success',
+        data: alert,
+        message: 'Weather alert created successfully'
+      })
+    } catch (error) {
+      console.error('Error creating weather alert:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to create weather alert'
+      })
+    }
+  },
+
+  // Update weather alert
+  async updateWeatherAlert(req, res) {
+    try {
+      const { id } = req.params
+      const updateData = req.body
+
+      // Remove fields that shouldn't be updated directly
+      delete updateData._id
+      delete updateData.createdAt
+      delete updateData.metadata.createdBy
+
+      const alert = await WeatherAlert.findByIdAndUpdate(
+        id,
+        { 
+          ...updateData,
+          'metadata.lastUpdated': new Date()
+        },
+        { new: true, runValidators: true }
+      )
+
+      if (!alert) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Weather alert not found'
+        })
+      }
+
+      res.json({
+        status: 'success',
+        data: alert,
+        message: 'Weather alert updated successfully'
+      })
+    } catch (error) {
+      console.error('Error updating weather alert:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to update weather alert'
+      })
+    }
+  },
+
+  // Delete weather alert
+  async deleteWeatherAlert(req, res) {
+    try {
+      const { id } = req.params
+
+      const alert = await WeatherAlert.findByIdAndUpdate(
+        id,
+        { status: 'cancelled' },
+        { new: true }
+      )
+
+      if (!alert) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Weather alert not found'
+        })
+      }
+
+      res.json({
+        status: 'success',
+        message: 'Weather alert cancelled successfully'
+      })
+    } catch (error) {
+      console.error('Error deleting weather alert:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to delete weather alert'
+      })
+    }
+  },
+
+  // Get weather alert statistics
+  async getWeatherAlertStatistics(req, res) {
+    try {
+      const { region, period = 'month' } = req.query
+
+      const stats = await WeatherAlert.getAlertStatistics(region, period)
+      
+      res.json({
+        status: 'success',
+        data: {
+          period,
+          region: region || 'all',
+          statistics: stats,
+          summary: {
+            totalAlerts: stats.reduce((sum, stat) => sum + stat.count, 0),
+            totalNotifications: stats.reduce((sum, stat) => sum + stat.totalNotifications, 0),
+            avgDuration: stats.reduce((sum, stat) => sum + stat.avgDuration, 0) / stats.length || 0
+          }
+        }
+      })
+    } catch (error) {
+      console.error('Error getting weather alert statistics:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to get weather alert statistics'
       })
     }
   },

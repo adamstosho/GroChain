@@ -85,20 +85,20 @@ export default function LoanApplicationPage() {
       // Load user profile
       const profileResponse = await apiService.getMyProfile()
       if (profileResponse.status === 'success') {
-        const profile = profileResponse.data
+        const profile = profileResponse.data as any
         setUserProfile({
-          id: profile._id || profile.id,
-          name: profile.name,
-          email: profile.email,
-          phone: profile.phone,
-          monthlyIncome: profile.monthlyIncome || 0,
-          creditScore: profile.creditScore || 0
+          id: profile?._id || profile?.id,
+          name: profile?.name,
+          email: profile?.email,
+          phone: profile?.phone,
+          monthlyIncome: profile?.monthlyIncome || 0,
+          creditScore: profile?.creditScore || 0
         })
 
         // Pre-fill form with user's monthly income if available
         setFormData(prev => ({
           ...prev,
-          monthlyIncome: profile.monthlyIncome || 0
+          monthlyIncome: profile?.monthlyIncome || 0
         }))
       }
 
@@ -107,11 +107,11 @@ export default function LoanApplicationPage() {
       if (creditScoreResponse.status === 'success') {
         setUserProfile(prev => prev ? {
           ...prev,
-          creditScore: creditScoreResponse.data.score
+          creditScore: (creditScoreResponse.data as any)?.score || 0
         } : null)
 
         // Adjust interest rate based on credit score
-        const creditScore = creditScoreResponse.data.score
+        const creditScore = (creditScoreResponse.data as any)?.score || 0
         let interestRate = 15 // Default
         if (creditScore >= 750) interestRate = 12
         else if (creditScore >= 650) interestRate = 14
@@ -202,7 +202,7 @@ export default function LoanApplicationPage() {
       // Prepare data for backend API
       const applicationData = {
         farmerId: userProfile.id,
-        loanAmount: formData.amount,
+        amount: formData.amount,
         purpose: formData.purpose,
         term: formData.term,
         description: formData.description,

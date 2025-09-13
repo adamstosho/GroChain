@@ -165,7 +165,7 @@ const marketplaceController = {
     }
   },
 
-  // Get specific listing
+  // Get specific listing (for public viewing - only active listings)
   async getListing(req, res) {
     try {
       const { id } = req.params
@@ -221,6 +221,67 @@ const marketplaceController = {
       res.status(500).json({
         status: 'error',
         message: 'Failed to get listing'
+      })
+    }
+  },
+
+  // Get specific listing for editing (allows any status)
+  async getListingForEdit(req, res) {
+    try {
+      const { id } = req.params
+
+      const listing = await Listing.findById(id)
+        .populate('farmer', 'name location phone email farmLocation')
+        .populate('harvest', 'batchId cropType quality harvestDate geoLocation')
+
+      if (!listing) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Listing not found'
+        })
+      }
+
+      // Check if the user is the owner of the listing or an admin
+      if (listing.farmer._id.toString() !== req.user.id && req.user.role !== 'admin') {
+        return res.status(403).json({
+          status: 'error',
+          message: 'You can only edit your own listings'
+        })
+      }
+
+      // Parse location string into object format expected by frontend
+      let locationObject = null
+      if (listing.location) {
+        if (typeof listing.location === 'string') {
+          // Parse string location format: "City, State, Country" or "City, State"
+          const locationParts = listing.location.split(',').map(part => part.trim())
+
+          locationObject = {
+            city: locationParts[0] || 'Unknown City',
+            state: locationParts[1] || 'Unknown State',
+            country: locationParts[2] || 'Nigeria' // Default to Nigeria if not specified
+          }
+        } else if (typeof listing.location === 'object') {
+          // Already in object format
+          locationObject = listing.location
+        }
+      }
+
+      // Create response data with parsed location
+      const responseData = {
+        ...listing.toObject(),
+        location: locationObject
+      }
+
+      res.json({
+        status: 'success',
+        data: responseData
+      })
+    } catch (error) {
+      console.error('Error getting listing for edit:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to get listing for editing'
       })
     }
   },
@@ -590,7 +651,7 @@ const marketplaceController = {
     try {
       const { page = 1, limit = 10, status } = req.query
       const userId = req.user.id
-      const query = { buyer: userId }
+      const query = { buyer: new mongoose.Types.ObjectId(userId) }
       
       if (status) query.status = status
       
@@ -608,13 +669,13 @@ const marketplaceController = {
 
       // Calculate comprehensive stats
       const statsPipeline = [
-        { $match: { buyer: userId } },
+        { $match: { buyer: new mongoose.Types.ObjectId(userId) } },
         {
           $group: {
             _id: null,
             total: { $sum: 1 },
             pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
-            confirmed: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, 1, 0] } },
+            confirmed: { $sum: { $cond: [{ $eq: ['$status', 'confirmed'] }, 1, 0] } },
             shipped: { $sum: { $cond: [{ $eq: ['$status', 'shipped'] }, 1, 0] } },
             delivered: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
             cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },

@@ -137,14 +137,17 @@ export const useNotifications = () => {
         loading: false
       }))
 
-      toast({
-        title: "Notification Error",
-        description: errorMessage,
-        variant: "destructive"
-      })
+      // Only show toast if component is still mounted and not in background
+      if (typeof window !== 'undefined' && !document.hidden) {
+        toast({
+          title: "Notification Error",
+          description: errorMessage,
+          variant: "destructive"
+        })
+      }
       return null
     }
-  }, [user, toast])
+  }, [user]) // Remove toast dependency
 
   // Mark notifications as read
   const markAsRead = useCallback(async (notificationIds: string[]) => {
@@ -170,14 +173,17 @@ export const useNotifications = () => {
     } catch (error: any) {
       const errorMessage = error.message || 'Failed to mark notifications as read'
 
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      })
+      // Only show toast if component is still mounted and not in background
+      if (typeof window !== 'undefined' && !document.hidden) {
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        })
+      }
       return false
     }
-  }, [user, toast])
+  }, [user]) // Remove toast dependency
 
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
@@ -196,14 +202,17 @@ export const useNotifications = () => {
     } catch (error: any) {
       const errorMessage = error.message || 'Failed to mark all notifications as read'
 
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      })
+      // Only show toast if component is still mounted and not in background
+      if (typeof window !== 'undefined' && !document.hidden) {
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        })
+      }
       return false
     }
-  }, [user, toast])
+  }, [user]) // Remove toast dependency
 
   // Get notification preferences
   const getNotificationPreferences = useCallback(async () => {
@@ -225,24 +234,30 @@ export const useNotifications = () => {
     try {
       await api.put('/api/notifications/preferences', { notifications: preferences })
 
-      toast({
-        title: "Preferences Updated",
-        description: "Your notification preferences have been saved",
-        variant: "success"
-      })
+      // Only show toast if component is still mounted and not in background
+      if (typeof window !== 'undefined' && !document.hidden) {
+        toast({
+          title: "Preferences Updated",
+          description: "Your notification preferences have been saved",
+          variant: "success"
+        })
+      }
 
       return true
     } catch (error: any) {
       const errorMessage = error.message || 'Failed to update preferences'
 
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      })
+      // Only show toast if component is still mounted and not in background
+      if (typeof window !== 'undefined' && !document.hidden) {
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        })
+      }
       return false
     }
-  }, [user, toast])
+  }, [user]) // Remove toast dependency
 
   // Update push token
   const updatePushToken = useCallback(async (token: string) => {
@@ -340,12 +355,14 @@ export const useNotifications = () => {
             unreadCount: prev.unreadCount + 1
           }))
 
-          // Show toast for new notifications
-          toast({
-            title: notification.title,
-            description: notification.message,
-            variant: notification.type === 'error' ? 'destructive' : 'default'
-          })
+          // Only show toast if component is still mounted and not in background
+          if (typeof window !== 'undefined' && !document.hidden) {
+            toast({
+              title: notification.title,
+              description: notification.message,
+              variant: notification.type === 'error' ? 'destructive' : 'default'
+            })
+          }
         } catch (error) {
           console.error('🔔 Failed to process notification:', error)
         }
@@ -411,7 +428,7 @@ export const useNotifications = () => {
       // For now, we'll just log and continue without Socket.IO
       console.warn('🔔 Continuing without Socket.IO connection - notifications will use polling')
     }
-  }, [user, toast])
+  }, [user]) // Remove toast dependency
 
   const disconnectSocket = useCallback(() => {
     if (socketRef.current) {

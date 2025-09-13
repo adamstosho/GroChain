@@ -4,6 +4,7 @@ export { Card, CardContent, CardDescription, CardHeader, CardTitle } from './car
 export { Input } from './input'
 export { Badge } from './badge'
 export { Avatar, AvatarFallback, AvatarImage } from './avatar'
+export { MemoizedAvatar } from './memoized-avatar'
 export { Alert, AlertDescription, AlertTitle } from './alert'
 export { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './alert-dialog'
 export { AspectRatio } from './aspect-ratio'

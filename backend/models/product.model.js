@@ -53,7 +53,7 @@ const productSchema = new mongoose.Schema({
   currency: {
     type: String,
     default: 'NGN',
-    enum: ['NGN', 'USD', 'EUR']
+    enum: ['NGN']
   },
   
   unit: {

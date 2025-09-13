@@ -19,7 +19,7 @@ import {
   Plus, 
   TrendingUp, 
   Calendar, 
-  DollarSign, 
+  Banknote, 
   CheckCircle, 
   Clock, 
   AlertCircle,
@@ -78,7 +78,7 @@ const getGoalTypeIcon = (type: string) => {
   switch (type) {
     case 'savings': return <PiggyBank className="h-5 w-5" />
     case 'investment': return <TrendingUp className="h-5 w-5" />
-    case 'debt_reduction': return <DollarSign className="h-5 w-5" />
+    case 'debt_reduction': return <Banknote className="h-5 w-5" />
     case 'business_expansion': return <Building className="h-5 w-5" />
     case 'equipment_purchase': return <Zap className="h-5 w-5" />
     case 'education': return <GraduationCap className="h-5 w-5" />
@@ -125,6 +125,14 @@ const getCategoryColor = (category: string) => {
 export default function FinancialGoalsPage() {
   const [goals, setGoals] = useState<FinancialGoal[]>([])
   const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalGoals: 0,
+    activeGoals: 0,
+    completedGoals: 0,
+    totalTarget: 0,
+    totalCurrent: 0,
+    averageProgress: 0
+  })
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editingGoal, setEditingGoal] = useState<FinancialGoal | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -154,7 +162,7 @@ export default function FinancialGoalsPage() {
       const goalsResponse = await apiService.getFinancialGoals()
 
       if (goalsResponse.status === 'success' && goalsResponse.data) {
-        const goalsData = goalsResponse.data.goals || []
+        const goalsData = (goalsResponse.data as any)?.goals || []
 
         // Transform backend data to match frontend interface
         const transformedGoals: FinancialGoal[] = goalsData.map((goal: any) => ({
@@ -170,9 +178,9 @@ export default function FinancialGoalsPage() {
           priority: goal.priority || 'medium',
           status: goal.status || 'active',
           progress: goal.targetAmount > 0 ? Math.round((goal.currentAmount / goal.targetAmount) * 100) : 0,
-          category: goal.category || (goal.targetDate ?
-            (new Date(goal.targetDate) - new Date() > 365 * 24 * 60 * 60 * 1000 ? 'long_term' :
-             new Date(goal.targetDate) - new Date() > 90 * 24 * 60 * 60 * 1000 ? 'medium_term' : 'short_term')
+          category: goal.category || (goal.targetDate ? 
+            (new Date(goal.targetDate).getTime() - new Date().getTime() > 365 * 24 * 60 * 60 * 1000 ? 'long_term' : 
+             new Date(goal.targetDate).getTime() - new Date().getTime() > 90 * 24 * 60 * 60 * 1000 ? 'medium_term' : 'short_term') 
             : 'medium_term')
         }))
 
@@ -450,7 +458,7 @@ export default function FinancialGoalsPage() {
           <Card className="border border-gray-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-green-500" />
+                <Banknote className="h-4 w-4 text-green-500" />
                 Total Saved
               </CardTitle>
             </CardHeader>

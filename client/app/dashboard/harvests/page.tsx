@@ -41,7 +41,7 @@ import {
   Thermometer,
   Shield,
   Scale,
-  DollarSign,
+  Banknote,
   MoreHorizontal,
   BarChart3,
   FileText,
@@ -247,14 +247,14 @@ export default function FarmerHarvestsPage() {
     } catch (error) {
       console.error("❌ Failed to fetch stats:", error)
       console.error("❌ Error details:", {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
+        message: (error as any)?.message,
+        stack: (error as any)?.stack,
+        name: (error as any)?.name
       })
 
       // Try to get more details about the error
-      if (error.response) {
-        console.error("❌ Response error:", error.response.status, error.response.data)
+      if ((error as any)?.response) {
+        console.error("❌ Response error:", (error as any).response.status, (error as any).response.data)
       }
 
       // Set default values if API fails
@@ -376,7 +376,7 @@ export default function FarmerHarvestsPage() {
         harvest.quantity,
         harvest.unit,
         harvest.harvestDate,
-        `"${typeof harvest.location === 'string' ? harvest.location : `${harvest.location?.city || 'Unknown'}, ${harvest.location?.state || 'Unknown State'}`}"`,
+        `"${typeof harvest.location === 'string' ? harvest.location : `${(harvest.location as any)?.city || 'Unknown'}, ${(harvest.location as any)?.state || 'Unknown State'}`}"`,
         harvest.quality,
         harvest.status,
         harvest.organic ? 'Yes' : 'No',
@@ -490,7 +490,7 @@ export default function FarmerHarvestsPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <MapPin className="h-3 w-3 text-gray-400" />
-              <span className="text-sm text-gray-600">{typeof harvest.location === 'string' ? harvest.location : `${harvest.location?.city || 'Unknown'}, ${harvest.location?.state || 'Unknown State'}`}</span>
+              <span className="text-sm text-gray-600">{typeof harvest.location === 'string' ? harvest.location : `${(harvest.location as any)?.city || 'Unknown'}, ${(harvest.location as any)?.state || 'Unknown State'}`}</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -507,7 +507,7 @@ export default function FarmerHarvestsPage() {
 
             {harvest.price && (
               <div className="flex items-center gap-2 text-emerald-600 font-medium">
-                <DollarSign className="h-3 w-3" />
+                <Banknote className="h-3 w-3" />
                 ₦{harvest.price.toLocaleString()}
               </div>
             )}
@@ -532,7 +532,7 @@ export default function FarmerHarvestsPage() {
                {harvest.status === "approved" && (
                  <Button size="sm" variant="outline" asChild>
                    <Link href={`/dashboard/marketplace/new?harvestId=${harvest._id}`}>
-                     <DollarSign className="h-3 w-3 mr-1" />
+                     <Banknote className="h-3 w-3 mr-1" />
                      List
                    </Link>
                  </Button>
@@ -563,7 +563,7 @@ export default function FarmerHarvestsPage() {
                  {harvest.status === "approved" && (
                    <DropdownMenuItem asChild>
                      <Link href={`/dashboard/marketplace/new?harvestId=${harvest._id}`}>
-                       <DollarSign className="h-4 w-4 mr-2" />
+                       <Banknote className="h-4 w-4 mr-2" />
                        List on Marketplace
                      </Link>
                    </DropdownMenuItem>
@@ -967,7 +967,7 @@ export default function FarmerHarvestsPage() {
               </Button>
               <Button variant="outline" asChild className="w-full">
                 <Link href="/dashboard/financial">
-                  <DollarSign className="h-4 w-4 mr-2" />
+                  <Banknote className="h-4 w-4 mr-2" />
                   Financial Services
                 </Link>
               </Button>

@@ -10,6 +10,10 @@ interface Farmer {
   location: string
   status: 'active' | 'inactive' | 'suspended'
   joinedAt: string
+  lastActivity?: string
+  totalHarvests?: number
+  totalEarnings?: number
+  partner?: string
   _id?: string
 }
 

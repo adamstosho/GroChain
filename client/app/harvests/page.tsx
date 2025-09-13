@@ -35,7 +35,7 @@ export default function HarvestsPage() {
       params.set("page", String(page))
       params.set("limit", String(9))
 
-      const response: any = await apiService.request(`/api/harvests?${params.toString()}`)
+      const response: any = await apiService.getHarvests()
       setHarvests(response.harvests || response.data?.harvests || [])
       const pg = response.pagination || response.data?.pagination
       if (pg) {
@@ -78,7 +78,7 @@ export default function HarvestsPage() {
   // Convert Harvest type to HarvestData type for our component
   const convertToHarvestData = (harvest: Harvest): HarvestData => {
     return {
-      id: String((harvest as any)._id || harvest.id),
+      id: String((harvest as any)._id || (harvest as any).id),
       farmerName: (harvest as any).farmerName || (harvest as any).farmer?.name || "Unknown Farmer",
       cropType: harvest.cropType,
       variety: (harvest as any).variety || "Standard",
@@ -179,7 +179,7 @@ export default function HarvestsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {harvests.map((harvest) => (
               <HarvestCard
-                key={harvest.id}
+                key={(harvest as any).id || (harvest as any)._id}
                 harvest={convertToHarvestData(harvest)}
                 onView={(id) => handleHarvestAction("view", id)}
                 onEdit={(id) => handleHarvestAction("edit", id)}

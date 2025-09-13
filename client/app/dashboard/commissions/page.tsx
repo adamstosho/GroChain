@@ -9,8 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useCommission } from "@/hooks/use-commission"
 import { useToast } from "@/hooks/use-toast"
+import { useExportService } from "@/lib/export-utils"
 import { 
-  DollarSign, 
+  Banknote, 
   TrendingUp, 
   Clock, 
   CheckCircle, 
@@ -84,6 +85,7 @@ export default function CommissionsPage() {
 
   const [activeTab, setActiveTab] = useState("overview")
   const { toast } = useToast()
+  const exportService = useExportService()
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -132,11 +134,11 @@ export default function CommissionsPage() {
     }
   }
 
-  const exportCommissions = () => {
-    // TODO: Implement real export functionality
-    toast({
-      title: "Export started",
-      description: "Your commission report is being prepared for download",
+  const exportCommissions = async () => {
+    await exportService.exportCustomData(commissions, {
+      format: 'csv',
+      dataType: 'commissions',
+      filename: `commissions-report-${new Date().toISOString().split('T')[0]}.csv`
     })
   }
 
@@ -191,7 +193,7 @@ export default function CommissionsPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Earned</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <Banknote className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">₦{(summary?.summary.totalAmount || 0).toLocaleString()}</div>
@@ -314,7 +316,7 @@ export default function CommissionsPage() {
                     <div key={commission._id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center space-x-4">
                         <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <DollarSign className="h-5 w-5 text-primary" />
+                          <Banknote className="h-5 w-5 text-primary" />
                         </div>
                         <div>
                           <p className="font-medium">{commission.farmer?.name || 'Unknown Farmer'}</p>
@@ -340,7 +342,7 @@ export default function CommissionsPage() {
                   
                   {commissions.length === 0 && (
                     <div className="text-center py-8">
-                      <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <Banknote className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                       <p className="text-muted-foreground">No commissions found</p>
                     </div>
                   )}
@@ -419,7 +421,7 @@ export default function CommissionsPage() {
                   
                   {paidCommissions.length === 0 && (
                     <div className="text-center py-8">
-                      <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <Banknote className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                       <p className="text-muted-foreground">No payment history</p>
                       <p className="text-sm text-muted-foreground">Your commission payments will appear here</p>
                     </div>

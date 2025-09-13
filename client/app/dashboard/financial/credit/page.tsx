@@ -16,7 +16,7 @@ import {
   AlertCircle,
   XCircle,
   Clock,
-  DollarSign,
+  Banknote,
   Calendar,
   FileText,
   Download,
@@ -100,26 +100,26 @@ export default function CreditScorePage() {
       const creditScoreResponse = await apiService.getMyCreditScore()
 
       if (creditScoreResponse.status === 'success' && creditScoreResponse.data) {
-        const data = creditScoreResponse.data
+        const data = creditScoreResponse.data as any
 
         // Transform backend data to match frontend interface
         const transformedCreditScore: CreditScore = {
-          score: data.score || 650,
-          grade: data.grade || 'C',
-          status: data.status || 'fair',
-          lastUpdated: data.lastUpdated || data.createdAt,
-          factors: (data.factors || []).map((factor: any) => ({
+          score: data?.score || 650,
+          grade: data?.grade || 'C',
+          status: data?.status || 'fair',
+          lastUpdated: data?.lastUpdated || data?.createdAt,
+          factors: (data?.factors || []).map((factor: any) => ({
             name: factor.name || 'Unknown Factor',
             impact: factor.impact || 'neutral',
             weight: factor.weight || 0,
             description: factor.description || 'No description available'
           })),
-          history: (data.history || []).map((entry: any) => ({
+          history: (data?.history || []).map((entry: any) => ({
             date: entry.date,
             score: entry.score,
             change: entry.change || 0
           })),
-          recommendations: (data.recommendations || []).map((rec: any) => ({
+          recommendations: (data?.recommendations || []).map((rec: any) => ({
             title: rec.title || 'General Recommendation',
             description: rec.description || '',
             priority: rec.priority || 'medium',
@@ -147,13 +147,13 @@ export default function CreditScorePage() {
       try {
         const dashboardResponse = await apiService.getFinancialDashboard()
         if (dashboardResponse.status === 'success' && dashboardResponse.data) {
-          const dashboardData = dashboardResponse.data
+          const dashboardData = dashboardResponse.data as any
 
           // Create a basic credit score from dashboard data
           const basicCreditScore: CreditScore = {
-            score: dashboardData.overview?.creditScore || 650,
-            grade: (dashboardData.overview?.creditScore || 650) >= 750 ? 'B' : 'C',
-            status: (dashboardData.overview?.creditScore || 650) >= 750 ? 'good' : 'fair',
+            score: dashboardData?.overview?.creditScore || 650,
+            grade: (dashboardData?.overview?.creditScore || 650) >= 750 ? 'B' : 'C',
+            status: (dashboardData?.overview?.creditScore || 650) >= 750 ? 'good' : 'fair',
             lastUpdated: new Date().toISOString().split('T')[0],
             factors: [
               {

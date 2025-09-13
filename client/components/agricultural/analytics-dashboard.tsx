@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   TrendingUp, 
   TrendingDown, 
-  DollarSign, 
+  Banknote, 
   Package, 
   Users, 
   MapPin,
@@ -53,7 +53,7 @@ const mockMetrics: AnalyticsMetric[] = [
     value: "₦12.5M",
     change: 12.5,
     changeType: "increase",
-    icon: DollarSign,
+    icon: Banknote,
     color: "text-green-600"
   },
   {

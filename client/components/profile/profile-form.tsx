@@ -22,7 +22,7 @@ import {
   Edit,
   Camera,
   AlertCircle,
-  DollarSign,
+  Banknote,
   ShoppingCart,
   Activity
 } from "lucide-react"
@@ -958,7 +958,7 @@ function FarmerProfileView() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <DollarSign className="h-5 w-5 text-blue-500" />
+              <Banknote className="h-5 w-5 text-blue-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
                 <p className="text-2xl font-bold">₦{profile.stats.totalRevenue.toLocaleString()}</p>

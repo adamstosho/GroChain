@@ -21,7 +21,6 @@ import {
   Search,
   Filter,
   Calendar,
-  DollarSign,
   TrendingUp,
   TrendingDown,
   CheckCircle,
@@ -68,11 +67,11 @@ export default function PaymentsPage() {
         const transactionResponse = await apiService.getTransactionHistory()
         console.log('✅ Transaction response:', transactionResponse)
 
-        if (transactionResponse?.status === 'success' && transactionResponse?.data?.transactions) {
-          setTransactions(transactionResponse.data.transactions)
-        } else if (transactionResponse?.data?.transactions) {
+        if (transactionResponse?.status === 'success' && (transactionResponse.data as any)?.transactions) {
+          setTransactions((transactionResponse.data as any).transactions)
+        } else if ((transactionResponse.data as any)?.transactions) {
           // Handle direct data structure
-          setTransactions(transactionResponse.data.transactions)
+          setTransactions((transactionResponse.data as any).transactions)
         } else {
           console.warn('⚠️ No transaction data found in response:', transactionResponse)
           setTransactions([])
@@ -85,7 +84,7 @@ export default function PaymentsPage() {
 
         if (ordersResponse?.status === 'success' && ordersResponse?.data) {
           // Handle the structured response from backend
-          const ordersData = ordersResponse.data.orders || []
+          const ordersData = (ordersResponse.data as any)?.orders || []
           setOrders(ordersData)
         } else if (Array.isArray(ordersResponse)) {
           // Handle direct array response
@@ -102,7 +101,7 @@ export default function PaymentsPage() {
         console.log('✅ Payment methods response:', paymentMethodsResponse)
 
         if (paymentMethodsResponse?.status === 'success' && paymentMethodsResponse?.data) {
-          setPaymentMethods(paymentMethodsResponse.data)
+          setPaymentMethods(paymentMethodsResponse.data as any)
         } else if (Array.isArray(paymentMethodsResponse)) {
           // Handle direct array response
           setPaymentMethods(paymentMethodsResponse)
@@ -141,16 +140,16 @@ export default function PaymentsPage() {
         apiService.getPaymentMethods()
       ])
 
-      if (transactionResponse?.success && transactionResponse?.data?.transactions) {
-        setTransactions(transactionResponse.data.transactions)
+      if (transactionResponse?.success && (transactionResponse.data as any)?.transactions) {
+        setTransactions((transactionResponse.data as any).transactions)
       }
 
       if (ordersResponse?.success && ordersResponse?.data) {
         let ordersData = []
-        if (ordersResponse.data?.data?.orders) {
-          ordersData = ordersResponse.data.data.orders
-        } else if (ordersResponse.data?.orders) {
-          ordersData = ordersResponse.data.orders
+        if ((ordersResponse.data as any)?.data?.orders) {
+          ordersData = (ordersResponse.data as any).data.orders
+        } else if ((ordersResponse.data as any)?.orders) {
+          ordersData = (ordersResponse.data as any).orders
         } else if (Array.isArray(ordersResponse.data)) {
           ordersData = ordersResponse.data
         }
@@ -158,7 +157,7 @@ export default function PaymentsPage() {
       }
 
       if (paymentMethodsResponse?.success && paymentMethodsResponse?.data) {
-        setPaymentMethods(paymentMethodsResponse.data)
+        setPaymentMethods(paymentMethodsResponse.data as any)
       }
 
       toast({
@@ -415,7 +414,7 @@ export default function PaymentsPage() {
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-2">
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <Banknote className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Total</span>
                   </div>
                   {loading ? (

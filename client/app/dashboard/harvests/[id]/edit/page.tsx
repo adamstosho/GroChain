@@ -56,7 +56,7 @@ export default function EditHarvestPage() {
   const fetchHarvestData = async () => {
     try {
       setFetching(true)
-      const response = await apiService.getHarvests({ id: harvestId })
+      const response = await apiService.getHarvestById(harvestId)
       const harvest = (response as any)?.harvest || (response as any)?.data?.harvest || response
       
             if (harvest) {

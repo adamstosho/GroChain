@@ -21,7 +21,7 @@ import {
   AlertTriangle,
   FileText,
   Clock,
-  DollarSign,
+  Banknote,
   MapPin,
   Users,
   Building
@@ -139,7 +139,7 @@ export default function InsuranceComparisonPage() {
       })
 
       if (response.status === 'success' && response.data) {
-        const policiesData = response.data
+        const policiesData = (response.data as any)?.policies || []
 
         // Transform backend data to match frontend interface
         const transformedPolicies: InsurancePolicy[] = policiesData.map((policy: any) => ({

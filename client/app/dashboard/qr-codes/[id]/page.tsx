@@ -102,23 +102,23 @@ export default function QRCodeDetailPage() {
 
         // Format the data to match the interface
         const formattedQRCode: QRCodeData = {
-          _id: qrData.id,
-          batchId: qrData.batchId,
-          harvestId: qrData.harvestId,
-          cropType: qrData.cropType,
-          variety: qrData.metadata?.variety,
-          quantity: qrData.quantity,
-          unit: qrData.unit || 'kg',
-          generatedAt: qrData.createdAt,
-          lastScanned: qrData.lastScanned,
-          scanCount: qrData.scanCount,
-          status: qrData.status,
-          qrData: qrData.qrData,
-          image: qrData.qrImage,
-          location: qrData.location,
-          farmerName: qrData.metadata?.farmName,
-          metadata: qrData.metadata,
-          scanHistory: qrData.scans?.map((scan: any) => ({
+          _id: (qrData as any).id,
+          batchId: (qrData as any).batchId,
+          harvestId: (qrData as any).harvestId,
+          cropType: (qrData as any).cropType,
+          variety: (qrData as any).metadata?.variety,
+          quantity: (qrData as any).quantity,
+          unit: (qrData as any).unit || 'kg',
+          generatedAt: (qrData as any).createdAt,
+          lastScanned: (qrData as any).lastScanned,
+          scanCount: (qrData as any).scanCount,
+          status: (qrData as any).status,
+          qrData: (qrData as any).qrData,
+          image: (qrData as any).qrImage,
+          location: (qrData as any).location,
+          farmerName: (qrData as any).metadata?.farmName,
+          metadata: (qrData as any).metadata,
+          scanHistory: (qrData as any).scans?.map((scan: any) => ({
             id: scan._id,
             timestamp: scan.scannedAt,
             location: scan.scannedBy?.location,
@@ -203,7 +203,7 @@ export default function QRCodeDetailPage() {
     if (!qrCode) return
     
     try {
-      await apiService.downloadQRCode(qrCode._id, format)
+      await apiService.downloadQRCode(qrCode._id)
       toast({
         title: "Download Started",
         description: `QR code downloaded as ${format.toUpperCase()}`,
@@ -380,7 +380,7 @@ export default function QRCodeDetailPage() {
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-gray-400" />
                 <span className="text-sm text-gray-600">Location:</span>
-                <span className="font-medium text-gray-900">{typeof qrCode.location === 'string' ? qrCode.location : `${qrCode.location?.city || 'Unknown'}, ${qrCode.location?.state || 'Unknown State'}`}</span>
+                <span className="font-medium text-gray-900">{typeof qrCode.location === 'string' ? qrCode.location : `${(qrCode.location as any)?.city || 'Unknown'}, ${(qrCode.location as any)?.state || 'Unknown State'}`}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-gray-400" />
@@ -458,7 +458,7 @@ export default function QRCodeDetailPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Location:</span>
-                        <span className="font-medium">{typeof qrCode.location === 'string' ? qrCode.location : `${qrCode.location?.city || 'Unknown'}, ${qrCode.location?.state || 'Unknown State'}`}</span>
+                        <span className="font-medium">{typeof qrCode.location === 'string' ? qrCode.location : `${(qrCode.location as any)?.city || 'Unknown'}, ${(qrCode.location as any)?.state || 'Unknown State'}`}</span>
                       </div>
                     </div>
                   </div>
@@ -528,7 +528,7 @@ export default function QRCodeDetailPage() {
                               {new Date(scan.timestamp).toLocaleString()}
                             </p>
                             {scan.location && (
-                              <p className="text-xs text-gray-600">{typeof scan.location === 'string' ? scan.location : `${scan.location?.city || 'Unknown'}, ${scan.location?.state || 'Unknown State'}`}</p>
+                              <p className="text-xs text-gray-600">{typeof scan.location === 'string' ? scan.location : `${(scan.location as any)?.city || 'Unknown'}, ${(scan.location as any)?.state || 'Unknown State'}`}</p>
                             )}
                           </div>
                         </div>

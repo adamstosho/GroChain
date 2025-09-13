@@ -27,9 +27,13 @@ export function RegisterForm() {
     confirmPassword: "",
     location: "",
     role: "",
+    smsCode: "",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>("")
+  const [smsSent, setSmsSent] = useState(false)
+  const [smsLoading, setSmsLoading] = useState(false)
+  const [smsVerified, setSmsVerified] = useState(false)
 
   const router = useRouter()
   const { toast } = useToast()
@@ -90,6 +94,18 @@ export function RegisterForm() {
         setError("Please enter a valid email address")
         return
       }
+
+      // Basic phone validation for Nigerian numbers
+      const phoneRegex = /^(\+234|234|0)?[789]\d{9}$/
+      if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+        setError("Please enter a valid Nigerian phone number")
+        return
+      }
+    }
+
+    if (step === 3 && !smsVerified) {
+      setError("Please verify your phone number to continue")
+      return
     }
 
     setError("")
@@ -99,6 +115,97 @@ export function RegisterForm() {
   const handleBack = () => {
     setError("")
     setStep(step - 1)
+  }
+
+  const sendSMSVerification = async () => {
+    if (!formData.phone) {
+      setError("Phone number is required")
+      return
+    }
+
+    setSmsLoading(true)
+    setError("")
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/send-sms-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: formData.phone,
+          purpose: 'registration'
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.status === 'success') {
+        setSmsSent(true)
+        toast({
+          title: "Verification code sent",
+          description: "Please check your phone for the verification code.",
+        })
+      } else {
+        throw new Error(data.message || 'Failed to send verification code')
+      }
+    } catch (error: any) {
+      console.error('SMS verification error:', error)
+      setError(error.message || 'Failed to send verification code')
+      toast({
+        title: "Failed to send code",
+        description: error.message || 'Please try again.',
+        variant: "destructive",
+      })
+    } finally {
+      setSmsLoading(false)
+    }
+  }
+
+  const verifySMSCode = async () => {
+    if (!formData.smsCode || formData.smsCode.length !== 6) {
+      setError("Please enter a valid 6-digit verification code")
+      return
+    }
+
+    setSmsLoading(true)
+    setError("")
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/verify-sms-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: formData.phone,
+          code: formData.smsCode,
+          purpose: 'registration'
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.status === 'success') {
+        setSmsVerified(true)
+        toast({
+          title: "Phone verified successfully",
+          description: "Your phone number has been verified.",
+        })
+      } else {
+        throw new Error(data.message || 'Invalid verification code')
+      }
+    } catch (error: any) {
+      console.error('SMS verification error:', error)
+      setError(error.message || 'Invalid verification code')
+      toast({
+        title: "Verification failed",
+        description: error.message || 'Please check your code and try again.',
+        variant: "destructive",
+      })
+    } finally {
+      setSmsLoading(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,6 +245,7 @@ export function RegisterForm() {
         password: formData.password,
         role: formData.role,
         location: formData.location,
+        smsCode: formData.smsCode,
       })
 
       toast({
@@ -176,7 +284,7 @@ export function RegisterForm() {
     <div className="space-y-6">
       {/* Progress Indicator */}
       <div className="flex items-center justify-center space-x-2 mb-8">
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3, 4].map((i) => (
           <div key={i} className="flex items-center">
             <div
               className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -185,7 +293,7 @@ export function RegisterForm() {
             >
               {i}
             </div>
-            {i < 3 && <div className={`h-0.5 w-8 mx-2 ${i < step ? "bg-primary" : "bg-muted"}`} />}
+            {i < 4 && <div className={`h-0.5 w-8 mx-2 ${i < step ? "bg-primary" : "bg-muted"}`} />}
           </div>
         ))}
       </div>
@@ -338,8 +446,123 @@ export function RegisterForm() {
         </div>
       )}
 
-      {/* Step 3: Password Creation */}
+      {/* Step 3: SMS Verification */}
       {step === 3 && (
+        <div className="space-y-6">
+          <div className="text-center space-y-2">
+            <h2 className="text-xl font-semibold">Verify Your Phone Number</h2>
+            <p className="text-muted-foreground">We'll send you a verification code</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <Phone className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="font-medium">Phone Number</p>
+                  <p className="text-sm text-muted-foreground">{formData.phone}</p>
+                </div>
+              </div>
+            </div>
+
+            {!smsSent ? (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Click the button below to send a verification code to your phone number.
+                </p>
+                <Button 
+                  onClick={sendSMSVerification} 
+                  disabled={smsLoading}
+                  className="w-full"
+                >
+                  {smsLoading ? "Sending..." : "Send Verification Code"}
+                </Button>
+              </div>
+            ) : !smsVerified ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="smsCode">Verification Code</Label>
+                  <Input
+                    id="smsCode"
+                    type="text"
+                    placeholder="Enter 6-digit code"
+                    maxLength={6}
+                    value={formData.smsCode}
+                    onChange={(e) => setFormData({ ...formData, smsCode: e.target.value.replace(/\D/g, '') })}
+                    className="text-center text-lg tracking-widest"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Enter the 6-digit code sent to your phone
+                  </p>
+                </div>
+
+                <div className="flex space-x-3">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setSmsSent(false)
+                      setFormData({ ...formData, smsCode: "" })
+                    }}
+                    className="flex-1"
+                  >
+                    Change Number
+                  </Button>
+                  <Button 
+                    onClick={verifySMSCode} 
+                    disabled={smsLoading || formData.smsCode.length !== 6}
+                    className="flex-1"
+                  >
+                    {smsLoading ? "Verifying..." : "Verify Code"}
+                  </Button>
+                </div>
+
+                <div className="text-center">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={sendSMSVerification}
+                    disabled={smsLoading}
+                    className="text-sm"
+                  >
+                    Resend Code
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center">
+                    <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium text-green-800">Phone Verified Successfully</p>
+                    <p className="text-sm text-green-600">Your phone number has been verified</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex space-x-3">
+            <Button variant="outline" onClick={handleBack} className="flex-1 bg-transparent">
+              Back
+            </Button>
+            <Button 
+              onClick={handleNext} 
+              className="flex-1"
+              disabled={!smsVerified}
+            >
+              Continue
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 4: Password Creation */}
+      {step === 4 && (
         <div className="space-y-6">
           <div className="text-center space-y-2">
             <h2 className="text-xl font-semibold">Create Password</h2>

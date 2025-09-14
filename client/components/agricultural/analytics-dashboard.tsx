@@ -83,14 +83,14 @@ const mockMetrics: AnalyticsMetric[] = [
 ]
 
 const mockRevenueData: ChartData[] = [
-  { name: "Jan", revenue: 1200000, orders: 45, farmers: 89 },
-  { name: "Feb", revenue: 1350000, orders: 52, farmers: 94 },
-  { name: "Mar", revenue: 980000, orders: 38, farmers: 87 },
-  { name: "Apr", revenue: 1450000, orders: 58, farmers: 102 },
-  { name: "May", revenue: 1680000, orders: 65, farmers: 115 },
-  { name: "Jun", revenue: 1890000, orders: 72, farmers: 128 },
-  { name: "Jul", revenue: 2100000, orders: 78, farmers: 135 },
-  { name: "Aug", revenue: 1950000, orders: 71, farmers: 129 }
+  { name: "Jan", value: 1200000, revenue: 1200000, orders: 45, farmers: 89 },
+  { name: "Feb", value: 1350000, revenue: 1350000, orders: 52, farmers: 94 },
+  { name: "Mar", value: 980000, revenue: 980000, orders: 38, farmers: 87 },
+  { name: "Apr", value: 1450000, revenue: 1450000, orders: 58, farmers: 102 },
+  { name: "May", value: 1680000, revenue: 1680000, orders: 65, farmers: 115 },
+  { name: "Jun", value: 1890000, revenue: 1890000, orders: 72, farmers: 128 },
+  { name: "Jul", value: 2100000, revenue: 2100000, orders: 78, farmers: 135 },
+  { name: "Aug", value: 1950000, revenue: 1950000, orders: 71, farmers: 129 }
 ]
 
 const mockCropDistribution: ChartData[] = [
@@ -102,12 +102,12 @@ const mockCropDistribution: ChartData[] = [
 ]
 
 const mockRegionalData: ChartData[] = [
-  { region: "Kano", volume: 450, revenue: 3200000, farmers: 156 },
-  { region: "Kaduna", volume: 380, revenue: 2800000, farmers: 134 },
-  { region: "Katsina", volume: 320, revenue: 2400000, farmers: 112 },
-  { region: "Jigawa", volume: 280, revenue: 2100000, farmers: 98 },
-  { region: "Zamfara", volume: 240, revenue: 1800000, farmers: 87 },
-  { region: "Sokoto", volume: 200, revenue: 1500000, farmers: 76 }
+  { name: "Kano", value: 450, region: "Kano", volume: 450, revenue: 3200000, farmers: 156 },
+  { name: "Kaduna", value: 380, region: "Kaduna", volume: 380, revenue: 2800000, farmers: 134 },
+  { name: "Katsina", value: 320, region: "Katsina", volume: 320, revenue: 2400000, farmers: 112 },
+  { name: "Jigawa", value: 280, region: "Jigawa", volume: 280, revenue: 2100000, farmers: 98 },
+  { name: "Zamfara", value: 240, region: "Zamfara", volume: 240, revenue: 1800000, farmers: 87 },
+  { name: "Sokoto", value: 200, region: "Sokoto", volume: 200, revenue: 1500000, farmers: 76 }
 ]
 
 const mockQualityMetrics = {
@@ -338,7 +338,7 @@ export function AnalyticsDashboard({
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"

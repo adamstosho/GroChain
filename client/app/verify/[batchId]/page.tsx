@@ -101,7 +101,16 @@ export default function VerificationPage({ params }: VerificationPageProps) {
       const response = await apiService.verifyQRCode(batchId)
       
       if (response?.status === 'success' && response?.data) {
-        setVerificationData(response.data)
+        // Transform the response data to match the VerificationData interface
+        const transformedData: VerificationData = {
+          ...response.data,
+          verificationUrl: (response.data as any).verificationUrl || `/verify/${batchId}`,
+          timestamp: (response.data as any).timestamp || new Date().toISOString(),
+          farmer: typeof response.data.farmer === 'string' 
+            ? { id: response.data.farmer, name: 'Unknown Farmer' }
+            : response.data.farmer
+        }
+        setVerificationData(transformedData)
         setVerified(true)
       } else {
         throw new Error('Verification failed')

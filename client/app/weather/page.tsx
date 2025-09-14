@@ -122,7 +122,7 @@ export default function WeatherPage() {
         {/* Weather Dashboard Tab */}
         <TabsContent value="dashboard" className="space-y-6">
           <WeatherDashboard
-            location={selectedLocation}
+            location={selectedLocation || undefined}
             onLocationChange={handleLocationChange}
           />
         </TabsContent>
@@ -130,8 +130,8 @@ export default function WeatherPage() {
         {/* Weather Alerts Tab */}
         <TabsContent value="alerts" className="space-y-6">
           <WeatherAlerts
-            location={selectedLocation}
-            cropType={user?.preferences?.cropTypes?.[0]} // Use first crop type if available
+            location={selectedLocation || undefined}
+            cropType={(user as any)?.preferences?.cropTypes?.[0]} // Use first crop type if available
             showSubscription={true}
           />
         </TabsContent>

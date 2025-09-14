@@ -37,36 +37,7 @@ import { format } from "date-fns"
 import { useGeolocation } from "@/hooks/useGeolocation"
 import { useToast } from "@/hooks/use-toast"
 
-interface HarvestFormProps {
-  initialData?: Partial<HarvestFormData>
-  onSubmit: (data: HarvestFormData & { images: string[] }) => void
-  onCancel?: () => void
-  onFormChange?: () => void
-  isLoading?: boolean
-  mode?: "create" | "edit"
-}
 
-interface HarvestFormData {
-  cropType: string
-  variety: string
-  harvestDate: Date
-  quantity: number
-  unit: string
-  location: string
-  coordinates?: {
-    latitude: number
-    longitude: number
-  }
-  quality: string
-  grade: string
-  organic: boolean
-  moistureContent: number
-  price: number
-  notes: string
-  soilType: string
-  irrigationType: string
-  pestManagement: string
-}
 
 const harvestSchema = z.object({
   cropType: z.string().min(1, "Crop type is required"),
@@ -94,12 +65,13 @@ const harvestSchema = z.object({
   pestManagement: z.enum(["organic", "conventional", "integrated"]).optional(),
 })
 
-type HarvestFormData = z.infer<typeof harvestSchema>
+export type HarvestFormData = z.infer<typeof harvestSchema>
 
 interface HarvestFormProps {
   initialData?: Partial<HarvestFormData>
   onSubmit: (data: HarvestFormData) => void
   onCancel?: () => void
+  onFormChange?: () => void
   isLoading?: boolean
   mode?: "create" | "edit"
 }

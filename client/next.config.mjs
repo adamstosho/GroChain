@@ -26,6 +26,13 @@ const nextConfig = {
       '@': path.resolve(__dirname),
     };
     
+    // Add parent node_modules for monorepo workspace hoisting
+    config.resolve.modules = [
+      path.resolve(__dirname, 'node_modules'),
+      path.resolve(__dirname, '../node_modules'),
+      'node_modules',
+    ];
+    
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

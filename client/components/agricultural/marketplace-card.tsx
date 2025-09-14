@@ -207,7 +207,7 @@ export function MarketplaceCard({
               <div className="flex items-center text-xs text-muted-foreground">
                 <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
                 <span className="truncate">
-                  {typeof product.location === 'string' ? product.location.split(',')[0] : product.location?.city || 'Unknown'}
+                  {typeof product.location === 'string' ? product.location.split(',')[0] : (product.location as any)?.city || 'Unknown'}
                 </span>
               </div>
 
@@ -308,7 +308,7 @@ export function MarketplaceCard({
           </div>
           <div className="flex items-center gap-1">
             <MapPin className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{typeof product.location === 'string' ? product.location : `${product.location?.city || 'Unknown'}`}</span>
+            <span className="truncate">{typeof product.location === 'string' ? product.location : `${(product.location as any)?.city || 'Unknown'}`}</span>
           </div>
         </div>
 

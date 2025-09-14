@@ -171,7 +171,7 @@ export function HarvestCard({
         {/* Location */}
         <div className="flex items-center text-sm text-muted-foreground">
           <MapPin className="h-4 w-4 mr-2" />
-          {typeof harvest.location === 'string' ? harvest.location : `${harvest.location?.city || 'Unknown'}, ${harvest.location?.state || 'Unknown State'}`}
+          {typeof harvest.location === 'string' ? harvest.location : `${(harvest.location as any)?.city || 'Unknown'}, ${(harvest.location as any)?.state || 'Unknown State'}`}
         </div>
 
         {/* Quality Metrics */}

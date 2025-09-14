@@ -21,7 +21,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-interface QRScanResult {
+export interface QRScanResult {
   id: string
   timestamp: Date
   data: string

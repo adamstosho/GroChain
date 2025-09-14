@@ -89,7 +89,7 @@ export function BuyerAnalytics() {
         setIsLoading(true)
         // Fetch buyer analytics data with period
         const response = await apiService.getBuyerAnalyticsWithPeriod(undefined, timeRange)
-        setAnalyticsData(response.data)
+        setAnalyticsData(response.data as BuyerAnalyticsData)
       } catch (error: any) {
         console.error('Error fetching buyer analytics:', error)
         toast({
@@ -109,7 +109,7 @@ export function BuyerAnalytics() {
     try {
       setIsLoading(true)
       const response = await apiService.getBuyerAnalyticsWithPeriod(undefined, timeRange)
-      setAnalyticsData(response.data)
+      setAnalyticsData(response.data as BuyerAnalyticsData)
       toast({
         title: "Analytics refreshed",
         description: "Your analytics data has been updated.",
@@ -556,7 +556,7 @@ export function BuyerAnalytics() {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ category, percentage }) => `${category} ${percentage}%`}
+                        label={({ category, percentage }: any) => `${category} ${percentage}%`}
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="percentage"

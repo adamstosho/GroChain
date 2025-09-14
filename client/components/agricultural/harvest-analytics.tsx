@@ -93,8 +93,8 @@ export function HarvestAnalytics({ farmerId, className }: HarvestAnalyticsProps)
       let analyticsData
       if (response?.status === 'success' && response?.data) {
         analyticsData = response.data
-      } else if (response?.data?.data) {
-        analyticsData = response.data.data
+      } else if ((response as any)?.data?.data) {
+        analyticsData = (response as any).data.data
       } else if (response?.data) {
         analyticsData = response.data
       } else {
@@ -105,7 +105,7 @@ export function HarvestAnalytics({ farmerId, className }: HarvestAnalyticsProps)
 
       if (analyticsData && typeof analyticsData === 'object') {
         // Transform monthly trend data to ensure proper format
-        const processedMonthlyTrend = (analyticsData.monthlyTrend || []).map(item => ({
+        const processedMonthlyTrend = (analyticsData.monthlyTrend || []).map((item: any) => ({
           month: item.month ? new Date(item.month).toLocaleDateString('en-US', { month: 'short' }) : item.month || 'Unknown',
           harvests: item.harvests || 0,
           quantity: item.quantity || 0,

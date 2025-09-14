@@ -282,20 +282,20 @@ export default function MarketplacePage() {
   const adjustedProducts = useMemo(() => {
     return products.map(product => {
       // Use the actual available quantity from the database
-      const availableQuantity = product.availableQuantity || product.quantity || product.stockQuantity || 0
+      const availableQuantity = (product as any).availableQuantity || (product as any).quantity || (product as any).stockQuantity || 0
       
       // Find cart item for display purposes only (not for quantity calculation)
       const cartItem = cart.find(item =>
-        item.listingId === product.id ||
-        item.id === product.id ||
-        item.listingId === product._id ||
-        item.id === product._id
+        item.listingId === (product as any).id ||
+        item.id === (product as any).id ||
+        item.listingId === (product as any)._id ||
+        item.id === (product as any)._id
       )
       const cartQuantity = cartItem ? cartItem.quantity : 0
 
       // Debug quantity display for this product
-      console.log(`🔢 Product quantity for ${product.name}:`, {
-        productId: product.id,
+      console.log(`🔢 Product quantity for ${(product as any).name || (product as any).cropName}:`, {
+        productId: (product as any).id || (product as any)._id,
         availableQuantity,
         cartQuantity,
         cartItemFound: !!cartItem
@@ -312,30 +312,30 @@ export default function MarketplacePage() {
   // Convert Product type to MarketplaceProduct type for our component
   const convertToMarketplaceProduct = (product: Product): MarketplaceProduct => {
     return {
-      id: String(product.id),
-      name: product.name,
-      cropType: product.category || "Agricultural Product",
-      variety: product.variety || "Standard",
-      description: product.description || "Fresh agricultural product from verified farmers",
-      price: product.price,
-      unit: product.unit,
+      id: String((product as any).id || (product as any)._id),
+      name: (product as any).name || (product as any).cropName,
+      cropType: (product as any).category || "Agricultural Product",
+      variety: (product as any).variety || "Standard",
+      description: (product as any).description || "Fresh agricultural product from verified farmers",
+      price: (product as any).price,
+      unit: (product as any).unit,
       quantity: (product as any).quantity || 100,
       availableQuantity: (product as any).availableQuantity || 100,
       quality: (product as any).quality || "good",
       grade: (product as any).grade || "B",
       organic: (product as any).organic || false,
       harvestDate: new Date((product as any).harvestDate || Date.now()),
-      location: product.location,
+      location: (product as any).location,
       farmer: {
         id: (product as any).farmerId || "1",
         name: (product as any).farmerName || "Unknown Farmer",
         avatar: (product as any).farmerAvatar || "",
-        rating: product.rating || 4.5,
-        verified: product.isVerified || true,
-        location: product.location
+        rating: (product as any).rating || 4.5,
+        verified: (product as any).isVerified || true,
+        location: (product as any).location
       },
-      images: product.images && product.images.length > 0 
-        ? product.images 
+      images: (product as any).images && (product as any).images.length > 0 
+        ? (product as any).images 
         : ["/placeholder.svg?height=200&width=300&query=fresh agricultural product"],
       certifications: (product as any).certifications || ["ISO 22000"],
       shipping: {
@@ -343,10 +343,10 @@ export default function MarketplacePage() {
         cost: (product as any).shippingCost || 500,
         estimatedDays: (product as any).shippingDays || 3
       },
-      rating: product.rating || 4.5,
+      rating: (product as any).rating || 4.5,
       reviewCount: (product as any).reviewCount || 0,
       qrCode: (product as any).qrCode || `PRODUCT_${Date.now()}`,
-      tags: (product as any).tags || [product.category, "fresh", "agricultural", "verified"]
+      tags: (product as any).tags || [(product as any).category, "fresh", "agricultural", "verified"]
     }
   }
 
@@ -537,7 +537,7 @@ export default function MarketplacePage() {
           >
             {adjustedProducts.map((product) => (
               <MarketplaceCard
-                key={product.id}
+                key={(product as any).id || (product as any)._id}
                 product={convertToMarketplaceProduct(product)}
                 variant={viewMode === "list" ? "compact" : "default"}
                 onAddToCart={(id) => handleMarketplaceAction("addToCart", id)}

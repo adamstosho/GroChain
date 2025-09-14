@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { CheckCircle, XCircle, Loader2, CreditCard, Package } from "lucide-react"
+import { CheckCircle, XCircle, Loader2, CreditCard, Package, Eye, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
@@ -46,14 +46,14 @@ function PaymentVerificationContent() {
         const verifyUrl = testMode 
           ? `/api/payments/verify/${trxref}?test_mode=true`
           : `/api/payments/verify/${trxref}`
-        const response = await apiService.request(verifyUrl)
+        const response = await apiService.verifyPayment(trxref)
 
         if (response && response.status === 'success') {
           console.log('✅ Payment verification successful:', response.data)
 
           // Check if we have order information
-          const transaction = response.data?.transaction
-          const orderData = response.data?.order
+          const transaction = (response.data as any)?.transaction
+          const orderData = (response.data as any)?.order
           const orderId = transaction?.orderId || transaction?.metadata?.order_id
 
           // Check if the order status was properly updated
@@ -63,7 +63,7 @@ function PaymentVerificationContent() {
             setVerificationResult({
               status: 'success',
               transaction: transaction,
-              verification: response.data?.verification,
+              verification: (response.data as any)?.verification,
               orderId: orderId,
               reference: trxref
             })
@@ -96,7 +96,7 @@ function PaymentVerificationContent() {
                   setVerificationResult({
                     status: 'success',
                     transaction: transaction,
-                    verification: response.data?.verification,
+                    verification: (response.data as any)?.verification,
                     orderId: orderId,
                     reference: trxref
                   })
@@ -116,7 +116,7 @@ function PaymentVerificationContent() {
                   setVerificationResult({
                     status: 'success',
                     transaction: transaction,
-                    verification: response.data?.verification,
+                    verification: (response.data as any)?.verification,
                     orderId: orderId,
                     reference: trxref
                   })
@@ -141,7 +141,7 @@ function PaymentVerificationContent() {
                 setVerificationResult({
                   status: 'success',
                   transaction: transaction,
-                  verification: response.data?.verification,
+                  verification: (response.data as any)?.verification,
                   orderId: orderId,
                   reference: trxref
                 })
@@ -162,8 +162,8 @@ function PaymentVerificationContent() {
               setVerificationResult({
                 status: 'success',
                 transaction: transaction,
-                verification: response.data?.verification,
-                orderId: null,
+                verification: (response.data as any)?.verification,
+                orderId: undefined,
                 reference: trxref
               })
 
@@ -201,10 +201,10 @@ function PaymentVerificationContent() {
             console.log(`🔄 Retry attempt ${retryCount}/${maxRetries}`)
 
             try {
-              const retryResponse = await apiService.request(`/api/payments/verify/${trxref}`)
+              const retryResponse = await apiService.verifyPayment(trxref)
               if (retryResponse && retryResponse.status === 'success') {
-                const transaction = retryResponse.data?.transaction
-                const orderData = retryResponse.data?.order
+                const transaction = (retryResponse.data as any)?.transaction
+                const orderData = (retryResponse.data as any)?.order
                 const orderId = transaction?.orderId || transaction?.metadata?.order_id
 
                 console.log('✅ Retry verification successful')
@@ -212,7 +212,7 @@ function PaymentVerificationContent() {
                 setVerificationResult({
                   status: 'success',
                   transaction: transaction,
-                  verification: retryResponse.data?.verification,
+                  verification: (retryResponse.data as any)?.verification,
                   orderId: orderId,
                   reference: trxref
                 })

@@ -73,18 +73,20 @@ export default function PartnersPage() {
     try {
       setLoading(true)
       const [statsResponse, farmersResponse] = await Promise.all([
-        api.request("/api/partners/metrics"),
-        api.request("/api/partners/farmers?limit=1000&page=1"), // Get all farmers
+        api.getPartnerMetrics(),
+        api.getPartnerFarmers({ limit: 1000, page: 1 }), // Get all farmers
       ])
-      setStats(statsResponse.data)
+      // Extract the actual data from the API response
+      const statsData = statsResponse.data || statsResponse
+      setStats(statsData as PartnerStats)
 
       // Handle the correct response structure from backend
-      const farmersData = farmersResponse.data
+      const farmersData = farmersResponse.data || farmersResponse
       console.log("Farmers API response:", farmersData)
 
-      if (farmersData && typeof farmersData === 'object' && Array.isArray(farmersData.farmers)) {
+      if (farmersData && typeof farmersData === 'object' && Array.isArray((farmersData as any).farmers)) {
         // Backend returns: { data: { farmers: [...], total: X, ... } }
-        setFarmers(farmersData.farmers)
+        setFarmers((farmersData as any).farmers)
       } else if (Array.isArray(farmersData)) {
         // Fallback for direct array response
         setFarmers(farmersData)
@@ -115,17 +117,25 @@ export default function PartnersPage() {
 
   const handleExport = async () => {
     try {
-      const response = await api.request('/api/partners/farmers/export', {
+      const response = await fetch('/api/partners/farmers/export', {
         method: 'POST',
-        data: {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${api.getToken()}`
+        },
+        body: JSON.stringify({
           status: statusFilter !== 'all' ? statusFilter : undefined,
           search: searchTerm || undefined,
           format: 'csv'
-        }
+        })
       })
 
+      if (!response.ok) {
+        throw new Error('Export failed')
+      }
+
       // Create and download CSV file
-      const blob = new Blob([response.data], { type: 'text/csv' })
+      const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -145,7 +155,7 @@ export default function PartnersPage() {
           farmer.phone || '',
           farmer.location || '',
           farmer.status || '',
-          farmer.joinedDate || farmer.joinedAt ? new Date(farmer.joinedDate || farmer.joinedAt).toLocaleDateString() : '',
+          farmer.joinedDate || farmer.joinedAt ? new Date(farmer.joinedDate || farmer.joinedAt || '').toLocaleDateString() : '',
           farmer.totalHarvests || 0,
           farmer.totalSales || 0
         ])
@@ -165,12 +175,21 @@ export default function PartnersPage() {
 
   const handleSyncFarmers = async () => {
     try {
-      const response = await api.request('/api/referrals/sync-partners', {
-        method: 'POST'
+      const response = await fetch('/api/referrals/sync-partners', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${api.getToken()}`
+        }
       })
 
-      console.log('Sync response:', response.data)
-      alert(`Sync completed! ${response.data.message || 'Farmers synchronized successfully'}`)
+      if (!response.ok) {
+        throw new Error('Sync failed')
+      }
+
+      const responseData = await response.json()
+      console.log('Sync response:', responseData.data)
+      alert(`Sync completed! ${responseData.data?.message || 'Farmers synchronized successfully'}`)
 
       // Refresh the data
       await fetchPartnerData()
@@ -245,7 +264,7 @@ export default function PartnersPage() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center space-x-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user?.avatar} alt={user?.name} />
+                      <AvatarImage src={user?.profile?.avatar} alt={user?.name} />
                       <AvatarFallback>
                         {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
                       </AvatarFallback>
@@ -445,7 +464,7 @@ export default function PartnersPage() {
                           <div>
                             <p className="font-medium">{farmer.name}</p>
                             <p className="text-sm text-gray-500">
-                              Joined {farmer.joinedDate || farmer.joinedAt ? new Date(farmer.joinedDate || farmer.joinedAt).toLocaleDateString() : 'N/A'}
+                              Joined {farmer.joinedDate || farmer.joinedAt ? new Date(farmer.joinedDate || farmer.joinedAt || '').toLocaleDateString() : 'N/A'}
                             </p>
                           </div>
                         </td>
@@ -455,7 +474,7 @@ export default function PartnersPage() {
                             <p className="text-sm text-gray-500">{farmer.phone || 'N/A'}</p>
                           </div>
                         </td>
-                        <td className="py-3 px-4">{typeof farmer.location === 'string' ? farmer.location : `${farmer.location?.city || 'Unknown'}, ${farmer.location?.state || 'Unknown State'}`}</td>
+                        <td className="py-3 px-4">{typeof farmer.location === 'string' ? farmer.location : `${(farmer.location as any)?.city || 'Unknown'}, ${(farmer.location as any)?.state || 'Unknown State'}`}</td>
                         <td className="py-3 px-4">
                           <Badge
                             variant={

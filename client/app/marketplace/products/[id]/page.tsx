@@ -47,42 +47,46 @@ export default function ProductDetailPage() {
 
   const fetchProduct = async () => {
     try {
-      const response = await apiService.request(`/api/marketplace/listings/${params.id}`)
+      const response = await apiService.getListing(String(params.id))
       const listing = response.data
+      
+      if (!listing) {
+        throw new Error('Listing not found')
+      }
       
       // Convert Listing to Product format for consistency
       const productData = {
         _id: listing._id,
-        cropName: listing.cropName,
-        name: listing.cropName, // For compatibility
-        category: listing.category,
-        variety: listing.variety,
-        description: listing.description,
-        basePrice: listing.basePrice,
-        price: listing.basePrice, // For compatibility
-        unit: listing.unit,
-        quantity: listing.quantity,
-        availableQuantity: listing.availableQuantity,
-        location: listing.location,
-        images: listing.images || [],
-        tags: listing.tags || [],
-        status: listing.status,
-        views: listing.views || 0,
-        rating: listing.rating || 0,
-        reviewCount: listing.reviewCount || 0,
-        organic: listing.organic || false,
-        qualityGrade: listing.qualityGrade || 'standard',
-        certifications: listing.certifications || [],
-        farmer: listing.farmer,
-        harvest: listing.harvest,
-        harvestDate: listing.harvest?.harvestDate || listing.createdAt,
-        isVerified: listing.farmer?.emailVerified || false,
-        isOrganic: listing.organic || false,
-        createdAt: listing.createdAt,
-        updatedAt: listing.updatedAt
+        cropName: (listing as any).cropName,
+        name: (listing as any).cropName, // For compatibility
+        category: (listing as any).category,
+        variety: (listing as any).variety,
+        description: (listing as any).description,
+        basePrice: (listing as any).basePrice,
+        price: (listing as any).basePrice, // For compatibility
+        unit: (listing as any).unit,
+        quantity: (listing as any).quantity,
+        availableQuantity: (listing as any).availableQuantity,
+        location: (listing as any).location,
+        images: (listing as any).images || [],
+        tags: (listing as any).tags || [],
+        status: (listing as any).status,
+        views: (listing as any).views || 0,
+        rating: (listing as any).rating || 0,
+        reviewCount: (listing as any).reviewCount || 0,
+        organic: (listing as any).organic || false,
+        qualityGrade: (listing as any).qualityGrade || 'standard',
+        certifications: (listing as any).certifications || [],
+        farmer: (listing as any).farmer,
+        harvest: (listing as any).harvest,
+        harvestDate: (listing as any).harvest?.harvestDate || (listing as any).createdAt,
+        isVerified: (listing as any).farmer?.emailVerified || false,
+        isOrganic: (listing as any).organic || false,
+        createdAt: (listing as any).createdAt,
+        updatedAt: (listing as any).updatedAt
       }
       
-      setProduct(productData)
+      setProduct(productData as any)
     } catch (error) {
       console.error("Failed to fetch product:", error)
     } finally {
@@ -94,7 +98,7 @@ export default function ProductDetailPage() {
     try {
       const response = await apiService.getListingReviews(params.id as string)
       const reviewsData = response.data || response
-      setReviews(reviewsData.reviews || [])
+      setReviews((reviewsData as any).reviews || [])
     } catch (error) {
       console.error("Failed to fetch reviews:", error)
       setReviews([])
@@ -104,7 +108,7 @@ export default function ProductDetailPage() {
   const fetchUserOrders = async () => {
     try {
       const response = await apiService.getOrders()
-      const orders = response.data?.orders || response.orders || []
+      const orders = (response.data as any)?.orders || (response as any).orders || []
       // Filter orders for this specific listing that are delivered
       const relevantOrders = orders.filter((order: any) => 
         order.items?.some((item: any) => item.listing === params.id) && 
@@ -145,11 +149,11 @@ export default function ProductDetailPage() {
         quantity: quantity,
         unit: product.unit,
         price: product.basePrice,
-        total: product.basePrice * quantity,
-        farmer: product.farmer?.name || 'Unknown Farmer',
-        location: product.location,
-        image: product.images?.[0] || "/placeholder.svg",
-        availableQuantity: product.availableQuantity || product.quantity || 0
+        total: (product.basePrice || (product as any).price || 0) * quantity,
+        farmer: (product as any).farmer?.name || 'Unknown Farmer',
+        location: (product as any).location,
+        image: (product as any).images?.[0] || "/placeholder.svg",
+        availableQuantity: (product as any).availableQuantity || (product as any).quantity || 0
       }
 
       // Add to cart using buyer store
@@ -223,11 +227,11 @@ export default function ProductDetailPage() {
             <div className="relative h-96 rounded-lg overflow-hidden">
               <Image
                 src={product.images?.[0] || "/placeholder.svg?height=400&width=600&query=fresh agricultural product"}
-                alt={typeof product.name === 'string' ? product.name : 'Fresh agricultural product'}
+                alt={typeof (product as any).name === 'string' ? (product as any).name : 'Fresh agricultural product'}
                 fill
                 className="object-cover"
               />
-              {product.isVerified && (
+              {(product as any).isVerified && (
                 <Badge className="absolute top-4 left-4 bg-green-600">
                   <Shield className="h-3 w-3 mr-1" />
                   Verified Product
@@ -241,7 +245,7 @@ export default function ProductDetailPage() {
                   <div key={index} className="relative h-20 rounded overflow-hidden">
                     <Image
                       src={image || "/placeholder.svg"}
-                      alt={`${typeof product.name === 'string' ? product.name : 'Product'} view ${index + 2}`}
+                      alt={`${typeof (product as any).name === 'string' ? (product as any).name : 'Product'} view ${index + 2}`}
                       fill
                       className="object-cover"
                     />
@@ -256,7 +260,7 @@ export default function ProductDetailPage() {
             <div>
               <div className="flex items-start justify-between mb-2">
                 <h1 className="text-3xl font-bold text-gray-900">
-                  {typeof product.name === 'string' ? product.name : 'Unnamed Product'}
+                  {typeof (product as any).name === 'string' ? (product as any).name : 'Unnamed Product'}
                 </h1>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline">
@@ -271,26 +275,26 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex items-center gap-1">
                   <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  <span className="font-medium">{product.rating || 4.5}</span>
+                  <span className="font-medium">{(product as any).rating || 4.5}</span>
                   <span className="text-gray-500">({reviews.length} reviews)</span>
                 </div>
                 <Badge variant="outline">
-                  {typeof product.category === 'string' ? product.category : 'Uncategorized'}
+                  {typeof (product as any).category === 'string' ? (product as any).category : 'Uncategorized'}
                 </Badge>
               </div>
 
               <p className="text-gray-600 text-lg">
-                {typeof product.description === 'string' ? product.description : 'No description available.'}
+                {typeof (product as any).description === 'string' ? (product as any).description : 'No description available.'}
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-gray-400" />
               <span className="text-gray-600">
-                {typeof product.location === 'string'
-                  ? product.location
-                  : typeof product.location === 'object' && product.location
-                  ? `${product.location.city || ''}, ${product.location.state || ''}`.replace(/^, |, $/, '').trim() || 'Location N/A'
+                {typeof (product as any).location === 'string'
+                  ? (product as any).location
+                  : typeof (product as any).location === 'object' && (product as any).location
+                  ? `${(product as any).location.city || ''}, ${(product as any).location.state || ''}`.replace(/^, |, $/, '').trim() || 'Location N/A'
                   : 'Location N/A'
                 }
               </span>
@@ -299,20 +303,20 @@ export default function ProductDetailPage() {
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-gray-400" />
               <span className="text-gray-600">
-                Harvested: {new Date(product.harvestDate || Date.now()).toLocaleDateString()}
+                Harvested: {new Date((product as any).harvestDate || Date.now()).toLocaleDateString()}
               </span>
             </div>
 
             <div className="border-t border-b py-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <span className="text-3xl font-bold text-green-600">₦{product.price}</span>
-                  <span className="text-gray-500 ml-2">per {product.unit}</span>
+                  <span className="text-3xl font-bold text-green-600">₦{(product as any).price || (product as any).basePrice}</span>
+                  <span className="text-gray-500 ml-2">per {(product as any).unit}</span>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Available</p>
                   <p className="font-semibold">
-                    {product.quantity} {product.unit}s
+                    {(product as any).quantity} {(product as any).unit}s
                   </p>
                 </div>
               </div>
@@ -341,7 +345,7 @@ export default function ProductDetailPage() {
                   ) : (
                     <>
                       <ShoppingCart className="h-4 w-4 mr-2" />
-                      Add to Cart - ₦{(product?.basePrice * quantity).toLocaleString()}
+                      Add to Cart - ₦{(((product as any)?.basePrice || (product as any)?.price || 0) * quantity).toLocaleString()}
                     </>
                   )}
                 </Button>
@@ -361,28 +365,28 @@ export default function ProductDetailPage() {
               <CardContent>
                 <div className="flex items-center gap-4">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={product.farmer?.avatar || "/placeholder.svg"} />
+                    <AvatarImage src={(product as any).farmer?.avatar || "/placeholder.svg"} />
                     <AvatarFallback>
-                      {typeof product.farmer?.name === 'string' ? product.farmer.name.charAt(0) : 'U'}
+                      {typeof (product as any).farmer?.name === 'string' ? (product as any).farmer.name.charAt(0) : 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <h4 className="font-semibold">
-                      {typeof product.farmer?.name === 'string' ? product.farmer.name : 'Unknown Farmer'}
+                      {typeof (product as any).farmer?.name === 'string' ? (product as any).farmer.name : 'Unknown Farmer'}
                     </h4>
                     <p className="text-sm text-gray-600">
-                      {product.farmer?.location
-                        ? typeof product.farmer.location === 'string'
-                          ? product.farmer.location
-                          : typeof product.farmer.location === 'object' && product.farmer.location
-                          ? `${product.farmer.location.city || ''}, ${product.farmer.location.state || ''}`.replace(/^, |, $/, '').trim() || 'Location N/A'
+                      {(product as any).farmer?.location
+                        ? typeof (product as any).farmer.location === 'string'
+                          ? (product as any).farmer.location
+                          : typeof (product as any).farmer.location === 'object' && (product as any).farmer.location
+                          ? `${(product as any).farmer.location.city || ''}, ${(product as any).farmer.location.state || ''}`.replace(/^, |, $/, '').trim() || 'Location N/A'
                           : 'Location N/A'
                         : 'Location N/A'
                       }
                     </p>
                     <div className="flex items-center gap-1 mt-1">
                       <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm">{product.farmer?.rating || 4.8} rating</span>
+                      <span className="text-sm">{(product as any).farmer?.rating || 4.8} rating</span>
                     </div>
                   </div>
                 </div>
@@ -521,7 +525,7 @@ export default function ProductDetailPage() {
                           Harvest details recorded with batch ID: {product.harvest.batchId}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          Harvest Date: {new Date(product.harvest.harvestDate || product.harvestDate).toLocaleDateString()}
+                          Harvest Date: {product.harvest?.harvestDate || product.harvestDate ? new Date(product.harvest?.harvestDate || product.harvestDate!).toLocaleDateString() : 'N/A'}
                         </p>
                       </div>
                     </div>

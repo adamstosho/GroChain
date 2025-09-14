@@ -52,15 +52,17 @@ export default function BulkOnboardPage() {
         setUploadProgress((prev) => Math.min(prev + 10, 90))
       }, 200)
 
-      const response = await api.request<UploadResult>("/api/partners/bulk-onboard", {
-        method: "POST",
-        body: formData,
-        headers: {}, // Remove Content-Type to let browser set it for FormData
-      })
+      const response = await api.uploadPartnerCSV(file)
 
       clearInterval(progressInterval)
       setUploadProgress(100)
-      setResult(response.data!)
+      setResult({
+        success: true,
+        totalRows: response.data?.totalRows || 0,
+        successfulRows: response.data?.successfulRows || 0,
+        failedRows: response.data?.failedRows || 0,
+        errors: response.data?.errors || []
+      })
     } catch (error) {
       console.error("Upload failed:", error)
       alert("Upload failed. Please try again.")

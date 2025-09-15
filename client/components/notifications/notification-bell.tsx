@@ -97,7 +97,7 @@ export function NotificationBell() {
 
   const handleMarkAsRead = (e: React.MouseEvent, notificationId: string) => {
     e.stopPropagation() // Prevent triggering the notification click
-    markAsRead(notificationId)
+    markAsRead([notificationId])
   }
 
   const handleDeleteNotification = (e: React.MouseEvent, notificationId: string) => {

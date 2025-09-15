@@ -125,6 +125,10 @@ const getCategoryColor = (category: string) => {
 export default function FinancialGoalsPage() {
   const [goals, setGoals] = useState<FinancialGoal[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [editingGoal, setEditingGoal] = useState<FinancialGoal | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deletingGoal, setDeletingGoal] = useState<FinancialGoal | null>(null)
   const [stats, setStats] = useState({
     totalGoals: 0,
     activeGoals: 0,
@@ -133,10 +137,6 @@ export default function FinancialGoalsPage() {
     totalCurrent: 0,
     averageProgress: 0
   })
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [editingGoal, setEditingGoal] = useState<FinancialGoal | null>(null)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [deletingGoal, setDeletingGoal] = useState<FinancialGoal | null>(null)
   const [formData, setFormData] = useState<GoalFormData>({
     title: '',
     description: '',
@@ -162,7 +162,7 @@ export default function FinancialGoalsPage() {
       const goalsResponse = await apiService.getFinancialGoals()
 
       if (goalsResponse.status === 'success' && goalsResponse.data) {
-        const goalsData = (goalsResponse.data as any)?.goals || []
+        const goalsData = (goalsResponse.data as any).goals || []
 
         // Transform backend data to match frontend interface
         const transformedGoals: FinancialGoal[] = goalsData.map((goal: any) => ({
@@ -178,9 +178,9 @@ export default function FinancialGoalsPage() {
           priority: goal.priority || 'medium',
           status: goal.status || 'active',
           progress: goal.targetAmount > 0 ? Math.round((goal.currentAmount / goal.targetAmount) * 100) : 0,
-          category: goal.category || (goal.targetDate ? 
-            (new Date(goal.targetDate).getTime() - new Date().getTime() > 365 * 24 * 60 * 60 * 1000 ? 'long_term' : 
-             new Date(goal.targetDate).getTime() - new Date().getTime() > 90 * 24 * 60 * 60 * 1000 ? 'medium_term' : 'short_term') 
+          category: goal.category || (goal.targetDate ?
+            (new Date(goal.targetDate).getTime() - new Date().getTime() > 365 * 24 * 60 * 60 * 1000 ? 'long_term' :
+             new Date(goal.targetDate).getTime() - new Date().getTime() > 90 * 24 * 60 * 60 * 1000 ? 'medium_term' : 'short_term')
             : 'medium_term')
         }))
 

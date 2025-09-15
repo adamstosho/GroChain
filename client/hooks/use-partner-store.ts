@@ -118,7 +118,7 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const response = await api.getPartnerDashboard()
-      set({ dashboard: response.data, loading: false })
+      set({ dashboard: response.data as PartnerDashboardData, loading: false })
     } catch (error: any) {
       set({ error: error.message, loading: false })
     }
@@ -138,7 +138,7 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const response = await api.getPartnerCommission()
-      set({ commission: response.data, loading: false })
+      set({ commission: response.data as unknown as PartnerCommission, loading: false })
     } catch (error: any) {
       set({ error: error.message, loading: false })
     }
@@ -150,15 +150,18 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
 
     try {
       const response = await api.getPartnerFarmers(currentFilters)
-      set({
-        farmers: response.data.farmers,
-        farmersPagination: {
-          page: response.data.page,
-          pages: response.data.pages,
-          total: response.data.total
-        },
-        farmersLoading: false
-      })
+      const data = response.data
+      if (data) {
+        set({
+          farmers: data.farmers,
+          farmersPagination: {
+            page: data.page,
+            pages: data.pages,
+            total: data.total
+          },
+          farmersLoading: false
+        })
+      }
     } catch (error: any) {
       set({ error: error.message, farmersLoading: false })
     }
@@ -170,11 +173,14 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
 
     try {
       const response = await api.getCommissions(currentFilters)
-      set({
-        commissions: response.data.commissions,
-        commissionsPagination: response.data.pagination,
-        commissionsLoading: false
-      })
+      const data = response.data
+      if (data) {
+        set({
+          commissions: data.commissions as Commission[],
+          commissionsPagination: data.pagination,
+          commissionsLoading: false
+        })
+      }
     } catch (error: any) {
       set({ error: error.message, commissionsLoading: false })
     }
@@ -186,18 +192,21 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
 
     try {
       const response = await api.getReferrals(currentFilters)
-      set({
-        referrals: response.data.docs,
-        referralsPagination: {
-          page: response.data.page,
-          totalPages: response.data.totalPages,
-          totalDocs: response.data.totalDocs,
-          limit: response.data.limit,
-          hasNextPage: response.data.hasNextPage,
-          hasPrevPage: response.data.hasPrevPage
-        },
-        referralsLoading: false
-      })
+      const data = response.data
+      if (data) {
+        set({
+          referrals: data.docs as Referral[],
+          referralsPagination: {
+            page: data.page,
+            totalPages: data.totalPages,
+            totalDocs: data.totalDocs,
+            limit: data.limit,
+            hasNextPage: data.hasNextPage,
+            hasPrevPage: data.hasPrevPage
+          },
+          referralsLoading: false
+        })
+      }
     } catch (error: any) {
       set({ error: error.message, referralsLoading: false })
     }
@@ -207,7 +216,7 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
     set({ bulkUploading: true, error: null })
     try {
       const response = await api.uploadPartnerCSV(file)
-      set({ bulkUploadResult: response.data, bulkUploading: false })
+      set({ bulkUploadResult: response.data as unknown as BulkOnboardResponse, bulkUploading: false })
 
       // Refresh farmers list after successful upload
       await get().fetchFarmers()

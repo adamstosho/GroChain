@@ -251,61 +251,10 @@ class ApiService {
     password: string
     role: string
     location?: string
-    smsCode?: string
   }) {
     return this.request<{ user: User; token: string; refreshToken: string }>("/api/auth/register", {
       method: "POST",
       body: JSON.stringify(userData),
-    })
-  }
-
-  // Weather API methods
-  async getCurrentWeather(lat: number, lng: number, city: string, state: string, country: string = 'Nigeria') {
-    return this.request(`/api/weather/current/${lat},${lng}`, {
-      method: "GET",
-      params: { city, state, country }
-    })
-  }
-
-  async getWeatherForecast(lat: number, lng: number, days: number = 5) {
-    return this.request(`/api/weather/forecast/${lat},${lng}`, {
-      method: "GET",
-      params: { days }
-    })
-  }
-
-  async getWeatherAlerts(lat?: number, lng?: number, severity?: string, type?: string, cropType?: string) {
-    const params: any = {}
-    if (lat && lng) {
-      params.lat = lat
-      params.lng = lng
-    }
-    if (severity) params.severity = severity
-    if (type) params.type = type
-    if (cropType) params.cropType = cropType
-
-    return this.request("/api/weather/alerts", {
-      method: "GET",
-      params
-    })
-  }
-
-  async getAgriculturalInsights(lat: number, lng: number, cropType?: string) {
-    return this.request("/api/weather/agricultural-insights", {
-      method: "GET",
-      params: { lat, lng, cropType }
-    })
-  }
-
-  async subscribeToWeatherAlerts(lat: number, lng: number, alertTypes?: string[], cropTypes?: string[]) {
-    return this.request("/api/weather/subscribe", {
-      method: "POST",
-      body: JSON.stringify({
-        lat,
-        lng,
-        alertTypes: alertTypes || ['weather', 'agricultural'],
-        cropTypes: cropTypes || []
-      })
     })
   }
 

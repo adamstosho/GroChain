@@ -40,7 +40,7 @@ export default function NewHarvestPage() {
         unit: data.unit,
         location: data.location,
         description: data.notes || "",
-        quality: (qualityMap[data.quality] || "good") as "excellent" | "good" | "fair" | "poor",
+        quality: qualityMap[data.quality] || "good" as any,
         qualityGrade: data.grade,
         organic: data.organic,
         moistureContent: data.moistureContent,

@@ -192,7 +192,7 @@ export function useOrderPaymentVerification(orderId?: string) {
       // Update local state with verification results
       setPendingOrders(prevOrders =>
         prevOrders.map(order => {
-          const result = results.find(r => r.reference === order.paymentReference)
+          const result = results.find((r: any) => r.reference === order.paymentReference)
           if (result?.success) {
             return { ...order, status: 'paid', paymentStatus: 'paid' }
           }
@@ -242,7 +242,7 @@ export function useDashboardPaymentVerification() {
     try {
       // This would typically come from an API call to get pending orders
       const response = await apiService.getUserOrders()
-      const orders = response.data || response || []
+      const orders = Array.isArray(response.data) ? response.data : Array.isArray(response) ? response : []
 
       const pendingOrders = orders.filter((order: any) =>
         order.status === 'pending' || order.paymentStatus === 'pending'

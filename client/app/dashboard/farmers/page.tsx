@@ -38,12 +38,10 @@ interface Farmer {
   email: string
   phone: string
   location: string
-  status: 'active' | 'inactive' | 'suspended'
-  joinedAt: Date
-  lastActivity?: Date
-  totalHarvests: number
-  totalEarnings: number
-  partner: string
+  status: 'active' | 'inactive' | 'pending' | 'suspended'
+  joinedDate: string
+  totalHarvests?: number
+  totalSales?: number
 }
 
 export default function FarmersPage() {
@@ -316,7 +314,7 @@ export default function FarmersPage() {
             <div className="space-y-3 sm:space-y-4">
               {paginatedFarmers.length > 0 ? (
                 paginatedFarmers.map((farmer) => (
-                  <div key={farmer.id || farmer._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3 sm:gap-0">
+                  <div key={farmer._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3 sm:gap-0">
                     <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
                         <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${farmer.name}`} />
@@ -342,22 +340,19 @@ export default function FarmersPage() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                          <span>Joined: {new Date(farmer.joinedAt).toLocaleDateString()}</span>
-                          {farmer.lastActivity && (
-                            <span>Last Activity: {new Date(farmer.lastActivity).toLocaleDateString()}</span>
-                          )}
+                          <span>Joined: {new Date(farmer.joinedDate).toLocaleDateString()}</span>
                         </div>
                         {farmer.totalHarvests !== undefined && (
                           <div className="flex items-center space-x-4 text-xs text-muted-foreground">
                             <span>Harvests: {farmer.totalHarvests}</span>
-                            <span>Earnings: ₦{farmer.totalEarnings?.toLocaleString() || '0'}</span>
+                            <span>Sales: ₦{farmer.totalSales?.toLocaleString() || '0'}</span>
                           </div>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center space-x-2 flex-shrink-0">
                       <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:p-2">
-                        <Link href={`/dashboard/farmers/${farmer.id || farmer._id}`}>
+                        <Link href={`/dashboard/farmers/${farmer._id}`}>
                           <span className="hidden sm:inline">View Details</span>
                           <span className="sm:hidden">👁️</span>
                         </Link>

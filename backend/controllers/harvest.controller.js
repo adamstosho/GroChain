@@ -234,25 +234,69 @@ exports.getProvenance = async (req, res) => {
 exports.verifyQRCode = async (req, res) => {
   try {
     const { batchId } = req.params
-    let harvest = await Harvest.findOne({ batchId })
+    let harvest = await Harvest.findOne({ batchId }).populate('farmer', 'name email profile phone')
     if (!harvest && /^[a-fA-F0-9]{24}$/.test(String(batchId))) {
-      harvest = await Harvest.findById(batchId)
+      harvest = await Harvest.findById(batchId).populate('farmer', 'name email profile phone')
     }
     if (!harvest) return res.status(404).json({ status: 'error', message: 'QR code verification failed - harvest not found' })
 
-    // Return verification data
+    // Format location data
+    let locationData = {
+      city: 'Unknown',
+      state: 'Unknown',
+      country: 'Nigeria',
+      coordinates: null
+    }
+
+    if (harvest.location) {
+      if (typeof harvest.location === 'string') {
+        const locationStr = harvest.location.trim()
+        if (locationStr.includes(',')) {
+          const parts = locationStr.split(',')
+          if (parts.length >= 2) {
+            locationData.city = parts[0].trim()
+            locationData.state = parts[1].trim()
+          } else {
+            locationData.city = locationStr
+          }
+        } else {
+          locationData.city = locationStr
+          locationData.state = 'Nigeria'
+        }
+      } else if (typeof harvest.location === 'object') {
+        locationData = {
+          city: harvest.location.city || 'Unknown',
+          state: harvest.location.state || 'Unknown',
+          country: harvest.location.country || 'Nigeria',
+          coordinates: harvest.location.coordinates || null
+        }
+      }
+    }
+
+    // Return comprehensive verification data
     const verificationData = {
-      verified: true,
       batchId: harvest.batchId,
       cropType: harvest.cropType,
-      harvestDate: harvest.date,
+      variety: harvest.variety,
       quantity: harvest.quantity,
       unit: harvest.unit,
-      quality: harvest.quality,
-      location: harvest.location,
-      farmer: harvest.farmer,
+      quality: harvest.qualityGrade || harvest.quality || 'Standard',
+      location: locationData,
+      harvestDate: harvest.date || harvest.harvestDate,
+      images: harvest.images || [],
+      organic: harvest.sustainability?.organicCertified || false,
+      price: harvest.price,
       status: harvest.status,
-      verifiedAt: new Date()
+      farmer: {
+        id: harvest.farmer._id || harvest.farmer,
+        name: harvest.farmer.name || 'Unknown Farmer',
+        farmName: harvest.farmer.profile?.farmName || `${locationData.city} Farm`,
+        phone: harvest.farmer.profile?.phone || harvest.farmer.phone,
+        email: harvest.farmer.email
+      },
+      verificationUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify/${harvest.batchId}`,
+      timestamp: new Date().toISOString(),
+      verified: true
     }
 
     return res.json({ status: 'success', data: verificationData })

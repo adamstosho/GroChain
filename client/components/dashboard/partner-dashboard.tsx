@@ -44,7 +44,7 @@ export function PartnerDashboard() {
         metricsResponse
       ] = await Promise.allSettled([
         api.getPartnerDashboard(),
-        api.getPartnerFarmers({ limit: 5, sortBy: 'joinedAt', sortOrder: 'desc' }),
+        api.getPartnerFarmers({ limit: 5 }),
         api.getPartnerCommission(),
         api.getPartnerMetrics()
       ])

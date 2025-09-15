@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const weatherController = require('../controllers/weather.controller')
-const { authenticate, requireRole } = require('../middlewares/auth.middleware')
+const { authenticate } = require('../middlewares/auth.middleware')
 
 // Get current weather data
 router.get('/current/:location', (req, res) => {
@@ -63,31 +63,6 @@ router.get('/climate-summary', async (req, res) => {
 router.post('/subscribe', 
   authenticate, 
   weatherController.subscribeToAlerts
-)
-
-// Weather alerts management (admin only)
-router.post('/alerts',
-  authenticate,
-  requireRole(['admin']),
-  weatherController.createWeatherAlert
-)
-
-router.get('/alerts/statistics',
-  authenticate,
-  requireRole(['admin']),
-  weatherController.getWeatherAlertStatistics
-)
-
-router.put('/alerts/:id',
-  authenticate,
-  requireRole(['admin']),
-  weatherController.updateWeatherAlert
-)
-
-router.delete('/alerts/:id',
-  authenticate,
-  requireRole(['admin']),
-  weatherController.deleteWeatherAlert
 )
 
 module.exports = router

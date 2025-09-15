@@ -183,8 +183,8 @@ export function PartnerSettings() {
       
       // Fetch user preferences and settings from API
       const [preferencesResponse, settingsResponse] = await Promise.all([
-        apiService.request('/api/users/preferences/me'),
-        apiService.request('/api/users/settings/me')
+        apiService.getMyPreferences(),
+        apiService.getMySettings()
       ])
 
       // Combine and set default values
@@ -248,8 +248,8 @@ export function PartnerSettings() {
       // Merge with API response
       const mergedSettings = {
         ...defaultSettings,
-        ...preferencesResponse?.data,
-        ...settingsResponse?.data
+        ...(preferencesResponse?.data as any || {}),
+        ...(settingsResponse?.data as any || {})
       }
 
       setSettings(mergedSettings)
@@ -273,21 +273,15 @@ export function PartnerSettings() {
       
       // Save settings to API
       await Promise.all([
-        apiService.request('/api/users/preferences/me', {
-          method: 'PUT',
-          body: JSON.stringify({
-            notifications: settings.notifications,
-            operational: settings.operational,
-            preferences: settings.preferences
-          })
-        }),
-        apiService.request('/api/users/settings/me', {
-          method: 'PUT',
-          body: JSON.stringify({
-            privacy: settings.privacy,
-            security: settings.security,
-            data: settings.data
-          })
+        apiService.updateMyPreferences({
+          notifications: settings.notifications,
+          operational: settings.operational,
+          preferences: settings.preferences
+        } as any),
+        apiService.updateMySettings({
+          privacy: settings.privacy,
+          security: settings.security,
+          data: settings.data
         })
       ])
       
@@ -321,13 +315,7 @@ export function PartnerSettings() {
     try {
       setSaving(true)
       
-      await apiService.request('/api/users/change-password', {
-        method: 'POST',
-        body: JSON.stringify({
-          currentPassword,
-          newPassword
-        })
-      })
+      await apiService.changePassword(currentPassword, newPassword)
       
       toast({
         title: "Password Changed Successfully! 🔐",

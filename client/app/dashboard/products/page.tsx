@@ -897,7 +897,7 @@ function ProductCard({
             <div className="flex items-center space-x-1">
               <MapPin className="h-3 w-3 text-muted-foreground" />
               <span className="text-muted-foreground truncate">
-                {typeof product.location === 'string' ? (product.location as any).split(',')[0] : (product.location as any)?.city || 'Unknown'}
+                {typeof product.location === 'string' ? (product.location as string).split(',')[0] : (product.location as any)?.city || 'Unknown'}
               </span>
             </div>
             <div className="flex items-center space-x-1">

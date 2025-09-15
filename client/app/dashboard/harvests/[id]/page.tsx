@@ -19,7 +19,7 @@ interface HarvestDetail {
   quantity: number
   unit: string
   date: string
-  location: string
+  location: string | { city?: string; state?: string }
   quality: string
   qualityGrade?: string
   status: string
@@ -246,22 +246,44 @@ export default function HarvestDetailPage() {
                   <Button
                     variant="outline"
                     className="flex-1"
-                    onClick={() => {
+                    onClick={async () => {
+                      // Construct the proper verification URL
+                      const verificationUrl = `${window.location.origin}/verify/${harvest.batchId}`
+                      
                       const shareData = {
-                        title: 'GroChain Harvest QR Code',
-                        text: `Harvest QR Code for ${harvest.cropType} - Batch ${harvest.batchId}`,
-                        url: harvest.qrCode || window.location.href
+                        title: 'GroChain Harvest Verification',
+                        text: `Verify this ${harvest.cropType} harvest - Batch ${harvest.batchId}`,
+                        url: verificationUrl
                       }
 
-                      if (navigator.share) {
-                        navigator.share(shareData)
-                      } else {
-                        // Fallback: copy URL to clipboard
-                        navigator.clipboard.writeText(window.location.href)
-                        toast({
-                          title: "Link Copied",
-                          description: "Harvest verification link copied to clipboard",
-                        })
+                      try {
+                        if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+                          await navigator.share(shareData)
+                        } else {
+                          // Fallback: copy URL to clipboard
+                          await navigator.clipboard.writeText(verificationUrl)
+                          toast({
+                            title: "Link Copied",
+                            description: "Harvest verification link copied to clipboard",
+                          })
+                        }
+                      } catch (error) {
+                        console.error('Share error:', error)
+                        // Fallback to clipboard if share fails
+                        try {
+                          await navigator.clipboard.writeText(verificationUrl)
+                          toast({
+                            title: "Link Copied",
+                            description: "Harvest verification link copied to clipboard",
+                          })
+                        } catch (clipboardError) {
+                          console.error('Clipboard error:', clipboardError)
+                          toast({
+                            title: "Error",
+                            description: "Unable to share or copy link",
+                            variant: "destructive"
+                          })
+                        }
                       }
                     }}
                   >
@@ -336,7 +358,7 @@ export default function HarvestDetailPage() {
               <label className="text-sm font-medium text-gray-600">Location</label>
               <p className="flex items-center gap-2 mt-1">
                 <MapPin className="h-4 w-4" />
-                {typeof harvest.location === 'string' ? harvest.location : harvest.location ? `${(harvest.location as any)?.city || 'Unknown'}, ${(harvest.location as any)?.state || 'Unknown State'}` : 'Location not specified'}
+                {typeof harvest.location === 'string' ? harvest.location : harvest.location ? `${harvest.location.city || 'Unknown'}, ${harvest.location.state || 'Unknown State'}` : 'Location not specified'}
               </p>
             </div>
 

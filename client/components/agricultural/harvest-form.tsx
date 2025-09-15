@@ -37,6 +37,14 @@ import { format } from "date-fns"
 import { useGeolocation } from "@/hooks/useGeolocation"
 import { useToast } from "@/hooks/use-toast"
 
+interface HarvestFormProps {
+  initialData?: Partial<HarvestFormData>
+  onSubmit: (data: HarvestFormData & { images: string[] }) => void
+  onCancel?: () => void
+  onFormChange?: () => void
+  isLoading?: boolean
+  mode?: "create" | "edit"
+}
 
 
 const harvestSchema = z.object({
@@ -67,14 +75,6 @@ const harvestSchema = z.object({
 
 export type HarvestFormData = z.infer<typeof harvestSchema>
 
-interface HarvestFormProps {
-  initialData?: Partial<HarvestFormData>
-  onSubmit: (data: HarvestFormData) => void
-  onCancel?: () => void
-  onFormChange?: () => void
-  isLoading?: boolean
-  mode?: "create" | "edit"
-}
 
 const cropTypes = [
   "Rice", "Maize", "Cassava", "Yam", "Sorghum", "Millet", "Beans", "Groundnut",

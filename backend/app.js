@@ -257,6 +257,7 @@ const initializeApp = async () => {
     app.use('/api/admin', require('./routes/admin'));
     app.use('/api/inventory', require('./routes/inventory.routes'));
     app.use('/api/reviews', require('./routes/review.routes'));
+    app.use('/api/price-alerts', require('./routes/price-alert.routes'));
     
     // Health check endpoint
     app.get('/api/health', (req, res) => {

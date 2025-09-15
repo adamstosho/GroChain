@@ -151,12 +151,12 @@ export function SettingsForm() {
         console.log('Settings data:', data)
 
         setSettings({
-          general: data.general || settings.general,
-          notifications: data.notifications || settings.notifications,
-          preferences: data.preferences || settings.preferences,
-          security: data.security || settings.security,
+          general: (data as any).general || settings.general,
+          notifications: (data as any).notifications || settings.notifications,
+          preferences: (data as any).preferences || settings.preferences,
+          security: (data as any).security || settings.security,
           passwordData: settings.passwordData,
-          profile: data.profile || {
+          profile: (data as any).profile || {
             bio: user?.profile?.bio || "",
             address: user?.profile?.address || "",
             city: user?.profile?.city || "",
@@ -167,7 +167,7 @@ export function SettingsForm() {
           }
         })
 
-        console.log('Settings state updated with profile:', data.profile)
+        console.log('Settings state updated with profile:', (data as any).profile)
       }
     } catch (error: any) {
       console.error('Error loading settings:', error)
@@ -347,7 +347,7 @@ export function SettingsForm() {
 
       if (response.status === 'success') {
         // Update user in auth store
-        updateUser(response.data)
+        updateUser(response.data as any)
 
         toast({
           title: "Profile updated",
@@ -375,7 +375,9 @@ export function SettingsForm() {
       console.log('Starting avatar upload...')
 
       // Upload avatar using the API service
-      const response = await apiService.uploadAvatar(avatarFile)
+      const formData = new FormData()
+      formData.append('avatar', avatarFile)
+      const response = await apiService.uploadAvatar(formData)
       console.log('Avatar upload response:', response)
 
       if (response.status === 'success') {
@@ -491,20 +493,20 @@ export function SettingsForm() {
                         const target = e.currentTarget as HTMLImageElement
 
                         // If it's already a Cloudinary URL, don't try fallback
-                        if (user.profile.avatar.startsWith('http') && target.src.includes('cloudinary')) {
+                        if (user?.profile?.avatar?.startsWith('http') && target.src.includes('cloudinary')) {
                           console.log('Cloudinary URL failed, no fallback available')
                           return
                         }
 
                         // Try fallback to direct static URL if it's not already a full URL
-                        if (!user.profile.avatar.startsWith('http') && !target.src.includes('/api/users/avatar/')) {
-                          const fallbackSrc = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/users/avatar/${user.profile.avatar}?t=${Date.now()}`
+                        if (!user?.profile?.avatar?.startsWith('http') && !target.src.includes('/api/users/avatar/')) {
+                          const fallbackSrc = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/users/avatar/${user?.profile?.avatar}?t=${Date.now()}`
                           console.log('Trying fallback URL:', fallbackSrc)
                           target.src = fallbackSrc
                         }
                       }}
                       onLoad={() => {
-                        console.log('Avatar loaded successfully:', user.profile.avatar)
+                        console.log('Avatar loaded successfully:', user?.profile?.avatar)
                       }}
                     />
                   ) : null}

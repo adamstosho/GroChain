@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useAuthStore } from "@/lib/auth"
 import { apiService } from "@/lib/api"
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../../components/ui/card"
 import { Button } from "@/components/ui/button"
 
 function GoogleCallbackContent() {
@@ -130,7 +130,7 @@ function GoogleCallbackContent() {
           // Redirect to dashboard after a short delay
           setTimeout(() => {
             router.push('/dashboard')
-          }, 2000)
+          }, 1000)
         } else {
           setStatus('error')
           setMessage(data.message || data.error || 'Authentication failed')

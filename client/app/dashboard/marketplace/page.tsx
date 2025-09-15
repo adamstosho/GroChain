@@ -49,7 +49,7 @@ interface ProductListing {
   quantity: number
   unit: string
   availableQuantity: number
-  location: string
+  location: string | { city?: string; state?: string }
   images: string[]
   tags: string[]
   status: 'draft' | 'active' | 'inactive' | 'sold_out'
@@ -130,16 +130,16 @@ export default function MarketplacePage() {
       // Process farmer dashboard data
       let processedStats: MarketplaceStats
       if (farmerDashboard?.status === 'success' && farmerDashboard?.data) {
-        const dashboardData = farmerDashboard.data as any
+        const dashboardData = farmerDashboard.data
         console.log('🔍 Farmer Dashboard Data:', dashboardData)
 
         processedStats = {
-          totalListings: dashboardData?.activeListings || 0,
-          activeListings: dashboardData?.activeListings || 0,
+          totalListings: (dashboardData as any).activeListings || 0,
+          activeListings: (dashboardData as any).activeListings || 0,
           totalOrders: 0, // Will be calculated from orders
-          pendingOrders: dashboardData?.pendingApprovals || 0,
-          totalRevenue: dashboardData?.totalEarnings || 0,
-          monthlyRevenue: dashboardData?.monthlyRevenue || 0,
+          pendingOrders: (dashboardData as any).pendingApprovals || 0,
+          totalRevenue: (dashboardData as any).totalEarnings || 0,
+          monthlyRevenue: (dashboardData as any).monthlyRevenue || 0,
           totalCustomers: 0, // Will be calculated from orders
           averageRating: 0 // Not available in dashboard
         }
@@ -701,7 +701,7 @@ export default function MarketplacePage() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Location:</span>
-                        <span className="font-medium">{typeof listing.location === 'string' ? listing.location : `${(listing.location as any)?.city || 'Unknown'}, ${(listing.location as any)?.state || 'Unknown State'}`}</span>
+                        <span className="font-medium">{typeof listing.location === 'string' ? listing.location : `${listing.location?.city || 'Unknown'}, ${listing.location?.state || 'Unknown State'}`}</span>
                       </div>
                     </div>
 

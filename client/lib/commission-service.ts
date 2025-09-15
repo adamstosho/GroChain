@@ -132,9 +132,13 @@ export class CommissionService {
 
     try {
       const response = await apiService.getCommissions(filters)
+      const data = response.data
+      if (!data) {
+        throw new Error('No data received from server')
+      }
       const result = {
-        commissions: response.data.commissions || [],
-        pagination: response.data.pagination || {}
+        commissions: (data.commissions || []) as Commission[],
+        pagination: data.pagination || {}
       }
       this.setCache(cacheKey, result)
       return result
@@ -154,10 +158,17 @@ export class CommissionService {
     }
 
     try {
-      const response = await apiService.getCommissionById(id)
-      const commission = response.data
+      // Use getCommissions with filter to find specific commission
+      const response = await apiService.getCommissions({})
+      const commissions = response.data?.commissions || []
+      const commission = commissions.find((c: any) => c._id === id)
+      
+      if (!commission) {
+        throw new Error('Commission not found')
+      }
+      
       this.setCache(cacheKey, commission)
-      return commission
+      return commission as Commission
     } catch (error) {
       console.error('Failed to fetch commission:', error)
       throw new Error('Failed to fetch commission from server')
@@ -174,7 +185,7 @@ export class CommissionService {
 
     try {
       const response = await apiService.getCommissionStats(filters)
-      const stats = response.data
+      const stats = response.data as CommissionStats
       this.setCache(cacheKey, stats)
       return stats
     } catch (error) {
@@ -193,7 +204,7 @@ export class CommissionService {
 
     try {
       const response = await apiService.getPartnerCommissionSummary(partnerId)
-      const summary = response.data
+      const summary = response.data as unknown as CommissionSummary
       this.setCache(cacheKey, summary)
       return summary
     } catch (error) {
@@ -207,7 +218,7 @@ export class CommissionService {
       const response = await apiService.updateCommissionStatus(id, data)
       // Clear related cache
       this.clearCache()
-      return response.data
+      return response.data as Commission
     } catch (error) {
       console.error('Failed to update commission status:', error)
       throw error

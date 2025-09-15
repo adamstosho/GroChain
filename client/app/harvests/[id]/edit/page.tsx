@@ -27,7 +27,7 @@ export default function EditHarvestPage() {
   const fetchHarvestData = async () => {
     try {
       setFetching(true)
-      const response = await apiService.getHarvests()
+      const response = await apiService.getHarvestById(harvestId)
       const harvest = (response as any)?.harvest || (response as any)?.data?.harvest || response
       
       if (harvest) {
@@ -94,7 +94,7 @@ export default function EditHarvestPage() {
         unit: data.unit,
         location: data.location,
         description: data.notes || "",
-        quality: (qualityMap[data.quality] || "good") as "excellent" | "good" | "fair" | "poor",
+        quality: qualityMap[data.quality] || "good" as any,
         qualityGrade: data.grade,
         organic: data.organic,
         moistureContent: data.moistureContent,

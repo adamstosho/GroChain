@@ -27,7 +27,7 @@ export default function ProductDetailPage() {
   // Initialize cart from localStorage
   useCartInitialization()
   const { toast } = useToast()
-  const [product, setProduct] = useState<Product | null>(null)
+  const [product, setProduct] = useState<any>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
@@ -47,43 +47,39 @@ export default function ProductDetailPage() {
 
   const fetchProduct = async () => {
     try {
-      const response = await apiService.getListing(String(params.id))
-      const listing = response.data
-      
-      if (!listing) {
-        throw new Error('Listing not found')
-      }
+      const response = await apiService.getListing(params.id as string)
+      const listing = response.data as any
       
       // Convert Listing to Product format for consistency
       const productData = {
         _id: listing._id,
-        cropName: (listing as any).cropName,
-        name: (listing as any).cropName, // For compatibility
-        category: (listing as any).category,
-        variety: (listing as any).variety,
-        description: (listing as any).description,
-        basePrice: (listing as any).basePrice,
-        price: (listing as any).basePrice, // For compatibility
-        unit: (listing as any).unit,
-        quantity: (listing as any).quantity,
-        availableQuantity: (listing as any).availableQuantity,
-        location: (listing as any).location,
-        images: (listing as any).images || [],
-        tags: (listing as any).tags || [],
-        status: (listing as any).status,
-        views: (listing as any).views || 0,
-        rating: (listing as any).rating || 0,
-        reviewCount: (listing as any).reviewCount || 0,
-        organic: (listing as any).organic || false,
-        qualityGrade: (listing as any).qualityGrade || 'standard',
-        certifications: (listing as any).certifications || [],
-        farmer: (listing as any).farmer,
-        harvest: (listing as any).harvest,
-        harvestDate: (listing as any).harvest?.harvestDate || (listing as any).createdAt,
-        isVerified: (listing as any).farmer?.emailVerified || false,
-        isOrganic: (listing as any).organic || false,
-        createdAt: (listing as any).createdAt,
-        updatedAt: (listing as any).updatedAt
+        cropName: listing.cropName,
+        name: listing.cropName, // For compatibility
+        category: listing.category,
+        variety: listing.variety,
+        description: listing.description,
+        basePrice: listing.basePrice,
+        price: listing.basePrice, // For compatibility
+        unit: listing.unit,
+        quantity: listing.quantity,
+        availableQuantity: listing.availableQuantity,
+        location: listing.location,
+        images: listing.images || [],
+        tags: listing.tags || [],
+        status: listing.status,
+        views: listing.views || 0,
+        rating: listing.rating || 0,
+        reviewCount: listing.reviewCount || 0,
+        organic: listing.organic || false,
+        qualityGrade: listing.qualityGrade || 'standard',
+        certifications: listing.certifications || [],
+        farmer: listing.farmer,
+        harvest: listing.harvest,
+        harvestDate: listing.harvest?.harvestDate || listing.createdAt,
+        isVerified: listing.farmer?.emailVerified || false,
+        isOrganic: listing.organic || false,
+        createdAt: listing.createdAt,
+        updatedAt: listing.updatedAt
       }
       
       setProduct(productData as any)
@@ -149,7 +145,7 @@ export default function ProductDetailPage() {
         quantity: quantity,
         unit: product.unit,
         price: product.basePrice,
-        total: (product.basePrice || (product as any).price || 0) * quantity,
+        total: (product.basePrice || 0) * quantity,
         farmer: (product as any).farmer?.name || 'Unknown Farmer',
         location: (product as any).location,
         image: (product as any).images?.[0] || "/placeholder.svg",
@@ -241,11 +237,11 @@ export default function ProductDetailPage() {
 
             {product.images && product.images.length > 1 && (
               <div className="grid grid-cols-4 gap-2">
-                {product.images.slice(1, 5).map((image, index) => (
+                {product.images.slice(1, 5).map((image: any, index: number) => (
                   <div key={index} className="relative h-20 rounded overflow-hidden">
                     <Image
                       src={image || "/placeholder.svg"}
-                      alt={`${typeof (product as any).name === 'string' ? (product as any).name : 'Product'} view ${index + 2}`}
+                      alt={`${typeof product.name === 'string' ? product.name : 'Product'} view ${index + 2}`}
                       fill
                       className="object-cover"
                     />
@@ -279,12 +275,12 @@ export default function ProductDetailPage() {
                   <span className="text-gray-500">({reviews.length} reviews)</span>
                 </div>
                 <Badge variant="outline">
-                  {typeof (product as any).category === 'string' ? (product as any).category : 'Uncategorized'}
+                  {typeof product.category === 'string' ? product.category : 'Uncategorized'}
                 </Badge>
               </div>
 
               <p className="text-gray-600 text-lg">
-                {typeof (product as any).description === 'string' ? (product as any).description : 'No description available.'}
+                {typeof product.description === 'string' ? product.description : 'No description available.'}
               </p>
             </div>
 
@@ -310,13 +306,13 @@ export default function ProductDetailPage() {
             <div className="border-t border-b py-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <span className="text-3xl font-bold text-green-600">₦{(product as any).price || (product as any).basePrice}</span>
-                  <span className="text-gray-500 ml-2">per {(product as any).unit}</span>
+                  <span className="text-3xl font-bold text-green-600">₦{product.price}</span>
+                  <span className="text-gray-500 ml-2">per {product.unit}</span>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Available</p>
                   <p className="font-semibold">
-                    {(product as any).quantity} {(product as any).unit}s
+                    {product.quantity} {product.unit}s
                   </p>
                 </div>
               </div>
@@ -345,7 +341,7 @@ export default function ProductDetailPage() {
                   ) : (
                     <>
                       <ShoppingCart className="h-4 w-4 mr-2" />
-                      Add to Cart - ₦{(((product as any)?.basePrice || (product as any)?.price || 0) * quantity).toLocaleString()}
+                      Add to Cart - ₦{(product?.basePrice * quantity).toLocaleString()}
                     </>
                   )}
                 </Button>
@@ -365,28 +361,28 @@ export default function ProductDetailPage() {
               <CardContent>
                 <div className="flex items-center gap-4">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={(product as any).farmer?.avatar || "/placeholder.svg"} />
+                    <AvatarImage src={product.farmer?.avatar || "/placeholder.svg"} />
                     <AvatarFallback>
-                      {typeof (product as any).farmer?.name === 'string' ? (product as any).farmer.name.charAt(0) : 'U'}
+                      {typeof product.farmer?.name === 'string' ? product.farmer.name.charAt(0) : 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <h4 className="font-semibold">
-                      {typeof (product as any).farmer?.name === 'string' ? (product as any).farmer.name : 'Unknown Farmer'}
+                      {typeof product.farmer?.name === 'string' ? product.farmer.name : 'Unknown Farmer'}
                     </h4>
                     <p className="text-sm text-gray-600">
-                      {(product as any).farmer?.location
-                        ? typeof (product as any).farmer.location === 'string'
-                          ? (product as any).farmer.location
-                          : typeof (product as any).farmer.location === 'object' && (product as any).farmer.location
-                          ? `${(product as any).farmer.location.city || ''}, ${(product as any).farmer.location.state || ''}`.replace(/^, |, $/, '').trim() || 'Location N/A'
+                      {product.farmer?.location
+                        ? typeof product.farmer.location === 'string'
+                          ? product.farmer.location
+                          : typeof product.farmer.location === 'object' && product.farmer.location
+                          ? `${product.farmer.location.city || ''}, ${product.farmer.location.state || ''}`.replace(/^, |, $/, '').trim() || 'Location N/A'
                           : 'Location N/A'
                         : 'Location N/A'
                       }
                     </p>
                     <div className="flex items-center gap-1 mt-1">
                       <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm">{(product as any).farmer?.rating || 4.8} rating</span>
+                      <span className="text-sm">{product.farmer?.rating || 4.8} rating</span>
                     </div>
                   </div>
                 </div>
@@ -525,7 +521,7 @@ export default function ProductDetailPage() {
                           Harvest details recorded with batch ID: {product.harvest.batchId}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          Harvest Date: {product.harvest?.harvestDate || product.harvestDate ? new Date(product.harvest?.harvestDate || product.harvestDate!).toLocaleDateString() : 'N/A'}
+                          Harvest Date: {new Date(product.harvest.harvestDate || product.harvestDate).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -563,7 +559,7 @@ export default function ProductDetailPage() {
                     <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                       <h4 className="font-semibold mb-2">Certifications</h4>
                       <div className="flex flex-wrap gap-2">
-                        {product.certifications.map((cert, index) => (
+                        {product.certifications.map((cert: any, index: number) => (
                           <Badge key={index} variant="outline" className="text-xs">
                             {cert}
                           </Badge>

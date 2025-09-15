@@ -30,8 +30,8 @@ export default function TestGoogleAuthPage() {
 
       const data = await response.json()
       setResult(data)
-    } catch (error) {
-      setResult({ error: error instanceof Error ? error.message : 'Unknown error' })
+    } catch (error: any) {
+      setResult({ error: error.message })
     } finally {
       setLoading(false)
     }

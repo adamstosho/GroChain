@@ -138,9 +138,9 @@ export default function DebugPage() {
       } else {
         alert(`❌ API call failed: ${response.status} - ${data.message || 'Unknown error'}`)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('API Test Error:', error)
-      alert(`❌ API call error: ${(error as any)?.message}`)
+      alert(`❌ API call error: ${error.message}`)
     }
   }
 
@@ -168,9 +168,9 @@ export default function DebugPage() {
       } else {
         alert(`❌ Farmers API call failed: ${response.status} - ${data.message || 'Unknown error'}`)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Farmers API Test Error:', error)
-      alert(`❌ Farmers API call error: ${(error as any)?.message}`)
+      alert(`❌ Farmers API call error: ${error.message}`)
     }
   }
 

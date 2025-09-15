@@ -35,7 +35,7 @@ export default function HarvestsPage() {
       params.set("page", String(page))
       params.set("limit", String(9))
 
-      const response: any = await apiService.getHarvests()
+      const response: any = await apiService.getHarvests({ page, limit: 9 })
       setHarvests(response.harvests || response.data?.harvests || [])
       const pg = response.pagination || response.data?.pagination
       if (pg) {

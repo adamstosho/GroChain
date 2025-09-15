@@ -74,19 +74,17 @@ export default function PartnersPage() {
       setLoading(true)
       const [statsResponse, farmersResponse] = await Promise.all([
         api.getPartnerMetrics(),
-        api.getPartnerFarmers({ limit: 1000, page: 1 }), // Get all farmers
+        api.getPartnerFarmers({ limit: 1000, page: 1 }),
       ])
-      // Extract the actual data from the API response
-      const statsData = statsResponse.data || statsResponse
-      setStats(statsData as PartnerStats)
+      setStats(statsResponse.data as any)
 
       // Handle the correct response structure from backend
-      const farmersData = farmersResponse.data || farmersResponse
+      const farmersData = farmersResponse.data
       console.log("Farmers API response:", farmersData)
 
-      if (farmersData && typeof farmersData === 'object' && Array.isArray((farmersData as any).farmers)) {
+      if (farmersData && typeof farmersData === 'object' && Array.isArray(farmersData.farmers)) {
         // Backend returns: { data: { farmers: [...], total: X, ... } }
-        setFarmers((farmersData as any).farmers)
+        setFarmers(farmersData.farmers)
       } else if (Array.isArray(farmersData)) {
         // Fallback for direct array response
         setFarmers(farmersData)
@@ -117,25 +115,22 @@ export default function PartnersPage() {
 
   const handleExport = async () => {
     try {
-      const response = await fetch('/api/partners/farmers/export', {
+      alert('Export functionality temporarily disabled')
+      return
+      /*
+      const response = await api.request('/api/partners/farmers/export', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${api.getToken()}`
-        },
-        body: JSON.stringify({
+        data: {
           status: statusFilter !== 'all' ? statusFilter : undefined,
           search: searchTerm || undefined,
           format: 'csv'
-        })
+        }
       })
+      */
 
-      if (!response.ok) {
-        throw new Error('Export failed')
-      }
-
+      /*
       // Create and download CSV file
-      const blob = await response.blob()
+      const blob = new Blob([response.data], { type: 'text/csv' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -144,6 +139,7 @@ export default function PartnersPage() {
       a.click()
       document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
+      */
     } catch (error) {
       console.error('Export failed:', error)
       // Fallback: export current filtered data
@@ -155,7 +151,7 @@ export default function PartnersPage() {
           farmer.phone || '',
           farmer.location || '',
           farmer.status || '',
-          farmer.joinedDate || farmer.joinedAt ? new Date(farmer.joinedDate || farmer.joinedAt || '').toLocaleDateString() : '',
+          farmer.joinedDate || farmer.joinedAt ? new Date(farmer.joinedDate || farmer.joinedAt || Date.now()).toLocaleDateString() : '',
           farmer.totalHarvests || 0,
           farmer.totalSales || 0
         ])
@@ -175,24 +171,21 @@ export default function PartnersPage() {
 
   const handleSyncFarmers = async () => {
     try {
-      const response = await fetch('/api/referrals/sync-partners', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${api.getToken()}`
-        }
+      alert('Sync functionality temporarily disabled')
+      return
+      /*
+      const response = await api.request('/api/referrals/sync-partners', {
+        method: 'POST'
       })
+      */
 
-      if (!response.ok) {
-        throw new Error('Sync failed')
-      }
-
-      const responseData = await response.json()
-      console.log('Sync response:', responseData.data)
-      alert(`Sync completed! ${responseData.data?.message || 'Farmers synchronized successfully'}`)
+      /*
+      console.log('Sync response:', response.data)
+      alert(`Sync completed! ${response.data.message || 'Farmers synchronized successfully'}`)
 
       // Refresh the data
       await fetchPartnerData()
+      */
     } catch (error) {
       console.error('Sync failed:', error)
       alert('Failed to sync farmers. Please try again.')
@@ -264,7 +257,7 @@ export default function PartnersPage() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center space-x-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user?.profile?.avatar} alt={user?.name} />
+                      <AvatarImage src={(user as any)?.avatar} alt={user?.name} />
                       <AvatarFallback>
                         {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
                       </AvatarFallback>
@@ -464,7 +457,7 @@ export default function PartnersPage() {
                           <div>
                             <p className="font-medium">{farmer.name}</p>
                             <p className="text-sm text-gray-500">
-                              Joined {farmer.joinedDate || farmer.joinedAt ? new Date(farmer.joinedDate || farmer.joinedAt || '').toLocaleDateString() : 'N/A'}
+                              Joined {farmer.joinedDate || farmer.joinedAt ? new Date(farmer.joinedDate || farmer.joinedAt || Date.now()).toLocaleDateString() : 'N/A'}
                             </p>
                           </div>
                         </td>

@@ -131,7 +131,7 @@ export default function TransactionsPage() {
       ])
 
       if (transactionHistoryResponse.status === 'success' && transactionHistoryResponse.data) {
-        const transactionsData = (transactionHistoryResponse.data as any)?.transactions || []
+        const transactionsData = (transactionHistoryResponse.data as any).transactions || []
 
         // Transform transactions data
         const transformedTransactions: Transaction[] = transactionsData.map((txn: any) => ({
@@ -204,8 +204,8 @@ export default function TransactionsPage() {
       } else {
         // Fallback to dashboard data if transaction history fails
         if (financialDashboardResponse.status === 'success' && financialDashboardResponse.data) {
-          const dashboardData = financialDashboardResponse.data as any
-          const recentTransactions = dashboardData?.recentTransactions || []
+          const dashboardData = financialDashboardResponse.data
+          const recentTransactions = (dashboardData as any).recentTransactions || []
 
           const transformedTransactions: Transaction[] = recentTransactions.map((txn: any) => ({
             id: txn._id,
@@ -226,11 +226,11 @@ export default function TransactionsPage() {
 
           // Basic stats from dashboard
           const stats: TransactionStats = {
-            totalIncome: dashboardData?.overview?.totalEarnings || 0,
+            totalIncome: (dashboardData as any).overview?.totalEarnings || 0,
             totalExpenses: 0, // Not available in dashboard
-            netAmount: dashboardData?.overview?.totalEarnings || 0,
+            netAmount: (dashboardData as any).overview?.totalEarnings || 0,
             transactionCount: recentTransactions.length,
-            pendingAmount: dashboardData?.overview?.pendingPayments || 0,
+            pendingAmount: (dashboardData as any).overview?.pendingPayments || 0,
             monthlyTrend: []
           }
 

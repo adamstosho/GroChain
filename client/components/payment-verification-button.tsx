@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, CheckCircle, AlertCircle } from 'lucide-react'
 import { usePaymentVerification } from '@/hooks/use-payment-verification'

@@ -95,8 +95,8 @@ export function HarvestAnalytics({ farmerId, className }: HarvestAnalyticsProps)
         analyticsData = response.data
       } else if ((response as any)?.data?.data) {
         analyticsData = (response as any).data.data
-      } else if (response?.data) {
-        analyticsData = response.data
+      } else if ((response as any)?.data) {
+        analyticsData = (response as any).data
       } else {
         analyticsData = response
       }

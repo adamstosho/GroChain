@@ -144,7 +144,7 @@ export function SystemManagement() {
       ])
 
       if (statusResponse.status === 'fulfilled' && statusResponse.value.status === 'success') {
-        setSystemStatus(statusResponse.value.data)
+        setSystemStatus(statusResponse.value.data as any)
       }
     } catch (error: any) {
       toast({
@@ -167,7 +167,7 @@ export function SystemManagement() {
       
       const response = await apiService.getAdminSystemLogs(params)
       if (response.status === 'success') {
-        setSystemLogs(response.data.logs)
+        setSystemLogs((response.data as any).logs)
       }
     } catch (error: any) {
       toast({
@@ -182,7 +182,7 @@ export function SystemManagement() {
     try {
       const response = await apiService.getAdminSystemConfig()
       if (response.status === 'success') {
-        setSystemConfig(response.data)
+        setSystemConfig(response.data as any)
       }
     } catch (error: any) {
       toast({
@@ -197,7 +197,7 @@ export function SystemManagement() {
     try {
       const response = await apiService.getSystemBackups()
       if (response.status === 'success') {
-        setBackups(response.data.backups)
+        setBackups((response.data as any).backups)
       }
     } catch (error: any) {
       toast({

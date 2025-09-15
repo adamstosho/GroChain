@@ -88,8 +88,8 @@ export function PartnerProfile() {
     try {
       setIsLoading(true)
       const response = await apiService.getPartnerProfile()
-      setProfile(response.data)
-      setEditData(response.data)
+      setProfile(response.data as PartnerProfileData)
+      setEditData(response.data as PartnerProfileData)
     } catch (error) {
       toast({
         title: "Error",
@@ -135,13 +135,16 @@ export function PartnerProfile() {
   }
 
   const handleNestedChange = (parent: string, field: string, value: any) => {
-    setEditData(prev => ({
-      ...prev,
-      [parent]: {
-        ...prev[parent as keyof typeof prev],
-        [field]: value
+    setEditData(prev => {
+      const parentValue = prev[parent as keyof typeof prev]
+      return {
+        ...prev,
+        [parent]: {
+          ...(typeof parentValue === 'object' && parentValue !== null ? parentValue : {}),
+          [field]: value
+        }
       }
-    }))
+    })
   }
 
   if (isLoading) {

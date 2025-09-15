@@ -142,9 +142,9 @@ export default function ProductDetailPage() {
             console.warn('⚠️ Product detail: Favorites data is not an array:', typeof favoritesData)
             setIsFavorite(false)
           }
-        } catch (favError) {
+        } catch (favError: any) {
           console.error('❌ Product detail: Could not fetch favorites:', favError)
-          console.error('Error details:', (favError as any)?.response?.data || (favError as any)?.message)
+          console.error('Error details:', favError.response?.data || favError.message)
           // Don't show error for favorites - it's not critical functionality
           setIsFavorite(false)
         }
@@ -352,7 +352,7 @@ export default function ProductDetailPage() {
               <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
                 <Image
                   src={(product.images && product.images.length > 0) ? product.images[selectedImage] : "/placeholder.svg"}
-                  alt={product.cropName || product.name || 'Product'}
+                  alt={product.cropName || 'Product image'}
                   fill
                   className="object-cover"
                   priority

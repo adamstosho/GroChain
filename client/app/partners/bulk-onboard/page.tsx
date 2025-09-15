@@ -56,13 +56,7 @@ export default function BulkOnboardPage() {
 
       clearInterval(progressInterval)
       setUploadProgress(100)
-      setResult({
-        success: true,
-        totalRows: response.data?.totalRows || 0,
-        successfulRows: response.data?.successfulRows || 0,
-        failedRows: response.data?.failedRows || 0,
-        errors: response.data?.errors || []
-      })
+      setResult(response.data as any)
     } catch (error) {
       console.error("Upload failed:", error)
       alert("Upload failed. Please try again.")

@@ -266,10 +266,10 @@ export function ProfileForm() {
       if (response.status === 'success' && response.data) {
         // For partners, preserve the logo/avatar mapping
         let updatedProfile = response.data as any
-        if (user?.role === 'partner' && profile.logo) {
+        if (user?.role === 'partner' && (profile as any).logo) {
           updatedProfile.profile = {
             ...updatedProfile.profile,
-            avatar: profile.logo // Ensure logo is preserved as avatar
+            avatar: (profile as any).logo // Ensure logo is preserved as avatar
           }
         }
 
@@ -322,9 +322,9 @@ export function ProfileForm() {
     if (profile) {
       // Update local profile state - handle both farmer and partner profiles
       if (user?.role === 'partner') {
-        setProfile({ ...profile, logo: newAvatarUrl })
+        setProfile({ ...profile, logo: newAvatarUrl } as any)
       } else {
-        setProfile({ ...profile, avatar: newAvatarUrl })
+        setProfile({ ...profile, avatar: newAvatarUrl } as any)
       }
 
       // Update auth store to sync avatar across the app
@@ -758,10 +758,10 @@ function FarmerProfileView() {
           postalCode: profileData.profile?.postalCode || '',
           avatar: profileData.profile?.avatar || '',
           stats: {
-            totalHarvests: analyticsData.totalHarvests || profileData.stats?.totalHarvests || 0,
-            totalListings: analyticsData.totalListings || profileData.stats?.totalListings || 0,
-            totalOrders: analyticsData.totalOrders || profileData.stats?.totalOrders || 0,
-            totalRevenue: analyticsData.totalRevenue || profileData.stats?.totalRevenue || 0,
+            totalHarvests: (analyticsData as any).totalHarvests || profileData.stats?.totalHarvests || 0,
+            totalListings: (analyticsData as any).totalListings || profileData.stats?.totalListings || 0,
+            totalOrders: (analyticsData as any).totalOrders || profileData.stats?.totalOrders || 0,
+            totalRevenue: (analyticsData as any).totalRevenue || profileData.stats?.totalRevenue || 0,
             lastActive: profileData.stats?.lastActive || new Date()
           },
           recentHarvests: profileData.recentHarvests || [],

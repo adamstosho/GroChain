@@ -16,8 +16,19 @@ import { ShoppingCart, Package, Heart, TrendingUp, Search, QrCode, Eye, RefreshC
 import Link from "next/link"
 import Image from "next/image"
 
+interface DashboardStats {
+  totalOrders: number
+  totalSpent: number
+  pendingDeliveries: number
+  activeOrders: number
+  favoriteProducts: number
+  monthlySpent: number
+  lastOrderDate?: string
+  favorites: number
+}
+
 export function BuyerDashboard() {
-  const [stats, setStats] = useState<any>(null)
+  const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recentOrders, setRecentOrders] = useState<any[]>([])
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -33,10 +44,14 @@ export function BuyerDashboard() {
       case 'order_placed':
         // Immediately update stats
         setStats(prev => ({
-          ...prev,
           totalOrders: (prev?.totalOrders || 0) + 1,
           totalSpent: (prev?.totalSpent || 0) + (data.total || 0),
-          monthlySpent: (prev?.monthlySpent || 0) + (data.total || 0)
+          monthlySpent: (prev?.monthlySpent || 0) + (data.total || 0),
+          pendingDeliveries: prev?.pendingDeliveries || 0,
+          activeOrders: prev?.activeOrders || 0,
+          favoriteProducts: prev?.favoriteProducts || 0,
+          lastOrderDate: prev?.lastOrderDate,
+          favorites: prev?.favorites || 0
         }))
         toast({
           title: "Order placed successfully!",
@@ -47,17 +62,27 @@ export function BuyerDashboard() {
         
       case 'favorite_added':
         setStats(prev => ({
-          ...prev,
-          favorites: (prev?.favorites || 0) + 1,
-          favoriteProducts: (prev?.favoriteProducts || 0) + 1
+          totalOrders: prev?.totalOrders || 0,
+          totalSpent: prev?.totalSpent || 0,
+          monthlySpent: prev?.monthlySpent || 0,
+          pendingDeliveries: prev?.pendingDeliveries || 0,
+          activeOrders: prev?.activeOrders || 0,
+          favoriteProducts: (prev?.favoriteProducts || 0) + 1,
+          lastOrderDate: prev?.lastOrderDate,
+          favorites: (prev?.favorites || 0) + 1
         }))
         break
         
       case 'favorite_removed':
         setStats(prev => ({
-          ...prev,
-          favorites: Math.max((prev?.favorites || 0) - 1, 0),
-          favoriteProducts: Math.max((prev?.favoriteProducts || 0) - 1, 0)
+          totalOrders: prev?.totalOrders || 0,
+          totalSpent: prev?.totalSpent || 0,
+          monthlySpent: prev?.monthlySpent || 0,
+          pendingDeliveries: prev?.pendingDeliveries || 0,
+          activeOrders: prev?.activeOrders || 0,
+          favoriteProducts: Math.max((prev?.favoriteProducts || 0) - 1, 0),
+          lastOrderDate: prev?.lastOrderDate,
+          favorites: Math.max((prev?.favorites || 0) - 1, 0)
         }))
         break
     }
@@ -112,7 +137,8 @@ export function BuyerDashboard() {
       // Process recent orders
       let ordersData = []
       if (ordersResponse.status === 'fulfilled') {
-        ordersData = ordersResponse.value?.data || ordersResponse.value || []
+        ordersData = Array.isArray(ordersResponse.value?.data) ? ordersResponse.value.data : 
+                   Array.isArray(ordersResponse.value) ? ordersResponse.value : []
         console.log('✅ Orders data received:', ordersData.length, 'orders')
       } else {
         console.error('❌ Orders data failed:', ordersResponse.reason)
@@ -123,9 +149,9 @@ export function BuyerDashboard() {
       let listingsData = []
       if (listingsResponse.status === 'fulfilled') {
         const response = listingsResponse.value
-        listingsData = response?.data?.listings ||
-                      response?.data ||
-                      response?.listings ||
+        listingsData = (response as any)?.data?.listings ||
+                      (response as any)?.data ||
+                      (response as any)?.listings ||
                       response || []
         console.log('✅ Listings data received:', listingsData.length, 'products')
       } else {
@@ -151,7 +177,8 @@ export function BuyerDashboard() {
         pendingDeliveries: 0,
         activeOrders: 0,
         favoriteProducts: 0,
-        monthlySpent: 0
+        monthlySpent: 0,
+        favorites: 0
       })
       setRecentOrders([])
       setFeaturedProducts([])
@@ -347,28 +374,28 @@ export function BuyerDashboard() {
           value={stats?.totalOrders || 0}
           description="All time purchases"
           icon={ShoppingCart}
-          trend={stats?.totalOrders > 0 ? { value: Math.min(Math.floor(Math.random() * 20) + 1, 25), isPositive: true } : undefined}
+          trend={(stats?.totalOrders || 0) > 0 ? { value: Math.min(Math.floor(Math.random() * 20) + 1, 25), isPositive: true } : undefined}
         />
         <StatsCard
           title="Total Spent"
           value={`₦${(stats?.totalSpent || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
           description="Lifetime spending"
           icon={TrendingUp}
-          trend={stats?.totalSpent > 0 ? { value: Math.min(Math.floor(Math.random() * 30) + 5, 35), isPositive: true } : undefined}
+          trend={(stats?.totalSpent || 0) > 0 ? { value: Math.min(Math.floor(Math.random() * 30) + 5, 35), isPositive: true } : undefined}
         />
         <StatsCard
           title="Favorites"
           value={stats?.favorites || 0}
           description="Saved products"
           icon={Heart}
-          trend={stats?.favorites > 0 ? { value: Math.min(Math.floor(Math.random() * 15) + 1, 20), isPositive: true } : undefined}
+          trend={(stats?.favorites || 0) > 0 ? { value: Math.min(Math.floor(Math.random() * 15) + 1, 20), isPositive: true } : undefined}
         />
         <StatsCard
           title="This Month"
           value={`₦${(stats?.monthlySpent || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
           description="Monthly spending"
           icon={Package}
-          trend={stats?.monthlySpent > 0 ? { value: Math.min(Math.floor(Math.random() * 25) + 10, 30), isPositive: true } : undefined}
+          trend={(stats?.monthlySpent || 0) > 0 ? { value: Math.min(Math.floor(Math.random() * 25) + 10, 30), isPositive: true } : undefined}
         />
       </div>
 

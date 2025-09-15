@@ -95,36 +95,6 @@ export interface Product {
   nutritionalValue?: NutritionalInfo
   farmingPractices: string[]
   images: string[]
-  farmer?: {
-    _id: string
-    name: string
-    email?: string
-    phone?: string
-    emailVerified?: boolean
-  }
-  harvest?: {
-    _id: string
-    harvestDate?: Date
-    batchId?: string
-    quantity?: number
-    quality?: string
-  }
-  harvestDate?: Date
-  isVerified?: boolean
-  isOrganic?: boolean
-  quantity?: number
-  availableQuantity?: number
-  location?: string | {
-    city?: string
-    state?: string
-    country?: string
-  }
-  tags?: string[]
-  status?: string
-  views?: number
-  rating?: number
-  reviewCount?: number
-  price?: number
   createdAt: Date
   updatedAt: Date
 }

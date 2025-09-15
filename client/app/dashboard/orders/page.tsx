@@ -247,8 +247,8 @@ export default function OrdersPage() {
 
       if (response?.status === 'success' && response?.data) {
         // Handle the structured response from backend
-        const ordersData = (response.data as any)?.orders || []
-        let statsData = (response.data as any)?.stats || {
+        const ordersData = (response.data as any).orders || []
+        let statsData = (response.data as any).stats || {
           total: 0,
           pending: 0,
           confirmed: 0,
@@ -259,12 +259,12 @@ export default function OrdersPage() {
         }
         
         // If backend stats are not available or all zeros, calculate from orders data
-        if (!(response.data as any)?.stats || (statsData.confirmed === 0 && statsData.totalSpent === 0 && ordersData.length > 0)) {
+        if (!(response.data as any).stats || (statsData.confirmed === 0 && statsData.totalSpent === 0 && ordersData.length > 0)) {
           console.log('📊 Calculating stats from orders data...')
           statsData = calculateStatsFromOrders(ordersData)
         }
         
-        const paginationData = (response.data as any)?.pagination || {
+        const paginationData = (response.data as any).pagination || {
           page: 1,
           limit: 20,
           total: 0,
@@ -297,7 +297,7 @@ export default function OrdersPage() {
       try {
         console.log('🔄 Attempting to fetch orders from alternative endpoint...')
         const fallbackResponse = await apiService.getUserOrders({ page: '1', limit: '100' })
-        if ((fallbackResponse.data as any)?.orders) {
+        if ((fallbackResponse?.data as any)?.orders) {
           const ordersData = (fallbackResponse.data as any).orders
           const statsData = calculateStatsFromOrders(ordersData)
           setOrders(ordersData)
@@ -1270,11 +1270,11 @@ function OrderCard({
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Building className="h-3 w-3" />
-                    <span>{order.items[0].listing.farmer.profile?.farmName || (order.items[0].listing.farmer as any)?.location || 'Farm'}</span>
+                    <span>{order.items[0].listing.farmer.profile?.farmName || (order.items[0].listing.farmer as any).location || 'Farm'}</span>
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Phone className="h-3 w-3" />
-                    <span>{(order.items[0].listing.farmer as any)?.phone || order.items[0].listing.farmer.profile?.phone || 'Phone not provided'}</span>
+                    <span>{(order.items[0].listing.farmer as any).phone || order.items[0].listing.farmer.profile?.phone || 'Phone not provided'}</span>
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Mail className="h-3 w-3" />

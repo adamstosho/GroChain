@@ -107,8 +107,8 @@ export function FarmerProfile() {
       console.log('Farmer profile response:', response)
       
       if (response && response.data) {
-        setProfile(response.data)
-        setEditData(response.data)
+        setProfile(response.data as FarmerProfileData)
+        setEditData(response.data as FarmerProfileData)
       } else {
         console.log('No profile data in response')
         toast({
@@ -170,10 +170,11 @@ export function FarmerProfile() {
   const handleNestedChange = (parent: string, field: string, value: any) => {
     setEditData(prev => {
       if (!prev) return prev
+      const parentValue = prev[parent as keyof typeof prev]
       return {
         ...prev,
         [parent]: {
-          ...prev[parent as keyof typeof prev],
+          ...(typeof parentValue === 'object' && parentValue !== null ? parentValue : {}),
           [field]: value
         }
       }

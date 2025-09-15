@@ -58,7 +58,7 @@ interface HarvestData {
   quantity: number
   unit: string
   harvestDate: Date
-  location: string
+  location: string | { city?: string; state?: string }
   quality: string
   qualityGrade: string
   status: string
@@ -247,13 +247,13 @@ export default function FarmerHarvestsPage() {
     } catch (error) {
       console.error("❌ Failed to fetch stats:", error)
       console.error("❌ Error details:", {
-        message: (error as any)?.message,
-        stack: (error as any)?.stack,
-        name: (error as any)?.name
+        message: (error as any).message,
+        stack: (error as any).stack,
+        name: (error as any).name
       })
 
       // Try to get more details about the error
-      if ((error as any)?.response) {
+      if ((error as any).response) {
         console.error("❌ Response error:", (error as any).response.status, (error as any).response.data)
       }
 
@@ -376,7 +376,7 @@ export default function FarmerHarvestsPage() {
         harvest.quantity,
         harvest.unit,
         harvest.harvestDate,
-        `"${typeof harvest.location === 'string' ? harvest.location : `${(harvest.location as any)?.city || 'Unknown'}, ${(harvest.location as any)?.state || 'Unknown State'}`}"`,
+        `"${typeof harvest.location === 'string' ? harvest.location : `${harvest.location?.city || 'Unknown'}, ${harvest.location?.state || 'Unknown State'}`}"`,
         harvest.quality,
         harvest.status,
         harvest.organic ? 'Yes' : 'No',
@@ -418,7 +418,7 @@ export default function FarmerHarvestsPage() {
 
   const filteredHarvests = harvests.filter(harvest => {
     const matchesSearch = harvest.cropType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         harvest.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (typeof harvest.location === 'string' ? harvest.location.toLowerCase() : `${harvest.location?.city || ''} ${harvest.location?.state || ''}`.toLowerCase()).includes(searchQuery.toLowerCase()) ||
                          (harvest.variety && harvest.variety.toLowerCase().includes(searchQuery.toLowerCase()))
     const matchesStatus = statusFilter === "all" || harvest.status === statusFilter
     const matchesCrop = cropFilter === "all" || harvest.cropType === cropFilter
@@ -490,7 +490,7 @@ export default function FarmerHarvestsPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <MapPin className="h-3 w-3 text-gray-400" />
-              <span className="text-sm text-gray-600">{typeof harvest.location === 'string' ? harvest.location : `${(harvest.location as any)?.city || 'Unknown'}, ${(harvest.location as any)?.state || 'Unknown State'}`}</span>
+              <span className="text-sm text-gray-600">{typeof harvest.location === 'string' ? harvest.location : `${harvest.location?.city || 'Unknown'}, ${harvest.location?.state || 'Unknown State'}`}</span>
             </div>
 
             <div className="flex items-center gap-2">

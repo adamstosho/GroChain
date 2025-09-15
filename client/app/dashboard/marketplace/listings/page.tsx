@@ -132,7 +132,7 @@ export default function MarketplaceListingsPage() {
       console.log("📦 Farmer Listings API Response:", response)
 
       if (response?.status === 'success' && (response.data as any)?.listings) {
-        const listingsData = (response.data as any)?.listings
+        const listingsData = (response.data as any).listings
         console.log("✅ Farmer listings data:", listingsData)
 
         // Process farmer's listings

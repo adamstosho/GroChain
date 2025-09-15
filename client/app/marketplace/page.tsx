@@ -82,8 +82,8 @@ export default function MarketplacePage() {
         name: item.cropName
       })),
       sampleProduct: products.length > 0 ? {
-        id: (products[0] as any).id || (products[0] as any)._id,
-        name: (products[0] as any).name || (products[0] as any).cropName,
+        id: (products[0] as any).id,
+        name: (products[0] as any).name,
         quantity: (products[0] as any).quantity,
         availableQuantity: (products[0] as any).availableQuantity
       } : null
@@ -213,7 +213,7 @@ export default function MarketplacePage() {
 
     try {
       // Find the product in the current products list
-      const product = products.find(p => (p as any).id === productId || (p as any)._id === productId)
+      const product = products.find(p => (p as any).id === productId)
       if (product) {
         // Check if product has available quantity
         if ((product as any).availableQuantity <= 0) {
@@ -227,9 +227,9 @@ export default function MarketplacePage() {
 
         // Use buyer store to add to cart with proper format
         const cartItem = {
-          id: (product as any).id || (product as any)._id,
-          listingId: (product as any).id || (product as any)._id,
-          cropName: (product as any).name || (product as any).cropName,
+          id: (product as any).id,
+          listingId: (product as any).id,
+          cropName: (product as any).name,
           quantity: 1,
           unit: (product as any).unit,
           price: (product as any).price,
@@ -244,7 +244,7 @@ export default function MarketplacePage() {
 
         toast({
           title: "Added to cart!",
-          description: `${(product as any).name || (product as any).cropName} has been added to your cart.`,
+          description: `${(product as any).name} has been added to your cart.`,
         })
 
         // Note: We don't refresh products here because quantities are calculated
@@ -254,8 +254,8 @@ export default function MarketplacePage() {
         console.log("✅ Product added to cart successfully:", {
           cartItemId: cartItem.id,
           cartItemListingId: cartItem.listingId,
-          productId: (product as any).id || (product as any)._id,
-          productName: (product as any).name || (product as any).cropName,
+          productId: (product as any).id,
+          productName: (product as any).name,
           currentCart: cart.map(c => ({ id: c.id, listingId: c.listingId, quantity: c.quantity }))
         })
       } else {
@@ -289,13 +289,13 @@ export default function MarketplacePage() {
         item.listingId === (product as any).id ||
         item.id === (product as any).id ||
         item.listingId === (product as any)._id ||
-        item.id === (product as any)._id
+        item.id === product._id
       )
       const cartQuantity = cartItem ? cartItem.quantity : 0
 
       // Debug quantity display for this product
-      console.log(`🔢 Product quantity for ${(product as any).name || (product as any).cropName}:`, {
-        productId: (product as any).id || (product as any)._id,
+      console.log(`🔢 Product quantity for ${(product as any).name}:`, {
+        productId: (product as any).id,
         availableQuantity,
         cartQuantity,
         cartItemFound: !!cartItem
@@ -312,11 +312,11 @@ export default function MarketplacePage() {
   // Convert Product type to MarketplaceProduct type for our component
   const convertToMarketplaceProduct = (product: Product): MarketplaceProduct => {
     return {
-      id: String((product as any).id || (product as any)._id),
-      name: (product as any).name || (product as any).cropName,
+      id: String((product as any).id),
+      name: (product as any).name,
       cropType: (product as any).category || "Agricultural Product",
       variety: (product as any).variety || "Standard",
-      description: (product as any).description || "Fresh agricultural product from verified farmers",
+      description: product.description || "Fresh agricultural product from verified farmers",
       price: (product as any).price,
       unit: (product as any).unit,
       quantity: (product as any).quantity || 100,
@@ -335,7 +335,7 @@ export default function MarketplacePage() {
         location: (product as any).location
       },
       images: (product as any).images && (product as any).images.length > 0 
-        ? (product as any).images 
+        ? product.images 
         : ["/placeholder.svg?height=200&width=300&query=fresh agricultural product"],
       certifications: (product as any).certifications || ["ISO 22000"],
       shipping: {
@@ -346,7 +346,7 @@ export default function MarketplacePage() {
       rating: (product as any).rating || 4.5,
       reviewCount: (product as any).reviewCount || 0,
       qrCode: (product as any).qrCode || `PRODUCT_${Date.now()}`,
-      tags: (product as any).tags || [(product as any).category, "fresh", "agricultural", "verified"]
+      tags: (product as any).tags || [product.category, "fresh", "agricultural", "verified"]
     }
   }
 

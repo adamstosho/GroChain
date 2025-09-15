@@ -110,7 +110,7 @@ export default function LoansPage() {
       ])
 
       if (applicationsResponse.status === 'success' && applicationsResponse.data) {
-        const applicationsData = (applicationsResponse.data as any)?.applications || []
+        const applicationsData = (applicationsResponse.data as any).applications || applicationsResponse.data || []
 
         // Transform applications data
         const transformedApplications: LoanApplication[] = applicationsData.map((app: any) => ({
@@ -132,10 +132,10 @@ export default function LoansPage() {
       }
 
       if (financialDashboardResponse.status === 'success' && financialDashboardResponse.data) {
-        const dashboardData = financialDashboardResponse.data as any
+        const dashboardData = financialDashboardResponse.data
 
         // Transform active loans data
-        const transformedActiveLoans: ActiveLoan[] = (dashboardData?.activeLoans || []).map((loan: any) => ({
+        const transformedActiveLoans: ActiveLoan[] = ((dashboardData as any).activeLoans || []).map((loan: any) => ({
           id: loan._id,
           applicationId: loan.applicationId || loan._id,
           amount: loan.amount,

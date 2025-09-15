@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast"
 import { useBuyerStore } from "@/hooks/use-buyer-store"
 import { useAuthStore } from "@/lib/auth"
 import { useExportService } from "@/lib/export-utils"
+import { usePriceAlerts } from "@/hooks/use-price-alerts"
+import { PriceAlertDialog } from "@/components/dialogs/price-alert-dialog"
 import {
   Heart,
   Search,
@@ -46,15 +48,16 @@ interface FavoriteProduct {
     cropName: string
     category: string
     description: string
-    price: number
+    basePrice: number
     unit: string
     quantity: number
+    availableQuantity: number
     location: {
       city: string
       state: string
     }
     images: string[]
-    quality: string
+    qualityGrade: string
     organic: boolean
     farmer: {
       _id: string
@@ -79,10 +82,13 @@ export default function FavoritesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [alertDialogOpen, setAlertDialogOpen] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const { toast } = useToast()
   const { addToCart, removeFromFavorites, fetchFavorites, addToFavorites, profile } = useBuyerStore()
   const { user } = useAuthStore()
   const exportService = useExportService()
+  const { hasAlertForProduct, getAlertForProduct, createAlert, updateAlert } = usePriceAlerts()
 
   // Fetch favorites from backend
   useEffect(() => {
@@ -160,7 +166,7 @@ export default function FavoritesPage() {
         _id: product.listing._id,
         listingId: product.listing._id,
         cropName: product.listing.cropName,
-        price: product.listing.price,
+        price: product.listing.basePrice,
         unit: product.listing.unit,
         availableQuantity: product.listing.quantity,
         farmer: product.listing.farmer.name,
@@ -219,6 +225,26 @@ export default function FavoritesPage() {
     }
   }
 
+  const handleAlertClick = (product: FavoriteProduct) => {
+    const productData = {
+      _id: product.listing._id,
+      cropName: product.listing.cropName,
+      basePrice: product.listing.basePrice,
+      images: product.listing.images,
+      category: product.listing.category
+    }
+    setSelectedProduct(productData)
+    setAlertDialogOpen(true)
+  }
+
+  const handleAlertSuccess = () => {
+    // Refresh alerts or show success message
+    toast({
+      title: "Price alert set up!",
+      description: "You'll be notified when the price changes.",
+    })
+  }
+
   const handleRefresh = async () => {
     if (!user) return
     
@@ -268,10 +294,10 @@ export default function FavoritesPage() {
         'Product Name': favorite.listing.cropName,
         'Category': favorite.listing.category,
         'Description': favorite.listing.description,
-        'Price': favorite.listing.price,
+        'Price': favorite.listing.basePrice,
         'Unit': favorite.listing.unit,
         'Quantity Available': favorite.listing.quantity,
-        'Quality': favorite.listing.quality,
+        'Quality': favorite.listing.qualityGrade,
         'Organic': favorite.listing.organic ? 'Yes' : 'No',
         'Farmer Name': favorite.listing.farmer?.name || 'Unknown',
         'Location': typeof favorite.listing.location === 'string' 
@@ -621,8 +647,10 @@ export default function FavoritesPage() {
                     viewMode={viewMode}
                     onAddToCart={handleAddToCart}
                     onRemoveFromFavorites={handleRemoveFromFavorites}
+                    onAlertClick={handleAlertClick}
                     formatPrice={formatPrice}
                     getQualityGrade={getQualityGrade}
+                    hasAlert={hasAlertForProduct(product.listing._id)}
                   />
                 ))}
               </div>
@@ -630,6 +658,17 @@ export default function FavoritesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Price Alert Dialog */}
+      {selectedProduct && (
+        <PriceAlertDialog
+          open={alertDialogOpen}
+          onOpenChange={setAlertDialogOpen}
+          product={selectedProduct}
+          existingAlert={getAlertForProduct(selectedProduct._id)}
+          onSuccess={handleAlertSuccess}
+        />
+      )}
     </DashboardLayout>
   )
 }
@@ -639,8 +678,10 @@ interface FavoriteCardProps {
   viewMode: 'grid' | 'list'
   onAddToCart: (product: FavoriteProduct) => void
   onRemoveFromFavorites: (favoriteId: string, listingId: string) => void
+  onAlertClick: (product: FavoriteProduct) => void
   formatPrice: (price: number) => string
   getQualityGrade: (quality: string) => string
+  hasAlert: boolean
 }
 
 function FavoriteCard({
@@ -648,11 +689,13 @@ function FavoriteCard({
   viewMode,
   onAddToCart,
   onRemoveFromFavorites,
+  onAlertClick,
   formatPrice,
-  getQualityGrade
+  getQualityGrade,
+  hasAlert
 }: FavoriteCardProps) {
   const listing = product.listing
-  const qualityGrade = getQualityGrade(listing.quality)
+  const qualityGrade = getQualityGrade(listing.qualityGrade)
 
   if (viewMode === 'list') {
     return (
@@ -698,7 +741,7 @@ function FavoriteCard({
                 <div className="flex items-center space-x-2 ml-4">
                   <div className="text-right">
                     <div className="text-base font-bold text-foreground">
-                      {formatPrice(listing.price)}
+                      {formatPrice(listing.basePrice)}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       per {listing.unit}
@@ -740,9 +783,14 @@ function FavoriteCard({
                     View
                   </Link>
                 </Button>
-                <Button variant="outline" size="sm" className="h-7 text-xs">
-                  <Bell className="h-3 w-3 mr-1" />
-                  Alert
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 text-xs"
+                  onClick={() => onAlertClick(product)}
+                >
+                  <Bell className={`h-3 w-3 mr-1 ${hasAlert ? 'fill-current' : ''}`} />
+                  {hasAlert ? 'Alert Set' : 'Alert'}
                 </Button>
               </div>
             </div>
@@ -791,7 +839,7 @@ function FavoriteCard({
           {/* Price overlay */}
           <div className="absolute bottom-1.5 right-1.5 bg-white/95 backdrop-blur-sm rounded-md px-1.5 py-1">
             <div className="text-sm font-bold text-gray-900">
-              {formatPrice(listing.price)}
+              {formatPrice(listing.basePrice)}
             </div>
             <div className="text-[10px] text-gray-600 text-center leading-none">
               per {listing.unit}
@@ -827,7 +875,7 @@ function FavoriteCard({
 
           {/* Availability */}
           <div className="text-xs text-muted-foreground">
-            {listing.quantity} {listing.unit} available
+            {listing.availableQuantity || listing.quantity} {listing.unit} available
           </div>
         </div>
 
@@ -849,9 +897,14 @@ function FavoriteCard({
                 View
               </Link>
             </Button>
-            <Button variant="outline" size="sm" className="h-6 text-xs">
-              <Bell className="h-3 w-3 mr-1" />
-              Alert
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-6 text-xs"
+              onClick={() => onAlertClick(product)}
+            >
+              <Bell className={`h-3 w-3 mr-1 ${hasAlert ? 'fill-current' : ''}`} />
+              {hasAlert ? 'Alert Set' : 'Alert'}
             </Button>
           </div>
         </div>

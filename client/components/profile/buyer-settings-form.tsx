@@ -138,7 +138,7 @@ export function BuyerSettingsForm() {
       const response = await apiService.getMySettings()
 
       if (response.status === 'success') {
-        const data = response.data
+        const data = response.data as any
 
         setSettings({
           general: data.general || settings.general,
@@ -318,7 +318,7 @@ export function BuyerSettingsForm() {
       const response = await apiService.updateMyProfile(profileData)
 
       if (response.status === 'success') {
-        updateUser(response.data)
+        updateUser(response.data as any)
         toast({
           title: "Profile updated",
           description: "Your profile has been updated successfully",

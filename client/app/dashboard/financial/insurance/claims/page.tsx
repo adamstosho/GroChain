@@ -695,7 +695,7 @@ export default function InsuranceClaimsPage() {
                             )}
                             <div>
                               <span className="text-gray-500">Location:</span>
-                              <div className="font-medium">{typeof claim.location === 'string' ? claim.location : `${(claim.location as any)?.city || 'Unknown'}, ${(claim.location as any)?.state || 'Unknown State'}`}</div>
+                              <div className="font-medium">{claim.location}</div>
                             </div>
                           </div>
                           

@@ -112,7 +112,7 @@ class SMSUtil {
     const messageData = {
       body: message,
       from: options.from || this.fromNumber,
-      to: to
+      to: validatedPhone
     }
     
     if (options.mediaUrl) {

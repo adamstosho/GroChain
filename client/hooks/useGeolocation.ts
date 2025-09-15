@@ -26,7 +26,7 @@ export const useGeolocation = (): GeolocationHookResult => {
     try {
       // Using OpenStreetMap Nominatim API for reverse geocoding (free and reliable)
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`,
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=en`,
         {
           headers: {
             'User-Agent': 'GroChain/1.0'
@@ -42,16 +42,35 @@ export const useGeolocation = (): GeolocationHookResult => {
 
       // Extract location details from the response
       const address = data.address || {}
+      
+      // More comprehensive city detection
       const city = address.city ||
                    address.town ||
                    address.village ||
                    address.hamlet ||
                    address.suburb ||
                    address.county ||
+                   address.municipality ||
+                   address.city_district ||
                    'Unknown City'
 
-      const state = address.state || address.region || 'Unknown State'
+      // More comprehensive state detection
+      const state = address.state || 
+                   address.region || 
+                   address.state_district ||
+                   address.province ||
+                   'Unknown State'
+      
       const country = address.country || 'Nigeria'
+
+      console.log('🌍 Reverse geocoding result:', { 
+        lat, 
+        lng, 
+        city, 
+        state, 
+        country,
+        fullAddress: data.display_name 
+      })
 
       return { city, state, country }
     } catch (err) {
@@ -125,7 +144,11 @@ export const useGeolocation = (): GeolocationHookResult => {
   useEffect(() => {
     if (!location && !loading && !error) {
       console.log('🌍 Auto-requesting user location...')
-      requestLocation()
+      // Add a small delay to ensure the component is ready
+      const timer = setTimeout(() => {
+        requestLocation()
+      }, 100)
+      return () => clearTimeout(timer)
     }
   }, [])
 

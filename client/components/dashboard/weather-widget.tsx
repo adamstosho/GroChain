@@ -16,16 +16,18 @@ export function WeatherWidget() {
   const [isLoading, setIsLoading] = useState(true)
   const [isForecastLoading, setIsForecastLoading] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<string>("")
+  const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false)
   const { toast } = useToast()
   const { user } = useAuthStore()
   const { location: geoLocation, loading: geoLoading, error: geoError, requestLocation } = useGeolocation()
 
   // Helper function to parse and normalize location
   const parseLocation = (userObj: any) => {
-    let lat = 6.5244 // Default to Lagos
-    let lng = 3.3792
-    let city = "Lagos"
-    let state = "Lagos"
+    // Don't use hardcoded defaults - let geolocation handle it
+    let lat: number | null = null
+    let lng: number | null = null
+    let city = "Current Location"
+    let state = "Unknown State"
     let country = "Nigeria"
 
     if (userObj) {
@@ -62,7 +64,10 @@ export function WeatherWidget() {
           'Ile-Ife': [7.4824, 4.5603],
           'Ogbomosho': [8.1337, 4.1713],
           'Iseyin': [7.9667, 3.6000],
-          'Iwo': [7.6333, 4.1833]
+          'Iwo': [7.6333, 4.1833],
+          'Ado Odo Ota': [6.6167, 3.1833], // Added Ado Odo Ota, Ogun State
+          'Ota': [6.6167, 3.1833],
+          'Ado Odo': [6.6167, 3.1833]
         }
 
         if (cityCoordinates[city]) {
@@ -87,7 +92,7 @@ export function WeatherWidget() {
           return { lat, lng, city, state, country }
         } else {
           // Parse city, state format
-          const parts = trimmedLocation.split(',').map(p => p.trim())
+          const parts = trimmedLocation.split(',').map((p: string) => p.trim())
           if (parts.length >= 2) {
             city = parts[0]
             state = parts[1]
@@ -130,7 +135,10 @@ export function WeatherWidget() {
             'Ile-Ife': [7.4824, 4.5603],
             'Ogbomosho': [8.1337, 4.1713],
             'Iseyin': [7.9667, 3.6000],
-            'Iwo': [7.6333, 4.1833]
+            'Iwo': [7.6333, 4.1833],
+            'Ado Odo Ota': [6.6167, 3.1833], // Added Ado Odo Ota, Ogun State
+            'Ota': [6.6167, 3.1833],
+            'Ado Odo': [6.6167, 3.1833]
           }
 
           if (cityCoordinates[city]) {
@@ -142,14 +150,22 @@ export function WeatherWidget() {
       }
     }
 
-    console.log('📍 Using default location:', { lat, lng, city, state })
-    return { lat, lng, city, state, country }
+    // Return null coordinates to force geolocation usage
+    console.log('📍 No stored location found, will use geolocation')
+    return { lat: null, lng: null, city, state, country }
   }
 
   useEffect(() => {
     const fetchWeather = async () => {
+      // Prevent multiple simultaneous fetches
+      if (hasAttemptedFetch && isLoading) {
+        console.log('⏳ Weather fetch already in progress, skipping...')
+        return
+      }
+
       try {
         setIsLoading(true)
+        setHasAttemptedFetch(true)
 
         // Priority 1: Use actual current location from geolocation API
         let locationData: any = null
@@ -163,11 +179,26 @@ export function WeatherWidget() {
             state: geoLocation.state || 'Unknown State',
             country: geoLocation.country || 'Nigeria'
           }
+        } else if (geoLoading) {
+          // If geolocation is still loading, wait for it instead of using fallback
+          console.log('⏳ Geolocation in progress, waiting for real location...')
+          setIsLoading(false)
+          return
+        } else if (geoError) {
+          // If geolocation failed, show error instead of fallback
+          console.log('❌ Geolocation failed, showing error')
+          toast({
+            title: "Location Error",
+            description: "Unable to get your location. Please enable location permissions and refresh.",
+            variant: "destructive"
+          })
+          setIsLoading(false)
+          return
         } else {
-          // Priority 2: Fall back to stored profile data
-          console.log('📁 Falling back to stored location data')
+          // Only use stored data if geolocation is not available and not loading
+          console.log('📁 Using stored location data as last resort')
           console.log('👤 User data:', {
-            id: user?.id || user?._id,
+            id: user?._id,
             name: user?.name,
             location: user?.location,
             profile: user?.profile ? {
@@ -182,6 +213,14 @@ export function WeatherWidget() {
 
           // Parse user's stored location
           locationData = parseLocation(user)
+          
+          // If no valid coordinates found, request geolocation
+          if (!locationData.lat || !locationData.lng) {
+            console.log('📍 No valid coordinates found, requesting geolocation...')
+            requestLocation()
+            setIsLoading(false)
+            return
+          }
         }
 
         console.log('📍 Final location data:', locationData)
@@ -194,27 +233,30 @@ export function WeatherWidget() {
 
         console.log('🌤️ Fetching weather for:', { lat, lng, city, state, country })
 
-        const response = await apiService.getCurrentWeather(lat, lng, city, state, country)
+        // Add a small delay to prevent rapid requests
+        await new Promise(resolve => setTimeout(resolve, 100))
+
+        const response = await apiService.getCurrentWeather({ lat, lng, city, state, country })
 
         if (response.status === 'success' && response.data) {
           const d = response.data
           console.log('🌤️ Weather data received:', d)
 
         const mapped = {
-          location: `${d.location?.city || city}, ${d.location?.state || state}, ${d.location?.country || country}`,
+          location: `${(d.location as any)?.city || city}, ${(d.location as any)?.state || state}, ${(d.location as any)?.country || country}`,
           current: {
               temperature: Math.round(d.current?.temperature ?? 0),
             humidity: d.current?.humidity ?? 0,
               windSpeed: Math.round(d.current?.windSpeed ?? 0),
-              description: d.current?.weatherCondition || d.current?.condition || "Clear",
-              weatherIcon: d.current?.weatherIcon || "",
-              feelsLike: Math.round(d.current?.feelsLike ?? 0),
+              description: (d.current as any)?.weatherCondition || (d.current as any)?.condition || "Clear",
+              weatherIcon: (d.current as any)?.weatherIcon || "",
+              feelsLike: Math.round((d.current as any)?.feelsLike ?? 0),
           },
           agriculturalInsights: {
-              plantingRecommendations: d.agricultural?.plantingRecommendation ?
-                [d.agricultural.plantingRecommendation] : [],
+              plantingRecommendations: (d as any).agricultural?.plantingRecommendation ?
+                [(d as any).agricultural.plantingRecommendation] : [],
             harvestingRecommendations: [],
-            irrigationAdvice: d.agricultural?.irrigationAdvice || "",
+            irrigationAdvice: (d as any).agricultural?.irrigationAdvice || "",
             pestWarnings: [],
           },
         }
@@ -228,7 +270,7 @@ export function WeatherWidget() {
         // Show user-friendly error message
         const locationData = parseLocation(user?.location || "")
         setWeather({
-          location: user?.location ? `${locationData.city}, ${locationData.state}, Nigeria` : "Lagos, Lagos, Nigeria",
+          location: user?.location ? `${locationData.city}, ${locationData.state}, Nigeria` : `${locationData.city}, ${locationData.state}, Nigeria`,
           current: {
             temperature: 0,
             humidity: 0,
@@ -255,19 +297,48 @@ export function WeatherWidget() {
       }
     }
 
-    // Only fetch if user data is available or we have geolocation
-    if (user || geoLocation) {
-      console.log('🌤️ Starting weather fetch:', {
-        hasUser: !!user,
-        hasGeoLocation: !!geoLocation,
-        geoLoading,
-        geoError
-      })
-    fetchWeather()
-    } else {
-      console.log('🌤️ No user data or geolocation available for weather fetch')
+    // Only fetch if we haven't attempted yet
+    if (!hasAttemptedFetch) {
+      if (geoLocation) {
+        // If we have geolocation, use it immediately
+        console.log('🌤️ Starting weather fetch with geolocation:', {
+          hasGeoLocation: !!geoLocation,
+          geoLoading,
+          geoError,
+          hasAttemptedFetch
+        })
+        fetchWeather()
+      } else if (geoLoading) {
+        // If geolocation is loading, wait for it
+        console.log('🌤️ Waiting for geolocation to complete...')
+        setIsLoading(false)
+      } else if (user) {
+        // Only use stored data if geolocation is not available and not loading
+        console.log('🌤️ Starting weather fetch with stored data:', {
+          hasUser: !!user,
+          hasGeoLocation: !!geoLocation,
+          geoLoading,
+          geoError,
+          hasAttemptedFetch
+        })
+        fetchWeather()
+      } else {
+        console.log('🌤️ No user data or geolocation available for weather fetch')
+        setIsLoading(false)
+      }
     }
-  }, [user?.id, user?.location, geoLocation, geoLoading, geoError, toast])
+  }, [user?._id, user?.location, geoLocation, geoLoading, geoError, hasAttemptedFetch, toast])
+
+  const handleRefresh = () => {
+    console.log('🔄 Manual refresh requested')
+    // Prevent rapid refreshes
+    if (isLoading) {
+      console.log('⏳ Refresh already in progress, skipping...')
+      return
+    }
+    setHasAttemptedFetch(false)
+    setIsLoading(true)
+  }
 
   const fetchForecast = async () => {
     // Check if we have any location data
@@ -303,7 +374,7 @@ export function WeatherWidget() {
 
       console.log('🌤️ Fetching forecast for:', { lat, lng, city, state, country })
 
-      const response = await apiService.getWeatherForecast(lat, lng, 5)
+      const response = await apiService.getWeatherForecast({ lat, lng, city, state, country, days: 5 })
 
       if (response.status === 'success' && response.data) {
         console.log('🌤️ Forecast data received:', response.data)
@@ -344,11 +415,14 @@ export function WeatherWidget() {
     return date.toLocaleDateString('en-US', { weekday: 'short' })
   }
 
-  if (isLoading) {
+  if (isLoading || geoLoading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Weather</CardTitle>
+          <CardDescription>
+            {geoLoading ? "Detecting your location..." : "Loading weather data..."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-3">
@@ -361,7 +435,55 @@ export function WeatherWidget() {
     )
   }
 
+  // Debug logging
+  console.log('🌤️ Weather widget render:', {
+    isLoading,
+    hasAttemptedFetch,
+    weather: weather ? 'present' : 'null',
+    geoLocation: geoLocation ? 'present' : 'null',
+    geoLoading,
+    geoError
+  })
+
   const WeatherIcon = getWeatherIcon(weather?.current?.description || "")
+
+  // Show error state if no weather data and not loading
+  if (!weather && !isLoading && !geoLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Weather</CardTitle>
+              <CardDescription>
+                {geoError ? "Location access denied" : "Unable to load weather data"}
+              </CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isLoading}
+              title="Refresh weather data"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Cloud className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground mb-4">
+              {geoError ? "Please enable location permissions" : "Weather data unavailable"}
+            </p>
+            <Button onClick={handleRefresh} disabled={isLoading}>
+              {isLoading ? 'Loading...' : 'Try Again'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
@@ -389,11 +511,11 @@ export function WeatherWidget() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={requestLocation}
-            disabled={geoLoading}
-            title="Refresh location"
+            onClick={handleRefresh}
+            disabled={isLoading || geoLoading}
+            title="Refresh weather data"
           >
-            <RefreshCw className={`h-4 w-4 ${geoLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoading || geoLoading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </CardHeader>

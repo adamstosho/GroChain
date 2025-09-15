@@ -157,7 +157,7 @@ export default function InsurancePoliciesPage() {
       ])
 
       if (policiesResponse.status === 'success' && policiesResponse.data) {
-        const policiesData = (policiesResponse.data as any)?.policies || []
+        const policiesData = (policiesResponse.data as any).policies || policiesResponse.data || []
 
         // Transform backend data to match frontend interface
         const transformedPolicies: InsurancePolicy[] = policiesData.map((policy: any) => ({
@@ -251,7 +251,7 @@ export default function InsurancePoliciesPage() {
         // Fallback to dashboard data if insurance policies API fails
         if (dashboardResponse.status === 'success' && dashboardResponse.data) {
           const dashboardData = dashboardResponse.data as any
-          const insurancePolicies = dashboardData?.insurancePolicies || []
+          const insurancePolicies = dashboardData.insurancePolicies || []
 
           const transformedPolicies: InsurancePolicy[] = insurancePolicies.map((policy: any) => ({
             id: policy._id,

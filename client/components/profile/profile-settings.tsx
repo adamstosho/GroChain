@@ -113,7 +113,7 @@ export function ProfileSettings() {
       setIsLoading(true)
       const response = await apiService.getProfile()
       if (response.success && response.data) {
-        setProfile(response.data as PartnerProfile)
+        setProfile(response.data as unknown as PartnerProfile)
       }
     } catch (error: any) {
       toast({
@@ -132,8 +132,8 @@ export function ProfileSettings() {
     try {
       setIsSaving(true)
       const response = await apiService.updateProfile(profile)
-      if (response.success) {
-        updateUser(response.data)
+      if (response.success && response.data) {
+        updateUser(response.data as any)
         toast({
           title: "Profile updated",
           description: "Your profile has been updated successfully",

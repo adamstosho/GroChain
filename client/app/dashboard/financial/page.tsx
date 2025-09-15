@@ -108,22 +108,22 @@ export default function FinancialServicesPage() {
       ])
 
       if (financialResponse.status === 'success' && financialResponse.data) {
-        const data = financialResponse.data as any
+        const data = financialResponse.data
 
         // Transform the data to match frontend interface
         const overviewData: FinancialOverview = {
-          creditScore: data?.overview?.creditScore || 0,
-          totalEarnings: (farmerAnalytics.data as any)?.totalRevenue || data?.overview?.totalEarnings || 0,
-          pendingPayments: data?.overview?.pendingPayments || 0,
-          activeLoans: data?.overview?.activeLoans || 0,
-          insurancePolicies: data?.overview?.insurancePolicies || 0,
-          totalSavings: data?.overview?.totalSavings || 0,
-          financialGoals: data?.overview?.financialGoals || 0,
-          riskLevel: data?.overview?.riskLevel || 'medium'
+          creditScore: (data as any).overview?.creditScore || 0,
+          totalEarnings: (farmerAnalytics.data as any)?.totalRevenue || (data as any).overview?.totalEarnings || 0,
+          pendingPayments: (data as any).overview?.pendingPayments || 0,
+          activeLoans: (data as any).overview?.activeLoans || 0,
+          insurancePolicies: (data as any).overview?.insurancePolicies || 0,
+          totalSavings: (data as any).overview?.totalSavings || 0,
+          financialGoals: (data as any).overview?.financialGoals || 0,
+          riskLevel: (data as any).overview?.riskLevel || 'medium'
         }
 
         // Transform transactions
-        const transactionsData: RecentTransaction[] = (data?.recentTransactions || []).map((transaction: any) => ({
+        const transactionsData: RecentTransaction[] = ((data as any).recentTransactions || []).map((transaction: any) => ({
           _id: transaction._id,
           type: transaction.type === 'payment' || transaction.type === 'commission' ? 'income' :
                 transaction.type === 'withdrawal' ? 'expense' : transaction.type,
@@ -134,7 +134,7 @@ export default function FinancialServicesPage() {
         }))
 
         // Transform active loans
-        const loansData: ActiveLoan[] = (data?.activeLoans || []).map((loan: any) => ({
+        const loansData: ActiveLoan[] = ((data as any).activeLoans || []).map((loan: any) => ({
           _id: loan._id,
           amount: loan.amount,
           purpose: loan.purpose,
@@ -147,7 +147,7 @@ export default function FinancialServicesPage() {
         }))
 
         // Transform insurance policies
-        const policiesData: InsurancePolicy[] = (data?.insurancePolicies || []).map((policy: any) => ({
+        const policiesData: InsurancePolicy[] = ((data as any).insurancePolicies || []).map((policy: any) => ({
           _id: policy._id,
           type: policy.type,
           provider: policy.provider,

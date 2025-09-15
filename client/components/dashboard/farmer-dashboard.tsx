@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { StatsCard } from "@/components/dashboard/stats-card"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
@@ -25,8 +24,17 @@ const getCreditScoreStatus = (score: number): string => {
   return "Very poor standing"
 }
 
+interface FarmerStats {
+  totalHarvests: number
+  pendingApprovals: number
+  activeListings: number
+  monthlyRevenue: number
+  totalRevenue: number
+  totalOrders: number
+}
+
 export function FarmerDashboard() {
-  const [stats, setStats] = useState<any>(null)
+  const [stats, setStats] = useState<FarmerStats | null>(null)
   const [recentHarvests, setRecentHarvests] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -52,14 +60,22 @@ export function FarmerDashboard() {
       // Handle dashboard stats
       if (dashboardResponse.status === 'fulfilled') {
         console.log('✅ Dashboard data received:', dashboardResponse.value.data)
-        setStats(dashboardResponse.value.data)
+        const dashboardData = dashboardResponse.value.data as any
+        setStats({
+          totalHarvests: dashboardData?.totalHarvests || 0,
+          pendingApprovals: dashboardData?.pendingApprovals || 0,
+          activeListings: dashboardData?.activeListings || 0,
+          monthlyRevenue: dashboardData?.monthlyRevenue || 0,
+          totalRevenue: dashboardData?.totalRevenue || 0,
+          totalOrders: dashboardData?.totalOrders || 0
+        })
       } else {
         console.error('❌ Dashboard data failed:', dashboardResponse.reason)
       }
 
       // Handle harvests data
       if (harvestsResponse.status === 'fulfilled') {
-        const harvestData = harvestsResponse.value.harvests || harvestsResponse.value.data || []
+        const harvestData = (harvestsResponse.value as any).harvests || harvestsResponse.value.data || []
         setRecentHarvests(Array.isArray(harvestData) ? harvestData : [])
       } else {
         console.error('❌ Harvests data failed:', harvestsResponse.reason)
@@ -77,16 +93,17 @@ export function FarmerDashboard() {
       if (farmerAnalytics.status === 'fulfilled' && farmerAnalytics.value.data) {
         const analyticsData = farmerAnalytics.value.data
         setStats(prevStats => ({
-          ...prevStats,
-          totalRevenue: analyticsData.totalRevenue || 0,
-          monthlyRevenue: analyticsData.monthlyTrends?.length > 0 
-            ? analyticsData.monthlyTrends[analyticsData.monthlyTrends.length - 1]?.revenue || 0
+          totalHarvests: prevStats?.totalHarvests || 0,
+          pendingApprovals: prevStats?.pendingApprovals || 0,
+          activeListings: (analyticsData as any).totalListings || 0,
+          monthlyRevenue: (analyticsData as any).monthlyTrends?.length > 0 
+            ? (analyticsData as any).monthlyTrends[(analyticsData as any).monthlyTrends.length - 1]?.revenue || 0
             : 0,
-          totalOrders: analyticsData.totalOrders || 0,
-          activeListings: analyticsData.totalListings || 0
+          totalRevenue: (analyticsData as any).totalRevenue || 0,
+          totalOrders: (analyticsData as any).totalOrders || 0
         }))
       } else {
-        console.error('❌ Analytics data failed:', farmerAnalytics.reason)
+        console.error('❌ Analytics data failed:', farmerAnalytics.status === 'rejected' ? farmerAnalytics.reason : 'Unknown error')
       }
 
       setLastUpdated(new Date())
@@ -287,35 +304,35 @@ export function FarmerDashboard() {
           value={stats?.totalHarvests || 0}
           description="All time harvests"
           icon={Leaf}
-          trend={stats?.totalHarvests > 0 ? { value: 12, isPositive: true } : undefined}
+          trend={(stats?.totalHarvests || 0) > 0 ? { value: 12, isPositive: true } : undefined}
         />
         <StatsCard
           title="Pending Approvals"
           value={stats?.pendingApprovals || 0}
           description="Awaiting verification"
           icon={Package}
-          trend={stats?.pendingApprovals > 0 ? { value: 2, isPositive: false } : undefined}
+          trend={(stats?.pendingApprovals || 0) > 0 ? { value: 2, isPositive: false } : undefined}
         />
         <StatsCard
           title="Active Listings"
           value={stats?.activeListings || 0}
           description="In marketplace"
           icon={TrendingUp}
-          trend={stats?.activeListings > 0 ? { value: 8, isPositive: true } : undefined}
+          trend={(stats?.activeListings || 0) > 0 ? { value: 8, isPositive: true } : undefined}
         />
         <StatsCard
           title="Revenue This Month"
           value={stats?.monthlyRevenue ? `₦${stats.monthlyRevenue.toLocaleString()}` : "₦0"}
           description="From sales"
           icon={Banknote}
-          trend={stats?.monthlyRevenue > 0 ? { value: 15, isPositive: true } : undefined}
+          trend={(stats?.monthlyRevenue || 0) > 0 ? { value: 15, isPositive: true } : undefined}
         />
         <StatsCard
           title="Total Revenue"
           value={stats?.totalRevenue ? `₦${stats.totalRevenue.toLocaleString()}` : "₦0"}
           description="All time earnings"
           icon={Banknote}
-          trend={stats?.totalRevenue > 0 ? { value: 25, isPositive: true } : undefined}
+          trend={(stats?.totalRevenue || 0) > 0 ? { value: 25, isPositive: true } : undefined}
         />
       </div>
 
@@ -376,10 +393,10 @@ export function FarmerDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">Harvest Quality</span>
                     <span className="text-sm text-muted-foreground">
-                      {stats?.totalHarvests > 0 ? '85%' : 'N/A'}
+                      {(stats?.totalHarvests || 0) > 0 ? '85%' : 'N/A'}
                     </span>
                   </div>
-                  {stats?.totalHarvests > 0 && (
+                  {(stats?.totalHarvests || 0) > 0 && (
                     <Progress value={85} className="h-2" />
                   )}
                 </div>
@@ -389,10 +406,10 @@ export function FarmerDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">Market Success</span>
                     <span className="text-sm text-muted-foreground">
-                      {stats?.activeListings > 0 ? '72%' : 'N/A'}
+                      {(stats?.activeListings || 0) > 0 ? '72%' : 'N/A'}
                     </span>
                   </div>
-                  {stats?.activeListings > 0 && (
+                  {(stats?.activeListings || 0) > 0 && (
                     <Progress value={72} className="h-2" />
                   )}
                 </div>
@@ -402,10 +419,10 @@ export function FarmerDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">Revenue Growth</span>
                     <span className="text-sm text-muted-foreground">
-                      {stats?.monthlyRevenue > 0 ? '+15%' : 'N/A'}
+                      {(stats?.monthlyRevenue || 0) > 0 ? '+15%' : 'N/A'}
                     </span>
                   </div>
-                  {stats?.monthlyRevenue > 0 && (
+                  {(stats?.monthlyRevenue || 0) > 0 && (
                     <Progress value={65} className="h-2" />
                   )}
                 </div>
@@ -415,11 +432,11 @@ export function FarmerDashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">Activity Level</span>
                     <span className="text-sm text-muted-foreground">
-                      {stats?.totalHarvests > 0 ? 'Active' : 'Getting Started'}
+                      {(stats?.totalHarvests || 0) > 0 ? 'Active' : 'Getting Started'}
                     </span>
                   </div>
                   <Progress
-                    value={stats?.totalHarvests > 0 ? 80 : 20}
+                    value={(stats?.totalHarvests || 0) > 0 ? 80 : 20}
                     className="h-2"
                   />
                 </div>

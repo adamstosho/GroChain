@@ -67,9 +67,9 @@ export default function PaymentsPage() {
         const transactionResponse = await apiService.getTransactionHistory()
         console.log('✅ Transaction response:', transactionResponse)
 
-        if (transactionResponse?.status === 'success' && (transactionResponse.data as any)?.transactions) {
+        if (transactionResponse?.status === 'success' && (transactionResponse?.data as any)?.transactions) {
           setTransactions((transactionResponse.data as any).transactions)
-        } else if ((transactionResponse.data as any)?.transactions) {
+        } else if ((transactionResponse?.data as any)?.transactions) {
           // Handle direct data structure
           setTransactions((transactionResponse.data as any).transactions)
         } else {
@@ -84,7 +84,7 @@ export default function PaymentsPage() {
 
         if (ordersResponse?.status === 'success' && ordersResponse?.data) {
           // Handle the structured response from backend
-          const ordersData = (ordersResponse.data as any)?.orders || []
+          const ordersData = (ordersResponse.data as any).orders || []
           setOrders(ordersData)
         } else if (Array.isArray(ordersResponse)) {
           // Handle direct array response
@@ -140,7 +140,7 @@ export default function PaymentsPage() {
         apiService.getPaymentMethods()
       ])
 
-      if (transactionResponse?.success && (transactionResponse.data as any)?.transactions) {
+      if (transactionResponse?.success && (transactionResponse?.data as any)?.transactions) {
         setTransactions((transactionResponse.data as any).transactions)
       }
 
@@ -151,7 +151,7 @@ export default function PaymentsPage() {
         } else if ((ordersResponse.data as any)?.orders) {
           ordersData = (ordersResponse.data as any).orders
         } else if (Array.isArray(ordersResponse.data)) {
-          ordersData = ordersResponse.data
+          ordersData = ordersResponse.data as any
         }
         setOrders(ordersData)
       }

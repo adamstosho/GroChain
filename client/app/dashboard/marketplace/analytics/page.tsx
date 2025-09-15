@@ -106,28 +106,28 @@ export default function MarketplaceAnalyticsPage() {
       // Fetch real data from backend with period parameter
       const response = await apiService.getMarketplaceAnalytics(`?period=${selectedPeriod}`)
       if (response.status === 'success' && response.data) {
-        const data = response.data as any
+        const data = response.data
 
         // Format the data to match frontend expectations
         const analyticsData: AnalyticsData = {
-          period: data?.period || selectedPeriod,
-          revenue: data?.revenue || { total: 0, change: 0, trend: 'up' },
-          orders: data?.orders || { total: 0, change: 0, trend: 'up' },
-          customers: data?.customers || { total: 0, change: 0, trend: 'up' },
-          views: data?.views || { total: 0, change: 0, trend: 'up' },
-          topProducts: data?.topProducts?.slice(0, 4).map((product: any) => ({
+          period: (data as any).period || selectedPeriod,
+          revenue: (data as any).revenue || { total: 0, change: 0, trend: 'up' },
+          orders: (data as any).orders || { total: 0, change: 0, trend: 'up' },
+          customers: (data as any).customers || { total: 0, change: 0, trend: 'up' },
+          views: (data as any).views || { total: 0, change: 0, trend: 'up' },
+          topProducts: (data as any).topProducts?.slice(0, 4).map((product: any) => ({
             name: product.name || product.cropName || 'Unknown Product',
             revenue: product.revenue || 0,
             orders: product.orders || 0,
             views: product.views || 0,
             rating: product.rating || 4.0
           })) || [],
-          topCategories: data?.revenueByCategory?.map((category: any) => ({
+          topCategories: (data as any).revenueByCategory?.map((category: any) => ({
             name: category.category,
             revenue: category.revenue,
             percentage: category.percentage
           })) || [],
-          monthlyData: data?.monthlyTrends?.map((trend: any) => ({
+          monthlyData: (data as any).monthlyTrends?.map((trend: any) => ({
             month: trend.month,
             revenue: trend.revenue,
             orders: trend.orders,
@@ -136,24 +136,24 @@ export default function MarketplaceAnalyticsPage() {
           customerSegments: [
             {
               segment: 'New Customers',
-              count: data?.customerInsights?.newCustomers?.count || 0,
-              percentage: data?.customerInsights?.newCustomers?.percentage || 0,
-              revenue: data?.customerInsights?.newCustomers?.revenue || 0
+              count: (data as any).customerInsights?.newCustomers?.count || 0,
+              percentage: (data as any).customerInsights?.newCustomers?.percentage || 0,
+              revenue: (data as any).customerInsights?.newCustomers?.revenue || 0
             },
             {
               segment: 'Returning Customers',
-              count: data?.customerInsights?.returningCustomers?.count || 0,
-              percentage: data?.customerInsights?.returningCustomers?.percentage || 0,
-              revenue: data?.customerInsights?.returningCustomers?.revenue || 0
+              count: (data as any).customerInsights?.returningCustomers?.count || 0,
+              percentage: (data as any).customerInsights?.returningCustomers?.percentage || 0,
+              revenue: (data as any).customerInsights?.returningCustomers?.revenue || 0
             },
             {
               segment: 'Loyal Customers',
-              count: data?.customerInsights?.loyalCustomers?.count || 0,
-              percentage: data?.customerInsights?.loyalCustomers?.percentage || 0,
-              revenue: data?.customerInsights?.loyalCustomers?.revenue || 0
+              count: (data as any).customerInsights?.loyalCustomers?.count || 0,
+              percentage: (data as any).customerInsights?.loyalCustomers?.percentage || 0,
+              revenue: (data as any).customerInsights?.loyalCustomers?.revenue || 0
             }
           ],
-          recommendedActions: data?.recommendedActions || []
+          recommendedActions: (data as any).recommendedActions || []
         }
 
         setAnalytics(analyticsData)

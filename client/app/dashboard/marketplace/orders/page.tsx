@@ -182,7 +182,7 @@ export default function MarketplaceOrdersPage() {
       console.log("📋 Farmer Orders API Response:", response)
 
       if (response?.status === 'success' && (response.data as any)?.orders) {
-        const ordersData = (response.data as any)?.orders
+        const ordersData = (response.data as any).orders
         console.log("✅ Farmer orders data:", ordersData)
 
         // Process and format farmer's orders

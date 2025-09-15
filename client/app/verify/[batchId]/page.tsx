@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { apiService } from "@/lib/api"
+import { certificateGenerator } from "@/lib/certificate-generator"
 import {
   CheckCircle,
   XCircle,
@@ -73,44 +74,28 @@ interface VerificationPageProps {
 }
 
 export default function VerificationPage({ params }: VerificationPageProps) {
+  const resolvedParams = use(params)
   const [verificationData, setVerificationData] = useState<VerificationData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [verified, setVerified] = useState(false)
-  const [batchId, setBatchId] = useState<string>('')
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
-    const getParams = async () => {
-      const resolvedParams = await params
-      setBatchId(resolvedParams.batchId)
-    }
-    getParams()
-  }, [params])
-
-  useEffect(() => {
-    if (batchId) {
-      fetchVerificationData()
-    }
-  }, [batchId])
+    fetchVerificationData()
+  }, [resolvedParams.batchId])
 
   const fetchVerificationData = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      const response = await apiService.verifyQRCode(batchId)
+      console.log('Fetching verification data for batchId:', resolvedParams.batchId)
+      const response = await apiService.verifyQRCode(resolvedParams.batchId)
+      console.log('Verification response:', response)
       
       if (response?.status === 'success' && response?.data) {
-        // Transform the response data to match the VerificationData interface
-        const transformedData: VerificationData = {
-          ...response.data,
-          verificationUrl: (response.data as any).verificationUrl || `/verify/${batchId}`,
-          timestamp: (response.data as any).timestamp || new Date().toISOString(),
-          farmer: typeof response.data.farmer === 'string' 
-            ? { id: response.data.farmer, name: 'Unknown Farmer' }
-            : response.data.farmer
-        }
-        setVerificationData(transformedData)
+        setVerificationData(response.data as any)
         setVerified(true)
       } else {
         throw new Error('Verification failed')
@@ -125,11 +110,37 @@ export default function VerificationPage({ params }: VerificationPageProps) {
   }
 
   const formatDate = (dateString: string) => {
+    if (!dateString || dateString.trim() === '') {
+      return 'Date not available'
+    }
+    
+    const date = new Date(dateString)
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid date'
+    }
+    
     return new Intl.DateTimeFormat('en-NG', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
-    }).format(new Date(dateString))
+    }).format(date)
+  }
+
+  const handleDownloadCertificate = async () => {
+    if (!verificationData) return
+    
+    try {
+      setDownloading(true)
+      await certificateGenerator.generateCertificateFromHTML(verificationData)
+    } catch (error) {
+      console.error('Error generating certificate:', error)
+      // Fallback to direct PDF generation
+      certificateGenerator.generateCertificate(verificationData)
+    } finally {
+      setDownloading(false)
+    }
   }
 
   const formatPrice = (price: number) => {
@@ -281,6 +292,14 @@ export default function VerificationPage({ params }: VerificationPageProps) {
                       <span className="text-sm">{verificationData?.quality}</span>
                     </div>
                     
+                    {verificationData?.variety && (
+                      <div className="flex items-center space-x-2">
+                        <Leaf className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">Variety:</span>
+                        <span className="text-sm">{verificationData.variety}</span>
+                      </div>
+                    )}
+                    
                     {verificationData?.organic && (
                       <div className="flex items-center space-x-2">
                         <Leaf className="h-4 w-4 text-green-500" />
@@ -301,7 +320,10 @@ export default function VerificationPage({ params }: VerificationPageProps) {
                     <MapPin className="h-4 w-4 text-gray-500" />
                     <span className="text-sm text-gray-600">Location:</span>
                     <span className="text-sm">
-                      {verificationData?.location?.city}, {verificationData?.location?.state}, {verificationData?.location?.country}
+                      {verificationData?.location?.city && verificationData?.location?.city !== 'Unknown' 
+                        ? `${verificationData.location.city}, ${verificationData.location.state || 'Nigeria'}`
+                        : 'Location not specified'
+                      }
                     </span>
                   </div>
                   
@@ -334,8 +356,8 @@ export default function VerificationPage({ params }: VerificationPageProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{verificationData?.farmer?.name}</h3>
-                    {verificationData?.farmer?.farmName && (
+                    <h3 className="font-semibold text-gray-900">{verificationData?.farmer?.name || 'Unknown Farmer'}</h3>
+                    {verificationData?.farmer?.farmName && verificationData.farmer.farmName !== 'Unknown Farm' && (
                       <p className="text-gray-600">{verificationData.farmer.farmName}</p>
                     )}
                   </div>
@@ -361,7 +383,10 @@ export default function VerificationPage({ params }: VerificationPageProps) {
                     <span className="text-sm text-gray-600">Farm Location:</span>
                   </div>
                   <p className="text-sm">
-                    {verificationData?.location?.city}, {verificationData?.location?.state}
+                    {verificationData?.location?.city && verificationData?.location?.city !== 'Unknown'
+                      ? `${verificationData.location.city}, ${verificationData.location.state || 'Nigeria'}`
+                      : 'Location not specified'
+                    }
                   </p>
                   
                   {verificationData?.location?.coordinates && (
@@ -379,15 +404,15 @@ export default function VerificationPage({ params }: VerificationPageProps) {
           </Card>
 
           {/* Images */}
-          {verificationData?.images && verificationData.images.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <FileText className="h-5 w-5" />
-                  <span>Product Images</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <FileText className="h-5 w-5" />
+                <span>Product Images</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {verificationData?.images && verificationData.images.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {verificationData.images.map((image, index) => (
                     <div key={index} className="relative aspect-square rounded-lg overflow-hidden">
@@ -400,9 +425,14 @@ export default function VerificationPage({ params }: VerificationPageProps) {
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No product images available for this harvest</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -417,9 +447,13 @@ export default function VerificationPage({ params }: VerificationPageProps) {
                 Browse More Products
               </Link>
             </Button>
-            <Button variant="outline">
+            <Button 
+              variant="outline" 
+              onClick={handleDownloadCertificate}
+              disabled={downloading || !verificationData}
+            >
               <Download className="h-4 w-4 mr-2" />
-              Download Certificate
+              {downloading ? 'Generating...' : 'Download Certificate'}
             </Button>
           </div>
 

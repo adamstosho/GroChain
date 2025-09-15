@@ -309,7 +309,7 @@ export default function QRScannerPage() {
             unit: verificationData.unit,
             quality: verificationData.quality,
             location: verificationData.location,
-            farmer: typeof verificationData.farmer === 'string' ? { id: verificationData.farmer, name: 'Unknown Farmer' } : verificationData.farmer,
+            farmer: verificationData.farmer as any,
             status: verificationData.status,
             verified: true,
             scannedAt: new Date(),
@@ -329,7 +329,7 @@ export default function QRScannerPage() {
             location: typeof verificationData.location === 'string' 
               ? verificationData.location 
               : `${verificationData.location?.city || 'Unknown'}, ${verificationData.location?.state || 'Unknown State'}`,
-            farmer: typeof verificationData.farmer === 'object' ? (verificationData.farmer as any)?.name || 'Unknown Farmer' : 'Unknown Farmer',
+            farmer: (verificationData.farmer as any)?.name || 'Unknown Farmer',
             quantity: verificationData.quantity,
             unit: verificationData.unit,
             quality: verificationData.quality,

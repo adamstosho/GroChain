@@ -83,12 +83,12 @@ export function BuyerProfile() {
   const fetchProfile = async () => {
     try {
       setIsLoading(true)
-      const response = await apiService.getBuyerProfile()
+      const response = await apiService.getProfile()
       console.log('Buyer profile response:', response)
 
       if (response && response.data) {
-        setProfile(response.data)
-        setEditData(response.data)
+        setProfile(response.data as any)
+        setEditData(response.data as any)
       } else {
         console.log('No profile data in response')
         toast({
@@ -112,7 +112,7 @@ export function BuyerProfile() {
   const handleSave = async () => {
     try {
       setIsLoading(true)
-      await apiService.updateBuyerProfile(editData)
+      await apiService.updateProfile(editData as any)
       await fetchProfile()
       setIsEditing(false)
       toast({
@@ -150,7 +150,7 @@ export function BuyerProfile() {
       return {
         ...prev,
         [parent]: {
-          ...prev[parent as keyof typeof prev],
+          ...(prev[parent as keyof typeof prev] as any || {}),
           [field]: value
         }
       }

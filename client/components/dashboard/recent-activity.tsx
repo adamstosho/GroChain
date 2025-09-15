@@ -31,7 +31,7 @@ export function RecentActivity() {
         const response = await apiService.getRecentActivities(5)
 
         if (response.status === 'success') {
-          const activityData = response.data || []
+          const activityData = Array.isArray(response.data) ? response.data : []
           console.log('✅ Activities data received:', activityData.length, 'activities')
           setActivities(activityData.map(activity => ({
             ...activity,
@@ -45,24 +45,24 @@ export function RecentActivity() {
         console.error('❌ Failed to fetch activities:', error)
 
         // Create user-specific fallback data instead of generic mock data
-        const fallbackActivities = [
+        const fallbackActivities: Activity[] = [
           {
             _id: "fallback-1",
-            type: "order",
+            type: "order" as const,
             description: "Welcome to GroChain! Start browsing fresh produce",
             timestamp: new Date(Date.now() - 1000 * 60 * 5),
             user: "System",
           },
           {
             _id: "fallback-2",
-            type: "payment",
+            type: "payment" as const,
             description: "Your account is ready for purchases",
             timestamp: new Date(Date.now() - 1000 * 60 * 60),
             user: "System",
           }
         ]
 
-        setActivities(fallbackActivities)
+        setActivities(fallbackActivities as Activity[])
 
         // Only show toast if component is still mounted
         if (typeof window !== 'undefined') {

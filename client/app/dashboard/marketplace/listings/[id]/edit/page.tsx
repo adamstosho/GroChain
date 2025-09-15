@@ -37,7 +37,7 @@ interface ListingFormData {
   location: string
   images: string[]
   tags: string[]
-  status: 'draft' | 'active'
+  status: 'draft' | 'active' | 'inactive' | 'sold_out'
 }
 
 interface Listing {
@@ -56,7 +56,7 @@ interface Listing {
   availableQuantity: number
   images: string[]
   location: string
-  status: 'draft' | 'active' | 'inactive' | 'sold' | 'paused'
+  status: 'draft' | 'active' | 'inactive' | 'sold_out' | 'paused'
   tags: string[]
   qualityGrade: string
   organic: boolean
@@ -117,7 +117,7 @@ export default function EditListingPage() {
     status: 'draft'
   })
   const [newTag, setNewTag] = useState("")
-  const [errors, setErrors] = useState<Partial<ListingFormData>>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const { toast } = useToast()
 
@@ -134,7 +134,7 @@ export default function EditListingPage() {
       console.log('Loading listing data for ID:', id)
 
       const response = await apiService.getListingForEdit(id)
-      const listingData = (response as any)?.listing || response.data || response
+      const listingData = (response as any).listing || response.data || response
 
       if (!listingData) {
         toast({
@@ -239,10 +239,10 @@ export default function EditListingPage() {
         location: formData.location,
         images: formData.images,
         tags: formData.tags,
-        status: (formData.status === 'draft' ? 'inactive' : formData.status) as 'active' | 'inactive' | 'sold_out'
+        status: formData.status
       }
 
-      await apiService.updateListing(listingId, updateData)
+      await apiService.updateListing(listingId, updateData as any)
 
       toast({
         title: "Listing Updated Successfully! 🎉",

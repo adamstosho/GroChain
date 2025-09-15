@@ -152,7 +152,7 @@ export function UserManagement() {
       })
       
       if (response.status === 'success') {
-        const usersData = response.data.users || []
+        const usersData = (response.data as any)?.users || []
         setUsers(usersData)
         calculateStats(usersData)
       } else {
@@ -568,7 +568,7 @@ export function UserManagement() {
               />
             </div>
             
-            <Select value={filters.role} onValueChange={(value) => setFilters({ ...filters, role: value })}>
+            <Select value={filters.role} onValueChange={(value) => setFilters({ ...filters, role: value as UserFilters['role'] })}>
               <SelectTrigger>
                 <SelectValue placeholder="All Roles" />
               </SelectTrigger>
@@ -581,7 +581,7 @@ export function UserManagement() {
               </SelectContent>
             </Select>
 
-            <Select value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value })}>
+            <Select value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value as UserFilters['status'] })}>
               <SelectTrigger>
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
@@ -594,7 +594,7 @@ export function UserManagement() {
               </SelectContent>
             </Select>
 
-            <Select value={filters.emailVerified} onValueChange={(value) => setFilters({ ...filters, emailVerified: value })}>
+            <Select value={filters.emailVerified} onValueChange={(value) => setFilters({ ...filters, emailVerified: value as UserFilters['emailVerified'] })}>
               <SelectTrigger>
                 <SelectValue placeholder="Email Status" />
               </SelectTrigger>
@@ -605,7 +605,7 @@ export function UserManagement() {
               </SelectContent>
             </Select>
 
-            <Select value={filters.dateRange} onValueChange={(value) => setFilters({ ...filters, dateRange: value })}>
+            <Select value={filters.dateRange} onValueChange={(value) => setFilters({ ...filters, dateRange: value as UserFilters['dateRange'] })}>
               <SelectTrigger>
                 <SelectValue placeholder="Date Range" />
               </SelectTrigger>

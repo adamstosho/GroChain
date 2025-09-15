@@ -215,23 +215,23 @@ export function AdminSettings() {
       const safeSettings: AdminSettings = {
         privacy: {
           ...defaultSettings.privacy,
-          ...settingsData.privacy
+          ...(settingsData as any).privacy
         },
         system: {
           ...defaultSettings.system,
-          ...settingsData.system
+          ...(settingsData as any).system
         },
         preferences: {
           ...defaultSettings.preferences,
-          ...settingsData.preferences
+          ...(settingsData as any).preferences
         },
         security: {
           ...defaultSettings.security,
-          ...settingsData.security
+          ...(settingsData as any).security
         },
         data: {
           ...defaultSettings.data,
-          ...settingsData.data
+          ...(settingsData as any).data
         }
       }
 
@@ -332,7 +332,7 @@ export function AdminSettings() {
     setExporting(true)
     try {
       await exportService.exportCustomData([], {
-        format: settings?.data?.exportFormat || 'csv',
+        format: (settings?.data?.exportFormat === 'xml' ? 'csv' : settings?.data?.exportFormat) || 'csv',
         dataType: 'admin-data',
         filters: {
           includeUsers: true,

@@ -66,7 +66,7 @@ export function ReviewList({ listingId, className }: ReviewListProps) {
       })
 
       const data = response.data || response
-      const newReviews = data.reviews || []
+      const newReviews = (data as any).reviews || []
       
       if (append) {
         setReviews(prev => [...prev, ...newReviews])
@@ -75,9 +75,9 @@ export function ReviewList({ listingId, className }: ReviewListProps) {
       }
 
       setStats({
-        averageRating: data.averageRating || 0,
-        totalReviews: data.totalReviews || 0,
-        ratingDistribution: data.ratingDistribution || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+        averageRating: (data as any).averageRating || 0,
+        totalReviews: (data as any).totalReviews || 0,
+        ratingDistribution: (data as any).ratingDistribution || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
       })
 
       setHasMore(newReviews.length === 10)

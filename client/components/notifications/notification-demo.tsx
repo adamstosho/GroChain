@@ -14,15 +14,12 @@ export function NotificationDemo() {
   const createTestNotification = async (type: string, category: string) => {
     setLoading(true)
     try {
-      await api.request('/api/notifications/test', {
-        method: 'POST',
-        body: JSON.stringify({
-          type,
-          category,
-          title: `Test ${type} notification`,
-          message: `This is a test ${type} notification for ${category} category`,
-          priority: type === 'error' ? 'urgent' : 'normal'
-        })
+      await api.post('/api/notifications/test', {
+        type,
+        category,
+        title: `Test ${type} notification`,
+        message: `This is a test ${type} notification for ${category} category`,
+        priority: type === 'error' ? 'urgent' : 'normal'
       })
     } catch (error) {
       console.error('Failed to create test notification:', error)

@@ -80,8 +80,8 @@ export function FarmerSettings() {
       
       // Fetch user preferences and settings from API
       const [preferencesResponse, settingsResponse] = await Promise.all([
-        apiService.request('/api/users/preferences/me'),
-        apiService.request('/api/users/settings/me')
+        apiService.get('/api/users/preferences/me'),
+        apiService.get('/api/users/settings/me')
       ])
 
       // Set default values
@@ -140,19 +140,13 @@ export function FarmerSettings() {
       
       // Save settings to API
       await Promise.all([
-        apiService.request('/api/users/preferences/me', {
-          method: 'PUT',
-          body: JSON.stringify({
-            notifications: settings.notifications,
-            preferences: settings.preferences
-          })
+        apiService.put('/api/users/preferences/me', {
+          notifications: settings.notifications,
+          preferences: settings.preferences
         }),
-        apiService.request('/api/users/settings/me', {
-          method: 'PUT',
-          body: JSON.stringify({
-            privacy: settings.privacy,
-            security: settings.security
-          })
+        apiService.put('/api/users/settings/me', {
+          privacy: settings.privacy,
+          security: settings.security
         })
       ])
       
@@ -185,12 +179,9 @@ export function FarmerSettings() {
     try {
       setSaving(true)
       
-      await apiService.request('/api/users/change-password', {
-        method: 'POST',
-        body: JSON.stringify({
-          currentPassword,
-          newPassword
-        })
+      await apiService.post('/api/users/change-password', {
+        currentPassword,
+        newPassword
       })
       
       toast({

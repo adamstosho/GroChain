@@ -107,7 +107,7 @@ export function ReviewForm({
         const reader = new FileReader()
         reader.onload = (event) => {
           if (event.target?.result) {
-            setImages(prev => [...prev, event.target.result as string])
+            setImages(prev => [...prev, event.target!.result as string])
           }
         }
         reader.readAsDataURL(file)

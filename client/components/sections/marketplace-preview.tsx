@@ -54,7 +54,7 @@ export function MarketplacePreview() {
         sortOrder: 'desc'
       })
 
-      const listings = response.data?.listings || []
+      const listings = (response.data as any)?.listings || []
 
       // Convert backend format to frontend format
       const convertedProducts = listings.slice(0, 6).map((listing: any) => ({
@@ -206,7 +206,7 @@ export function MarketplacePreview() {
                       {typeof product.farmerName === 'string'
                         ? product.farmerName
                         : typeof product.farmerName === 'object' && product.farmerName
-                        ? product.farmerName.name || 'Local Farmer'
+                        ? (product.farmerName as any).name || 'Local Farmer'
                         : 'Local Farmer'
                       }
                     </span>
@@ -219,7 +219,7 @@ export function MarketplacePreview() {
                       {typeof product.location === 'string'
                         ? product.location
                         : typeof product.location === 'object' && product.location
-                        ? `${product.location.city || ''}, ${product.location.state || ''}`.replace(/^, |, $/, '').trim() || 'Location N/A'
+                        ? `${(product.location as any).city || ''}, ${(product.location as any).state || ''}`.replace(/^, |, $/, '').trim() || 'Location N/A'
                         : 'Location N/A'
                       }
                     </span>

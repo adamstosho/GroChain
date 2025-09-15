@@ -68,7 +68,7 @@ export function useOffline(): UseOfflineReturn {
   const syncPendingActions = useCallback(async () => {
     if (!isOnline || pendingSync.length === 0) return;
 
-    const apiService = (await import('@/lib/api')).default;
+    const { apiService } = await import('@/lib/api');
     const syncPromises = pendingSync.map(async (action) => {
       try {
         switch (action.type) {

@@ -74,7 +74,7 @@ export class ApprovalsService {
       console.log(`Found ${harvests.length} harvests from API`)
 
       // Transform backend data to match frontend interface
-      const approvals: HarvestApproval[] = harvests.map(harvest => ({
+      const approvals: HarvestApproval[] = harvests.map((harvest: any) => ({
         _id: harvest._id,
         farmer: {
           _id: harvest.farmer?._id || harvest.farmer?.id,

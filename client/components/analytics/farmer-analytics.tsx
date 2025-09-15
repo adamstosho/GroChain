@@ -106,26 +106,26 @@ export function FarmerAnalytics() {
       console.log('🔍 Analytics API Response:', {
         status: farmerAnalytics.status,
         data: farmerAnalytics.data,
-        creditScore: creditScore.data?.creditScore
+        creditScore: (creditScore.data as any)?.creditScore
       })
 
       // Process and combine the data
       const combinedData: FarmerAnalyticsData = {
-        ...farmerAnalytics.data,
-        creditScore: creditScore.data?.creditScore || 0,
-        qualityMetrics: farmerAnalytics.data.qualityMetrics || {
+        ...(farmerAnalytics.data as any),
+        creditScore: (creditScore.data as any)?.creditScore || 0,
+        qualityMetrics: (farmerAnalytics.data as any)?.qualityMetrics || {
           excellent: 0,
           good: 0,
           fair: 0,
           poor: 0
         },
-        monthlyTrends: farmerAnalytics.data.monthlyTrends || [],
-        cropDistribution: farmerAnalytics.data.cropDistribution || [],
+        monthlyTrends: (farmerAnalytics.data as any)?.monthlyTrends || [],
+        cropDistribution: (farmerAnalytics.data as any)?.cropDistribution || [],
         marketplaceStats: {
-          activeListings: farmerAnalytics.data.totalListings || 0,
+          activeListings: (farmerAnalytics.data as any)?.totalListings || 0,
           totalViews: 0,
-          conversionRate: farmerAnalytics.data.totalOrders && farmerAnalytics.data.totalListings
-            ? Math.round((farmerAnalytics.data.totalOrders / farmerAnalytics.data.totalListings) * 100)
+          conversionRate: (farmerAnalytics.data as any)?.totalOrders && (farmerAnalytics.data as any)?.totalListings
+            ? Math.round(((farmerAnalytics.data as any)?.totalOrders / (farmerAnalytics.data as any)?.totalListings) * 100)
             : 0,
           topProducts: []
         }
@@ -663,7 +663,7 @@ export function FarmerAnalytics() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {analyticsData?.monthlyTrends?.length > 0
+                  {analyticsData?.monthlyTrends?.length && analyticsData?.monthlyTrends.length > 0
                     ? analyticsData.monthlyTrends.reduce((best, current) =>
                         current.revenue > best.revenue ? current : best
                       ).month
@@ -671,9 +671,9 @@ export function FarmerAnalytics() {
                   }
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {analyticsData?.monthlyTrends?.length > 0
+                  {analyticsData?.monthlyTrends?.length && analyticsData?.monthlyTrends.length > 0
                     ? (() => {
-                        const best = analyticsData.monthlyTrends.reduce((best, current) =>
+                        const best = analyticsData?.monthlyTrends?.reduce((best, current) =>
                           current.revenue > best.revenue ? current : best
                         )
                         return `${best.harvests} harvests • ${formatCurrency(best.revenue)} • ${best.quality}% quality`
@@ -934,7 +934,7 @@ export function FarmerAnalytics() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={(props) => `${(props as any).name} ${((props as any).percent * 100).toFixed(0)}%`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
@@ -1031,7 +1031,7 @@ export function FarmerAnalytics() {
                       </div>
                       <div className="text-right">
                         <p className="font-semibold">{formatCurrency(product.revenue)}</p>
-                        <p className="text-sm text-muted-foreground">{product.rating}★</p>
+                        <p className="text-sm text-muted-foreground">{product.orders} orders</p>
                       </div>
                     </div>
                   ))}
@@ -1145,7 +1145,7 @@ export function FarmerAnalytics() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {analyticsData?.monthlyTrends?.length > 0
+                  {analyticsData?.monthlyTrends && analyticsData.monthlyTrends.length > 0
                     ? Math.round(analyticsData.monthlyTrends.reduce((sum, item) => sum + item.quality, 0) / analyticsData.monthlyTrends.length)
                     : 0}%
                 </div>
@@ -1161,10 +1161,10 @@ export function FarmerAnalytics() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {analyticsData?.monthlyTrends?.length >= 2
+                  {analyticsData?.monthlyTrends?.length && analyticsData?.monthlyTrends.length >= 2
                     ? (() => {
-                        const first = analyticsData.monthlyTrends[0].quality
-                        const last = analyticsData.monthlyTrends[analyticsData.monthlyTrends.length - 1].quality
+                        const first = analyticsData?.monthlyTrends?.[0]?.quality
+                        const last = analyticsData?.monthlyTrends?.[analyticsData?.monthlyTrends?.length - 1]?.quality
                         const change = Math.round(((last - first) / first) * 100)
                         return `${change >= 0 ? '+' : ''}${change}%`
                       })()
@@ -1183,7 +1183,7 @@ export function FarmerAnalytics() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-purple-600">
-                  {analyticsData?.monthlyTrends?.length > 0
+                  {analyticsData?.monthlyTrends && analyticsData.monthlyTrends.length > 0
                     ? Math.max(...analyticsData.monthlyTrends.map(item => item.quality))
                     : 0}%
                 </div>
@@ -1218,10 +1218,10 @@ export function FarmerAnalytics() {
                 <h4 className="font-semibold text-green-800">Revenue Growth</h4>
               </div>
               <p className="text-sm text-green-700 mb-2">
-                {analyticsData?.monthlyTrends?.length >= 2
+                {analyticsData?.monthlyTrends?.length && analyticsData?.monthlyTrends.length >= 2
                   ? (() => {
-                      const first = analyticsData.monthlyTrends[0].revenue
-                      const last = analyticsData.monthlyTrends[analyticsData.monthlyTrends.length - 1].revenue
+                      const first = analyticsData?.monthlyTrends?.[0]?.revenue
+                      const last = analyticsData?.monthlyTrends?.[analyticsData?.monthlyTrends?.length - 1]?.revenue
                       const growth = Math.round(((last - first) / first) * 100)
                       return growth >= 0
                         ? `Your revenue has grown by ${growth}% this period. Keep up the excellent work!`
@@ -1241,9 +1241,9 @@ export function FarmerAnalytics() {
                 <h4 className="font-semibold text-blue-800">Quality Focus</h4>
               </div>
               <p className="text-sm text-blue-700 mb-2">
-                {analyticsData?.monthlyTrends?.length > 0
+                {analyticsData?.monthlyTrends?.length && analyticsData?.monthlyTrends.length > 0
                   ? (() => {
-                      const avgQuality = analyticsData.monthlyTrends.reduce((sum, item) => sum + item.quality, 0) / analyticsData.monthlyTrends.length
+                      const avgQuality = analyticsData?.monthlyTrends?.reduce((sum, item) => sum + item.quality, 0) / analyticsData?.monthlyTrends?.length
                       if (avgQuality >= 90) return 'Excellent quality standards! Your products are premium grade.'
                       if (avgQuality >= 75) return 'Good quality performance. Focus on consistent harvesting practices.'
                       return 'Quality improvement needed. Review harvesting and storage techniques.'

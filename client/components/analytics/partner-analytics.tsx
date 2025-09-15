@@ -54,12 +54,12 @@ export function PartnerAnalytics() {
 
   // Mock data for charts (replace with real API calls)
   const mockFarmerGrowth: ChartData[] = [
-    { name: "Jan", farmers: 45, harvests: 120, revenue: 450000 },
-    { name: "Feb", farmers: 52, harvests: 145, revenue: 520000 },
-    { name: "Mar", farmers: 58, harvests: 168, revenue: 610000 },
-    { name: "Apr", farmers: 65, harvests: 195, revenue: 780000 },
-    { name: "May", farmers: 72, harvests: 225, revenue: 890000 },
-    { name: "Jun", farmers: 78, harvests: 248, revenue: 1020000 }
+    { name: "Jan", value: 45, farmers: 45, harvests: 120, revenue: 450000 },
+    { name: "Feb", value: 52, farmers: 52, harvests: 145, revenue: 520000 },
+    { name: "Mar", value: 58, farmers: 58, harvests: 168, revenue: 610000 },
+    { name: "Apr", value: 65, farmers: 65, harvests: 195, revenue: 780000 },
+    { name: "May", value: 72, farmers: 72, harvests: 225, revenue: 890000 },
+    { name: "Jun", value: 78, farmers: 78, harvests: 248, revenue: 1020000 }
   ]
 
   const mockRegionalDistribution: ChartData[] = [

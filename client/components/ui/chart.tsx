@@ -121,6 +121,11 @@ function ChartTooltipContent({
 }: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
   React.ComponentProps<"div"> & {
     payload?: any[]
+    label?: any
+    labelFormatter?: (value: any) => string
+    labelClassName?: string
+    formatter?: (value: any, name: any) => [string, string]
+    color?: string
     hideLabel?: boolean
     hideIndicator?: boolean
     indicator?: "line" | "dot" | "dashed"
